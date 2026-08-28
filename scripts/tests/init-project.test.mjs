@@ -160,6 +160,15 @@ describe("init-project — stamping", () => {
     assert.match(r.stdout, /TODO\(project\) markers remaining: \d+ across \d+ files/);
     assert.match(r.stdout, /\.ai\/00-charter\.md/);
   });
+
+  // Matching on extension alone omitted these two, and the CODEOWNERS marker is the one that says
+  // branch protection is still off — the condition under which RULE-01 has no mechanism at all.
+  // A count that silently drops the most consequential item reads as a count of everything.
+  test("extensionless files are counted too", () => {
+    const r = init(freshKit(), OK);
+    assert.match(r.stdout, /\.github\/CODEOWNERS/);
+    assert.match(r.stdout, /\.gitignore/);
+  });
 });
 
 describe("init-project — running twice", () => {

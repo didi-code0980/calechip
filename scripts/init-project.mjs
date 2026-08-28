@@ -198,12 +198,18 @@ const SETUP_ORDER = [
 
 const SKIP_DIRS = new Set(["node_modules", ".git", "scripts"]);
 
+// Extensionless files carry markers too, and the one in CODEOWNERS is the most consequential in the
+// kit: until branch protection requires that review, RULE-01 has no mechanism at all. Matching on
+// extension alone left it out of the report, which is worse than never printing a report — a count
+// that omits the important item reads as a count of everything.
+const EXTRA_FILES = new Set(["CODEOWNERS", ".gitignore", ".gitattributes"]);
+
 function walk(dir, out = []) {
   for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
     if (entry.isDirectory()) {
       if (SKIP_DIRS.has(entry.name)) continue;
       walk(path.join(dir, entry.name), out);
-    } else if (/\.(md|json|yaml|yml)$/.test(entry.name)) {
+    } else if (/\.(md|json|yaml|yml)$/.test(entry.name) || EXTRA_FILES.has(entry.name)) {
       out.push(path.join(dir, entry.name));
     }
   }
