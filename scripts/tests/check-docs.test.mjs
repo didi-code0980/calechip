@@ -1,0 +1,1095 @@
+// Tests for check-docs.mjs.
+//
+// **D1, group prefixes.** D1 polices feature IDs against a machine-readable list declared in
+// features.md. It ships empty, so the interesting cases are both directions: nothing declared means
+// nothing checked, and a declared prefix means a dangling ID is reported even when its group table
+// is bare — which is exactly the citation an agent writes when it has invented a feature.
+//
+// **D2, unissued IDs.** A document explaining why a number is missing has to be able to write that
+// number. Before this, check-docs.mjs forced the author of `.ai/registry/invariants.md` to split the
+// ID across two code spans to get past its own audit — a check editing the prose it is supposed to
+// be measuring.
+//
+// **D11, ADRs cited by ID.** D6 only sees references written as paths. An ADR is cited as "ADR-002",
+// so a decision could be cited by three documents while the file recording it did not exist — and
+// the citation reads as evidence that somebody decided.
+//
+// **D12, declared boundaries.** An ADR that names a revert condition is only enforced if something
+// looks. The boundary config makes that mechanical instead of remembered.
+//
+// These build a throwaway project and run the real script against it as a child process, the same
+// way the hook tests do. They assert on findings for one check at a time: a minimal fixture trips
+// several unrelated checks, so asserting on the exit code alone would pass for the wrong reason.
+
+import test from "node:test";
+import assert from "node:assert/strict";
+import { spawnSync } from "node:child_process";
+import fs from "node:fs";
+import os from "node:os";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
+
+const REPO = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..", "..");
+const SCRIPT = path.join(REPO, "scripts", "check-docs.mjs");
+
+const FRONT = ["---", "doc_version: 1", "last_updated: 2026-08-25", "governed_by: [RULE-01]", "---", ""].join("\n");
+
+const LEDGER = [
+  "## Ledger",
+  "",
+  "| ID | Invariant |",
+  "|----|-----------|",
+  "| INV-01 | An order has at most one active shipment. |",
+  "| INV-10 | No two line items reference the same SKU within an order. |",
+  "",
+].join("\n");
+
+const UNISSUED = [
+  "## Unissued IDs",
+  "",
+  "| ID | Status |",
+  "|----|--------|",
+  "| INV-09 | Never issued. Never will be. |",
+  "",
+].join("\n");
+
+/**
+ * @param invariantsBody sections of .ai/registry/invariants.md, after the front-matter
+ * @param docBody        a document under .ai/standards/ that cites invariant IDs
+ * @param extra          any further files, keyed by repo-relative path, written verbatim
+ */
+function project(invariantsBody, docBody, extra = {}) {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), "aifw-docs-"));
+  const write = (rel, body) => {
+    const abs = path.join(root, rel);
+    fs.mkdirSync(path.dirname(abs), { recursive: true });
+    fs.writeFileSync(abs, body);
+  };
+
+  write(".ai/registry/invariants.md", FRONT + "# Domain invariants\n\n" + invariantsBody);
+  write(".ai/registry/rules.md", FRONT + "| RULE-01 | Registry is read-only. | 1 | CLAUDE.md |\n");
+  write(".ai/registry/features.md", FRONT + "| ID | Title |\n|----|-------|\n");
+  write(".ai/standards/probe.md", FRONT + docBody + "\n");
+  for (const [rel, body] of Object.entries(extra)) write(rel, body);
+  return root;
+}
+
+function run(root) {
+  const res = spawnSync(process.execPath, [SCRIPT], { cwd: root, encoding: "utf8" });
+  const stdout = res.stdout ?? "";
+
+  // Findings grouped by check, so an unrelated check failing in a minimal fixture cannot make a
+  // test pass or fail for a reason it is not about. Asserting on the exit code alone would.
+  // Keyed by "KIND Dn", not by "Dn". PENDING and WARN blocks use the same row shape as FAIL, and
+  // folding them together made findings("D6") return deferred paths as if they were errors —
+  // which is precisely the distinction the phase-aware branch exists to draw.
+  const bySection = new Map();
+  let current = null;
+  for (const line of stdout.split("\n")) {
+    const header = /^(FAIL|WARN|PENDING)\s+(D\d+)\b/.exec(line);
+    if (header) {
+      current = `${header[1]} ${header[2]}`;
+      bySection.set(current, []);
+      continue;
+    }
+    if (current && line.trim().startsWith("- ")) bySection.get(current).push(line.trim());
+    else if (line.trim() === "") current = null;
+  }
+
+  const failures = (check) => bySection.get(`FAIL ${check}`) ?? [];
+
+  return {
+    code: res.status,
+    stdout,
+    findings: failures,
+    warnings: (check) => bySection.get(`WARN ${check}`) ?? [],
+    pending: (check) => bySection.get(`PENDING ${check}`) ?? [],
+    notes: stdout.split("\n").filter((l) => l.startsWith("note: ")),
+    d2: failures("D2").filter((l) => /INV-\d{2}/.test(l)),
+  };
+}
+
+/** A decisions directory holding the named ADRs, plus whatever a test adds. */
+const decisions = (...ids) =>
+  Object.fromEntries(
+    ids.map((id) => [`.ai/registry/decisions/${id}-something.md`, FRONT + `# ${id}\n`])
+  );
+
+/** A features.md declaring the given group prefixes, plus optional rows. */
+const featuresWith = (prefixes, rows = []) =>
+  FRONT +
+  "# Feature registry\n\n" +
+  `<!-- id-prefixes: ${prefixes.join(" ")} -->\n\n` +
+  "| ID | Title |\n|----|-------|\n" +
+  rows.map((r) => `| ${r} | something |\n`).join("");
+
+/** A boundaries.json declaring the given boundaries. */
+const boundaries = (...entries) =>
+  JSON.stringify({ boundaries: entries }, null, 2);
+
+// --- D1: group prefixes are declared, not inferred ---------------------------------------------
+
+test("with no id-prefixes declared, D1 checks nothing and says so", () => {
+  const r = run(project(LEDGER + UNISSUED, "This mentions ORD-01, which does not exist."));
+  assert.deepEqual(r.findings("D1"), []);
+  assert.ok(
+    r.notes.some((n) => /D1 checked nothing/.test(n)),
+    `the report must say D1 was unconfigured, got:\n${r.stdout}`
+  );
+});
+
+test("a declared prefix makes a dangling ID a D1 finding", () => {
+  const r = run(
+    project(LEDGER + UNISSUED, "This mentions ORD-01.", {
+      ".ai/registry/features.md": featuresWith(["ORD"]),
+    })
+  );
+  assert.equal(r.code, 1);
+  assert.equal(r.findings("D1").length, 1);
+  assert.match(r.findings("D1")[0], /references feature ORD-01, absent from features\.md/);
+});
+
+test("a declared prefix with a matching row resolves", () => {
+  const r = run(
+    project(LEDGER + UNISSUED, "This mentions ORD-01.", {
+      ".ai/registry/features.md": featuresWith(["ORD"], ["ORD-01"]),
+    })
+  );
+  assert.deepEqual(r.findings("D1"), []);
+});
+
+test("a prefix declared with no rows still polices its IDs", () => {
+  // The whole reason prefixes are declared rather than inferred from the rows. A group that has been
+  // reserved and never populated is exactly where an invented ID lands, and inferring the prefix set
+  // from the rows would make that group invisible.
+  const r = run(
+    project(LEDGER + UNISSUED, "This mentions PAY-03.", {
+      ".ai/registry/features.md": featuresWith(["ORD", "PAY"], ["ORD-01"]),
+    })
+  );
+  assert.equal(r.findings("D1").length, 1);
+  assert.match(r.findings("D1")[0], /PAY-03/);
+});
+
+test("an undeclared prefix is invisible to D1, which is why the line matters", () => {
+  // Documents the limit rather than pretending it away: D1 can only police prefixes it was told
+  // about. A group missing from the id-prefixes line is a group with no audit.
+  const r = run(
+    project(LEDGER + UNISSUED, "This mentions PAY-03.", {
+      ".ai/registry/features.md": featuresWith(["ORD"]),
+    })
+  );
+  assert.deepEqual(r.findings("D1"), []);
+});
+
+test("the reserved example prefix is dropped, with a note", () => {
+  // Every worked example in this kit cites EXA-01, and D1 exempts only .ai/templates/ and
+  // features.md. A project that declared EXA as a real group would be policing the operating model,
+  // the standards and the commands — a dozen documents it never wrote, none of which it should edit.
+  const r = run(
+    project(LEDGER + UNISSUED, "This mentions EXA-01.", {
+      ".ai/registry/features.md": featuresWith(["EXA"]),
+    })
+  );
+  assert.deepEqual(r.findings("D1"), []);
+  assert.ok(
+    r.notes.some((n) => /reserved/.test(n) && /EXA/.test(n)),
+    `the report must say EXA was ignored and why, got:\n${r.stdout}`
+  );
+});
+
+test("reserving EXA does not disable the prefixes declared beside it", () => {
+  const r = run(
+    project(LEDGER + UNISSUED, "This mentions EXA-01 and ORD-01.", {
+      ".ai/registry/features.md": featuresWith(["EXA", "ORD"]),
+    })
+  );
+  assert.equal(r.findings("D1").length, 1);
+  assert.match(r.findings("D1")[0], /ORD-01/);
+});
+
+test("templates are exempt from D1 — they carry example IDs by definition", () => {
+  const r = run(
+    project(LEDGER + UNISSUED, "x", {
+      ".ai/registry/features.md": featuresWith(["ORD"]),
+      ".ai/templates/ticket.yaml": "id: ORD-01\n",
+      ".ai/templates/probe.md": FRONT + "Copy this for ORD-01.\n",
+    })
+  );
+  assert.deepEqual(r.findings("D1"), []);
+});
+
+test("this repository's real features.md declares no prefixes, and that is the shipping state", () => {
+  // Built from the real file per "Fixtures that share the implementation's assumptions" in
+  // testing-standards.md. If a project fills the line in, this test fails and the reader is told to
+  // update it — which is the correct moment to notice that D1 has started checking.
+  const real = fs.readFileSync(path.join(REPO, ".ai/registry/features.md"), "utf8");
+  const declared = /<!--\s*id-prefixes:\s*([^>]*?)-->/.exec(real);
+  assert.ok(declared, "the id-prefixes line has been removed from features.md — D1 cannot be configured");
+  assert.equal(
+    declared[1].trim(),
+    "",
+    "features.md now declares prefixes. That is expected once a project starts; update this test to " +
+      "assert the real list instead of an empty one."
+  );
+});
+
+// --- D2: the unissued path ---------------------------------------------------------------------
+
+test("citing an unissued ID does not fail D2", () => {
+  const r = run(project(LEDGER + UNISSUED, "The ledger skips INV-09 deliberately."));
+  assert.deepEqual(r.d2, [], "INV-09 is listed under Unissued IDs and must resolve");
+});
+
+test("an unissued ID is not treated as issued", () => {
+  // The Unissued table uses the same row shape as the ledger. A file-wide regex would read INV-09
+  // as a real invariant, which is the precise opposite of what that section declares.
+  const r = run(project(LEDGER + UNISSUED, "x"));
+  assert.match(r.stdout, /docs-audit/);
+  assert.ok(
+    !r.stdout.includes("INV-09 is in both"),
+    "a clean file must not report the both-tables contradiction"
+  );
+});
+
+test("an issued ID still resolves alongside an unissued one", () => {
+  const r = run(project(LEDGER + UNISSUED, "See INV-01 and INV-10, and note the gap at INV-09."));
+  assert.deepEqual(r.d2, []);
+});
+
+test("prose mentions inside the Unissued section do not become unissued IDs", () => {
+  // "The next invariant issued will be INV-11" is a forward-looking sentence, not a row. Citing
+  // INV-11 from another document must still fail.
+  const unissuedWithProse = UNISSUED + "\nThe next invariant issued will be INV-11.\n\n";
+  const r = run(project(LEDGER + unissuedWithProse, "Depends on INV-11."));
+  assert.equal(r.d2.length, 1);
+  assert.match(r.d2[0], /references INV-11, absent from invariants\.md/);
+});
+
+test("citing an ID that is neither issued nor unissued fails D2", () => {
+  const r = run(project(LEDGER + UNISSUED, "Held by INV-42."));
+  assert.equal(r.code, 1);
+  assert.equal(r.d2.length, 1);
+  assert.match(r.d2[0], /probe\.md: references INV-42, absent from invariants\.md/);
+});
+
+test("the unissued table does not whitelist every ID", () => {
+  const r = run(project(LEDGER + UNISSUED, "INV-09 is fine but INV-08 was never added to this ledger."));
+  assert.equal(r.d2.length, 1, `expected only INV-08 to fail, got: ${r.d2.join(" | ")}`);
+  assert.match(r.d2[0], /INV-08/);
+});
+
+test("with no Unissued section at all, D2 behaves as it did before", () => {
+  const r = run(project(LEDGER, "The gap at INV-09."));
+  assert.equal(r.code, 1);
+  assert.equal(r.d2.length, 1);
+  assert.match(r.d2[0], /references INV-09, absent from invariants\.md/);
+});
+
+test("invariants.md may cite anything, including a future ID", () => {
+  // The registry file is exempt from D2 against itself; the file has to be able to discuss IDs it
+  // does not list.
+  const body = LEDGER + UNISSUED + "\nThe next invariant issued will be INV-11.\n";
+  const r = run(project(body, "x"));
+  assert.deepEqual(r.d2, []);
+});
+
+test("an ID in both tables is reported rather than silently dropped", () => {
+  const contradiction = [
+    "## Ledger",
+    "",
+    "| ID | Invariant |",
+    "|----|-----------|",
+    "| INV-01 | An order has at most one active shipment. |",
+    "| INV-09 | Something. |",
+    "",
+  ].join("\n");
+  const r = run(project(contradiction + UNISSUED, "x"));
+  assert.equal(r.code, 1);
+  assert.match(r.stdout, /INV-09 is in both the ledger and the Unissued IDs table/);
+});
+
+test("an empty ledger is reported as unconfigured rather than passing silently", () => {
+  const r = run(project("## Ledger\n\n| ID | Invariant |\n|----|-----------|\n", "x"));
+  assert.ok(
+    r.notes.some((n) => /D2 has an empty ledger/.test(n)),
+    `the report must say the ledger is empty, got:\n${r.stdout}`
+  );
+});
+
+test("this repository's real invariants.md ships with an empty ledger", () => {
+  const real = fs.readFileSync(path.join(REPO, ".ai/registry/invariants.md"), "utf8");
+  const rows = real.split(/\r?\n/).filter((l) => /^\|\s*INV-\d{2}\s*\|/.test(l));
+  assert.deepEqual(
+    rows,
+    [],
+    "invariants.md now has rows. That is expected once a project starts; update this test to assert " +
+      "the real ledger instead of an empty one."
+  );
+});
+
+// --- D11: ADRs cited by ID resolve to a file ---------------------------------------------------
+
+test("citing an ADR that exists passes D11", () => {
+  const r = run(project(LEDGER + UNISSUED, "The provider decision is ADR-002.", decisions("ADR-002")));
+  assert.deepEqual(r.findings("D11"), []);
+});
+
+test("citing an ADR with no file fails D11", () => {
+  const r = run(project(LEDGER + UNISSUED, "The provider decision is ADR-002.", decisions("ADR-001")));
+  assert.equal(r.code, 1);
+  assert.equal(r.findings("D11").length, 1);
+  assert.match(r.findings("D11")[0], /probe\.md: references ADR-002, which has no file in \.ai\/registry\/decisions\//);
+});
+
+test("D11 covers ticket.yaml, where a schema_delta links its approved ADR", () => {
+  const r = run(
+    project(LEDGER + UNISSUED, "x", {
+      ...decisions("ADR-001"),
+      ".ai/board/tickets/ORD-01/ticket.yaml": "id: ORD-01\nschema_delta: see ADR-007\n",
+    })
+  );
+  assert.equal(r.findings("D11").length, 1);
+  assert.match(r.findings("D11")[0], /ticket\.yaml: references ADR-007/);
+});
+
+test("D11 matches an ADR by its file prefix, not the whole filename", () => {
+  const r = run(
+    project(LEDGER + UNISSUED, "See ADR-002.", {
+      ".ai/registry/decisions/ADR-002-a-long-kebab-title.md": FRONT + "# ADR-002\n",
+    })
+  );
+  assert.deepEqual(r.findings("D11"), []);
+});
+
+test("templates are exempt from D11 — they carry example IDs by definition", () => {
+  const r = run(
+    project(LEDGER + UNISSUED, "x", {
+      ...decisions("ADR-001"),
+      ".ai/templates/tech-design.md": FRONT + "Link the ADR, e.g. ADR-042.\n",
+    })
+  );
+  assert.deepEqual(r.findings("D11"), []);
+});
+
+test("the ADR-nnn placeholder is not a reference", () => {
+  const r = run(project(LEDGER + UNISSUED, "Copy this to ADR-nnn-title.md.", decisions("ADR-001")));
+  assert.deepEqual(r.findings("D11"), []);
+});
+
+test("an ADR citing its own ID resolves", () => {
+  const r = run(project(LEDGER + UNISSUED, "x", decisions("ADR-001")));
+  assert.deepEqual(r.findings("D11"), []);
+});
+
+test("with no decisions directory at all, every citation fails", () => {
+  const r = run(project(LEDGER + UNISSUED, "See ADR-001."));
+  assert.equal(r.findings("D11").length, 1);
+  assert.match(r.findings("D11")[0], /ADR-001/);
+});
+
+test("every ADR this repository ships is cited-and-resolvable in its own tree", () => {
+  // Real-file test. The three carried ADRs cite each other and cite themselves; a rename that broke
+  // the ID-to-filename mapping would be invisible to every fixture above.
+  const dir = path.join(REPO, ".ai/registry/decisions");
+  const ids = fs.readdirSync(dir).map((f) => /^(ADR-\d{3})/.exec(f)?.[1]).filter(Boolean);
+  assert.ok(ids.length >= 3, `expected the carried ADRs, found: ${ids.join(", ")}`);
+  const extra = Object.fromEntries(
+    fs.readdirSync(dir).map((f) => [`.ai/registry/decisions/${f}`, fs.readFileSync(path.join(dir, f), "utf8")])
+  );
+  const r = run(project(LEDGER + UNISSUED, "x", extra));
+  assert.deepEqual(r.findings("D11"), [], `the shipped ADRs must resolve against each other:\n${r.stdout}`);
+});
+
+// --- D12: the declared boundaries hold ----------------------------------------------------------
+//
+// The origin project hard-coded one vendor, one permitted package and one exempt directory here.
+// The shape survived generalisation; the constants moved into .ai/registry/boundaries.json, which
+// is registry plane and therefore governed by RULE-01 — changing a boundary is changing a decision.
+
+const BOUND = {
+  id: "seam-single-door",
+  adr: "ADR-002",
+  package_prefix: "@vendor/",
+  allowed_packages: ["@vendor/server"],
+  lint_config: "lint.config.mjs",
+  source_roots: ["src"],
+  exempt_dirs: ["src/lib/auth/"],
+  forbidden_exemption_substring: "lib/data",
+  reason: "a client constructed outside the seam is a second path to the datastore",
+};
+
+const LINT = (patterns, files = '["src/lib/data/orm/**/*.ts"]') => `
+const RESTRICTED = ["error", { patterns: [{ group: ${patterns}, message: "seam" }] }];
+export default [
+  { rules: { "no-restricted-imports": RESTRICTED } },
+  { files: ${files}, rules: { "no-restricted-imports": "off" } },
+];
+`;
+
+const PKG = (deps = {}) => JSON.stringify({ name: "p", version: "1.0.0", ...deps }, null, 2);
+
+test("with no boundaries declared, D12 checks nothing and says so", () => {
+  const r = run(project(LEDGER + UNISSUED, "x", {
+    ...decisions("ADR-002"),
+    ".ai/registry/boundaries.json": boundaries(),
+    "package.json": PKG({ dependencies: { "@vendor/browser": "1.0.0" } }),
+  }));
+  assert.deepEqual(r.findings("D12"), []);
+  assert.ok(r.notes.some((n) => /D12 checked nothing/.test(n)), r.stdout);
+});
+
+test("a missing boundaries.json is reported as unconfigured, not passed over", () => {
+  const r = run(project(LEDGER + UNISSUED, "x", decisions("ADR-002")));
+  assert.deepEqual(r.findings("D12"), []);
+  assert.ok(r.notes.some((n) => /boundaries\.json is missing/.test(n)), r.stdout);
+});
+
+test("a boundaries.json that is not valid JSON is a finding", () => {
+  const r = run(project(LEDGER + UNISSUED, "x", {
+    ".ai/registry/boundaries.json": "{ this is not json",
+  }));
+  assert.equal(r.code, 1);
+  assert.equal(r.findings("D12").length, 1);
+  assert.match(r.findings("D12")[0], /not valid JSON/);
+});
+
+test("a forbidden package in the manifest fails D12 and cites its ADR", () => {
+  // The dangerous ordering: dependency added, lint list untouched, import unrestricted.
+  const r = run(project(LEDGER + UNISSUED, "x", {
+    ...decisions("ADR-002"),
+    ".ai/registry/boundaries.json": boundaries(BOUND),
+    "package.json": PKG({ dependencies: { next: "16.3.0", "@vendor/browser": "2.0.0" } }),
+  }));
+  assert.equal(r.code, 1);
+  assert.equal(r.findings("D12").length, 1);
+  assert.match(r.findings("D12")[0], /dependencies includes @vendor\/browser/);
+  assert.match(r.findings("D12")[0], /ADR-002/);
+  assert.match(r.findings("D12")[0], /second path to the datastore/);
+});
+
+for (const field of ["dependencies", "devDependencies", "peerDependencies"]) {
+  test(`D12 checks ${field}`, () => {
+    const r = run(project(LEDGER + UNISSUED, "x", {
+      ...decisions("ADR-002"),
+      ".ai/registry/boundaries.json": boundaries(BOUND),
+      "package.json": PKG({ [field]: { "@vendor/browser": "1.0.0" } }),
+    }));
+    assert.equal(r.findings("D12").length, 1, `${field} was not checked`);
+    assert.match(r.findings("D12")[0], new RegExp(`${field} includes @vendor/browser`));
+  });
+}
+
+test("the permitted package alone does not fail D12", () => {
+  const r = run(project(LEDGER + UNISSUED, "x", {
+    ...decisions("ADR-002"),
+    ".ai/registry/boundaries.json": boundaries(BOUND),
+    "package.json": PKG({ dependencies: { "@vendor/server": "1.0.0" } }),
+    "lint.config.mjs": LINT('["@vendor/"]'),
+  }));
+  assert.deepEqual(r.findings("D12"), []);
+});
+
+test("a package outside the watched prefix is not a boundary breach", () => {
+  const r = run(project(LEDGER + UNISSUED, "x", {
+    ...decisions("ADR-002"),
+    ".ai/registry/boundaries.json": boundaries(BOUND),
+    "package.json": PKG({ devDependencies: { vendor: "1.0.0" } }),
+  }));
+  assert.deepEqual(r.findings("D12"), []);
+});
+
+// --- D12 via the lint config: the finding is an ABSENCE -----------------------------------------
+
+test("a permitted package in the tree with no lint restriction fails D12", () => {
+  // The inversion. Every other branch reports something present; this one reports something missing,
+  // because a package with nothing restricting it is the dangerous state.
+  const r = run(project(LEDGER + UNISSUED, "x", {
+    ...decisions("ADR-002"),
+    ".ai/registry/boundaries.json": boundaries(BOUND),
+    "package.json": PKG({ dependencies: { "@vendor/server": "1.0.0" } }),
+    "lint.config.mjs": LINT('["@orm/client"]'),
+  }));
+  assert.equal(r.code, 1);
+  assert.equal(r.findings("D12").length, 1);
+  assert.match(r.findings("D12")[0], /no restriction names @vendor\//);
+});
+
+test("with the package absent, an unrestricted lint config is not a finding", () => {
+  // Nothing to restrict. Reporting here would train people to add restrictions for packages they do
+  // not use, which is noise that makes the real finding harder to see.
+  const r = run(project(LEDGER + UNISSUED, "x", {
+    ...decisions("ADR-002"),
+    ".ai/registry/boundaries.json": boundaries(BOUND),
+    "package.json": PKG({ dependencies: { "@orm/client": "1.0.0" } }),
+    "lint.config.mjs": LINT('["@orm/client"]'),
+  }));
+  assert.deepEqual(r.findings("D12"), []);
+});
+
+test("an exemption naming the forbidden substring for this vendor fails D12", () => {
+  const r = run(project(LEDGER + UNISSUED, "x", {
+    ...decisions("ADR-002"),
+    ".ai/registry/boundaries.json": boundaries(BOUND),
+    "lint.config.mjs": LINT('["@vendor/"]', '["src/lib/data/vendor/**/*.ts"]'),
+  }));
+  assert.equal(r.findings("D12").length, 1);
+  assert.match(r.findings("D12")[0], /exempts a path containing "lib\/data"/);
+});
+
+test("the documented blind spot: a vendor-free seam exemption is NOT caught here", () => {
+  // Deliberate, and asserted so it stays deliberate. "src/lib/data/**" names no vendor and is
+  // indistinguishable by a string scanner from a legitimate exemption beside it. The source-root
+  // branch covers the consequence instead: the guard can be loosened silently, the door cannot be
+  // opened silently.
+  const r = run(project(LEDGER + UNISSUED, "x", {
+    ...decisions("ADR-002"),
+    ".ai/registry/boundaries.json": boundaries(BOUND),
+    "lint.config.mjs": LINT('["@vendor/"]', '["src/lib/data/**"]'),
+  }));
+  assert.deepEqual(
+    r.findings("D12"),
+    [],
+    "if this now reports, the check has gained structural parsing and this test should be inverted"
+  );
+});
+
+test("a comment mentioning the vendor does not fail D12", () => {
+  // A check that fired on its own rationale would teach people to delete the rationale.
+  const r = run(project(LEDGER + UNISSUED, "x", {
+    ...decisions("ADR-002"),
+    ".ai/registry/boundaries.json": boundaries(BOUND),
+    "package.json": PKG({ dependencies: { "@vendor/server": "1.0.0" } }),
+    "lint.config.mjs":
+      "// No @vendor/browser exists here; ADR-002 keeps it out.\n/* @vendor is out of scope */\n" +
+      LINT('["@vendor/"]'),
+  }));
+  assert.deepEqual(r.findings("D12"), []);
+});
+
+test("D12 survives glob patterns that contain slash-star and star-slash", () => {
+  // The regression that shipped in the origin project: stripping block comments with a regular
+  // expression made "@orm/client/*" open a comment which closed inside "**/generated/orm", deleting
+  // every entry between them — including the one being looked for. Fixtures with simple patterns did
+  // not reproduce it; a realistic pattern list did.
+  const realistic = `
+const RESTRICTED = ["error", { patterns: [{ group: [
+  "@orm/client",
+  "@orm/client/*",
+  "**/generated/orm",
+  "**/generated/orm/**",
+  "@vendor/",
+  "@/lib/data/orm/**",
+  "**/lib/data/orm/**",
+], message: "seam" }] }];
+export default [{ rules: { "no-restricted-imports": RESTRICTED } }];
+`;
+  const r = run(project(LEDGER + UNISSUED, "x", {
+    ...decisions("ADR-002"),
+    ".ai/registry/boundaries.json": boundaries(BOUND),
+    "package.json": PKG({ dependencies: { "@vendor/server": "1.0.0" } }),
+    "lint.config.mjs": realistic,
+  }));
+  assert.deepEqual(
+    r.findings("D12"),
+    [],
+    `the restriction is present in that list and must be seen: ${r.stdout}`
+  );
+});
+
+test("no lint config at all is not a D12 failure", () => {
+  // Before the scaffold there is no lint config. Absence of the file is not a second door.
+  const r = run(project(LEDGER + UNISSUED, "x", {
+    ...decisions("ADR-002"),
+    ".ai/registry/boundaries.json": boundaries(BOUND),
+    "package.json": PKG({ dependencies: { "@vendor/server": "1.0.0" } }),
+  }));
+  assert.deepEqual(r.findings("D12"), []);
+});
+
+// --- D12 via the source tree: the breach itself -------------------------------------------------
+
+test("an import of the prefix outside the exempt directory fails D12", () => {
+  const r = run(project(LEDGER + UNISSUED, "x", {
+    ...decisions("ADR-002"),
+    ".ai/registry/boundaries.json": boundaries(BOUND),
+    "src/components/order-list.tsx": 'import { c } from "@vendor/browser";\n',
+  }));
+  assert.equal(r.code, 1);
+  assert.equal(r.findings("D12").length, 1);
+  assert.match(r.findings("D12")[0], /order-list\.tsx: names @vendor\/browser outside src\/lib\/auth\//);
+});
+
+test("the same import inside the exempt directory passes", () => {
+  const r = run(project(LEDGER + UNISSUED, "x", {
+    ...decisions("ADR-002"),
+    ".ai/registry/boundaries.json": boundaries(BOUND),
+    "src/lib/auth/session.ts": 'import { c } from "@vendor/server";\n',
+  }));
+  assert.deepEqual(r.findings("D12"), []);
+});
+
+test("both routes report independently", () => {
+  const r = run(project(LEDGER + UNISSUED, "x", {
+    ...decisions("ADR-002"),
+    ".ai/registry/boundaries.json": boundaries(BOUND),
+    "package.json": PKG({ dependencies: { "@vendor/browser": "2.0.0" } }),
+    "src/components/order-list.tsx": 'import { c } from "@vendor/browser";\n',
+  }));
+  assert.equal(r.findings("D12").length, 2);
+  assert.ok(r.findings("D12").some((l) => l.includes("package.json")));
+  assert.ok(r.findings("D12").some((l) => l.includes("order-list.tsx")));
+});
+
+test("a boundary with no package_prefix is reported rather than silently skipped", () => {
+  const r = run(project(LEDGER + UNISSUED, "x", {
+    ".ai/registry/boundaries.json": boundaries({ id: "half-written" }),
+  }));
+  assert.equal(r.findings("D12").length, 1);
+  assert.match(r.findings("D12")[0], /boundary half-written has no package_prefix/);
+});
+
+test("this repository's real boundaries.json parses and declares nothing", () => {
+  // Real-file test, per "Fixtures that share the implementation's assumptions" in
+  // testing-standards.md. It is the only one available while the list is empty. THE FIRST PROJECT TO
+  // DECLARE A BOUNDARY OWES THIS RULE A REAL-FILE TEST against the lint config it names.
+  const real = fs.readFileSync(path.join(REPO, ".ai/registry/boundaries.json"), "utf8");
+  const parsed = JSON.parse(real);
+  assert.ok(Array.isArray(parsed.boundaries), "boundaries must be an array");
+  assert.deepEqual(
+    parsed.boundaries,
+    [],
+    "boundaries.json now declares a boundary. Add a real-file test against the config it names, then " +
+      "update this assertion."
+  );
+  const r = run(project(LEDGER + UNISSUED, "x", { ".ai/registry/boundaries.json": real }));
+  assert.deepEqual(r.findings("D12"), []);
+});
+
+// --- D9: scoped to documents a human owns ------------------------------------------------------
+//
+// D9 requires doc_version, last_updated and governed_by. It used to read every .md under .ai/, which
+// included agent-produced board artifacts. The first story written under that scope failed it and
+// the fields were pasted into the artifact to clear the failure — the check was satisfied rather
+// than reported, which is what a check on agent output gets.
+//
+// The artifact below is built from the REAL story template rather than hand-written, per "Fixtures
+// that share the implementation's assumptions" in testing-standards.md. A hand-written stub would
+// carry whatever front-matter the author of the scope rule imagined a story carries; the template is
+// the file the artifact is actually copied from.
+
+/** The artifact front-matter block a story really carries, read out of the real template. */
+function storyArtifact() {
+  const tpl = fs.readFileSync(path.join(REPO, ".ai/templates/story.md"), "utf8");
+  const block = /```yaml\n([\s\S]*?)```/.exec(tpl);
+  assert.ok(block, "the story template no longer contains a fenced yaml front-matter block");
+  return block[1] + "\n# Feature\n\nSomething.\n";
+}
+
+test("the real story template carries artifact front-matter and no document front-matter", () => {
+  // Guards the premise rather than the check. If a future template does carry doc_version, this
+  // fails and someone reads why — instead of the scope rule quietly protecting a pasted field.
+  const fm = /^---\r?\n([\s\S]*?)\r?\n---/.exec(storyArtifact());
+  assert.ok(fm, "the artifact block has no front-matter at all");
+  for (const field of ["ticket", "stage", "agent", "gate", "chat_before_verdict"]) {
+    assert.match(fm[1], new RegExp(`^${field}:`, "m"), `artifact front-matter is missing ${field}`);
+  }
+  for (const field of ["doc_version", "last_updated", "governed_by"]) {
+    assert.ok(
+      !new RegExp(`^${field}:`, "m").test(fm[1]),
+      `${field} is in the artifact front-matter — the workaround has returned`
+    );
+  }
+});
+
+test("a board artifact is not a D9 finding", () => {
+  const r = run(project(LEDGER + UNISSUED, "x", {
+    ".ai/board/tickets/ORD-01/01-story.md": storyArtifact(),
+  }));
+  assert.deepEqual(
+    r.findings("D9"),
+    [],
+    "a board artifact carries artifact front-matter, not document front-matter"
+  );
+});
+
+test("D9 is scoped by path, not switched off: the same artifact under .ai/standards/ is reported", () => {
+  // The failure mode of a narrowing is narrowing to nothing. Same bytes, human-owned plane, and all
+  // three findings must appear.
+  const r = run(project(LEDGER + UNISSUED, "x", { ".ai/standards/probe2.md": storyArtifact() }));
+  const d9 = r.findings("D9").filter((l) => l.includes("probe2.md"));
+  assert.equal(d9.length, 3, `expected all three fields reported, got: ${d9.join(" | ")}`);
+  assert.ok(d9.some((l) => /no doc_version/.test(l)));
+  assert.ok(d9.some((l) => /no last_updated/.test(l)));
+  assert.ok(d9.some((l) => /no governed_by/.test(l)));
+});
+
+test("a registry document with no front-matter still fails D9", () => {
+  const r = run(project(LEDGER + UNISSUED, "x", {
+    ".ai/registry/probe3.md": "# No front-matter here\n",
+  }));
+  assert.equal(r.code, 1);
+  assert.equal(r.findings("D9").length, 1);
+  assert.match(r.findings("D9")[0], /probe3\.md: has no front-matter/);
+});
+
+test("the operating model and the charter stay in scope", () => {
+  // Neither is under .ai/registry/, and both are human-owned. The operating model cites more rules in
+  // governed_by than any other document, so it is where a rule-version bump goes stale first.
+  const r = run(project(LEDGER + UNISSUED, "x", {
+    ".ai/00-charter.md": "# Charter\n",
+    ".ai/01-operating-model.md": "# Operating model\n",
+  }));
+  const named = r.findings("D9").filter((l) => /00-charter|01-operating-model/.test(l));
+  assert.equal(named.length, 2, `both must be checked, got: ${named.join(" | ")}`);
+});
+
+test("templates stay in scope", () => {
+  const r = run(project(LEDGER + UNISSUED, "x", { ".ai/templates/story.md": "# Story template\n" }));
+  assert.equal(r.findings("D9").filter((l) => l.includes("templates/story.md")).length, 1);
+});
+
+test("a rule-version bump the document has not caught up with still fails D9", () => {
+  // The half of D9 that does not care about presence: governed_by naming a rule at a version above
+  // the document's own. This is step 4 of "Changing a rule" in rules.md.
+  const r = run(project(LEDGER + UNISSUED, "x", {
+    ".ai/registry/rules.md": FRONT + "| RULE-01 | Registry is read-only. | 2 | CLAUDE.md |\n",
+  }));
+  const stale = r.findings("D9").filter((l) => /RULE-01 at v2 but doc_version is 1/.test(l));
+  assert.ok(stale.length > 0, `expected a version-drift finding, got:\n${r.stdout}`);
+});
+
+test("board files other than tickets are out of scope too", () => {
+  // backlog.md and metrics.md are written by the orchestrator. A check an agent can silence by
+  // editing its own output measures compliance, not the document.
+  const r = run(project(LEDGER + UNISSUED, "x", {
+    ".ai/board/backlog.md": "# Backlog\n",
+    ".ai/board/metrics.md": "# Metrics\n",
+  }));
+  assert.deepEqual(r.findings("D9").filter((l) => l.includes(".ai/board/")), []);
+});
+
+test("every human-owned document this repository ships passes D9 in its own tree", () => {
+  // The real-file test for D9. Fixtures prove the rule; this proves the shipped documents obey it.
+  const res = spawnSync(process.execPath, [SCRIPT], { cwd: REPO, encoding: "utf8" });
+  assert.ok(!/^FAIL D9/m.test(res.stdout ?? ""), `the shipped tree fails D9:\n${res.stdout}`);
+});
+
+// --- D13: every Definition of Ready item is satisfiable ----------------------------------------
+
+// NOTE: this fixture enum deliberately puts READY BEFORE SPEC — the ordering the origin project
+// had before D13 existed. It is what makes "produced at SPEC" late relative to the gate, which is
+// the defect these fixtures exercise. The real .ai/templates/ticket.yaml has the corrected order,
+// and the real-document tests further down use it.
+const ENUM = "# state enum: IDEA TRIAGE BACKLOG READY SPEC DESIGN IN_PROGRESS REVIEW QA REWORK ESCALATED DONE";
+
+/** An operating model with the given DoR bullet lines. */
+const OPMODEL = (items) =>
+  FRONT + "# Operating model\n\n## Definition of Ready\n\n" + items.join("\n") + "\n\n## WIP\n\nWIP = 1.\n";
+
+const dorProject = (items, opts = {}) =>
+  project(LEDGER + UNISSUED, "x", {
+    ...decisions("ADR-002"),
+    ".ai/templates/ticket.yaml": (opts.enumLine ?? ENUM) + "\nid: X\n",
+    ".ai/01-operating-model.md": OPMODEL(items),
+  });
+
+test("a DoR item produced before READY passes D13", () => {
+  const r = run(dorProject(["- `feature_ids` non-empty. Added by a human at BACKLOG."]));
+  assert.deepEqual(r.findings("D13"), []);
+});
+
+test("a DoR item produced after READY fails D13", () => {
+  // The defect this check exists for: DoR gates READY, so a field only SPEC can set is unreachable.
+  const r = run(dorProject(["- `size_estimate` is S or M. Set by the BA at SPEC from the story."]));
+  assert.equal(r.code, 1);
+  assert.equal(r.findings("D13").length, 1);
+  assert.match(r.findings("D13")[0], /produced at SPEC, which is after READY/);
+  assert.match(r.findings("D13")[0], /can never be satisfied/);
+});
+
+test("DESIGN is also after READY", () => {
+  const r = run(dorProject(["- `allowed_paths` enumerated at DESIGN."]));
+  assert.equal(r.findings("D13").length, 1);
+  assert.match(r.findings("D13")[0], /produced at DESIGN/);
+});
+
+test("an item attributing no stage fails D13", () => {
+  const r = run(dorProject(["- `schema_delta` is `none`, or an approved ADR is linked"]));
+  assert.equal(r.findings("D13").length, 1);
+  assert.match(r.findings("D13")[0], /names no producing stage/);
+});
+
+test("a bare stage mention is not an attribution", () => {
+  // "dependencies DONE" is a condition on OTHER tickets. Reading its DONE as this item's producer
+  // would report a defect that is not there.
+  const r = run(dorProject(["- dependencies `DONE`"]));
+  assert.equal(r.findings("D13").length, 1);
+  assert.match(r.findings("D13")[0], /names no producing stage/, "must not claim it is produced at DONE");
+});
+
+test("`by a human` counts as a producer and is never late", () => {
+  const r = run(dorProject(["- every ID present in `features.md`, put there by a human"]));
+  assert.deepEqual(r.findings("D13"), []);
+});
+
+test("READY itself is at or before READY", () => {
+  const r = run(dorProject(["- the orchestrator confirms it at READY."]));
+  assert.deepEqual(r.findings("D13"), []);
+});
+
+test("an item continued on following lines is read whole", () => {
+  const r = run(dorProject([
+    "- `size_estimate` is S or M.",
+    "  Set by the BA at SPEC from the story scope and its",
+    "  Out-of-scope section.",
+  ]));
+  assert.equal(r.findings("D13").length, 1);
+  assert.match(r.findings("D13")[0], /produced at SPEC/);
+});
+
+test("an item naming one reachable stage among several passes", () => {
+  const r = run(dorProject(["- set by a human at BACKLOG, and re-checked at DESIGN."]));
+  assert.deepEqual(r.findings("D13"), []);
+});
+
+test("a missing Definition of Ready section is reported", () => {
+  const r = run(project(LEDGER + UNISSUED, "x", {
+    ...decisions("ADR-002"),
+    ".ai/templates/ticket.yaml": ENUM + "\nid: X\n",
+    ".ai/01-operating-model.md": FRONT + "# Operating model\n\n## WIP\n\nWIP = 1.\n",
+  }));
+  assert.equal(r.findings("D13").length, 1);
+  assert.match(r.findings("D13")[0], /no `## Definition of Ready` section/);
+});
+
+test("an empty Definition of Ready is reported", () => {
+  const r = run(dorProject([]));
+  assert.equal(r.findings("D13").length, 1);
+  assert.match(r.findings("D13")[0], /lists no items/);
+});
+
+test("a state enum with no READY is reported against the template", () => {
+  const r = run(dorProject(["- set by a human at BACKLOG."], { enumLine: "# state enum: IDEA BACKLOG DONE" }));
+  assert.equal(r.findings("D13").length, 1);
+  assert.match(r.findings("D13")[0], /state enum has no READY/);
+});
+
+test("a table DoR reads the Produced at column, not the item text", () => {
+  // The item text contains the word DONE. Only the Produced at cell is the attribution.
+  const table = [
+    "| # | Item | Produced at | By |",
+    "|---|------|-------------|-----|",
+    "| 1 | Every ticket in `depends_on` is `DONE` | BACKLOG | a human |",
+  ];
+  const r = run(dorProject(table));
+  assert.deepEqual(r.findings("D13"), [], "DONE in the item text must not be read as the producer");
+});
+
+test("a table row whose Produced at is after READY fails", () => {
+  const table = [
+    "| # | Item | Produced at | By |",
+    "|---|------|-------------|-----|",
+    "| 1 | `allowed_paths` enumerated | DESIGN | `tech-lead-design` |",
+  ];
+  const r = run(dorProject(table));
+  assert.equal(r.findings("D13").length, 1);
+  assert.match(r.findings("D13")[0], /produced at DESIGN, which is after READY/);
+});
+
+test("a table row with an empty Produced at cell fails", () => {
+  const table = [
+    "| # | Item | Produced at | By |",
+    "|---|------|-------------|-----|",
+    "| 1 | `schema_delta` is `none` |  |  |",
+  ];
+  const r = run(dorProject(table));
+  assert.equal(r.findings("D13").length, 1);
+  assert.match(r.findings("D13")[0], /names no producing stage/);
+});
+
+// --- built from the real 01-operating-model.md --------------------------------------------------
+//
+// A DoR written by the author of this check would use the phrasing the check expects; the real
+// document does not.
+
+const realOpModel = () => fs.readFileSync(path.join(REPO, ".ai/01-operating-model.md"), "utf8");
+const realTicketTpl = () => fs.readFileSync(path.join(REPO, ".ai/templates/ticket.yaml"), "utf8");
+
+const realDorProject = (opModel) =>
+  project(LEDGER + UNISSUED, "x", {
+    ...decisions("ADR-002"),
+    ".ai/01-operating-model.md": opModel,
+    ".ai/templates/ticket.yaml": realTicketTpl(),
+  });
+
+test("the real Definition of Ready is satisfiable", () => {
+  // Every item must attribute a stage, and every attributed stage must sit at or before READY. This
+  // is the third placement of this gate; the first two failed it.
+  const r = run(realDorProject(realOpModel()));
+  assert.deepEqual(r.findings("D13"), [], "the real DoR should be clean under the current ordering");
+});
+
+test("D13 catches a regression injected into the real 01-operating-model.md", () => {
+  // A check that is green can be green because it is broken. This moves one real DoR item producer
+  // past the gate, in the real document, and requires the check to notice.
+  const model = realOpModel();
+  const regressed = model.replace(/^(\|\s*5\s*\|[^|]*\|\s*)SPEC(\s*\|)/m, "$1DESIGN$2");
+  assert.notEqual(regressed, model, "DoR row 5 not found — update this test to match the document");
+
+  const r = run(realDorProject(regressed));
+  assert.equal(r.findings("D13").length, 1, `expected one finding, got:\n${r.stdout}`);
+  assert.match(r.findings("D13")[0], /produced at DESIGN, which is after READY/);
+});
+
+test("D13 catches the enum falling out of lifecycle order", () => {
+  // Position comes from the state enum. Reordering the lifecycle without reordering the enum would
+  // leave the check measuring against the old order and agreeing with a document that has changed.
+  const staleEnum = realTicketTpl().replace(
+    "# state enum: IDEA TRIAGE BACKLOG SPEC READY",
+    "# state enum: IDEA TRIAGE BACKLOG READY SPEC"
+  );
+  assert.notEqual(staleEnum, realTicketTpl(), "enum line not found — update this test");
+
+  const r = run(project(LEDGER + UNISSUED, "x", {
+    ...decisions("ADR-002"),
+    ".ai/01-operating-model.md": realOpModel(),
+    ".ai/templates/ticket.yaml": staleEnum,
+  }));
+  assert.ok(
+    r.findings("D13").some((l) => /size_estimate/.test(l) && /after READY/.test(l)),
+    `a stale enum must surface as unsatisfiable DoR items, got:\n${r.stdout}`
+  );
+});
+
+test("D10 holds the real enum and the real stage ownership table to the same membership", () => {
+  const r = run(project(LEDGER + UNISSUED, "x", {
+    ".ai/01-operating-model.md": realOpModel(),
+    ".ai/templates/ticket.yaml": realTicketTpl(),
+  }));
+  assert.deepEqual(r.findings("D10"), [], `the shipped enum and gate table disagree:\n${r.stdout}`);
+});
+
+// --- D5 and D6: scoped the same way D9 is -------------------------------------------------------
+//
+// Both used to read agent-produced board artifacts. A tech lead wrote a route path into a design and
+// D5 reported it as a slash command with no definition. That agent raised the finding instead of
+// renaming the route, which is the correct behaviour and precisely the one not to depend on: the
+// cheap way out is to make the finding stop appearing.
+//
+// D6 has the same exposure for a different reason. A design section 5 enumerates `allowed_paths` for
+// files the NEXT stage creates, so "does not exist on disk" is the expected state at the moment the
+// design is written.
+
+test("a route-shaped token in a board artifact is not a D5 finding", () => {
+  const r = run(project(LEDGER + UNISSUED, "x", {
+    ".ai/board/tickets/ORD-01/02-design.md": "The list lives at /orders and the detail at /orders/[id].\n",
+  }));
+  assert.deepEqual(r.findings("D5"), [], "a route in agent output is not a slash command");
+});
+
+test("D5 is scoped by path, not switched off: the same bytes under .ai/standards/ are reported", () => {
+  // The failure mode of a narrowing is narrowing to nothing, and a check that fires on no file
+  // passes everywhere. Same content, human-owned path.
+  const r = run(project(LEDGER + UNISSUED, "x", {
+    ".ai/standards/probe-d5.md": FRONT + "The route is /orders and it lists orders.\n",
+  }));
+  const d5 = r.findings("D5").filter((l) => l.includes("probe-d5.md"));
+  assert.equal(d5.length, 1, `expected one D5 finding, got:\n${r.stdout}`);
+  assert.match(d5[0], /references \/orders, which has no file in \.claude\/commands\//);
+});
+
+test("D5 still reads .claude/**, which is human-authored configuration", () => {
+  // Narrowing to the registry, standards and templates alone would have dropped the agent and
+  // command definitions, which is most of what D5 is for.
+  const r = run(project(LEDGER + UNISSUED, "x", {
+    ".claude/agents/probe.md": "Run /not-a-command and stop.\n",
+  }));
+  const d5 = r.findings("D5").filter((l) => l.includes(".claude/agents/probe.md"));
+  assert.equal(d5.length, 1, `expected D5 to cover .claude/**, got:\n${r.stdout}`);
+});
+
+test("every command this repository names in a human-owned document has a file", () => {
+  // The real-file test for D5. A command renamed in .claude/commands/ without its callers being
+  // updated is exactly the drift this catches, and no fixture would see it.
+  const res = spawnSync(process.execPath, [SCRIPT], { cwd: REPO, encoding: "utf8" });
+  assert.ok(!/^FAIL D5/m.test(res.stdout ?? ""), `the shipped tree fails D5:\n${res.stdout}`);
+});
+
+test("a not-yet-created path in a board artifact is not a D6 finding", () => {
+  // The scaffold root has to exist, or the phase-aware branch would defer the path to PENDING and
+  // this test would pass without exercising the scope rule at all.
+  const r = run(project(LEDGER + UNISSUED, "x", {
+    "src/.keep": "",
+    ".ai/board/tickets/ORD-01/02-design.md":
+      "allowed_paths:\n- `src/app/orders/page.tsx`\n- `src/lib/data/mock/orders.ts`\n",
+  }));
+  assert.deepEqual(r.findings("D6"), [], "a design names files the next stage creates");
+});
+
+test("D6 is scoped by path, not switched off: the same bytes under .ai/standards/ are reported", () => {
+  const r = run(project(LEDGER + UNISSUED, "x", {
+    "src/.keep": "",
+    ".ai/standards/probe-d6.md": FRONT + "See `src/lib/data/nonexistent.ts`.\n",
+  }));
+  const d6 = r.findings("D6").filter((l) => l.includes("probe-d6.md"));
+  assert.equal(d6.length, 1, `expected one D6 finding, got:\n${r.stdout}`);
+  assert.match(d6[0], /src\/lib\/data\/nonexistent\.ts, which does not exist on disk/);
+});
+
+test("D6 defers a path under a scaffold root that does not exist yet", () => {
+  // Per root, not global. The origin project keyed this on package.json existing, which is wrong for
+  // any repository that carries a package.json as tooling before it carries an implementation.
+  const r = run(project(LEDGER + UNISSUED, "x", {
+    "package.json": "{}",
+    ".ai/standards/probe-d6b.md": FRONT + "See `src/lib/data/nonexistent.ts`.\n",
+  }));
+  assert.deepEqual(
+    r.findings("D6"),
+    [],
+    "with no src/ on disk the path is deferred, even though package.json exists"
+  );
+  assert.equal(r.pending("D6").length, 1, r.stdout);
+  assert.match(r.pending("D6")[0], /under src\/, which does not exist yet/);
+});
+
+test("D6 is strict per root: one root present, another absent", () => {
+  const r = run(project(LEDGER + UNISSUED, "x", {
+    "src/.keep": "",
+    ".ai/standards/probe-d6c.md":
+      FRONT + "See `src/gone.ts` and `tests/also-gone.ts`.\n",
+  }));
+  const d6 = r.findings("D6").filter((l) => l.includes("probe-d6c.md"));
+  assert.equal(d6.length, 1, `only the existing root should be strict, got: ${d6.join(" | ")}`);
+  assert.match(d6[0], /src\/gone\.ts/);
+  assert.match(r.stdout, /tests\/also-gone\.ts — under tests\//);
+});
+
+test("D5, D6 and D9 agree on what is out of scope", () => {
+  // One definition, three consumers. If they drift, a board artifact is exempt from one check and
+  // not the others, which is worse than either policy applied consistently.
+  const artifact = FRONT + "Run /orders. See `src/lib/data/nonexistent.ts`.\n";
+  const r = run(project(LEDGER + UNISSUED, "x", {
+    "src/.keep": "",
+    ".ai/board/metrics.md": artifact,
+    ".ai/board/backlog.md": artifact,
+    ".ai/board/tickets/ORD-01/04-review.md": artifact,
+  }));
+  for (const check of ["D5", "D6", "D9"]) {
+    assert.deepEqual(
+      r.findings(check).filter((l) => l.includes(".ai/board/")),
+      [],
+      `${check} still reads .ai/board/**`
+    );
+  }
+});
+
+// --- the shipped tree as a whole ----------------------------------------------------------------
+
+test("this repository passes its own audit with zero errors", () => {
+  // The acceptance condition for the template: the audit is green on an empty board. If a project
+  // adds content that breaks it, this test is the first thing that says so.
+  const res = spawnSync(process.execPath, [SCRIPT], { cwd: REPO, encoding: "utf8" });
+  assert.equal(res.status, 0, `check-docs.mjs exited ${res.status}:\n${res.stdout}\n${res.stderr}`);
+  assert.match(res.stdout, /errors: 0/);
+});

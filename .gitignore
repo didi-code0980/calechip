@@ -1,0 +1,12 @@
+node_modules
+.env
+.env.local
+.claude/settings.local.json
+.ai/board/**/.local/
+
+# `node_modules` has no trailing slash on purpose. A trailing slash matches only directories, and a
+# worktree provisioned with a symlinked dependency tree produces a FILE — which then sits untracked
+# and visible, one `git add -A` away from committing a path specific to one machine.
+
+# TODO(project): add the build output, the coverage and report directories, and anything a code
+# generator writes. Generated code is not source and must not be reviewed as if it were.

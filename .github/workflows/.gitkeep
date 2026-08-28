@@ -1,0 +1,12 @@
+TODO(project): two workflows, and exactly two status check names.
+
+  verify         the project typecheck, lint and test commands, plus `node scripts/check-docs.mjs`
+                 and `node --test .claude/hooks/tests/*.test.mjs scripts/tests/*.test.mjs`
+  allowed-paths  `node scripts/check-allowed-paths.mjs`, and nothing else
+
+Do not split into six jobs. Branch protection points at those two names, and every additional job
+name is another thing that must be configured, kept green, and explained.
+
+Do not enable branch protection until `verify` has passed at least once. A required check that has
+never passed blocks every pull request, including the operator's, and the only way out is to disable
+the protection you just configured.

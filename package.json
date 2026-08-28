@@ -1,0 +1,12 @@
+{
+  "name": "aifw-template",
+  "version": "0.1.0",
+  "private": true,
+  "packageManager": "pnpm@10.15.1",
+  "description": "Domain-free agent operating model: lifecycle, gates, rules, agents, commands, hooks and the documentation audit. See SETUP.md.",
+  "scripts": {
+    "init": "node scripts/init-project.mjs",
+    "docs:audit": "node scripts/check-docs.mjs",
+    "hooks:test": "node --test .claude/hooks/tests/*.test.mjs scripts/tests/*.test.mjs"
+  }
+}

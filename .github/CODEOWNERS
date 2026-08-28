@@ -1,0 +1,19 @@
+# CODEOWNERS — the mechanism behind RULE-01 and RULE-09.
+#
+# Since ADR-004 unwired guard-registry.mjs, this file is what makes "the registry is human-only" true
+# of a pull request. It moved the control from before the write to before the merge; it did not
+# remove it. Deleting a line here removes a control, and nothing else will report that it is gone.
+#
+# TODO(project): replace @OWNER with the GitHub handle or team that must review these paths, and turn
+# on branch protection requiring CODEOWNERS review. Until both are done, RULE-01 has no mechanism at
+# all and the enforcement map in .ai/registry/rules.md is claiming something untrue.
+
+/.ai/registry/    @OWNER
+/.ai/standards/   @OWNER
+/.claude/         @OWNER
+/.github/         @OWNER
+/.mcp.json        @OWNER
+
+# TODO(project): add the schema or migrations directory once the datastore is chosen. Applying a
+# migration is permanently human under RULE-09, and this is where that becomes true of a pull
+# request rather than only of a sentence.
