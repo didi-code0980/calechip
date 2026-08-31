@@ -60,12 +60,15 @@ to be wrong surfaces as data somebody should not have touched.
   agreement, and the charter's invite-a-member language is realised by the three allow-list rows. The
   row is recorded here rather than silently dropped so a reader who remembers it can see where it
   went.
-- **`Read the member list` was added**, and it is the one row in this table not decided by the
-  operator in words. It is **derived**, not invented: `Read any entry in the team` is already ✅ for a
-  member, and the year view renders one row per member, so a member who could not read the member
-  list could still enumerate it from the entries they are entitled to read. Denying it would deny
-  nothing and would leave TEA-03's select policy with nothing to be written against. **Confirm it or
-  overturn it** — it is marked here precisely so it does not pass as settled.
+- **`Read the member list` was derived rather than decided, and the operator confirmed it on
+  2026-08-31.** The derivation stands and is kept because it is the reasoning, not just the outcome:
+  `Read any entry in the team` is already ✅ for a member, and the year view renders one row per
+  member, so a member who could not read the member list could still enumerate it from the entries
+  they are entitled to read. Denying it would have denied nothing while leaving TEA-03's select
+  policy with nothing to be written against.
+
+  It is recorded this way — derived, flagged, then confirmed — rather than quietly promoted to
+  settled, because the flag is what made the confirmation possible.
 
 **The allow-list is how somebody joins** ([ADR-009](../registry/decisions/ADR-009-how-a-person-becomes-a-member.md)).
 A member must not read it: it is a list of people who have been invited and have not yet arrived, and
@@ -164,6 +167,28 @@ guarantee.
    review check R4 reads the diff; neither stops the write. The enforcement map in
    [rules.md](../registry/rules.md) says the same thing.
 
-6. **Two permission rows are denials by default rather than by decision** — creating an entry on
+6. **A `WITH CHECK` policy cannot say "this column did not change", and the entry table needs
+   exactly that.** `WITH CHECK` sees only the new row; it has no access to the old one. So an update
+   policy of the shape `member_id = auth.uid()` — the obvious way to let a member edit their own
+   entry — **accepts a raw `PATCH {"status":"approved"}` against that member's own row.** The
+   member's own id matches, the predicate passes, and the entry is approved by the person who wrote
+   it.
+
+   **Column-level grants do not close this**, and it is worth saying why, because they closed the
+   equivalent hole on `team`. There it worked because *nobody* may rename a team, so the privilege
+   could simply be withheld. Here member and admin are **the same PostgreSQL role**,
+   `authenticated` — the distinction between them lives in the policy predicate, not in the role — so
+   a grant that lets an admin write `status` lets a member write it too.
+
+   What actually closes it is a `BEFORE UPDATE` trigger comparing `OLD` and `NEW` and rejecting a
+   `status` transition from a non-admin. That is the same shape ADR-016 uses to stop `approved_by`
+   being forged, and the same reasoning ADR-005 already accepted when it put INV-02 in a trigger
+   rather than a policy.
+
+   **This opens the moment CAL-02 grants a member `update`**, and it was found by both halves of a
+   triage independently, on a different idea. Recorded here rather than only on that ticket, because
+   it is a property of the authorization model and it will outlive the row that exposed it.
+
+7. **Two permission rows are denials by default rather than by decision** — creating an entry on
    behalf of another member, and demoting an admin. They will read as settled to anyone who does not
    notice the marking.

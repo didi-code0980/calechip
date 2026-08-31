@@ -32,10 +32,23 @@ Under the current gate placement a ticket sits here until it has been specified 
 
 | # | Ticket | Title | State | Blocked on |
 |---|--------|-------|-------|------------|
-| 1 | TEA-01 | Sign up and establish the member record | BACKLOG | — |
-| 2 | TEA-02 | Manage the allow-list | BACKLOG | TEA-01 |
-| 3 | TEA-03 | Team member list | BACKLOG | TEA-01 |
-| 4 | TEA-04 | Remove a member, and promote a member to admin | BACKLOG | TEA-01 |
+| 1 | TEA-02 | Manage the allow-list | BACKLOG | TEA-01 |
+| 2 | TEA-03 | Team member list | BACKLOG | TEA-01 |
+| 3 | TEA-04 | Remove a member, and promote a member to admin | BACKLOG | TEA-01 |
+| 4 | CAL-01 | Create an entry for themselves, over a range of dates | BACKLOG | TEA-01 |
+| 5 | CAL-02 | Edit or delete their own entry | BACKLOG | CAL-01 |
+| 6 | CAL-03 | Edit or delete another member's entry, as an admin | BACKLOG | CAL-02 |
+| 7 | CAL-04 | Month view — a day grid showing who is away and which days are overloaded | BACKLOG | CAL-01, TEA-03 |
+| 8 | CAL-05 | Week view — per-person detail for one week, with half-days, notes and who approved | BACKLOG | CAL-04 |
+| 9 | CAL-06 | Year view — one row per member across 365 days | BACKLOG | CAL-04, TEA-03 |
+| 10 | ADM-01 | Set the overload threshold | BACKLOG | TEA-01 |
+| 11 | CAL-07 | Overload warning shown while choosing dates, before the entry is saved | BACKLOG | CAL-01, CAL-04 |
+| 12 | ADM-02 | The national holiday calendar, seeded and readable | BACKLOG | TEA-01, ADM-01 |
+| 13 | ADM-03 | Add, edit or delete a holiday or swap day | BACKLOG | ADM-02 |
+| 14 | CAL-08 | Holidays and bridge days shown in the calendar views | BACKLOG | ADM-02, CAL-04, CAL-05, CAL-06 |
+| 15 | ADM-04 | The worklist of entries awaiting a decision | BACKLOG | CAL-01, TEA-03, ADM-01 |
+| 16 | ADM-05 | Approve or reject an entry, with a reason on rejection | BACKLOG | ADM-04, CAL-02 |
+| 17 | ADM-06 | Reject several entries at once, with one reason for the batch | BACKLOG | ADM-05 |
 
 ## BLOCKED
 
@@ -48,5 +61,12 @@ Tickets that cannot proceed until a human decides something. Name the decision, 
 
 | # | Ticket | Title | Shipped | PR |
 |---|--------|-------|---------|-----|
+| 1 | TEA-01 | Sign up and establish the member record | 2026-08-31 | PENDING — see below |
+
+**TEA-01 shipped with its QA gate passed by operator waiver.** Ten of twelve acceptance criteria
+have no test; `tests/permission-model.test.ts` does not exist because no database was provisioned.
+Under ADR-005 the row-level policies are the entire authorization model, so what is unverified is the
+authorization model. The waiver is marked `temporary: true` in `06-test-report.md` and is reversed by
+deleting the `waiver:` block. The work that retires it honestly is *Appendix A* of `02-design.md`.
 
 Empty because no ticket has run. A row here means DONE and merged, not DONE and open.

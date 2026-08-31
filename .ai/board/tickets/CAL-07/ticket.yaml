@@ -1,0 +1,64 @@
+# Copied from .ai/templates/ticket.yaml at /triage (ADR-010).
+# ticket.yaml is authoritative; backlog.md is a view (see .ai/01-operating-model.md).
+# state enum: IDEA TRIAGE BACKLOG SPEC READY DESIGN IN_PROGRESS REVIEW QA REWORK ESCALATED DONE
+id: CAL-07
+title: "Overload warning shown while choosing dates, before the entry is saved"
+feature_ids: [CAL-07]
+group: CAL
+state: BACKLOG
+owner: ""
+branch: ""
+size_estimate: ""     # S|M - set by ba at SPEC; gates DoR
+size: ""              # S|M|L|XL - set by tech-lead-design at DESIGN; decides splitting
+depends_on: [CAL-01, CAL-04]
+invariants_touched: []
+allowed_paths: []
+schema_delta: none
+requires_adr: false
+rework_count: 0
+chat_budget:
+  developer->tech-lead-design: { used: 0, max: 6 }
+  developer->ba:               { used: 0, max: 6 }
+  qa->ba:                      { used: 0, max: 6 }
+  qa->tech-lead-design:        { used: 0, max: 6 }
+tracker: { provider: "", external_id: "", sync_enabled: false }
+gates:
+  spec:   { passed: false, at: null }
+  design: { passed: false, at: null }
+  review: { passed: false, at: null }
+  qa:     { passed: false, at: null }
+
+# Created by `product` at /triage on 2026-08-31, promoting
+# .ai/board/ideas/2026-08-31-a-crowded-day-is-discovered-too-late.md.
+#
+# Definition of Ready items 1, 3, 4 and 6 are filled here — they are produced at BACKLOG.
+# Items 2 and 5 (invariants_touched, size_estimate) are deliberately empty: they belong to the BA
+# at SPEC, and the gate sits after SPEC so that they can.
+#
+# Item 3. CAL-01 because the warning has no surface of its own — it lives inside that form and
+# there is no second place it could appear. CAL-04 because it builds all three mechanisms this
+# feature consumes: INV-04's absence-count function, the `team.overload_threshold` select policy
+# and grant, and the current-member-count read. A CAL-07 that shipped first would build them, which
+# is the outcome CAL-04's registry Notes were written to prevent.
+#
+# TEA-03 is deliberately not named. Naming absent people reads the same `member` rows CAL-04
+# already reads for avatars, so the policy dependency is inherited through CAL-04 rather than owned
+# here. If CAL-04's dependency on TEA-03 later reduces to [CAL-01], nothing here changes.
+#
+# ADM-01 is deliberately not named, and this is a decision rather than an omission. The idea
+# bundled the warning with the threshold setting, saying the first "cannot ship honestly without
+# the second" — that is a release-ordering claim, not a dependency. `overload_threshold` is
+# `not null default 0.5`, so this feature works before any admin screen exists, and making it wait
+# would serialize an admin screen in front of the highest-frequency member-facing moment in the
+# product for a non-technical reason.
+#
+# Item 4: `schema_delta: none`. This row reads, computes and renders; it adds no column, no policy
+# and no migration.
+#
+# No longer blocks READY. ADR-013 settled it on 2026-08-31: a removed member's entries count for
+# dates before `removed_at` and not after, and a view draws an avatar exactly when the entry is
+# counted. `.ai/registry/invariants.md` and the glossary record it, amended together.
+#
+# The provenance in the earlier note was wrong and is corrected here rather than deleted: the
+# operator had decided that entries SURVIVE a removal, which is the denominator. Whether they still
+# COUNT is the numerator, and nobody had answered it until asked.

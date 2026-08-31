@@ -1,5 +1,5 @@
 ---
-doc_version: 2
+doc_version: 3
 last_updated: 2026-08-31
 governed_by: [RULE-01, RULE-07, RULE-09]
 ---
@@ -33,7 +33,7 @@ brief states or a decision the operator made in words; nothing here was inferred
 | INV-01 | Two entries belonging to the same member may not cover the same portion of the same date. `full` conflicts with everything; `am` and `pm` do not conflict with each other. |
 | INV-02 | An approved entry whose dates, type, portion or tentative flag change returns to `pending`. Editing only the note does not. |
 | INV-03 | A rejected entry always carries a non-empty rejection reason. |
-| INV-04 | The absence count for a date is the sum, over that date's `pending` and `approved` entries, of 1 per `full` portion and 0.5 per `am` or `pm` portion, with PTO and WFH counted alike. Rejected entries are excluded. No second definition of this number exists anywhere in the system. |
+| INV-04 | The absence count for a date is the sum, over that date's `pending` and `approved` entries **whose member was still on the team on that date**, of 1 per `full` portion and 0.5 per `am` or `pm` portion, with PTO and WFH counted alike. Rejected entries are excluded. No second definition of this number exists anywhere in the system. |
 | INV-05 | A tentative entry counts toward the absence count exactly as a non-tentative one does. |
 | INV-06 | An entry carries exactly one portion, and that portion applies to every date in its range. |
 | INV-07 | Every entry belongs to exactly one member, and is counted only against the team that member belongs to. |
@@ -113,8 +113,22 @@ grid, and any future notification — and the failure mode is that one of them i
 differently and quietly disagrees with the others. Where the number is computed is an architecture
 decision; that there is exactly one computation of it is a domain one.
 
-**Two things deliberately sit outside this invariant, because both are configurable or definitional
-rather than structural:**
+**A removed member counts until the day they were removed** — ADR-013. An entry contributes to a
+date when its member has `removed_at` null, or `removed_at` strictly after that date.
+
+That condition is the cost of the decision and is worth stating on its own: **the absence count for a
+date is no longer a function of that date's entries alone.** It depends on member state as of that
+date, so the computing function must be given the roster and cannot derive it from the entries. It
+also means a wrong or backdated `removed_at` moves every past count silently — the revert condition
+in ADR-013 is exactly that incident.
+
+**The same rule decides what is drawn.** A view shows a member's avatar exactly when that member's
+entry is counted. The reading where entries stay visible but leave the count was rejected because it
+puts four faces over a count of three in one cell, and a view that contradicts itself is worse than
+either answer.
+
+**Two further things deliberately sit outside this invariant, because both are configurable or
+definitional rather than structural:**
 
 - **The threshold** (default 50%) is set by an admin. A configurable value cannot be an invariant.
 - **Which headcount the threshold multiplies.** The operator decided on 2026-08-31 that it is the
