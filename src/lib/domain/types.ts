@@ -37,6 +37,10 @@ export type FailureCode =
   | "weak_password"
   | "rate_limited"
   | "network"
+  // TEA-02, 02-design.md section 1.1. The three expected failures of the allow-list writes.
+  | "already_allow_listed" // AC-5: the address is on the list, disregarding case
+  | "already_consumed" // AC-7: the entry has admitted somebody and cannot be removed
+  | "not_permitted" // AC-4, AC-8: the policy refused the write
   | "unknown";
 
 export interface Failure {
@@ -45,6 +49,18 @@ export interface Failure {
 }
 
 export type Result<T> = { ok: true; value: T } | { ok: false; error: Failure };
+
+/** A row of `public.allowed_email`, in application casing. TEA-02, 02-design.md section 1.1. */
+export interface AllowedEmail {
+  email: string; // citext in the datastore; already folded by PostgREST on the way out
+  teamId: string;
+  addedBy: string; // member id of the admin who added it
+  addedAt: string; // ISO 8601
+  consumedAt: string | null; // null means the invitation is still open
+}
+
+/** How an entry is displayed (AC-1). Derived, never stored - `consumedAt` is the only source. */
+export type AllowedEmailState = "open" | "joined";
 
 /**
  * The avatar set offered at sign-up (AC-8). `member.avatar` is `text not null` and

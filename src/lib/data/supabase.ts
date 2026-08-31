@@ -8,8 +8,9 @@ import {
   type SupabaseClient,
   type User,
 } from "@supabase/supabase-js";
-import type { DataSeam, SignUpInput, SignUpOutcome } from "./index";
-import type { Failure, Member, MemberRole, Result, Session } from "../domain/types";
+import type { PostgrestError } from "@supabase/supabase-js";
+import type { AddAllowedEmailInput, DataSeam, SignUpInput, SignUpOutcome } from "./index";
+import type { AllowedEmail, Failure, Member, MemberRole, Result, Session } from "../domain/types";
 
 // Vite exposes only variables prefixed VITE_. The anon key is public by design and ships in the
 // bundle; the service role key must never appear here. See "Secrets" in
@@ -57,6 +58,50 @@ function toMember(row: MemberRow): Member {
   };
 }
 
+// TEA-02. The `allowed_email` row as PostgREST returns it. `email` is citext, so the value arriving
+// here is already folded by the datastore and this file does no folding of its own.
+interface AllowedEmailRow {
+  email: string;
+  team_id: string;
+  added_by: string;
+  added_at: string;
+  consumed_at: string | null;
+}
+
+const ALLOWED_EMAIL_COLUMNS = "email, team_id, added_by, added_at, consumed_at";
+
+function toAllowedEmail(row: AllowedEmailRow): AllowedEmail {
+  return {
+    email: row.email,
+    teamId: row.team_id,
+    addedBy: row.added_by,
+    addedAt: row.added_at,
+    consumedAt: row.consumed_at,
+  };
+}
+
+// The read half of `getCurrentMember`, shared with `getOwnMember` so the two cannot answer
+// differently about the same row.
+async function readMember(userId: string): Promise<Member | null> {
+  const { data, error } = await client()
+    .from("member")
+    .select(MEMBER_COLUMNS)
+    .eq("id", userId)
+    .maybeSingle<MemberRow>();
+
+  if (error) throw new Error(`getOwnMember failed for ${userId}: ${error.message}`);
+  return data ? toMember(data) : null;
+}
+
+// TEA-02. Module-level rather than a call through `this`: `addAllowedEmail` needs the caller's own
+// row, and a seam method reaching for a sibling through `this` breaks the moment the object is
+// destructured — which is exactly what tests/seam-parity.test.ts does to it.
+async function readCurrentMember(): Promise<Member | null> {
+  const { data, error } = await client().auth.getUser();
+  if (error || !data.user) return null;
+  return readMember(data.user.id);
+}
+
 function toAuthUser(user: User): Session["user"] {
   return {
     id: user.id,
@@ -87,6 +132,25 @@ function toFailure(error: AuthError): Failure {
       return { code: "rate_limited", message: "Thử hơi nhiều lần rồi. Chờ một chút rồi thử lại." };
     case "invalid_credentials":
       return { code: "invalid_credentials", message: "Email hoặc mật khẩu không đúng." };
+    default:
+      return { code: "unknown", message: "Có lỗi không rõ. Thử lại giúp mình nhé." };
+  }
+}
+
+// TEA-02. The same contract as `toFailure` above, for the PostgREST side of the client: expected
+// failures are RETURNED, not thrown (.ai/standards/coding-standards.md, Error handling).
+//
+// The two codes that carry meaning here are SQLSTATEs the datastore raises, not strings this file
+// chooses. `23505` is the unique violation on `allowed_email`'s primary key, which is AC-5 being
+// enforced by the key rather than by a lookup. `42501` is "new row violates row-level security
+// policy", which is AC-4 and AC-8 arriving from the policy itself.
+function toPostgrestFailure(error: PostgrestError): Failure {
+  switch (error.code) {
+    case "23505":
+      return { code: "already_allow_listed", message: "Địa chỉ này đã có trong danh sách rồi." };
+    case "42501":
+    case "PGRST301": // JWT missing or expired: the request reaches the policy as nobody
+      return { code: "not_permitted", message: "Bạn không có quyền thực hiện việc này." };
     default:
       return { code: "unknown", message: "Có lỗi không rõ. Thử lại giúp mình nhé." };
   }
@@ -126,18 +190,107 @@ export const seam: DataSeam = {
 
   // AC-1, AC-9. `member_select_own` lets a caller address only their own row, so "no row" and "a row
   // I may not see" collapse into one answer — null — and that is a normal answer, not an error.
+  //
+  // A transport or policy failure is a programmer error at this seam, not an expected outcome:
+  // there is no caller-visible failure shape on this function, and returning null would report
+  // "you are not a member" for what is actually a broken connection. `readMember` throws.
   async getOwnMember(userId: string): Promise<Member | null> {
+    return readMember(userId);
+  },
+
+  // -------------------------------------------------------------------------
+  // TEA-02. 02-design.md section 3.
+  // -------------------------------------------------------------------------
+
+  // TEA-02 AC-1, AC-9. Null when nobody is signed in and null when the auth user has no member row;
+  // both are normal answers. `auth.getUser()` returns an AuthSessionMissingError rather than a null
+  // user when there is no session, so the error is folded into the same null.
+  //
+  // Until the sign-in half of TEA-01 exists nothing ever creates a session, so in a real build this
+  // returns null on every call and the screen renders `allow-list-refused` for everybody, admin
+  // included. 02-design.md section 5, "Prerequisites this ticket does not own".
+  async getCurrentMember(): Promise<Member | null> {
+    return readCurrentMember();
+  },
+
+  // TEA-02 AC-1, AC-8. No team parameter: `allowed_email_select_admin` scopes the rows to the
+  // caller's team, and a member receives zero rows rather than an error — which is why an empty
+  // list is the honest return here and a failure shape would be a lie about what the policy did.
+  async listAllowedEmails(): Promise<AllowedEmail[]> {
     const { data, error } = await client()
-      .from("member")
-      .select(MEMBER_COLUMNS)
-      .eq("id", userId)
-      .maybeSingle<MemberRow>();
+      .from("allowed_email")
+      .select(ALLOWED_EMAIL_COLUMNS)
+      .order("added_at", { ascending: false })
+      .returns<AllowedEmailRow[]>();
 
-    // A transport or policy failure is a programmer error at this seam, not an expected outcome:
-    // there is no caller-visible failure shape on this function, and returning null would report
-    // "you are not a member" for what is actually a broken connection.
-    if (error) throw new Error(`getOwnMember failed for ${userId}: ${error.message}`);
+    if (error) throw new Error(`listAllowedEmails failed: ${error.message}`);
+    return (data ?? []).map(toAllowedEmail);
+  },
 
-    return data ? toMember(data) : null;
+  // TEA-02 AC-2, AC-4, AC-5.
+  //
+  // `team_id` and `added_by` are read from the datastore's own answer about who the caller is, never
+  // from a parameter. The policy's `with check` then re-derives both and refuses a mismatch, so the
+  // two agree by construction and AC-4 is unreachable through this interface.
+  async addAllowedEmail(input: AddAllowedEmailInput): Promise<Result<AllowedEmail>> {
+    const me = await readCurrentMember();
+    if (!me) {
+      return {
+        ok: false,
+        error: { code: "not_permitted", message: "Bạn cần đăng nhập bằng tài khoản quản trị." },
+      };
+    }
+
+    const { data, error } = await client()
+      .from("allowed_email")
+      .insert({ email: input.email.trim(), team_id: me.teamId, added_by: me.id })
+      .select(ALLOWED_EMAIL_COLUMNS)
+      .single<AllowedEmailRow>();
+
+    if (error) return { ok: false, error: toPostgrestFailure(error) };
+    return { ok: true, value: toAllowedEmail(data) };
+  },
+
+  // TEA-02 AC-6, AC-7, AC-8.
+  //
+  // A delete that removes ZERO rows is not success (02-design.md section 3). Under row-level
+  // security a refused delete is not an error — it simply matches nothing — so this asks for the
+  // deleted rows back and treats an empty answer as a refusal.
+  //
+  // The one follow-up read is what tells the two refusals apart. `allowed_email_select_admin` shows
+  // an admin their own team's rows consumed and unconsumed alike, so a row that comes back with
+  // `consumed_at` set is AC-7, and no row at all is AC-4 or AC-8. Collapsing them would tell an
+  // admin their own entry does not exist.
+  async removeAllowedEmail(email: string): Promise<Result<void>> {
+    const { data, error } = await client()
+      .from("allowed_email")
+      .delete()
+      .eq("email", email)
+      .select("email")
+      .returns<Array<{ email: string }>>();
+
+    if (error) return { ok: false, error: toPostgrestFailure(error) };
+    if (data && data.length > 0) return { ok: true, value: undefined };
+
+    const { data: existing } = await client()
+      .from("allowed_email")
+      .select("email, consumed_at")
+      .eq("email", email)
+      .maybeSingle<{ email: string; consumed_at: string | null }>();
+
+    if (existing && existing.consumed_at !== null) {
+      return {
+        ok: false,
+        error: {
+          code: "already_consumed",
+          message: "Địa chỉ này đã có người dùng để vào nhóm, không gỡ được.",
+        },
+      };
+    }
+
+    return {
+      ok: false,
+      error: { code: "not_permitted", message: "Không gỡ được địa chỉ này." },
+    };
   },
 };

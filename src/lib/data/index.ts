@@ -7,7 +7,7 @@
 // Two implementations exist and must stay in parity: `supabase.ts` and `mock.ts`. The seam-parity
 // test in tests/ asserts identical exported names and equal arity, which is what makes swapping them
 // a configuration change rather than a rewrite.
-import type { Member, Result, Session } from "../domain/types";
+import type { AllowedEmail, Member, Result, Session } from "../domain/types";
 import { seam as mockSeam } from "./mock";
 import { seam as supabaseSeam } from "./supabase";
 
@@ -16,6 +16,11 @@ export interface SignUpInput {
   password: string;
   displayName: string;
   avatar: string;
+}
+
+/** TEA-02, 02-design.md section 1.2. */
+export interface AddAllowedEmailInput {
+  email: string;
 }
 
 export interface SignUpOutcome {
@@ -47,6 +52,35 @@ export interface DataSeam {
    * through the seam rather than only through raw SQL.
    */
   getOwnMember(userId: string): Promise<Member | null>;
+
+  // -------------------------------------------------------------------------
+  // TEA-02 - manage the allow-list. 02-design.md section 1.2.
+  // -------------------------------------------------------------------------
+
+  /**
+   * AC-1, AC-9. The caller's own member row, or null when nobody is signed in or the auth user has
+   * no member row. Null is a normal answer and not an error.
+   *
+   * The sign-in half of TEA-01 does not exist, so in a real build this returns null on every call -
+   * see "Prerequisites this ticket does not own" in 02-design.md section 5.
+   */
+  getCurrentMember(): Promise<Member | null>;
+
+  /**
+   * AC-1. Every allow-list entry the caller may read, newest first. Takes no team parameter: the
+   * policy scopes the rows to the caller's team, and a parameter would imply the caller could ask
+   * for another team's and be answered.
+   */
+  listAllowedEmails(): Promise<AllowedEmail[]>;
+
+  /**
+   * AC-2, AC-4, AC-5. `teamId` is never a parameter - the policy's `with check` supplies it, so
+   * there is no value a caller could pass that would move an entry to another team.
+   */
+  addAllowedEmail(input: AddAllowedEmailInput): Promise<Result<AllowedEmail>>;
+
+  /** AC-6, AC-7, AC-8. Refused by the policy for a consumed entry and for a non-admin. */
+  removeAllowedEmail(email: string): Promise<Result<void>>;
 }
 
 export type { DataSeam as Seam };

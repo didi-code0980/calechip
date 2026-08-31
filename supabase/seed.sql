@@ -31,7 +31,11 @@ on conflict (id) do nothing;
 -- human running a seed rather than a policy anyone can reach.
 insert into auth.users (
   instance_id, id, aud, role, email, encrypted_password, email_confirmed_at,
-  raw_app_meta_data, raw_user_meta_data, created_at, updated_at
+  raw_app_meta_data, raw_user_meta_data, created_at, updated_at,
+  -- These four have NO column default. Left NULL, GoTrue scans them into non-nullable Go
+  -- strings and every sign-in for the row fails with `500 Database error querying schema`,
+  -- while a sign-in for a user that does not exist still returns 400. MD-014.
+  confirmation_token, recovery_token, email_change_token_new, email_change
 )
 values (
   '00000000-0000-0000-0000-000000000000',
@@ -44,7 +48,8 @@ values (
   '{"provider":"email","providers":["email"]}'::jsonb,
   '{"display_name":"Quản trị","avatar":"🦉"}'::jsonb,
   '2026-08-31T00:00:00+00:00',
-  '2026-08-31T00:00:00+00:00'
+  '2026-08-31T00:00:00+00:00',
+  '', '', '', ''
 )
 on conflict (id) do nothing;
 
@@ -85,3 +90,52 @@ on conflict (email) do nothing;
 
 -- `khach@example.com` is deliberately absent. It is FIXTURE_UNLISTED_EMAIL, and AC-5 needs an
 -- address that is on no list at all.
+
+-- ---------------------------------------------------------------------------
+-- Operator's own admin account, added 2026-09-01 on direct instruction.
+--
+-- Same shape as the seeded admin above: an auth.users row whose password is
+-- hashed with bcrypt, then a member row carrying role 'admin'. The trigger
+-- `admit_allow_listed_member` only ever admits a MEMBER, so the first admin of a
+-- team cannot come through sign-up and has to be seeded — which is why this
+-- block exists rather than an allow_email entry.
+--
+-- The password here is deliberately weak and is a development credential. It
+-- must not survive contact with real data.
+-- ---------------------------------------------------------------------------
+
+insert into auth.users (
+  instance_id, id, aud, role, email, encrypted_password, email_confirmed_at,
+  raw_app_meta_data, raw_user_meta_data, created_at, updated_at,
+  -- These four have NO column default. Left NULL, GoTrue scans them into non-nullable Go
+  -- strings and every sign-in for the row fails with `500 Database error querying schema`,
+  -- while a sign-in for a user that does not exist still returns 400. MD-014.
+  confirmation_token, recovery_token, email_change_token_new, email_change
+)
+values (
+  '00000000-0000-0000-0000-000000000000',
+  '33333333-3333-4333-8333-333333333333',
+  'authenticated',
+  'authenticated',
+  'admin@calachip.com',
+  extensions.crypt('123456', extensions.gen_salt('bf')),
+  '2026-09-01T00:00:00+00:00',
+  '{"provider":"email","providers":["email"]}'::jsonb,
+  '{"display_name":"Admin","avatar":"\u2b50"}'::jsonb,
+  '2026-09-01T00:00:00+00:00',
+  '2026-09-01T00:00:00+00:00',
+  '', '', '', ''
+)
+on conflict (id) do nothing;
+
+insert into public.member (id, team_id, display_name, avatar, role, removed_at, created_at)
+values (
+  '33333333-3333-4333-8333-333333333333',
+  '11111111-1111-4111-8111-111111111111',
+  'Admin',
+  '\u2b50',
+  'admin',
+  null,
+  '2026-09-01T00:00:00+00:00'
+)
+on conflict (id) do nothing;
