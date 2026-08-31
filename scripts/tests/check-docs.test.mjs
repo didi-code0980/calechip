@@ -219,18 +219,36 @@ test("templates are exempt from D1 — they carry example IDs by definition", ()
   assert.deepEqual(r.findings("D1"), []);
 });
 
-test("this repository's real features.md declares no prefixes, and that is the shipping state", () => {
+test("this repository's real features.md declares well-formed prefixes", () => {
   // Built from the real file per "Fixtures that share the implementation's assumptions" in
-  // testing-standards.md. If a project fills the line in, this test fails and the reader is told to
-  // update it — which is the correct moment to notice that D1 has started checking.
+  // testing-standards.md. This asserts the shape rather than the three specific letters, so adding a
+  // group through an ADR does not break it — but declaring one badly does.
   const real = fs.readFileSync(path.join(REPO, ".ai/registry/features.md"), "utf8");
   const declared = /<!--\s*id-prefixes:\s*([^>]*?)-->/.exec(real);
   assert.ok(declared, "the id-prefixes line has been removed from features.md — D1 cannot be configured");
-  assert.equal(
-    declared[1].trim(),
-    "",
-    "features.md now declares prefixes. That is expected once a project starts; update this test to " +
-      "assert the real list instead of an empty one."
+
+  const prefixes = declared[1].trim().split(/\s+/).filter(Boolean);
+  assert.ok(prefixes.length > 0, "no prefixes declared, so D1 polices nothing");
+
+  for (const p of prefixes) {
+    assert.match(p, /^[A-Z]{3}$/, `prefix ${p} is not three uppercase letters`);
+    assert.notEqual(p, "EXA", "EXA is reserved for this kit's worked examples and cannot be a group");
+  }
+  assert.equal(new Set(prefixes).size, prefixes.length, "a prefix is declared twice");
+});
+
+test("every declared prefix has a group section, and every group section is declared", () => {
+  // The failure this catches is a prefix nobody made a table for: D1 would police IDs in a group
+  // that has nowhere to put a row, so the only way to satisfy it would be to stop citing the ID.
+  const real = fs.readFileSync(path.join(REPO, ".ai/registry/features.md"), "utf8");
+  const declared = /<!--\s*id-prefixes:\s*([^>]*?)-->/.exec(real)[1].trim().split(/\s+/).filter(Boolean);
+
+  const sections = [...real.matchAll(/^##\s+([A-Z]{3})\s+—/gm)].map((m) => m[1]);
+
+  assert.deepEqual(
+    [...sections].sort(),
+    [...declared].sort(),
+    "the declared prefixes and the group sections disagree"
   );
 });
 
