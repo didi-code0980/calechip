@@ -37,7 +37,7 @@ and the permission-model test in [testing-standards.md](testing-standards.md) re
 | Approve or reject their own entry | ❌ | ✅ |
 | Read the holiday calendar | ✅ | ✅ |
 | Add, edit or delete a holiday or swap day | ❌ | ✅ |
-| Invite a member | ❌ | ✅ |
+| Read the member list | ✅ | ✅ |
 | Remove a member | ❌ | ✅ |
 | Promote a member to admin | ❌ | ✅ |
 | Demote an admin to member | ❌ | ❌ **not decided — denied until it is** |
@@ -51,6 +51,21 @@ Every row above except the two marked was decided by the operator on 2026-08-31 
 `.ai/00-charter.md`. The two marked rows are denials by default rather than by decision: a denial
 that turns out to be wrong surfaces as a blocked story, which is cheap; a permission that turns out
 to be wrong surfaces as data somebody should not have touched.
+
+**Two changes to this table on 2026-08-31, after [ADR-009](../registry/decisions/ADR-009-how-a-person-becomes-a-member.md):**
+
+- **`Invite a member` was removed.** ADR-009 decided that joining happens through the allow-list and
+  that no invitation is sent, which left this row meaning exactly what
+  `Add an address to the allow-list` already means. Two names for one power is two things to keep in
+  agreement, and the charter's invite-a-member language is realised by the three allow-list rows. The
+  row is recorded here rather than silently dropped so a reader who remembers it can see where it
+  went.
+- **`Read the member list` was added**, and it is the one row in this table not decided by the
+  operator in words. It is **derived**, not invented: `Read any entry in the team` is already ✅ for a
+  member, and the year view renders one row per member, so a member who could not read the member
+  list could still enumerate it from the entries they are entitled to read. Denying it would deny
+  nothing and would leave TEA-03's select policy with nothing to be written against. **Confirm it or
+  overturn it** — it is marked here precisely so it does not pass as settled.
 
 **The allow-list is how somebody joins** ([ADR-009](../registry/decisions/ADR-009-how-a-person-becomes-a-member.md)).
 A member must not read it: it is a list of people who have been invited and have not yet arrived, and

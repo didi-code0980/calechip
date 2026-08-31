@@ -690,3 +690,76 @@ standing, annotated in the ADR, and the fix shape is scoping D8 out of `decision
 both directions.
 
 Audit 0 errors, 1 advisory warning, 0 pending. 200 of 200.
+
+### 2026-08-31 — three chores cleared, and one permission row that is derived rather than decided
+
+Run on operator instruction, chosen over `/next-ticket` specifically to unblock TEA-03. Three items
+the re-triage of `2026-08-31-nobody-can-join-the-board.md` recorded but did not fix.
+
+**`Invite a member` removed from the permission table.** After ADR-009 it named the same act as
+`Add an address to the allow-list` — there is no invitation and nothing is sent, so the row described
+a power the product does not have. The removal is recorded in the file rather than performed
+silently, because a reader who remembers the row needs to find out where it went rather than conclude
+the table lost it.
+
+**`Read the member list` added — and it is the one row in that table nobody decided in words.** It is
+derived: `Read any entry in the team` is already ✅ for a member and the year view renders a row per
+member, so a member who could not read the member list could reconstruct it from entries they are
+entitled to read. Denying it would deny nothing while leaving TEA-03's select policy with no row to
+be written against. Marked in the file as awaiting confirmation rather than left to pass as settled —
+the standing instruction forbids inventing into the registry, and the honest handling of a derivation
+is to label it, not to launder it through a table where every other row has operator provenance.
+TEA-03's `TODO(project)` narrowed accordingly: no longer blocked, waiting on one confirmation.
+
+**`features.md` § Status no longer states a count.** It read *"No feature rows yet"* while four TEA
+rows existed. Replaced with prose that stays true as rows accumulate — the sentence that goes stale is
+the one that names a number, and this file gains rows one at a time forever.
+
+Audit 0 errors, 1 advisory warning (D8 on ADR-008 — MD-012, self-recorded, not new).
+
+**Not fixed, and not this command's job:** `tests/seam-parity.test.ts` fails to resolve `@/lib`
+because `src/` does not exist yet. It arrives from commit `ad49870` and was not touched today. It is
+toolchain debt that will surface at the first ticket's QA gate, not a defect in the model.
+
+### 2026-08-31 — the gap `/next-ticket` found, and the first agent-accepted ADR
+
+The orchestrator reported nothing runnable and was right for a reason nobody had written down.
+Verified every claim before acting: four `TEA-` rows in `features.md`, `.ai/board/tickets/` holding
+only `.gitkeep`, every table in `backlog.md` empty, `allowed_list_ids: []`. All correct.
+
+**The hole: no command turns a promoted feature row into a ticket when there is no tracker.**
+`/pull-tickets` reads a tracker and fails closed without one, correctly. `/next-ticket` is
+report-only by design and cannot fill it without losing the property that makes it safe. `SETUP.md`
+describes the sequence as *"a human adds the feature row, and `/spec`"* — skipping the ticket's
+creation entirely.
+
+**It was larger than the orchestrator described.** ADR-007 removed the human from feature rows and
+moved BACKLOG's owner to `orchestrator`, but the Definition of Ready table still said items 1, 3, 4
+and 6 were produced *by a human*, item 1 specifically *"when promoting the idea"*. Two documents
+naming two different owners for the same stage. The hole sat exactly where the last two ADRs had been
+removing them, and only became visible once a board existed with promoted features and no tickets.
+
+**ADR-010 — `/triage` creates the ticket shell.** Accepted `by steward`, and it is the **first ADR in
+this repository accepted by an agent** rather than by the operator. It qualifies under ADR-008
+because it works inside the envelope ADR-007 opened and supersedes nothing. Worth saying plainly:
+ADR-008's revert condition points at this document. If the operator disagrees with it at merge,
+RULE-09 goes back to v1, and that is the correct outcome rather than a failure.
+
+Rejected `/spec` creating the shell lazily — it leaves `backlog.md` empty until somebody already
+knows which ticket to specify, and knowing that is what `/next-ticket` exists to answer.
+
+Did **not** record this as model debt, though the orchestrator suggested it. Debt is for what is
+recorded rather than fixed; a row opened and closed in the same turn is noise in a register that has
+to stay readable.
+
+**Backfilled four ticket shells and four backlog rows**, because `/triage` promoted TEA-01..04 before
+ADR-010 made shell creation part of that command. Each file says so in a comment. DoR items 1, 3, 4
+and 6 filled; items 2 and 5 left empty, because they are the BA's at SPEC and the gate sits after
+SPEC so that they can be. `TEA-01` carries `schema_delta` linking ADR-009; the other three are
+`none`, and DESIGN is free to contradict that.
+
+Two of my own errors, caught by the audit within a minute of writing them: D5 read `/new-ticket` in
+the rejected-alternatives paragraph as a reference to a command that does not exist, and D6 reported
+the ticket directory the ADR named before it existed. Both were mine, both were real.
+
+Audit 0 errors, 1 advisory warning (MD-012), 0 pending. 200 of 200.

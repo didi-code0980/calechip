@@ -20,9 +20,11 @@ below fails Definition of Ready and is demoted to BACKLOG.
 
 ## Status
 
-Prefixes fixed on 2026-08-31. **No feature rows yet** — rows arrive one at a time as ideas are
-promoted, written by `product` at `/triage` (ADR-007). An empty group table means no feature in that
-group has been specified, not that the group is unused.
+Prefixes fixed on 2026-08-31. **Rows arrive one at a time as ideas are promoted**, written by
+`product` at `/triage` (ADR-007) — never in a batch, and never ahead of the idea that justifies them.
+The tables below are therefore always partial, and an empty group table means no feature in that
+group has been promoted yet, not that the group is unused. Do not restate a count here: the tables
+are the count, and a number in prose is a second copy that goes stale on the next promotion.
 
 **Every row written by triage cites its idea file in `Notes`.** A row with no citation was not
 promoted from anything, and that is exactly what a reviewer should stop on.
@@ -97,3 +99,7 @@ Members, roles, invitations and sign-in. Brief section 7.6, plus the authenticat
 
 | ID | Title | Group | Status | Invariants touched | Notes |
 |----|-------|-------|--------|--------------------|-------|
+| TEA-01 | Sign up and establish the member record | TEA | PLANNED | INV-04, INV-07 | From 2026-08-31-nobody-can-join-the-board.md. ADR-009: self-serve sign-up against the allow-list, a trigger on the auth user that admits and consumes the entry, and **no invitation email** — the story says so rather than implying one arrives. A person who signs up before being allow-listed gets an auth user with no member row; presenting that state is part of this feature. TODO(project): the first-team and first-admin bootstrap is not a capability of this feature — a human applies a seed, per the re-triage verdict in the idea file. |
+| TEA-02 | Manage the allow-list | TEA | PLANNED | INV-07 | From 2026-08-31-nobody-can-join-the-board.md. The three allow-list rows in rbac-and-security.md — read, add, remove — admin only. This is how the charter's invite-a-member power is realised after ADR-009. Fixes which team a joiner lands in, through the allow-list entry's team. |
+| TEA-03 | Team member list | TEA | PLANNED | [] | From 2026-08-31-nobody-can-join-the-board.md. TODO(project): the blocking gap is closed — rbac-and-security.md now carries a `Read the member list` row (member ✅, admin ✅) for the select policy to be written against. The row is **derived, not decided**: it follows from `Read any entry in the team` plus the year view's one-row-per-member layout, and it is annotated as such in that file. The operator confirming or overturning it is the last thing between this row and READY. |
+| TEA-04 | Remove a member, and promote a member to admin | TEA | PLANNED | INV-04, INV-07 | From 2026-08-31-nobody-can-join-the-board.md. One admin surface over two permission rows. Removal is a soft delete, and that column is the definition of INV-04's denominator: entries stay and stay visible, and the absence count for past dates changes, per the INV-04 note. Promotion is one-way in v1 — demoting an admin is denied by default rather than by decision, rbac-and-security.md known weakness 6. |

@@ -312,20 +312,20 @@ Ticket ID equals feature ID in the 1:1 case. Splits get `-a`, `-b`. Defects are 
 ## Definition of Ready
 
 **DoR gates the SPEC to READY transition.** The question it answers is not "may this ticket be
-specified" but "is this ticket safe to design and build". Four of its six items come from the human
-step at BACKLOG; two are produced by the BA at SPEC. Every item names its producing stage, and every
+specified" but "is this ticket safe to design and build". Four of its six items are produced at
+BACKLOG, by `/triage` when it creates the ticket (ADR-010); two are produced by the BA at SPEC. Every item names its producing stage, and every
 producing stage sits at or before the gate.
 
 Checked mechanically by the orchestrator.
 
 | # | Item | Produced at | By |
 |---|------|-------------|-----|
-| 1 | `feature_ids` non-empty, and every ID present in `.ai/registry/features.md` | BACKLOG | a human, when promoting the idea |
+| 1 | `feature_ids` non-empty, and every ID present in `.ai/registry/features.md` | BACKLOG | `product`, when promoting the idea (ADR-007) |
 | 2 | `invariants_touched` explicit — may be `[]`, never absent | SPEC | `ba` |
-| 3 | Every ticket in `depends_on` is `DONE` | BACKLOG | a human, when ordering the backlog |
-| 4 | `schema_delta` is `none`, or an approved ADR is linked | BACKLOG | a human; a schema change needs its ADR before the ticket exists (RULE-09) |
+| 3 | Every ticket in `depends_on` is `DONE` | BACKLOG | `product`, when creating the shell (ADR-010) |
+| 4 | `schema_delta` is `none`, or an approved ADR is linked | BACKLOG | `product` + `tech-lead-design`; a schema change needs its ADR before the ticket exists (RULE-09) |
 | 5 | `size_estimate` is S or M | SPEC | `ba`, from the story's scope and its Out-of-scope section |
-| 6 | Exactly one feature group, or a stated split rationale | BACKLOG | a human, or `ba` at SPEC if the story reveals a second group |
+| 6 | Exactly one feature group, or a stated split rationale | BACKLOG | `product`, or `ba` at SPEC if the story reveals a second group |
 
 `[]` and absent are different answers. `[]` says the BA considered the invariants and found none
 engaged. Absent says nobody looked, and check R8 has nothing to reason through.
