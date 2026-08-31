@@ -141,7 +141,9 @@ One rule covers absolute paths elsewhere, a different drive, `../` traversal abo
 temporary directory is itself symlinked on some platforms and a naive real-path comparison rejects
 every legitimate write.
 
-**Known limitation:** a git worktree created outside the project directory is treated as outside the
+**Known limitation, retained for reference.** ADR-006 removed worktrees from this project, so the
+case below no longer arises here; it is kept because the guard is still on disk and a project that
+rewires it will meet the same edge. A git worktree created outside the project directory is treated as outside the
 boundary. That is the intended reading of "outside the project root", and the fix is to point
 `CLAUDE_PROJECT_DIR` at the worktree rather than to widen the guard.
 

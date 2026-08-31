@@ -24,8 +24,8 @@ git status --porcelain
   remote-only), then `git pull --ff-only`.
 - Tree dirty — **stop.** Print the paths and say which ticket they belong to.
 - **The branch does not exist — stop and report to the operator.** Do not create it. Only `/spec`
-  creates a `feat/` branch. Arriving here with no branch means SPEC never ran, a `/handoff` never
-  pushed, or the ID is wrong, and the three need different answers. Say which you cannot rule out.
+  creates a `feat/` branch. Arriving here with no branch means SPEC never ran, or the ID is wrong,
+  and the two need different answers. Say which you cannot rule out.
 
 **The session must be new every time, including on a re-review.** A session that remembers working
 through R4 last pass will not genuinely work through it again, and the code changed between passes —
@@ -83,7 +83,8 @@ for most runs it *is* the reply. Do not stop at the step above and leave the ope
 answered, whether it passed, where the repository is, and what runs next.
 
 The *first* line quotes the `gate` from the front-matter you just wrote. *Tiếp theo* names the next
-stage command **and its folder** — the design lane, the implement lane or the model lane.
+stage command **and the session it belongs in** — RULE-13 makes a correct command in a reused
+session a verdict that was not really reached.
 Read the two values rather than recalling them:
 
 ```

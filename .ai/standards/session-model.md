@@ -1,6 +1,6 @@
 ---
-doc_version: 1
-last_updated: 2026-08-25
+doc_version: 2
+last_updated: 2026-08-31
 governed_by: [RULE-11, RULE-12, RULE-13, RULE-14, RULE-15, RULE-16]
 ---
 
@@ -96,191 +96,83 @@ It also means `consulted` in the artifact front-matter is checkable. `99-questio
 so an artifact claiming no consultation while a question sits in the file is a detectable provenance
 failure rather than a matter of trust.
 
-## Three worktrees, two features at once
+## One working directory
 
-**A folder is decided by where the session is launched.** There is no routing: the working directory
-is the session root, `$CLAUDE_PROJECT_DIR` resolves to it, and `guard-allowed-paths.mjs` reads that
-folder's `.git/HEAD` to decide which ticket an agent is judged against. Open the folder, then talk.
+**There is one folder, one clone, one working tree.** Every session — every role — is launched in it.
+Decided in [ADR-006](../registry/decisions/ADR-006-single-working-directory.md), which replaced three
+git worktrees and a branch that travelled between them.
 
-### The three lanes
+### What this changes, and what it does not
 
-**Folders are named for the stage, and the roles follow from it.** A folder name that says where a
-session happened to start ages badly; one that says what happens there does not.
+**It does not change isolation.** RULE-13 asks that REVIEW and QA see files only, with no message
+channel and no inherited context, and that was always a property of *sessions* rather than of
+folders. A fresh `tech-lead-review` session reads files; it reads them just as freshly from a working
+tree it happens to share with the session that wrote them. The lifetimes table at the top of this
+file is untouched.
 
-TODO(project): pick the three folder names and write them into this table, into `CLAUDE.md`, and into
-the *Tiếp theo* line of the sign-off block. The convention that works is `<repo>-design`,
-`<repo>-implement`, `<repo>-model` — sorted together, and the suffix is the lane.
+**It does change how many tickets can be in flight: one.** A single working tree holds a single
+branch. Two tickets cannot be live, so the parallel-dispatch condition in
+`.ai/01-operating-model.md` is now unreachable rather than merely hard to satisfy. WIP is 1 because
+git makes it 1.
 
-| Folder | Lane | Roles | Stages | Branch it holds |
-|---|---|---|---|---|
-| `<repo>-design` | **design** | `ba`, `tech-lead-design`, `orchestrator` | `/spec` `/next-ticket` `/design` `/handoff` `/ship` | the ticket being specified, then the ticket being shipped |
-| `<repo>-implement` | **implement** | `developer`, `tech-lead-review`, `qa` | `/implement` `/review` `/qa` `/handoff` | the ticket being implemented |
-| `<repo>-model` | **model** | `steward` | `/thuki` `/status` `/docs-audit` | always `ops/*`, never a ticket |
+**It removes a failure mode entirely.** Since ADR-004 unwired `guard-project-root.mjs`, nothing
+stopped a session launched in the wrong folder from writing to the wrong branch — it was held by
+asking every session to check `pwd` first, which is a convention and not a control. With one folder
+there is nowhere else to be.
 
-**The implement lane needs no `orchestrator`.** `/handoff` is run by the role that produced the
-lane's last gate — `tech-lead-design` in the design lane, `qa` in the implement lane — so every
-command in the implement lane has an owner already sitting in that folder.
+### One ticket, one commit
 
-A session's folder is fixed at launch, so the role running `/handoff` is the one whose working tree
-holds the files being committed. That constraint is what makes the pairing above the only workable
-one, and it is not negotiable by argument.
+**`handoff` no longer exists.** Its two jobs were to commit a lane's work so the next lane could read
+it, and to release the branch name so another worktree could check it out. With one folder the second
+is meaningless and the first is unnecessary: the next session reads the working tree directly.
 
-**Naming the roles does not make lanes role-shaped, and the distinction earns its keep.** An early
-draft in the origin project assigned roles to folders as the *organising principle* — `ba` always
-here, `developer` always there — and it does not survive parallelism: `tech-lead-design` would have to
-hold two branches the moment two tickets are live, and git refuses one branch in two worktrees. What
-decides a folder is the stage. The roles above are a consequence of which stages live where, and they
-are listed because a reader opening a folder wants to know who works there.
+**A ticket is committed once, at `/ship`.** Every stage before it leaves the tree dirty, which is the
+original shape of the model — a commit is an assertion that a change is coherent, and deferring it
+until the gates have all passed keeps that assertion honest.
 
-**`/ship` runs in the design lane, not the implement lane.** The reason is throughput: shipping is the
-orchestrator reading gates, opening a pull request and waiting on a human, and none of it needs the
-folder that writes source. Moving it frees the implement lane the moment QA passes.
+### The one thing this makes dangerous
 
-**The branch a lane holds is not a lane's property. It travels.** One `feat/<TICKET-ID>` moves
-design -> implement -> design, carried by `/handoff` at each boundary. This replaces the arrangement
-in which each lane cut its own branch and the ticket's history was stitched together at ship time.
+**`git branch --show-current` and `git status` before the first instruction of every session.** Not
+`pwd` any more — the folder is a constant. The branch and the tree are not.
 
-```mermaid
-flowchart LR
-  subgraph W["design lane"]
-    direction TB
-    S["/spec"] --> D0{"DoR"} --> D["/design<br/>fills allowed_paths"]
-    SH["/ship<br/>PR opened"]
-  end
-  subgraph A["implement lane"]
-    direction TB
-    I["/implement"] --> R["/review"] --> Q["/qa"]
-  end
-  subgraph C["model lane"]
-    direction TB
-    T["/thuki · /status<br/>ops/* only"]
-  end
-  D -- "/handoff<br/>commit · push · detach" --> I
-  Q -- "/handoff<br/>commit · push · detach" --> SH
-  SH -- "human merges" --> S
-  C -.->|"never holds a ticket branch"| A
-```
+Everything a ticket has produced — the story, the design, the source, the tests, all six artifacts —
+is **uncommitted until `/ship`**. There is no intermediate save point. So:
 
-### Why the handoff is after DESIGN, and why that matters
+- **A dirty tree is a stop, in every ticket command.** `git switch` carries modified and untracked
+  files onto whichever branch is arrived at, and that is how one ticket's work lands on another
+  ticket's branch. `.ai/standards/git-conventions.md` states the check; under ADR-006 it stopped
+  being defence in depth and became the only defence.
+- **Nothing is in history until the end**, so there is nothing to bisect, nothing to revert to, and
+  no CI result until `/ship` runs.
 
-DESIGN is the last stage that writes only inside the ticket folder. It *declares* `allowed_paths`; it
-does not write source. IN_PROGRESS is the first stage that does.
+ADR-006 records both as accepted costs, and names the revert condition: the first time a ticket's
+work is lost or lands on the wrong branch is enough to reverse the decision.
 
-That single fact is what makes two features safe in parallel, and it is worth stating because
-**the operating model's own parallel condition is usually unsatisfiable.** The condition requires
-`allowed_paths` to be pairwise disjoint, and in the origin project one shared type module was in
-every feature ticket's list, because every feature added a type to it.
+### The surface that used to collide
 
-The stagger sidesteps the condition rather than satisfying it. Only the implement lane writes source,
-and only one ticket is ever in the implement lane, so overlapping `allowed_paths` never produce two
-concurrent writers. Two tickets whose lists both name the same shared module are safe **so long as
-they are in different lanes**, and unsafe the moment both reach IN_PROGRESS.
+`.ai/board/metrics.md` and `.ai/board/backlog.md`. Every ticket appends to both and no
+`allowed_paths` covers either. Under three lanes this needed a rule naming one writer; with one
+working tree and one live ticket there is only ever one branch appending to them, and `/ship` is the
+only command that writes them because it is the only command that commits.
 
-### The rule that keeps it honest
+### Provisioning
 
-**A feature may enter the implement lane only when the previous one has merged.** Not shipped —
-merged. The design lane may run as far ahead as the board allows; the implement lane is strictly one
-at a time.
+One clone, one dependency install.
 
-**Where a ticket holds while it waits: at `IN_PROGRESS`, in the design lane.** The design lane's last
-stage is DESIGN, whose `next_state` is `IN_PROGRESS`, so a ticket that has finished this lane has
-already passed `READY`.
+TODO(project): write the exact install command here, with any flags a local toolchain needs, and
+state the condition under which those flags stop being safe.
 
-### The handoff protocol
-
-Three commits per ticket, at three boundaries. Full steps in `.claude/commands/handoff.md`; what
-belongs here is why it has the shape it does.
-
-| # | Where | Run by | After | What moves |
-|---|---|---|---|---|
-| 1 | design lane | `tech-lead-design` | `design` gate passes | `feat/<ID>` pushed carrying `01-story.md` and `02-design.md`; branch released |
-| 2 | implement lane | `qa` | `qa` gate passes | the same branch pushed carrying source, tests and artifacts 03–06; branch released |
-| 3 | design lane | `orchestrator` | Definition of Done confirmed | `state: DONE`, board files, the pull request |
-
-**Each hand-off is run by the role that closed the gate it hands on.** That is the whole of the
-pairing rule, and it is why the two are not interchangeable: a role can only commit the working tree
-of the folder its session was launched in.
-
-The receiving lane opens with `git fetch && git switch feat/<ID> && git pull`.
-
-**Releasing the branch is not tidiness, it is the mechanism.** Git holds a branch name exclusively
-across worktrees, and the failure is not a warning:
-
-```
-fatal: 'feat/EXA-01' is already checked out at '/path/to/repo-design'
-```
-
-Verified by attempt in the origin project. So the last step of every `/handoff` is
-`git switch --detach` — the worktree keeps the same commit and the same files, and only the name is
-freed. A hand-off that reported success while still holding the branch would fail in the *other*
-folder, minutes later, which is the hardest place to read it.
-
-**`main` is not special.** The same exclusivity applies, so a lane parks detached at `origin/main`
-rather than on the branch `main`. Both lanes run `/handoff`; if both parked on the branch, whichever
-ran second would fail outright.
-
-**Why three commits and not one.** One commit at `/ship` is coherent while every stage lives in one
-working tree: a commit is an assertion that a change is coherent, and deferring it keeps the
-assertion honest. Two worktrees make that untenable — the artifacts a lane produced are the *input*
-the next lane needs, and an input that exists only as a dirty file in a folder the next lane cannot
-open is not an input. So the assertion is made three times about three smaller things, which is a
-weaker claim per commit and a truer one.
-
-**What it costs.** The implement lane no longer sees the design lane's uncommitted tree, so a defect
-in `02-design.md` is found after it is in history rather than before. That is the trade, and it is
-acceptable because a gated artifact has already been judged — `gate: PASS` in its front-matter is the
-assertion, and the commit only records it.
-
-**The one thing that must not be inferred from this.** A pushed branch is still not a merged branch.
-A feature enters the implement lane only when the previous one has **merged**. `/handoff` moves a
-ticket between lanes; it never lets a second ticket into the implement lane.
-
-### The one surface that still collides
-
-`.ai/board/metrics.md` and `.ai/board/backlog.md`. Every ticket appends to both, no `allowed_paths`
-covers either, and two tickets in flight means two branches appending to the same lines.
-
-**One writer: `/ship`.** Not one lane — one command. `/handoff` is explicitly forbidden to touch
-either file and puts them in its second set if a stage left them dirty. Since only one ticket is ever
-shipping, only one branch ever writes them, and the design lane's transitions are recorded when the
-ticket ships rather than when it moves.
-
-Naming the command rather than the folder is what survives the next time a stage changes lanes.
-
-### Provisioning a worktree
-
-`git worktree add -b <branch> ../<folder> origin/main`, then two things the command does not do:
-
-- **Dependencies. Install them; do not symlink the dependency directory.** A symlinked dependency
-  tree passes typecheck, lint and tests and is rejected by some bundlers outright, which means it
-  stays invisible until the one command that needs a bundler runs — and that command is usually
-  `/ship`. Install per worktree.
-
-  TODO(project): write the exact install command here, with any flags a local toolchain needs, and
-  state the condition under which those flags stop being safe.
-- **`settings.local.json` under `.claude/`.** It is gitignored, so a new worktree starts without the
-  granted permissions and re-prompts for all of them. Copy it. `settings.json` needs no copying — it
-  is tracked, so every worktree already has the same bytes, and the deny list and hooks come with it.
-
-### What no longer protects this
-
-Before ADR-004, `guard-project-root.mjs` refused any write outside the session's own folder. A session
-in one worktree physically could not touch another. That guard is unwired, so **lane separation is now
-a convention rather than a boundary** — an agent in the wrong folder is not stopped, it just writes to
-the wrong branch.
-
-The cheap substitute is one line at the start of a session: confirm `pwd` and
-`git branch --show-current` before giving the first instruction. It catches the same error the guard
-caught, at the only moment it is still free to fix.
+`settings.local.json` under `.claude/` is gitignored and stays on the machine that granted the
+permissions. `settings.json` is tracked, so the deny list and the hooks arrive with the clone.
 
 ## Every reply ends with a sign-off
 
 The block itself is in `CLAUDE.md`, which is the one file every session loads, so it is defined once
 and reproduced nowhere.
 
-**What it is for.** Three worktrees, seven ticket commands and nine agents mean the operator's real
-question after any reply is the same four things: who answered, whether it passed, where the
-repository is now, and what to type next. Before this, each of the four was somewhere different — the
+**What it is for.** Six ticket commands and nine agents mean the operator's real question after any
+reply is the same four things: who answered, whether it passed, where the repository is now, and what
+to type next. Before this, each of the four was somewhere different — the
 gate in an artifact's front-matter, the branch nowhere at all, the next command sometimes printed and
 sometimes not. Putting them in a fixed place at a fixed time is worth more than any one of them.
 

@@ -53,8 +53,8 @@ a word, and no other role can do it for you.
   around it. The guard is the mechanism, RULE-05 is the rule, and the rule does not weaken because
   the mechanism has a gap. **This gap is real and it is recorded in `.ai/board/model-debt.md`** —
   nothing stops you but this paragraph.
-- **`git commit`, `git push`, `git merge`, `git rebase`, `git stash`.** Persisting a lane is
-  `/handoff`, and in the design lane that command belongs to `tech-lead-design`, not to you. Branch
+- **`git commit`, `git push`, `git merge`, `git rebase`, `git stash`.** A ticket is committed once,
+  at `/ship`, by the `orchestrator` — never by you. Branch
   *creation* is not a commit, which is why step 0 is permitted and this is not.
 - **Any write to a file.** You have `Write` and `Edit` for `01-story.md` and `ticket.yaml`. A shell
   redirect or `sed -i` is a write outside every path check.

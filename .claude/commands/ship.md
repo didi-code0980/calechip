@@ -3,10 +3,11 @@ description: Build, mark the ticket DONE, and open a pull request
 argument-hint: <TICKET-ID>
 ---
 
-Run in the **orchestrator session in the design lane folder** (`.ai/standards/session-model.md`).
-Nothing is dispatched. It sits in the design lane rather than the implement lane because shipping
-reads gates, opens a pull request and waits on a human, and none of that needs the folder that writes
-source.
+Run in the **orchestrator session** (`.ai/standards/session-model.md`). Nothing is dispatched.
+
+Since ADR-006 this is **the only command in the loop that commits.** Every stage before it left the
+tree dirty, so the whole ticket — story, design, source, tests, all six artifacts — is sitting
+uncommitted when you arrive.
 
 **Preconditions — all four gates `passed: true` with timestamps.** Verify against `ticket.yaml`, not
 against a summary.
@@ -17,14 +18,12 @@ Steps:
    check every ticket command runs*. `pwd`, `git branch --show-current`, `git fetch origin --quiet`,
    `git status --porcelain`, then `git switch feat/$ARGUMENTS && git pull --ff-only`.
 
-   If the switch fails with `fatal: 'feat/$ARGUMENTS' is already checked out at ...`, the implement lane
-   has not run `/handoff` and this ticket is not ready to ship. Print the folder git named and stop —
-   do not work around it, and never `git worktree` your way past it. **If the branch does not exist
-   at all, stop and report**; this command never creates one.
+   **If the branch does not exist, stop and report**; this command never creates one.
 
-   The implementation, the tests and artifacts 03–06 arrive already committed, by `/handoff`. Do not
-   expect a dirty tree full of source files; if you find one, the implement lane's hand-off did not
-   complete and the QA gate you are trusting was never persisted.
+   **Expect a dirty tree full of source files — that is the normal state here, not a warning sign.**
+   Nothing before this command commits. What you must not find is work belonging to a *different*
+   ticket: read `git status` in full and classify every path before staging anything. A file you
+   cannot place belongs to a human, not to a guess.
 
 1. Run the project's verify command — typecheck, lint, unit, build — named in
    `.ai/standards/testing-standards.md`. Any non-zero exit stops here.
@@ -57,9 +56,10 @@ Steps:
    separate pull request from the ship is a board that can be merged out of order.
 
 5. **Commit the ticket set on `feat/$ARGUMENTS`.** Confirm the branch first; if it is anything else,
-   stop. `git add` with explicit paths — never `-A`, never `.`. This is the ship commit — the state
-   transition and the board, on top of the two `/handoff` commits already on the branch. Message form
-   per `.ai/standards/git-conventions.md`. Then `git push origin feat/$ARGUMENTS`, which prompts.
+   stop. `git add` with explicit paths — never `-A`, never `.`. This is the **only** commit the
+   ticket gets: the artifacts, the source, the tests, the state transition and the board files, all
+   of it. Message form per `.ai/standards/git-conventions.md`. Then
+   `git push origin feat/$ARGUMENTS`, which prompts.
 
 6. `node scripts/check-allowed-paths.mjs`. It diffs `origin/main...HEAD` — the **whole branch**, not
    your last commit. A FAIL here means the ticket branch carries a file outside `allowed_paths`, and
@@ -104,26 +104,20 @@ Steps:
     gates you checked, the files you classified, the commands you ran — stays out. `git show --stat`
     and the ticket folder hold all of it.
 
-    Name the folder, not just the command. Three worktrees mean a correct command in the wrong folder
-    writes to the wrong branch, and since ADR-004 nothing refuses it.
+    Name the session, not just the command. RULE-13 makes a correct command in a reused session a
+    verdict that was not really reached.
 
-11. **Park the lane on the latest `main`** — same three commands as `/handoff` step 6, same reasons:
+11. **Leave the branch where it is.** The pull request is open and the branch belongs to whoever
+    merges it. Do not switch away, do not delete it, and do not update local `main` — the next
+    `/spec` cuts from `origin/main` and fetches for itself.
 
-    ```
-    git fetch origin --quiet
-    git switch --detach origin/main
-    git fetch origin main:main --quiet
-    ```
-
-    The pull request is open and the branch belongs to whoever merges it. This folder's next job is
-    `/spec` on a different ticket, and it cannot cut one while holding this.
+    There is nothing to release: with one working directory nothing else is waiting for the name.
 
 **The output is an open pull request. Never a merge.** RULE-09 makes merging permanently human, and
 `gh pr merge` is denied in settings.
 
-You commit here and in `/handoff`, and nowhere else. Every stage leaves its tree dirty; those two
-commands are the only ones that persist it. Two things are never yours: `main` as a target, and the
-merge.
+You commit here and nowhere else. Every stage leaves its tree dirty and this command is the only one
+that persists it. Two things are never yours: `main` as a target, and the merge.
 
 **Definition of Done item 2 — "diff is a subset of `allowed_paths`" — is a statement about the
 ticket branch**, which is why step 8 exists. It was written when nothing was ever committed, so it

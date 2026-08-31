@@ -81,17 +81,17 @@ view. Details, and the Vui/Gọn density toggle, are in
 - **No invention.** No invented feature IDs, acceptance criteria, database fields, or invariants.
   Missing information becomes a placeholder plus an entry under `OPEN QUESTIONS`.
 - **Additive only.** Do not delete or rewrite a file you did not create in the current run.
-- **Humans merge. Agents commit at `/handoff` and `/ship` only.** Every stage leaves the tree dirty.
-  `/handoff` persists a finished lane and releases the branch so the next worktree can take it;
-  `/ship` adds the state transition and opens the pull requests. Both classify the tree and keep
-  ticket work and chore work on separate branches. Merging is permanently human — RULE-09. Scope and
-  limits in [.ai/standards/git-conventions.md](.ai/standards/git-conventions.md).
-- **Three worktrees, one travelling branch.** The design lane holds `orchestrator`,
-  `tech-lead-design` and `ba`; the implement lane holds `developer`, `tech-lead-review` and `qa`; the
-  model lane maintains the model and never holds a ticket branch. `feat/<ID>` moves design ->
-  implement -> design by `/handoff`. Confirm `pwd` and `git branch --show-current` before the first
-  instruction of a session — since ADR-004 nothing stops a session writing to the wrong folder's
-  branch. [.ai/standards/session-model.md](.ai/standards/session-model.md).
+- **Humans merge. Agents commit at `/ship` only.** Every stage leaves the tree dirty, from `/spec`
+  all the way to the end. `/ship` classifies the tree, keeps ticket work and chore work on separate
+  branches, records the state transition and opens the pull requests. Merging is permanently human —
+  RULE-09. Scope and limits in
+  [.ai/standards/git-conventions.md](.ai/standards/git-conventions.md).
+- **One working directory.** Every role is launched in the same folder, and one working tree holds
+  one branch — so exactly one ticket is ever in flight, enforced by git rather than by policy
+  (ADR-006). **Read `git branch --show-current` and `git status` before the first instruction of a
+  session.** A whole ticket stays uncommitted until `/ship`, so a `git switch` on a dirty tree is not
+  an inconvenience, it is the loss.
+  [.ai/standards/session-model.md](.ai/standards/session-model.md).
 
 ## Replying — the sign-off is the reply
 
@@ -135,7 +135,7 @@ stand as shipped and no translation is owed.
 **Tôi là `<agent>`.** Vừa <what you did> — <TICKET-ID>, gate <PASS | FAIL | BLOCKED | n/a>.
 **Xong lúc:** <output of `date '+%Y-%m-%d %H:%M %Z'`>
 **Branch:** <output of `git branch --show-current`, or `detached @ <sha>`>
-**Tiếp theo:** <command> — trong folder <design | implement | model>
+**Tiếp theo:** <command> — trong session <agent>
 ```
 
 - **Read the time and the branch. Never supply them from context.** `date` and
@@ -145,8 +145,8 @@ stand as shipped and no translation is owed.
   this position today.
 - **Quote the gate from your artifact's front-matter.** If your reply completes no command, write
   `gate n/a` and say what you are waiting on in the *Tiếp theo* line.
-- **Name the folder, not just the command.** Three worktrees make a correct command in the wrong
-  folder a silent write to the wrong branch.
+- **Name the session, not just the command.** RULE-13 makes a correct command in a reused session a
+  review or a QA pass that did not really happen.
 - **On a FAIL, *Tiếp theo* is the routed command**, per the routing table in
   `.ai/01-operating-model.md` — not the next happy-path stage. On `ESCALATED`, it is a human decision
   and there is no command; say so.
@@ -156,8 +156,7 @@ stand as shipped and no translation is owed.
 ## Commands
 
 **The loop**, which builds the product — `/idea` `/triage` `/next-ticket` `/spec` `/design`
-`/handoff` `/implement` `/review` `/qa` `/handoff` `/ship` `/sprint-status` `/pull-tickets`
-`/sync-tracker` `/docs-audit`
+`/implement` `/review` `/qa` `/ship` `/sprint-status` `/pull-tickets` `/sync-tracker` `/docs-audit`
 
 **The model**, which maintains the loop — `/thuki` (steward: rules, hooks, checks, registry; never
 ticket work) and `/status` (reads the board; reports what is true and what waits on a human).

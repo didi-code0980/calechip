@@ -1,6 +1,6 @@
 ---
-doc_version: 1
-last_updated: 2026-08-25
+doc_version: 2
+last_updated: 2026-08-31
 governed_by: [RULE-03, RULE-09, RULE-10]
 ---
 
@@ -30,7 +30,7 @@ anything that does not begin `feat/` as chore work and let it through unchecked.
 |---|---|---|---|---|
 | Feature ticket | `feat/<FEATURE-ID>` | `feat/EXA-01` | `origin/main` | **active** |
 | Bugfix on a shipped feature | `bugfix/BUG_<FEATURE-ID>_<NN>` | `bugfix/BUG_ORD-01_01` | `origin/main` | inactive |
-| Chore, model, tooling | `ops/<slug>` | `ops/lane-handoff` | `origin/main` | inactive, correctly |
+| Chore, model, tooling | `ops/<slug>` | `ops/single-folder` | `origin/main` | inactive, correctly |
 | — | `fix/` | — | — | **retired** |
 
 `<FEATURE-ID>` is a row in `.ai/registry/features.md` and nothing else — RULE-17, and check D1 fails
@@ -69,8 +69,8 @@ running agent's to choose.**
 | **stop** | every other ticket command | **Stop and report to the operator.** Do not create it. |
 
 **Only `/spec` may bring a `feat/` branch into existence.** Every later stage arriving at a missing
-branch means something upstream did not happen — SPEC was never run, or a `/handoff` never pushed, or
-the ID is wrong. Creating it there would manufacture an empty branch that looks like progress and
+branch means something upstream did not happen — SPEC was never run, or the branch was never created,
+or the ID is wrong. Creating it there would manufacture an empty branch that looks like progress and
 hides which of the three it was.
 
 Common to both modes, in every command:
@@ -78,12 +78,9 @@ Common to both modes, in every command:
 - **A dirty tree is a stop.** `git switch` carries modified and untracked files onto the branch you
   arrive at, which is how one ticket's artifacts land on another ticket's branch. Print the paths and
   say which ticket they belong to.
-- **`fatal: '<branch>' is already checked out at '<folder>'` is a stop**, not a problem to route
-  around. Another worktree holds it. Print the folder git named. Never `git worktree` past it and
-  never `git -C` into it.
 - **Existence is two refs, not one.** Check `refs/heads/<branch>` and `refs/remotes/origin/<branch>`
-  separately — a branch released by `/handoff` exists on the remote while the worktree that produced
-  it sits detached.
+  separately. A branch that was pushed and then merged still exists on the remote after the local one
+  is deleted, and a branch created locally and never pushed exists only here.
 - **Cut from `origin/main`, never local `main`.** No lane checks `main` out, so nothing updates it;
   a branch cut from local `main` looks correct and silently omits everything merged since.
 
@@ -93,28 +90,28 @@ Common to both modes, in every command:
 a role.** Every other stage leaves the working tree dirty. That is deliberate: a commit is an
 assertion that a change is coherent, and that assertion is one of the things being validated.
 
-The exception exists because two commands cannot complete without it. `/ship` step 7 requires an open
+The exception exists because one command cannot complete without it. `/ship` step 7 requires an open
 pull request, a pull request requires commits on a pushed branch, and nothing else in the loop
-produces them. `/handoff` needs it one lane earlier: under the three-worktree arrangement a ticket
-crosses folders twice, and the artifacts one lane produced are the input the next lane reads. An
-input that exists only as a dirty file in a folder the next lane cannot open is not an input.
+produces them.
 
-Three commit points, one per boundary. **The lane that finished the work persists it** — each
-hand-off is run by the role that closed the gate it hands on, because a session can only commit the
-working tree of the folder it was launched in.
+**One commit point per ticket, and it is `/ship`.**
+[ADR-006](../registry/decisions/ADR-006-single-working-directory.md) removed `handoff` along with
+the three worktrees it existed to serve: with a single working tree there is no next folder that
+needs the work committed before it can read it.
 
-| Command | Lane | Run by | Commits |
-|---|---|---|---|
-| `/handoff` | design, after DESIGN | `tech-lead-design` | the story and the design |
-| `/handoff` | implement, after QA | `qa` | the source tree, the test tree, artifacts 03–06 |
-| `/ship` | design | `orchestrator` | `state: DONE`, the board files, then the pull request |
+| Command | Run by | Commits |
+|---|---|---|
+| `/ship` | `orchestrator` | the story, the design, the source tree, the test tree, artifacts 01–06, `state: DONE`, the board files — then the pull request |
 
-The implement lane therefore needs no `orchestrator` session at all: `/implement`, `/review`, `/qa`
-and `/handoff` each have an owner sitting in that folder.
+**What this costs, and it is a real cost rather than a footnote.** Everything a ticket produces stays
+uncommitted from `/spec` to `/ship`. There is no intermediate save point, no continuous integration
+result until the end, and nothing in history to revert to. ADR-006 records both the acceptance and
+the revert condition: the first time a ticket's work is lost or lands on the wrong branch is enough
+to restore `handoff` as a checkpoint.
 
-Every `/handoff` ends by releasing the branch name (`git switch --detach`), because git holds a branch
-exclusively across worktrees and the next lane's `git switch` fails outright without it. Details in
-`.ai/standards/session-model.md` and `.claude/commands/handoff.md`.
+**So the dirty-tree stop above is no longer defence in depth. It is the defence.** `git switch`
+carries modified and untracked files onto whichever branch is arrived at, and with a whole ticket
+uncommitted that is not an inconvenience — it is the loss.
 
 **RULE-09 is unchanged and needs no ADR to permit this.** It names schema changes, ADRs, registry
 edits and PR merges. Committing was never among them — the prohibition lives here, in a standard, and

@@ -201,25 +201,20 @@ exactly, and conversation in one language with artifacts in English.
 re-checked is a guess with a citation. If the conversation language differs, two places change and
 only two: the Language bullet in that file, and the four labels in the sign-off block in `CLAUDE.md`.
 
-## Step 10 — the three worktrees
+## Step 10 — one working directory
 
-```
-git worktree add -b ops/setup ../<repo>-model     origin/main
-git worktree add              ../<repo>-design    origin/main
-git worktree add              ../<repo>-implement origin/main
-```
+One clone, one dependency install, and every role launched in it.
+[ADR-006](.ai/registry/decisions/ADR-006-single-working-directory.md) replaced the three worktrees
+this step used to describe.
 
-Then in each: install dependencies (**do not symlink the dependency directory** — it passes
-typecheck, lint and tests and is rejected by some bundlers outright, so the failure hides until the
-one command that needs a bundler runs), and copy `settings.local.json` under `.claude/` across, which
-is gitignored and therefore absent in a new worktree.
+**Do not symlink the dependency directory.** It passes typecheck, lint and tests and is rejected by
+some bundlers outright, so the failure stays hidden until the one command that needs a bundler runs —
+and that command is usually `/ship`.
 
-Name the folders in `.ai/standards/session-model.md`, in `CLAUDE.md`, and in the last line of the
-sign-off block. The suffix is the lane.
-
-**A folder is decided by where the session is launched.** There is no routing. Since ADR-004 nothing
-refuses a session in the wrong folder — it simply writes to the wrong branch. Confirm `pwd` and
-`git branch --show-current` before the first instruction of every session.
+**What replaces the folder check.** `pwd` is now a constant, so the thing to read before the first
+instruction of a session is `git branch --show-current` **and `git status`**. A ticket stays
+uncommitted from `/spec` to `/ship`, so a dirty tree is not leftover noise — it is somebody's whole
+ticket, and `git switch` will carry it onto whatever branch you arrive at.
 
 ---
 
@@ -233,7 +228,7 @@ Zero errors and **no `note:` lines**. The notes are the checks telling you they 
 clean run with three notes means the audit works and the registry is still empty.
 
 Then, in order: `/idea` in the product session, `/triage`, a human adds the feature row, and `/spec`
-in the BA session in the design lane.
+in the BA session.
 
 **The first ticket is the one that finds the problems.** Expect the charter to gain a refusal, the
 invariant ledger to gain a note, and at least one `TODO(project):` you thought you had answered to
