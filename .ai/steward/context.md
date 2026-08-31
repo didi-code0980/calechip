@@ -450,3 +450,40 @@ Also recorded: an admin edit leaves no trace in v1 (the change feed is P1), and 
 the star on an admin's own entry means "an admin said so" where that admin is themselves.
 
 Audit exits 0 with one note left — D1, the feature prefixes. 199 of 199 tests pass.
+
+### 2026-08-31 — the data model
+
+PR #4 merged (`97b8a6f`). Cut `ops/data-model` from `origin/main`.
+
+`CLAUDE.md` forbids inventing database field names, and this is the file where field names become
+real — so the work split cleanly in two: names that come from the glossary, the invariants or the
+brief were written; names that would have been invented went to `OPEN QUESTIONS`, which is what that
+rule prescribes rather than stopping.
+
+Three questions needed the operator, and all three were answered:
+
+- **`member.id` is `auth.users.id`.** Every policy becomes `... = auth.uid()` with no lookup. That
+  matters more than tidiness: under ADR-005 a loosely written policy fails open, and the shortest
+  correct policy is the hardest to write wrongly.
+- **Soft delete, `removed_at`.** It is also the definition of INV-04's denominator: current member
+  count is the team's members with `removed_at is null`.
+- **`approved_by` and `approved_at`.** The only audit trail v1 has, which matters because an admin
+  may edit another member's entry with no other trace.
+
+**A consequence of the first that was not in the question**: a `member` row cannot precede its auth
+user, because the primary key *is* that user's id. So "invite a member" is a Supabase Auth
+invitation, not a row this application inserts. Filed as open question 4 rather than answered,
+because how the row then appears — a trigger on `auth.users`, first sign-in, or an admin completing
+a profile — is a real choice with three defensible answers.
+
+Two things recorded that are easy to leave implicit and expensive to discover:
+
+- **Nothing cascades, anywhere, and that is a decision.** Every relationship refuses on delete. A
+  cascade nobody chose is one the database performs silently, and the invariant it breaks is found by
+  its absence.
+- **The absence count and bridge days have no columns.** Both are computed on read. Storing either
+  would create a second thing to keep true, and INV-04 is specifically about there being one
+  definition.
+
+Five open questions, each saying what it blocks — three block nothing yet, and two block the first
+story that touches holidays or team management. Audit exits 0, one note left (D1). 199 of 199.
