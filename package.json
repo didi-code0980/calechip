@@ -5,7 +5,6 @@
   "packageManager": "pnpm@10.34.3",
   "description": "Project repository stood up from aifw-template. Operating model in .ai/, agents and commands in .claude/. See SETUP.md for what remains to be configured.",
   "scripts": {
-    "init": "node scripts/init-project.mjs",
     "docs:audit": "node scripts/check-docs.mjs",
     "hooks:test": "node --test .claude/hooks/tests/*.test.mjs scripts/tests/*.test.mjs"
   }

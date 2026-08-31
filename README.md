@@ -30,16 +30,13 @@ under RULE-09.
 ```
 node scripts/check-docs.mjs
 node --test .claude/hooks/tests/*.test.mjs scripts/tests/*.test.mjs
-node scripts/init-project.mjs --name "Order Desk" --owner @acme/platform
 ```
 
-The first two must be green on an untouched clone — the audit exits 0 and the suites pass. A guard
-nobody has watched fire is a belief about a guard, and the audit is the one thing in here you do not
-have to trust.
+Both must be green — the audit exits 0 and the suites pass. A guard nobody has watched fire is a
+belief about a guard, and the audit is the one thing in here you do not have to trust.
 
-The third stamps the placeholders a script can fill: the `CLAUDE.md` heading, the CODEOWNERS handle,
-the package name, and optionally the feature-ID prefixes. It then prints every `TODO(project):`
-marker that is left, by file, in the order they have to be answered.
+**The bootstrap that stamped this repository has been run and removed**; SETUP.md step 0.5 says why,
+and `git log -- scripts/init-project.mjs` has it if it is ever wanted.
 
 **Then read [SETUP.md](SETUP.md).** It is ten ordered steps, each saying what gates on it and what it
 gates. The charter is first because nothing can be checked against an absent one.
