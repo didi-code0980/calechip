@@ -520,3 +520,39 @@ cannot measure whether the toolchain exists, and it does not.
 
 A ticket run today would reach IN_PROGRESS and find typecheck, lint, unit and end-to-end are names
 without commands behind them.
+
+### 2026-08-31 — one working directory, and `handoff` removed
+
+PR #6 merged (`a1b55b5`). Cut `ops/single-folder` from `origin/main`.
+
+Operator: *"k dùng worktree nữa, chỉ dùng 1 folder chính để work."* Asked the one question that did
+not follow from it — whether the `handoff` command kept a purpose without worktrees — and offered
+keeping it as a plain mid-ticket commit checkpoint, with the cost of removing it stated in the
+option: the whole ticket uncommitted until `/ship`, no CI until the end, and one bad `git switch`
+losing everything. **They chose to remove it.** Recorded in ADR-006 with those costs as accepted
+consequences and a revert condition that needs only one occurrence.
+
+The blast radius looked like 37 files by grep and was 15. Most hits were the word *folder* in a
+sign-off line; `worktree` was structural in ten files.
+
+Changed: **ADR-006** (new), `session-model.md` (the worktree, lane and handoff sections replaced),
+`git-conventions.md` (three commit points reduced to one), `01-operating-model.md` (the WIP section
+is now unreachable rather than unsatisfiable), `CLAUDE.md`, `SETUP.md` step 10, `PERMISSIONS.md`,
+five command files, two agent files. Deleted the `handoff` command.
+
+**Two substitutions that carry the meaning rather than just the words:**
+
+- The sign-off's last line named a folder; it now names a **session**. The risk moved rather than
+  disappeared — RULE-13 makes a correct command in a *reused* session a verdict that was not really
+  reached, and that is now the thing worth naming.
+- Every command's opening check said `pwd` and the branch. `pwd` is a constant now, so it is the
+  branch **and `git status`**. With a whole ticket uncommitted, a dirty tree is not leftover noise;
+  it is somebody's entire ticket, and `git switch` will carry it onto whatever branch it arrives at.
+
+**The audit caught the cleanup.** Deleting the command file left `handoff` cited in ADR-006,
+`git-conventions.md` and `session-model.md` as historical references. D5 reads a slash-prefixed token
+as a command reference and would have failed on all ten, and D6 would have failed on the path to the
+deleted file. Stripped the slashes and rephrased the one path. Worth recording that the checks
+noticed a rename the same way they would notice a mistake — which is the point of them.
+
+Audit exits 0, no notes, 4 pending on `src/`. 200 of 200 tests pass.

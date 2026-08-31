@@ -3,7 +3,7 @@ description: Run the IN_PROGRESS stage — the Developer implements the design
 argument-hint: <TICKET-ID>
 ---
 
-Run in the **Developer session, in the implement lane folder**, on branch `feat/$ARGUMENTS`.
+Run in the **Developer session**, on branch `feat/$ARGUMENTS`.
 
 ## Step 0 — confirm the branch before writing anything
 
@@ -23,14 +23,16 @@ git status --porcelain
   remote-only), then `git pull --ff-only`.
 - Tree dirty — **stop.** Print the paths and say which ticket they belong to.
 - **The branch does not exist — stop and report to the operator.** Do not create it. Only `/spec`
-  creates a `feat/` branch. Arriving here with no branch means SPEC never ran, a `/handoff` never
-  pushed, or the ID is wrong, and the three need different answers. Say which you cannot rule out.
+  creates a `feat/` branch. Arriving here with no branch means SPEC never ran, or the ID is wrong,
+  and the two need different answers. Say which you cannot rule out.
 
-The story and the design arrive **already committed**, pushed by `/handoff` from the design lane. Two
-failures here look similar and are not: `fatal: ... already checked out at ...` means the design lane
-still holds the branch and has not handed off, while a branch that does not exist at all means SPEC or
-DESIGN never ran. Neither is fixed by starting from `main` — `02-design.md` would be missing and
-`allowed_paths` with it, and RULE-03 would then have nothing to enforce.
+The story and the design arrive **uncommitted, in the working tree** — since ADR-006 a ticket is
+committed once, at `/ship`. Read them from disk; do not expect them in history and do not go looking
+for a pushed branch.
+
+A branch that does not exist at all means SPEC never ran. That is not fixed by starting from `main`:
+`02-design.md` would be missing and `allowed_paths` with it, and RULE-03 would then have nothing to
+enforce.
 
  That session is ephemeral but
 **survives REWORK** — keep it open until the ticket is DONE or ESCALATED, and re-run this command in
@@ -75,7 +77,8 @@ for most runs it *is* the reply. Do not stop at the step above and leave the ope
 answered, whether it passed, where the repository is, and what runs next.
 
 The *first* line quotes the `gate` from the front-matter you just wrote. *Tiếp theo* names the next
-stage command **and its folder** — the design lane, the implement lane or the model lane.
+stage command **and the session it belongs in** — RULE-13 makes a correct command in a reused
+session a verdict that was not really reached.
 Read the two values rather than recalling them:
 
 ```

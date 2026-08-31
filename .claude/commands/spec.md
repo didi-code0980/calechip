@@ -3,7 +3,7 @@ description: Run the SPEC stage — the BA writes 01-story.md
 argument-hint: <TICKET-ID>
 ---
 
-Run in the **BA session, in the design lane folder**. It is persistent and lives
+Run in the **BA session**. It is persistent and lives
 until the end of the run (`.ai/standards/session-model.md`). You are the BA; nothing is dispatched.
 
 ## Step 0 — put yourself on `feat/$ARGUMENTS` before writing anything
@@ -35,35 +35,32 @@ Then take exactly one of four paths:
 | On another branch or detached, tree clean, `feat/$ARGUMENTS` **does not exist** | `git switch -c feat/$ARGUMENTS origin/main` |
 
 **Existence is checked, not assumed:** `git show-ref --verify --quiet refs/heads/feat/$ARGUMENTS`,
-then `refs/remotes/origin/feat/$ARGUMENTS`. Two separate refs and they can disagree — a branch handed
-back by `/handoff` exists on the remote while this worktree sits detached.
+then `refs/remotes/origin/feat/$ARGUMENTS`. Two separate refs and they can disagree — a branch
+pushed by an earlier `/ship` exists on the remote after the local one is deleted, and a branch created
+here and never shipped exists only locally.
 
 ### Four things that will bite, each for a different reason
 
 **Cut from `origin/main`, never from local `main`.** Local `main` is routinely many commits behind —
-nothing in this loop updates it, because no lane ever checks it out. A branch cut from a stale local
+nothing in this loop updates it, because no session ever checks it out. A branch cut from a stale local
 `main` looks correct and is missing whatever merged since, and the gap surfaces as a conflict at
 `/ship`. This is the one place the operator's instruction is realised rather than followed literally:
 "back to main" means the current `main`, which is `origin/main`.
 
 **A dirty tree is a stop, not a problem to route around.** `git switch` carries modified and untracked
-files onto the branch you arrive at. That is how one ticket's story lands on another ticket's branch —
-If the tree is dirty the previous lane did not finish;
-`/handoff` is the command that clears it, and it is not yours.
+files onto the branch you arrive at. That is how one ticket's story lands on another ticket's branch.
+Since ADR-006 a ticket stays uncommitted until `/ship`, so a dirty tree is not leftover noise — it is
+somebody's whole ticket. Print the paths, say which ticket they belong to, and stop.
 
-**`fatal: '...' is already checked out at '<folder>'` is not an error to solve.** It means another
-worktree holds the branch. Print the folder git named and stop. Never `git worktree` your way past
-it, and never `git -C` into the folder that holds it.
-
-**Confirm `pwd` is the design-lane folder.** Since ADR-004 unwired `guard-project-root.mjs` nothing
-refuses a session in the wrong folder — it simply takes the implement lane's worktree out from under
-the ticket being built.
+**One working directory, one branch, one ticket.** There is nowhere else to be and nothing to hand
+over. If `feat/<other>` is checked out with work on it, that ticket is still in flight and this one
+does not start yet.
 
 ### What step 0 is not
 
 Not a commit, not a push, not a stash. Branch creation is not persistence:
-`.ai/standards/git-conventions.md` grants the commit exception to `/handoff` and `/ship`, and this
-step is neither. Record the branch you ended on in the story's `inputs_read` front-matter so the
+`.ai/standards/git-conventions.md` grants the commit exception to `/ship` alone, and this step is not
+it. Record the branch you ended on in the story's `inputs_read` front-matter so the
 decision is legible from the artifact.
 
 **Artifacts in:** `.ai/board/tickets/$ARGUMENTS/ticket.yaml`, `.ai/registry/**`
@@ -110,7 +107,8 @@ for most runs it *is* the reply. Do not stop at the step above and leave the ope
 answered, whether it passed, where the repository is, and what runs next.
 
 The *first* line quotes the `gate` from the front-matter you just wrote. *Tiếp theo* names the next
-stage command **and its folder** — the design lane, the implement lane or the model lane.
+stage command **and the session it belongs in** — RULE-13 makes a correct command in a reused
+session a verdict that was not really reached.
 Read the two values rather than recalling them:
 
 ```

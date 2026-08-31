@@ -378,12 +378,16 @@ splitting silently.
 **WIP = 1** for the validation run.
 
 Parallel dispatch is permitted only when `allowed_paths` are pairwise disjoint after glob expansion,
-there is no mutual dependency, each ticket has its own worktree, and combined WIP is 3 or less.
+there is no mutual dependency, each ticket has its own working tree, and combined WIP is 3 or less.
+
+**Since ADR-006 that condition is unreachable, not merely hard to satisfy.** There is one working
+directory, so one branch is checked out and one ticket is in flight. WIP is 1 because git makes it 1,
+and the paragraph below is kept as the reasoning behind why parallelism was not worth buying.
 
 **Read that condition against your own codebase before relying on it.** In the origin project it
 turned out to be unsatisfiable for exactly the tickets it governed: every feature added a type to one
 shared module, so no two feature tickets ever had disjoint `allowed_paths`. The arrangement that
-worked instead is in `.ai/standards/session-model.md` — only one lane writes source, so overlapping
-lists are harmless while there is a single writer. If your codebase has a file every ticket touches,
+worked instead is in `.ai/standards/session-model.md` — a single writer, so overlapping lists are
+harmless. If your codebase has a file every ticket touches,
 the same will be true here, and the honest move is to say so rather than to assert a condition
 nothing can meet.
