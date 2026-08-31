@@ -5,6 +5,7 @@
 // that file is deliberately absent from allowed_paths.
 import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
 import { seamName } from "./lib/data";
+import AllowList from "./routes/AllowList";
 import SignUp from "./routes/SignUp";
 
 export default function App() {
@@ -29,6 +30,11 @@ export default function App() {
 
         <Routes>
           <Route path="/signup" element={<SignUp />} />
+          {/* TEA-02. Reachable by address only: 02-design.md section 2 satisfies AC-9 with the
+              absence of a link plus the screen's own refusal, because there is no navigation to
+              hide an item from yet. The first ticket that adds a menu inherits the real version of
+              that criterion. */}
+          <Route path="/allow-list" element={<AllowList />} />
           {/* Temporary, and named as such: this half of TEA-01 has exactly one screen, and a route
               that renders nothing would leave the ticket unexercisable. The sign-in half replaces
               this with /signin and /. */}

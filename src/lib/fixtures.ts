@@ -40,3 +40,30 @@ export const FIXTURE_CONSUMED_EMAIL: string = "binh@example.com";
 
 /** Not on the list at all, for AC-5: sign-up succeeds and no member row is created. */
 export const FIXTURE_UNLISTED_EMAIL: string = "khach@example.com";
+
+// ---------------------------------------------------------------------------
+// TEA-02. 02-design.md section 1.5.
+// ---------------------------------------------------------------------------
+
+/**
+ * A member-role member. The permission-model test needs a token per role and the seed had only an
+ * admin, so AC-8's denials had nobody to be denied as.
+ *
+ * DEVIATION from 02-design.md section 1.5, which names the id
+ * `33333333-3333-4333-8333-333333333333`. That literal was taken by an operator-added admin account
+ * in supabase/seed.sql on 2026-09-01, after the design was written. Reusing it would have made the
+ * seed's `on conflict (id) do nothing` silently drop this row and leave the member-role member
+ * absent - the exact gap section 4.2 exists to close. Everything else in section 1.5 is unchanged.
+ */
+export const FIXTURE_MEMBER: Member = {
+  id: "55555555-5555-4555-8555-555555555555",
+  teamId: FIXTURE_TEAM.id,
+  displayName: "Thành viên",
+  avatar: "🐱",
+  role: "member",
+  removedAt: null,
+  createdAt: "2026-08-31T00:00:00+00:00",
+};
+
+/** A second team, for AC-4. Nothing renders it; it exists so that "another team" is a real id. */
+export const FIXTURE_OTHER_TEAM_ID: string = "44444444-4444-4444-8444-444444444444";

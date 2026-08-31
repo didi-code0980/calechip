@@ -5,16 +5,27 @@ id: TEA-02
 title: "Manage the allow-list"
 feature_ids: [TEA-02]
 group: TEA
-state: BACKLOG
+state: DONE
 owner: ""
-branch: ""
-size_estimate: ""     # S|M - set by ba at SPEC; gates DoR
-size: ""              # S|M|L|XL - set by tech-lead-design at DESIGN; decides splitting
+branch: "feat/TEA-02"
+size_estimate: "M"    # S|M - set by ba at SPEC; gates DoR
+size: "M"             # S|M|L|XL - set by tech-lead-design at DESIGN; decides splitting
 depends_on: [TEA-01]
-invariants_touched: []
-allowed_paths: []
-schema_delta: none
-requires_adr: false
+invariants_touched: [INV-07]
+allowed_paths:
+  - "supabase/migrations/*.sql"
+  - "supabase/seed.sql"
+  - "src/App.tsx"
+  - "src/lib/domain/types.ts"
+  - "src/lib/data/index.ts"
+  - "src/lib/data/supabase.ts"
+  - "src/lib/data/mock.ts"
+  - "src/lib/fixtures.ts"
+  - "src/routes/AllowList.tsx"
+  - "tests/permission-model.test.ts"
+  - "tests/e2e/tea-02-allow-list.spec.ts"
+schema_delta: adds insert and delete policies on `allowed_email`, plus the matching grants — ADR-009
+requires_adr: true   # corrected from `none` by ba at SPEC: ADR-014 makes a policy migration not-none
 rework_count: 0
 chat_budget:
   developer->tech-lead-design: { used: 0, max: 6 }
@@ -23,10 +34,18 @@ chat_budget:
   qa->tech-lead-design:        { used: 0, max: 6 }
 tracker: { provider: "", external_id: "", sync_enabled: false }
 gates:
-  spec:   { passed: false, at: null }
-  design: { passed: false, at: null }
-  review: { passed: false, at: null }
-  qa:     { passed: false, at: null }
+  spec:   { passed: true, at: 2026-08-31T16:56:07Z }   # 01-story.md. Full DoR graded by
+                                                       # orchestrator: six of six. Item 4 re-read
+                                                       # after the BA corrected schema_delta from
+                                                       # `none` and set requires_adr: true per
+                                                       # ADR-014; ADR-009 is linked and accepted.
+  design: { passed: true, at: 2026-08-31T17:14:11Z }   # 02-design.md front-matter carried
+                                                       # gate: PASS and next_state: IN_PROGRESS;
+                                                       # this flag was left false. Recorded by
+                                                       # developer at IN_PROGRESS, quoting the
+                                                       # artifact rather than re-judging it.
+  review: { passed: true, at: 2026-09-01T00:33:50Z }   # 04-review.md: R1-R9 all PASS.
+  qa:     { passed: false, waived: true, by: ADR-017, at: 2026-09-01T00:38:00Z }
 
 # Shell backfilled by the steward on 2026-08-31. `/triage` promoted TEA-01..04 before ADR-010 made
 # shell creation part of that command, so these four exist only because the command was incomplete
