@@ -1,8 +1,12 @@
-# TODO(project): the product name
+# CaleChip
 
-TODO(project): one paragraph. What this system is, who uses it, and the roles it distinguishes. Two
-or three sentences — this line is read by every agent in every session, so it is the cheapest place
-in the repository to be wrong and the most expensive place to be vague.
+A planning board on which every member of one team declares, as far ahead as they know, when they
+will be on leave (PTO) or working from home (WFH) — so the team can see a crowded day while it is
+being created rather than the night before. It distinguishes exactly two roles: **members**, who
+create and edit their own entries and read everyone's, and **admins**, who additionally approve,
+reject, maintain the Vietnamese holiday calendar, invite people and set the overload threshold.
+It is not an HR system, it holds no leave quota, and a warning here never blocks an action —
+[.ai/00-charter.md](.ai/00-charter.md) carries the six refusals and the reason for each.
 
 **This repository was stood up from `aifw-template`.** Until the `TODO(project):` markers below and
 in `.ai/` are resolved, the loop will run and produce nothing useful: `/spec` has no feature ID to
@@ -18,7 +22,7 @@ ordered checklist is in [SETUP.md](SETUP.md).
 | [.ai/registry/rules.md](.ai/registry/rules.md) | All 18 process rules, each stated exactly once |
 | [.ai/registry/invariants.md](.ai/registry/invariants.md) | The domain invariants |
 | [.ai/registry/features.md](.ai/registry/features.md) | The only valid source of feature IDs |
-| [.ai/standards/](.ai/standards/) | Architecture, coding, data model, RBAC, testing, UI, git, integrations |
+| [.ai/standards/](.ai/standards/) | Tech stack, architecture, coding, data model, RBAC, testing, UI, git, sessions, integrations |
 | [.claude/PERMISSIONS.md](.claude/PERMISSIONS.md) | Why each permission and hook exists |
 | [.ai/steward/context.md](.ai/steward/context.md) | **How the operator wants to be worked with.** Standing instructions, and the log of what changed and why |
 
@@ -45,22 +49,29 @@ agent-writable. A ticket's working directory is `.ai/board/tickets/` — never u
 
 ## Stack
 
-TODO(project): the languages, frameworks, datastore, test runners and package manager, with versions.
+**[.ai/standards/tech-stack.md](.ai/standards/tech-stack.md) is the single source.** Language,
+framework, datastore, runners and package manager are named there once, and cited everywhere else.
+Do not restate any of them here — a second copy is a second thing to keep true, and the copy is
+always the one that goes stale.
 
-**Name what is past reliable recall and say so here.** Any dependency whose current release is newer
-than the model's training data must be inspected — installed types, the package's own docs, the real
-config file — before config is written against it. `TODO(verify):` is the correct output when a fact
-cannot be confirmed; a confident guess is not. This paragraph is not boilerplate: in the origin
-project a framework major version had moved connection configuration between two files and inverted
-which one wanted which URL, and writing it from memory produced migrations that failed intermittently
-rather than cleanly.
+Two things that file will tell you and that are worth knowing before you write a line of config:
+it records **majors, never resolved versions** (the manifest and the lockfile carry those), and it
+carries a list of dependencies that are **past reliable recall**. For anything on that list, open the
+real file — the installed types, the package's own docs, the config on disk — before writing config
+against it. `TODO(verify):` is the correct output when a fact cannot be confirmed; a confident guess
+is not.
 
 ## Visual direction
 
-TODO(project): accent colour, neutrals, type, component shape — or delete this section if the system
-has no interface. Details belong in
-[.ai/standards/ui-design-system.md](.ai/standards/ui-design-system.md); this is the two-line summary
-an agent reads without opening it.
+Pastel and rounded on the surface, dense and precise in the grid. PTO is peach, WFH is mint,
+holidays are lavender, an overloaded day is a soft pink that is deliberately not an alarming red.
+Tentative entries are a dashed border at reduced opacity; approved ones carry a small star. Type is a
+rounded face with correct Vietnamese diacritics — Nunito or Baloo 2, never Quicksand.
+
+**The calendar grid is the most-used screen and information density wins there every time.** Charm
+belongs in the empty states, the mascots and the approval moment; it never costs a row in the year
+view. Details, and the Vui/Gọn density toggle, are in
+[.ai/standards/ui-design-system.md](.ai/standards/ui-design-system.md).
 
 ## Working agreements
 
@@ -116,8 +127,8 @@ else in it.
 **The labels are in the conversation language named in `.ai/steward/context.md`.** That file ships
 carrying the origin operator's preference, which is Vietnamese; the block below is shown in that form
 because a template that showed English would silently contradict the standing instruction beside it.
-TODO(project): if the conversation language here is different, translate the four labels once, in
-this block, and nowhere else.
+The conversation language here **is** Vietnamese, confirmed 2026-08-31, so the four labels below
+stand as shipped and no translation is owed.
 
 ```
 ---

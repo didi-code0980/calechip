@@ -9,6 +9,12 @@ governed_by: [RULE-01, RULE-02, RULE-09]
 TODO(project): this file ships as a stub. It is the document RULE-02 points at, so **the loop cannot
 enforce RULE-02 until the seam below is named.**
 
+**The products are not named here.** Which datastore, which framework, which client library — those
+are in [tech-stack.md](tech-stack.md), named once. This file names the *shape*: where the one door to
+data is, what may import what, and where authorization stands. The split is deliberate, and it is
+what keeps RULE-02 checkable — check R4 points at a directory, and a directory does not change when a
+package does.
+
 ## The data-access seam
 
 RULE-02 says no component may bypass the seam declared here. Three things have to be written before

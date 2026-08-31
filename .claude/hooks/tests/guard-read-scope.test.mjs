@@ -78,3 +78,26 @@ test("does not confuse a directory that merely starts with src", () => {
   const root = makeProject({});
   assert.equal(runHook(HOOK, root, readTool("qa", "srcs/notes.md")).code, 0);
 });
+
+// `_figma` is the Figma Make prototype, kept as a reference and named in
+// .ai/standards/tech-stack.md. It is an implementation of the interface, so a test derived from it
+// agrees with the prototype rather than with the story — the same failure RULE-05 exists to prevent.
+// These three cases are what stops a later edit dropping it from SOURCE_ROOTS silently.
+
+test("blocks qa reading the figma prototype", () => {
+  const root = makeProject({});
+  const r = runHook(HOOK, root, readTool("qa", "_figma/src/App.tsx"));
+  assert.equal(r.code, 2);
+  assert.match(r.stderr, /RULE-05/);
+});
+
+test("blocks ba reading the figma prototype", () => {
+  const root = makeProject({});
+  assert.equal(runHook(HOOK, root, readTool("ba", "_figma/package.json")).code, 2);
+});
+
+test("allows developer and tech-lead-design to read the figma prototype", () => {
+  const root = makeProject({});
+  assert.equal(runHook(HOOK, root, readTool("developer", "_figma/src/App.tsx")).code, 0);
+  assert.equal(runHook(HOOK, root, readTool("tech-lead-design", "_figma/src/App.tsx")).code, 0);
+});

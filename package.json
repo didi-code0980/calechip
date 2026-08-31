@@ -1,9 +1,9 @@
 {
-  "name": "aifw-template",
+  "name": "calechip",
   "version": "0.1.0",
   "private": true,
-  "packageManager": "pnpm@10.15.1",
-  "description": "Domain-free agent operating model: lifecycle, gates, rules, agents, commands, hooks and the documentation audit. See SETUP.md.",
+  "packageManager": "pnpm@10.34.3",
+  "description": "Project repository stood up from aifw-template. Operating model in .ai/, agents and commands in .claude/. See SETUP.md for what remains to be configured.",
   "scripts": {
     "init": "node scripts/init-project.mjs",
     "docs:audit": "node scripts/check-docs.mjs",

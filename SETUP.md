@@ -24,7 +24,7 @@ node scripts/check-docs.mjs
 node --test .claude/hooks/tests/*.test.mjs scripts/tests/*.test.mjs
 ```
 
-The first must exit 0. The second must report 192 passing and 0 failing.
+The first must exit 0. The second must report 211 passing and 0 failing.
 
 If either fails on an untouched clone, stop and fix that before writing a word of product content.
 A guard that has never been observed to fire is not a control, it is a belief about a control — and
@@ -124,8 +124,17 @@ Developer may not invent a field name, so every name has to exist there or in de
 
 ## Step 5 — the stack, the commands, and `CLAUDE.md`
 
-`CLAUDE.md` (Stack, Visual direction, the product sentence), then
-`.ai/standards/testing-standards.md` and `.ai/standards/coding-standards.md`.
+`.ai/standards/tech-stack.md` first, then `.ai/standards/testing-standards.md` and
+`.ai/standards/coding-standards.md`, then `CLAUDE.md` (Visual direction, the product sentence).
+
+**`tech-stack.md` is the single source for what this project is built with** — language, framework,
+datastore, runners, package manager. Every other document cites it. Two rules make it stay true, and
+both are in the file: it records **majors, never resolved versions**, because a document that
+restates the lockfile is wrong within a week; and it names, explicitly, every dependency that is
+**past reliable recall**, which is an instruction to open the real config before writing against it.
+
+`CLAUDE.md` moved to the end of this step on purpose. Its Stack section is now a pointer, so there is
+nothing to write there until the file it points at exists.
 
 The single most valuable thing in this step is the **command table** in `testing-standards.md`.
 Typecheck, lint, unit and end-to-end are referred to *by role* everywhere else in this kit —
@@ -266,6 +275,6 @@ reversed. Their own tests still pass, so restoring them is one edit to `.claude/
 one list change in `.claude/hooks/tests/settings-integrity.test.mjs`. Read ADR-004 before deciding
 either way — it names what the removal bought and what it cost.
 
-**Nothing here has been run end to end in this repository.** The audit passes, all 192 tests pass,
+**Nothing here has been run end to end in this repository.** The audit passes, all 211 tests pass,
 and no ticket has ever moved through this copy of the loop. The first `/spec` through `/ship` is what
 turns that from a claim into evidence.
