@@ -1,5 +1,5 @@
 ---
-doc_version: 1
+doc_version: 2
 last_updated: 2026-08-31
 governed_by: [RULE-01, RULE-07, RULE-09]
 ---
@@ -22,25 +22,21 @@ different people to decide what happens next.
 
 ## Status of this ledger — read before using it
 
-**Seeded from `product_brief.md` (Draft v1) on 2026-08-31, and not yet confirmed by the operator.**
-
-Every row below is something the brief states in words. Nothing here was inferred, generalised, or
-filled in to reach a target count — the candidates that *would* have required inference are listed
-further down without IDs, because issuing an ID to a guess is the one thing this file must never do.
-
-Five rows is below the five-to-fifteen this file recommends. That is the honest yield of a draft
-brief, not a shortfall to be padded. The ledger grows when the operator answers the open questions
-below, and it grows one confirmed sentence at a time.
+Seeded from `product_brief.md` (Draft v1) on 2026-08-31, then **completed the same day from the
+operator's answers to the five questions the brief left open.** Every row is either a sentence the
+brief states or a decision the operator made in words; nothing here was inferred to reach a count.
 
 ## Ledger
 
 | ID | Invariant |
 |----|-----------|
-| INV-01 | No two entries belonging to the same member may overlap in time. |
-| INV-02 | An approved entry whose dates, type, portion or tentative flag change returns to `pending`. |
+| INV-01 | Two entries belonging to the same member may not cover the same portion of the same date. `full` conflicts with everything; `am` and `pm` do not conflict with each other. |
+| INV-02 | An approved entry whose dates, type, portion or tentative flag change returns to `pending`. Editing only the note does not. |
 | INV-03 | A rejected entry always carries a non-empty rejection reason. |
-| INV-04 | The absence count for a date is the sum over that date's entries of 1 per `full` portion and 0.5 per `am` or `pm` portion, with PTO and WFH counted alike. No second definition of this number exists anywhere in the system. |
+| INV-04 | The absence count for a date is the sum, over that date's `pending` and `approved` entries, of 1 per `full` portion and 0.5 per `am` or `pm` portion, with PTO and WFH counted alike. Rejected entries are excluded. No second definition of this number exists anywhere in the system. |
 | INV-05 | A tentative entry counts toward the absence count exactly as a non-tentative one does. |
+| INV-06 | An entry carries exactly one portion, and that portion applies to every date in its range. |
+| INV-07 | Every entry belongs to exactly one member, and is counted only against the team that member belongs to. |
 
 ## Unissued IDs
 
@@ -80,12 +76,14 @@ check, not a pass.
 
 ### INV-01 — overlap
 
-Source: brief 7.2, *"Không tạo được đăng ký chồng lấn với đăng ký khác của cùng người."*
+Source: brief 7.2, *"Không tạo được đăng ký chồng lấn với đăng ký khác của cùng người"*, refined by
+the operator's decision on portions (below).
 
-**Overlap is not yet fully defined, and the gap is in the half-day case.** Two entries on the same
-date where one is `am` and the other is `pm` do not overlap in any meaningful sense, and the brief
-does not say so. Until that is settled, an implementation that compares date ranges alone will refuse
-a legitimate pair, and one that ignores portion will accept a genuine double-booking.
+**Overlap is defined on portions, not on dates alone.** The seeded wording compared date ranges only,
+which would have refused a legitimate pair — a morning entry and an afternoon entry on the same day —
+and the brief did not say otherwise. Now that an entry carries one portion for its whole range
+(INV-06), the comparison is well defined: two entries conflict when their date ranges intersect *and*
+their portions intersect.
 
 **A UI affordance is not sufficient here.** This one wants a constraint that holds against concurrent
 writes: two tabs, two devices, or a retry. A check that reads then writes without a guard is the
@@ -93,19 +91,21 @@ classic way this invariant is claimed and not held.
 
 ### INV-02 — approval does not survive an edit
 
-Source: brief 7.2, *"Đăng ký đã duyệt mà bị sửa → tự động quay về trạng thái chờ duyệt."*
+Source: brief 7.2, *"Đăng ký đã duyệt mà bị sửa → tự động quay về trạng thái chờ duyệt."* The note
+exclusion was decided by the operator on 2026-08-31.
 
-The reason this is an invariant rather than a workflow preference: an entry displaying ⭐ approved for
-content that no admin ever saw is a **false record**, and the whole team reads that star as "this one
-is certain". The data is wrong, not merely stale.
+The reason this is an invariant rather than a workflow preference: an entry displaying an approved
+star for content that no admin ever saw is a **false record**, and the whole team reads that star as
+"this one is certain". The data is wrong, not merely stale.
 
-The brief does not say whether editing the free-text note alone re-triggers this. Listed as an open
-question below; until answered, treat the note as **not** part of the trigger, because reverting an
-approval over a typo trains people to stop annotating.
+The note is excluded because it does not change who is absent on which day, and revoking an approval
+over a typo teaches people to stop annotating — which costs the team the context the note exists to
+carry.
 
 ### INV-04 — one definition of the absence count
 
-Source: brief section 6, *"tổng số người `PTO + WFH` vượt 50% quân số team. Nửa ngày tính 0.5."*
+Source: brief section 6 for the formula; the exclusion of rejected entries was decided by the
+operator on 2026-08-31.
 
 The invariant is the **uniqueness** of the definition, not the formula. The number appears in at
 least four places — the live warning while choosing dates, the day cell in the month view, the year
@@ -113,8 +113,18 @@ grid, and any future notification — and the failure mode is that one of them i
 differently and quietly disagrees with the others. Where the number is computed is an architecture
 decision; that there is exactly one computation of it is a domain one.
 
-The threshold itself is **not** part of this invariant. It is configurable, and a configurable value
-cannot be an invariant.
+**Two things deliberately sit outside this invariant, because both are configurable or definitional
+rather than structural:**
+
+- **The threshold** (default 50%) is set by an admin. A configurable value cannot be an invariant.
+- **Which headcount the threshold multiplies.** The operator decided on 2026-08-31 that it is the
+  team's **current** member count, evaluated at read time, not the membership as it stood on the date
+  being examined. The consequence is accepted and worth stating plainly: when somebody joins or
+  leaves, a past date can change between overloaded and normal. This was chosen over storing
+  membership history because the number is looked at to plan the future, and paying a schema for
+  historical accuracy nobody consults is the wrong trade.
+
+Both are recorded in `.ai/registry/glossary.md` under *Threshold* and *Absence count*.
 
 ### INV-05 — tentative still counts
 
@@ -124,30 +134,24 @@ This is load-bearing for the product's central mechanism. Tentative exists so pe
 four months ahead; if a tentative entry stopped counting, early declarations would be invisible to
 the warning that early declaration was invented to feed, and the feature would defeat itself.
 
-## Candidates not issued, pending the operator's word
+### INV-06 — one portion per entry
 
-**These are deliberately unnumbered.** Each is invariant-shaped and each requires a decision the
-brief does not contain. Answering one is what turns it into a row; guessing would put a fabricated
-constraint in front of every future agent as though it were established.
+Decided by the operator on 2026-08-31, from three options.
 
-1. **Does an entry belong to exactly one member and exactly one team?** Structurally near-certain,
-   but never stated. It matters now rather than later because the brief defers multi-team to P2 while
-   asking the data model to leave room for it.
+A five-day entry with `portion: pm` means five consecutive afternoons, not a half-day at one end.
+**The realistic shape of a trip — leaving Wednesday afternoon and returning Monday morning — is
+therefore not expressible as one entry** and must be entered as up to three. That cost was accepted
+in exchange for a schema with one portion column instead of two, and for an absence count that stays
+a single sum rather than a special case at each end of every range.
 
-2. **Are rejected entries excluded from the absence count?** The brief is silent. Pending and
-   approved entries clearly count; if rejected ones also counted, a day could read as overloaded
-   because of plans that were refused.
+If that trade is revisited, it is a schema migration and an ADR, not a story.
 
-3. **Which team size does the threshold use?** *"50% quân số team"* — the size at the moment of
-   calculation, or at the date being calculated? They differ the first time someone joins or leaves,
-   and the difference silently rewrites the past.
+### INV-07 — one member, one team
 
-4. **May a multi-day entry carry a half-day portion?** The brief allows both a run of consecutive
-   days and a half-day portion, and never says whether they combine. The prototype in `_figma/` only
-   ever puts a portion on a single-day entry. This changes the schema, so it cannot be deferred past
-   design.
-
-5. **Does editing only the free-text note revoke an approval?** See the INV-02 note.
+Not stated in the brief; recorded here because the entire product is built on it and no other reading
+is available. It matters now rather than later because the brief defers multiple teams to P2 while
+asking the data model to leave room for them — so the team a count is taken against has to be a
+property of the data from the first migration, not a constant that gets parameterised afterwards.
 
 ## Considered and rejected as an invariant
 
@@ -156,3 +160,9 @@ and it did not earn a row. Five records describing a five-day absence still desc
 correctly — the data is not wrong, the user is inconvenienced, and editing the plan costs five
 operations instead of one. That is an acceptance criterion for the entry-creation feature, and it
 belongs in a story rather than here. Recorded so nobody re-derives it and reaches the other answer.
+
+**"The threshold is 50%."** Configurable by an admin, therefore not an invariant. See the INV-04
+note.
+
+**"The overload warning never blocks saving."** A refusal, and it lives in `.ai/00-charter.md` as
+refusal 6. It constrains what the product may become rather than what state the data may be in.

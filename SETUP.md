@@ -24,7 +24,7 @@ node scripts/check-docs.mjs
 node --test .claude/hooks/tests/*.test.mjs scripts/tests/*.test.mjs
 ```
 
-The first must exit 0. The second must report 211 passing and 0 failing.
+The first must exit 0. The second must report 197 passing and 0 failing.
 
 If either fails on an untouched clone, stop and fix that before writing a word of product content.
 A guard that has never been observed to fire is not a control, it is a belief about a control — and
@@ -33,32 +33,25 @@ the whole point of the audit is that it is the one thing here you did not have t
 **The shell expands the test list on purpose.** `node --test <dir>` works on Node 20 and fails on
 Node 23; the quoted-glob form needs Node 21 or later. Passing the expanded list works everywhere.
 
-## Step 0.5 — the bootstrap, for the placeholders a script can fill
+## Step 0.5 — the bootstrap. Already run, and deliberately removed
 
-```
-node scripts/init-project.mjs --name "Order Desk" --owner @acme/platform --prefixes "ORD=Orders,PAY=Payments"
-```
+`scripts/init-project.mjs` ran on 2026-08-31 with `--name "CaleChip" --owner @didi-code0980`. It
+stamped the `CLAUDE.md` heading, `@OWNER` in `.github/CODEOWNERS`, and the `name` in `package.json`.
+`--prefixes` was not passed, so the feature prefixes are still step 7, by hand.
 
-It stamps four things and nothing else: the `CLAUDE.md` heading, `@OWNER` in `.github/CODEOWNERS`,
-the `name` in `package.json`, and — only when `--prefixes` is passed — the machine-readable prefix
-line and one empty group section per prefix in `.ai/registry/features.md`, which is step 7.
+**The script and its tests were then deleted, and the reason is worth knowing before anyone restores
+them.** The bootstrap anchors every edit on a placeholder string that the first run consumes, refuses
+a second run, and has no `--force`. Its tests copied the *real repository* as their fixture — on
+purpose, so the anchors were checked against the actual files rather than a fixture that would keep
+passing after somebody reworded them. The consequence is that those ten tests can only pass **before
+the bootstrap has ever been used**: running step 0.5 makes step 0 permanently unsatisfiable.
 
-`--prefixes` is optional and `--dry-run` prints the edits without writing. **Running it twice is
-refused and there is no `--force`** — every edit is anchored on a placeholder string that the first
-run consumes, so a second run has nothing to match. If the name came out wrong, restore the four
-files with the `git checkout` line the script prints and run it again.
+A red suite that can never go green is worse than no suite, because people stop reading it. So in a
+stood-up project the bootstrap is dead code and its tests measure nothing. Both are in the history if
+they are ever wanted: `git log -- scripts/init-project.mjs`.
 
-**It does not write the charter, the invariants, the architecture, the role matrix or a single
-feature row**, and it never will. Those are steps 1 through 6 and 9, they need a human, and a
-pre-filled one is worse than an empty one: every agent reads it as true and no check in the audit
-can tell that a plausible invariant describes a different product.
-
-What it does instead is print what is left — the `TODO(project):` count per file, in the order of
-the steps below. That list is the rest of this document, measured.
-
-**`.ai/registry/features.md` is registry plane.** Passing `--prefixes` is your decision and not the
-script's, but RULE-01 still applies to the pull request that introduces it, and the script says so
-when it writes that file.
+Recorded as **MD-010** in `.ai/board/model-debt.md`, which also carries the fix the *template* needs —
+this deletion is right here and wrong upstream.
 
 ## Step 1 — the charter. Nothing else can be checked against an absent one
 

@@ -317,14 +317,23 @@ test("an empty ledger is reported as unconfigured rather than passing silently",
   );
 });
 
-test("this repository's real invariants.md ships with an empty ledger", () => {
+test("this repository's real invariants.md has a contiguous ledger", () => {
   const real = fs.readFileSync(path.join(REPO, ".ai/registry/invariants.md"), "utf8");
-  const rows = real.split(/\r?\n/).filter((l) => /^\|\s*INV-\d{2}\s*\|/.test(l));
+  const ids = real
+    .split(/\r?\n/)
+    .map((l) => /^\|\s*(INV-\d{2})\s*\|/.exec(l)?.[1])
+    .filter(Boolean);
+
+  assert.ok(ids.length >= 5, `the ledger has ${ids.length} rows; it was seeded with at least five`);
+
+  // IDs are never renumbered and never reused. A gap means a row was deleted rather than retired
+  // through the Unissued IDs table, which is the one way this file loses a reference silently.
+  const expected = ids.map((_, i) => `INV-${String(i + 1).padStart(2, "0")}`);
   assert.deepEqual(
-    rows,
-    [],
-    "invariants.md now has rows. That is expected once a project starts; update this test to assert " +
-      "the real ledger instead of an empty one."
+    ids,
+    expected,
+    "ledger IDs are not contiguous from INV-01. A deliberately skipped number belongs in the " +
+      "Unissued IDs table, not missing from the ledger."
   );
 });
 
