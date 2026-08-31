@@ -25,3 +25,10 @@ blob-report
 # Supabase CLI scratch. `supabase/migrations/` and `supabase/seed.sql` are source and are tracked;
 # `.temp/` is the CLI's own state and belongs to a machine, not to the repository.
 supabase/.temp/
+
+# Local Supabase credentials. Never committed: the anon key and the DB URL are per-machine, and a
+# committed `.env` is a credential leak that survives in history after the file is deleted.
+.env
+
+# Supabase CLI scratch. `cli-latest` is a version-check cache the CLI rewrites on its own schedule.
+supabase/.temp/
