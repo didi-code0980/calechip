@@ -1,0 +1,55 @@
+# Copied from .ai/templates/ticket.yaml at /triage (ADR-010).
+# ticket.yaml is authoritative; backlog.md is a view (see .ai/01-operating-model.md).
+# state enum: IDEA TRIAGE BACKLOG SPEC READY DESIGN IN_PROGRESS REVIEW QA REWORK ESCALATED DONE
+id: CAL-08
+title: "Holidays and bridge days shown in the calendar views"
+feature_ids: [CAL-08]
+group: CAL
+state: BACKLOG
+owner: ""
+branch: ""
+size_estimate: ""     # S|M - set by ba at SPEC; gates DoR
+size: ""              # S|M|L|XL - set by tech-lead-design at DESIGN; decides splitting
+depends_on: [ADM-02, CAL-04, CAL-05, CAL-06]
+invariants_touched: []
+allowed_paths: []
+schema_delta: none
+requires_adr: false
+rework_count: 0
+chat_budget:
+  developer->tech-lead-design: { used: 0, max: 6 }
+  developer->ba:               { used: 0, max: 6 }
+  qa->ba:                      { used: 0, max: 6 }
+  qa->tech-lead-design:        { used: 0, max: 6 }
+tracker: { provider: "", external_id: "", sync_enabled: false }
+gates:
+  spec:   { passed: false, at: null }
+  design: { passed: false, at: null }
+  review: { passed: false, at: null }
+  qa:     { passed: false, at: null }
+
+# Created by `product` at /triage on 2026-08-31, promoting
+# .ai/board/ideas/2026-08-31-everyone-computes-the-bridge-day-alone.md.
+#
+# Definition of Ready items 1, 3, 4 and 6 are filled here. Items 2 and 5 (invariants_touched,
+# size_estimate) are deliberately empty: they belong to the BA at SPEC.
+#
+# Item 6. One group: CAL. This is the rendering consequence of ADM-02's data, not a second
+# calendar feature — data-model.md stores no bridge day, and the derivation is a pure function.
+#
+# Item 3. ADM-02 because there is nothing to draw without the table, the seed and the select
+# policy. CAL-04, CAL-05 and CAL-06 are named individually and not collapsed to CAL-04: this
+# ticket shades all three grids, so all three must exist, and a dependency graph that hides two
+# of the three surfaces lets the ticket ship on one. `tech-lead-design` proposed [ADM-02, CAL-04]
+# with the year view confirmed at design; the coordinator took this version.
+#
+# Item 4. `schema_delta: none`, and it is the only one of this idea's three tickets that is
+# genuinely `none` under ADR-014 — no migration, no policy, no grant. It reads a table ADM-02
+# creates and writes nothing.
+#
+# `invariants_touched` is left empty for the BA, but the reasoning that produced `[]` in the
+# feature row travels with it: this ticket computes no count and cannot produce a different one.
+# The constraint that must not be lost is the other direction — INV-04's content is the
+# uniqueness of the definition, so a holiday that suppressed or altered the crowded-day warning
+# would introduce a second definition through the display rather than the arithmetic. This
+# ticket must not implement suppression. That question belongs to CAL-07 and CAL-04.

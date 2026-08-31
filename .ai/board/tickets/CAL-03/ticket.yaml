@@ -1,0 +1,38 @@
+# Copied from .ai/templates/ticket.yaml at /triage (ADR-010).
+# ticket.yaml is authoritative; backlog.md is a view (see .ai/01-operating-model.md).
+# state enum: IDEA TRIAGE BACKLOG SPEC READY DESIGN IN_PROGRESS REVIEW QA REWORK ESCALATED DONE
+id: CAL-03
+title: "Edit or delete another member's entry, as an admin"
+feature_ids: [CAL-03]
+group: CAL
+state: BACKLOG
+owner: ""
+branch: ""
+size_estimate: ""     # S|M - set by ba at SPEC; gates DoR
+size: ""              # S|M|L|XL - set by tech-lead-design at DESIGN; decides splitting
+depends_on: [CAL-02]
+invariants_touched: []
+allowed_paths: []
+schema_delta: adds an `update` policy on `entry` for an admin over any row, separate from CAL-02's — **not `none`** per ADR-014; no ADR is linked yet
+requires_adr: false
+rework_count: 0
+chat_budget:
+  developer->tech-lead-design: { used: 0, max: 6 }
+  developer->ba:               { used: 0, max: 6 }
+  qa->ba:                      { used: 0, max: 6 }
+  qa->tech-lead-design:        { used: 0, max: 6 }
+tracker: { provider: "", external_id: "", sync_enabled: false }
+gates:
+  spec:   { passed: false, at: null }
+  design: { passed: false, at: null }
+  review: { passed: false, at: null }
+  qa:     { passed: false, at: null }
+
+# Created by `product` at /triage on 2026-08-31, promoting
+# .ai/board/ideas/2026-08-31-a-plan-has-nowhere-to-be-written-down.md.
+#
+# Definition of Ready items 1, 3, 4 and 6 are filled here. Items 2 and 5 belong to the BA at SPEC.
+#
+# Its own row in the permission table and its own policy, separate from CAL-02. It is the only
+# ticket carrying known weakness 3 in .ai/standards/rbac-and-security.md — v1 records no trace that
+# an admin edited somebody else's entry.

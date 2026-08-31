@@ -20,6 +20,13 @@ it moves, which is what keeps two branches from appending to the same lines.
 
 | ts | ticket | from | to | agent | rework_count | tokens | wall_clock_s | notes |
 |----|--------|------|----|-------|--------------|--------|--------------|-------|
+| 2026-08-31T09:23:25Z | TEA-01 | BACKLOG | SPEC | ba | 0 | — | — | Second revision. The first (09:05:34Z) was routed back by the DESIGN gate; this one carved out the sign-in half, moved AC-6 to it and added AC-13. Not rework (RULE-08). |
+| 2026-08-31T09:23:25Z | TEA-01 | SPEC | READY | orchestrator | 0 | — | — | Full DoR, six of six. `size_estimate` M. |
+| 2026-08-31T09:34:46Z | TEA-01 | READY | DESIGN | tech-lead-design | 0 | — | — | `size` M against estimate M, twelve files. First design pass (of 09:34:46Z scope) had verdict L and routed back to SPEC; amended twice, 15:24:54Z and 15:35:07Z. |
+| 2026-08-31T15:45:55Z | TEA-01 | DESIGN | IN_PROGRESS | developer | 0 | — | — | Ten files. One QA failure routed here at 15:18:06Z and was fixed; per RULE-08 it is the only one that could have incremented, and the routing table put it on `tech-lead-design` instead. |
+| 2026-08-31T15:52:48Z | TEA-01 | IN_PROGRESS | REVIEW | tech-lead-review | 0 | — | — | R1-R9 all PASS. **RULE-13 disclosure in front-matter**: the second pass reused the session that produced the 15:08:58Z verdict; the reviewer stopped and the operator directed it to proceed. |
+| 2026-08-31T16:44:10Z | TEA-01 | REVIEW | QA | qa | 0 | — | — | **PASS by operator waiver.** Four passes: 15:18:06Z FAIL, 15:59:31Z BLOCKED, 16:36:28Z BLOCKED, 16:44:10Z PASS. Nothing was verified between the third and the fourth. Ten of twelve criteria have no test. |
+| 2026-08-31T16:46Z | TEA-01 | QA | DONE | orchestrator | 0 | — | — | Definition of Done met on five of six items. **Item 4, "every AC maps to a named test", is not met and was waived**; `waiver:` in `06-test-report.md` carries the terms and is `temporary: true`. |
 
 ## Targets
 
