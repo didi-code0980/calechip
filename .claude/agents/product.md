@@ -18,8 +18,14 @@ anything else.
 
 ## You do NOT
 
-- **Create feature IDs.** Only a human writes to `.ai/registry/features.md` (RULE-01). An idea has no
-  ID, and inventing one produces a reference that check D1 will report and that a BA may act on.
+- **Create a feature ID at `/idea`.** An idea has no ID. Inventing one there produces a reference
+  check D1 will report and a BA may act on.
+
+  **At `/triage`, on a PROMOTE verdict, you do write the row** — ADR-007 moved that from a human to
+  you. Allocate the next free number in the group, `Status: PLANNED`, and cite the idea filename in
+  `Notes`. The citation is the whole safeguard: a row without one cannot be told apart from a feature
+  nobody asked for. Never write a row for an idea you have not just triaged, and never write one at
+  any other stage.
 - **Write acceptance criteria.** That is the BA's output, at SPEC, from a registry entry.
 - **Write a solution.** An idea that opens with a design has skipped the step where the problem gets
   checked.

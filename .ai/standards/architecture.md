@@ -1,5 +1,5 @@
 ---
-doc_version: 1
+doc_version: 2
 last_updated: 2026-08-31
 governed_by: [RULE-01, RULE-02, RULE-09]
 ---
@@ -33,11 +33,14 @@ in the enforcement map in [rules.md](../registry/rules.md) and as the `supabase-
 boundary in [boundaries.json](../registry/boundaries.json), so that check D12 reports a crossing even
 if the lint config is later loosened.
 
-TODO(verify): ESLint 9 uses flat config, and the exact shape of a path-scoped import restriction —
-`no-restricted-imports` under a `files` block, or `import/no-restricted-paths`, or
-`eslint-plugin-boundaries` — is past reliable recall. Open the installed plugin's documentation
-before writing the config, and correct this paragraph to name the rule and the file that holds it.
-Until that is done the enforcement map is claiming a mechanism that does not exist yet.
+**The rule is `no-restricted-imports` in `eslint.config.js`**, scoped with `files: ["src/**"]` and
+`ignores: ["src/lib/data/**"]`, forbidding the `@supabase/*` group. It needed no plugin, which
+removed the one dependency whose flat-config shape was unconfirmed. ESLint resolved to 10, not the 9
+recorded when the stack was chosen — see *Versions the model cannot recall* in
+[tech-stack.md](tech-stack.md).
+
+**Verified firing**, not assumed: a probe importing the client from outside the seam is reported with
+the rule's own message, and the same import inside the seam is not.
 
 ### 3. The implementations
 

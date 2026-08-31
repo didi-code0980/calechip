@@ -1,5 +1,5 @@
 ---
-doc_version: 1
+doc_version: 2
 last_updated: 2026-08-25
 governed_by: [RULE-01, RULE-03, RULE-04, RULE-05, RULE-06, RULE-07, RULE-08, RULE-09, RULE-10, RULE-11, RULE-12, RULE-13, RULE-14, RULE-15, RULE-16, RULE-17]
 ---
@@ -32,7 +32,7 @@ important enough to count.
 ## Lifecycle
 
 ```
-IDEA -> TRIAGE -> [human adds to features.md] -> BACKLOG
+IDEA -> TRIAGE -> [PROMOTE writes the feature row] -> BACKLOG
   -> SPEC -> [DoR] -> READY -> DESIGN -> IN_PROGRESS -> REVIEW -> QA -> DONE
                                             ^              |       |
                                             +--- REWORK <--+-------+
@@ -41,9 +41,16 @@ IDEA -> TRIAGE -> [human adds to features.md] -> BACKLOG
                                               ESCALATED -> human
 ```
 
-The human step between TRIAGE and BACKLOG is not optional and is not a rubber stamp. A ticket cannot
-pass DoR unless its feature IDs already exist in `.ai/registry/features.md`, and only a human can put
-them there (RULE-01).
+**A `PROMOTE` verdict writes the feature row itself** — ADR-007 removed the human step that used to
+sit here. A ticket still cannot pass DoR unless its feature IDs exist in
+`.ai/registry/features.md`; what changed is who puts them there.
+
+Two things keep that from becoming a licence to invent a feature. **The ID is issued at TRIAGE by
+`product`, never at SPEC by `ba`** — the role that will write the story is not the role that grants
+the ID it writes against. And **every row written this way cites the idea file it came from**, so a
+fabricated feature has no provenance and the pull request has something concrete to check. The
+operator's approval did not disappear; it moved to CODEOWNERS review at merge, which is where RULE-01
+always said enforcement lives.
 
 **SPEC runs directly out of BACKLOG. The DoR gate sits between SPEC and READY.** Two of its six items
 are produced by the BA at SPEC, so a gate placed before SPEC could never read them. READY means
@@ -66,8 +73,8 @@ this list and the stage ownership table below stay in agreement in both directio
 | State | Agent | Reads | Writes | Gate |
 |---|---|---|---|---|
 | IDEA | `product` | `.ai/registry/**` | `.ai/board/ideas/**` | An idea file exists with a problem statement, not a solution |
-| TRIAGE | `product` + `tech-lead-design` | idea, registry | idea file | Verdict is one of REJECT, NEEDS-ADR, PROMOTE, with a reason |
-| BACKLOG | human | — | `features.md`, `backlog.md` | Feature IDs exist in the registry |
+| TRIAGE | `product` + `tech-lead-design` | idea, registry | idea file; `features.md` on PROMOTE | Verdict is one of REJECT, NEEDS-ADR, PROMOTE, with a reason. On PROMOTE, a row exists citing the idea file |
+| BACKLOG | `orchestrator` | `features.md`, `backlog.md` | `backlog.md` | Feature IDs exist in the registry |
 | SPEC | `ba` | registry, `ticket.yaml` | `01-story.md`, `ticket.yaml` | ACs in Given/When/Then, each with an ID; `invariants_touched` populated; `size_estimate` set; Out-of-scope non-empty |
 | READY | `orchestrator` | `ticket.yaml`, `01-story.md`, `features.md` | `ticket.yaml`, `backlog.md` | Full DoR, below |
 | DESIGN | `tech-lead-design` | everything | `02-design.md`, `ticket.yaml` | Sections 1-7 complete; `allowed_paths` enumerated; `size` set |

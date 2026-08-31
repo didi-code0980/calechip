@@ -37,7 +37,7 @@ for most runs it *is* the reply. Do not stop at the step above and leave the ope
 answered, whether it passed, where the repository is, and what runs next.
 
 This command writes no artifact and passes no gate, so the first line ends `gate n/a`. *Tiếp theo* names
-whatever the board says runs next, **with its folder** — not a topic, a command.
+whatever the board says runs next, **with the session it belongs in** — not a topic, a command.
 Read the two values rather than recalling them:
 
 ```
