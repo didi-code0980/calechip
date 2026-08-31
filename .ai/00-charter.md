@@ -1,5 +1,5 @@
 ---
-doc_version: 1
+doc_version: 2
 last_updated: 2026-08-31
 governed_by: [RULE-01, RULE-09]
 ---
@@ -72,7 +72,15 @@ Two, and the difference is narrow on purpose.
 | Role | What only this role can do |
 |---|---|
 | **Member** | Create, edit and delete their **own** entries, at any time. Reads the whole team's calendar. |
-| **Admin** | Everything a member can do, plus: approve or reject entries, maintain the holiday calendar including government-announced swap days, invite people, and set the overload threshold. |
+| **Admin** | Everything a member can do, plus: edit or delete **any** member's entry, approve or reject entries including their own, maintain the holiday calendar including government-announced swap days, invite and remove members, promote a member to admin, and set the overload threshold. |
+
+*Amended 2026-08-31.* The admin row previously read *"approve or reject entries, maintain the holiday
+calendar, invite people, and set the overload threshold"* and was silent on four powers the product
+turns out to need. The operator decided all four that day: an admin may edit another member's entry,
+may approve their own, may remove a member, and may promote one. The first is the one that changes
+what the product is — an entry is no longer only its author's statement — and its cost is recorded
+under *Known weaknesses* in `.ai/standards/rbac-and-security.md`, because until the change feed
+arrives (brief P1) an admin's edit is indistinguishable from the member's own.
 
 **Reading is not a privilege here.** Every member sees every other member's entries in full. This is
 the mechanism the product runs on, not a permission that was left open — a plan nobody can see

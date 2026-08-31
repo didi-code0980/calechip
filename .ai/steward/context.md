@@ -406,3 +406,47 @@ switched off, which contradicts ADR-005.
 
 *Written first with the ADR number quoted literally, which made check D11 fail the audit — the ID
 resolved to no file, because the file is from somewhere else. The check did exactly what it is for.*
+
+### 2026-08-31 — the role matrix, and a charter amendment it forced
+
+PR #3 merged (`449dc6d`). Cut `ops/rbac` from `origin/main`.
+
+The charter settled most of the permission table. Four rows were nowhere — and two of them were gaps
+in the product rather than in the document. Put all four to the operator; all four came back as the
+permissive answer:
+
+- An admin **may** edit or delete any member's entry.
+- An admin **may** approve their own entry.
+- An admin removes members; their entries stay.
+- An admin promotes another member to admin.
+
+**The first one contradicted `.ai/00-charter.md`, so the charter was amended rather than worked
+around.** Its Roles table listed admin powers as *"approve or reject entries, maintain the holiday
+calendar, invite people, and set the overload threshold"* — silent on all four. The old wording is
+kept beside the new one in the file, because a preference that changed is more informative than one
+only ever asserted once. `doc_version` to 2.
+
+That amendment is not bookkeeping: an entry stops being purely its author's statement, which is a
+change to what the product is. The charter is one of the four paths the `/thuki` command marks for
+extra care, and the care went into citing the line being contradicted rather than into stopping.
+
+**`rbac-and-security.md` written.** Fifteen actions, both directions, with the two genuinely
+undecided rows — creating on behalf of another member, and demoting an admin — marked as **denied by
+default rather than by decision**. A wrong denial surfaces as a blocked story, which is cheap; a
+wrong permission surfaces as data somebody should not have touched.
+
+**The section that earns the file is *Known weaknesses*, and it has six entries.** Two are worth
+repeating here because they are the ones a reader will assume are handled:
+
+- **RLS is not the last line of defence, it is the only one.** The anon key is public by design and
+  the endpoint is reachable without this application. A policy written too permissively fails open
+  and silently. The only thing that catches it is the permission test asserting the *denials* — one
+  asserting only the allowed cases stays green after the policy is deleted.
+- **`.gitignore` does not ignore `.env`.** Recorded as a weakness of the system rather than as a
+  disagreement, because that is what it now is: the control is attention, and nothing in the
+  repository substitutes for it.
+
+Also recorded: an admin edit leaves no trace in v1 (the change feed is P1), and self-approval means
+the star on an admin's own entry means "an admin said so" where that admin is themselves.
+
+Audit exits 0 with one note left — D1, the feature prefixes. 199 of 199 tests pass.
