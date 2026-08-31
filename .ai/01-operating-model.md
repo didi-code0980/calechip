@@ -323,7 +323,7 @@ Checked mechanically by the orchestrator.
 | 1 | `feature_ids` non-empty, and every ID present in `.ai/registry/features.md` | BACKLOG | `product`, when promoting the idea (ADR-007) |
 | 2 | `invariants_touched` explicit — may be `[]`, never absent | SPEC | `ba` |
 | 3 | Every ticket in `depends_on` is `DONE` | BACKLOG | `product`, when creating the shell (ADR-010) |
-| 4 | `schema_delta` is `none`, or an approved ADR is linked | BACKLOG | `product` + `tech-lead-design`; a schema change needs its ADR before the ticket exists (RULE-09) |
+| 4 | `schema_delta` is `none`, or an approved ADR is linked | BACKLOG | `product` + `tech-lead-design`; a schema change needs its ADR before the ticket exists (RULE-09). **A migration touching a policy, trigger or constraint is not `none`** — ADR-014 |
 | 5 | `size_estimate` is S or M | SPEC | `ba`, from the story's scope and its Out-of-scope section |
 | 6 | Exactly one feature group, or a stated split rationale | BACKLOG | `product`, or `ba` at SPEC if the story reveals a second group |
 
@@ -376,9 +376,20 @@ it decides whether the ticket splits.
 They are separate because the gate needs an estimate and only design produces a verdict. A single
 field could not be both without making one of the two stages impossible to reach.
 
-When they disagree, the verdict wins, and the gap is worth noticing: a story estimated M that designs
-out to L means the story was under-specified, and DESIGN routes that back to SPEC rather than
-splitting silently.
+**When they disagree, the verdict wins and DESIGN proceeds** — ADR-012. The Tech Lead does not ask
+the BA and does not route the ticket back to SPEC. The second pass would read the same design and
+reach the same size, because the size comes from the enumerated `allowed_paths` rather than from
+anything the story could have said differently.
+
+The gap is recorded rather than routed: design section 5 states both numbers and one line on why they
+differ, and `.ai/board/metrics.md` keeps the pair, so a BA whose estimates are consistently low shows
+up in the data. Per RULE-08 nothing increments `rework_count`.
+
+**The table above is untouched by that.** An `L` still must split at DESIGN and an `XL` still
+escalates — a ticket that designs out to L is stopped by the split requirement, not by the
+disagreement. ADR-012 removes one of the two reasons such a ticket stops; it does not remove the
+other. Its revert condition is three consecutive tickets whose `size` exceeds `size_estimate`, which
+nothing will stop for and which therefore has to be watched in the metrics.
 
 ## WIP
 

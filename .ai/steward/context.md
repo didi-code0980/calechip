@@ -763,3 +763,163 @@ the rejected-alternatives paragraph as a reference to a command that does not ex
 the ticket directory the ADR named before it existed. Both were mine, both were real.
 
 Audit 0 errors, 1 advisory warning (MD-012), 0 pending. 200 of 200.
+
+### 2026-08-31 — DESIGN resizes without routing back; the shared-tree hazard recorded
+
+Operator: *"tech-lead có quyền resize feature tự động k cần hỏi ba"*, then *"áp dụng rule này trên
+các ticket sau. Tôi đang xử lí TEA-01 rồi k cần qtâm."*
+
+**Corrected myself, and the correction mattered.** I told the operator the steward was stuck on
+`feat/TEA-01` because writing model files there would fail the `allowed-paths` check. That was wrong:
+`check-allowed-paths.mjs` diffs `origin/main...HEAD` — **committed history, not the working tree**.
+Writing into a dirty tree fails nothing; only committing those files onto the ticket branch would.
+And `/ship` already classifies a mixed tree into two sets on two branches, so a working tree holding
+both ticket and chore work is the expected state under ADR-006 rather than a problem. Recorded
+because the stop I reported cost the operator a turn and was based on a mechanism I had not read
+carefully enough.
+
+**ADR-012.** DESIGN sets `size` and proceeds; a disagreement with `size_estimate` no longer routes
+back to SPEC. The routing cost a full stage for information the design had already produced — a
+second BA pass would read the same design and reach the same size, because the size comes from the
+enumerated `allowed_paths` and not from anything the story could have said differently.
+
+**Said once, and it is the part most likely to be misread:** this does not unblock a ticket that
+designs out to L. `L must split at DESIGN` is a different row in the sizing table, and it still
+stops. ADR-012 removes one of the two reasons an M-to-L ticket halts, not both. Scoped to tickets
+after TEA-01 at the operator's instruction.
+
+The under-specification signal moves from a blocking route to a number in `metrics.md`, which is
+strictly weaker — a stage nobody can skip beats a number nobody reads. The revert condition is three
+consecutive tickets whose `size` exceeds `size_estimate`, and nothing will stop for it, so it has to
+be looked at between tickets deliberately.
+
+**MD-013, severity high — the hazard ADR-006 did not name.** It named the dirty-tree risk and missed
+the one that follows from concurrent sessions: every session now shares a single HEAD and a single
+working tree. A session's `git switch` moves the branch under all the others. Observed today — this
+session reported one branch in its sign-off and found itself on another without having moved, in a
+tree holding twelve uncommitted files from at least three sessions, including an ADR another session
+had written. Nothing was lost and nothing could be committed either.
+
+The fix shape names two candidates and refuses a third: **do not make `/ship` cleverer.** The problem
+is two writers, not one classifier.
+
+### 2026-08-31 — INV-04's numerator, and a signature I refused to write
+
+`/triage` on CAL-07 reported the INV-04 fix as *"câu trả lời của anh"* — the operator's answer,
+already given, waiting to be executed. **It was not.** Checked before writing anything, because
+`invariants.md` is ledger: ADR-007 nowired RULE-01 only for feature and glossary rows, and ADR-008
+lets an agent accept an ADR only inside an envelope already open. Amending an invariant the operator
+seeded is the envelope, not inside it.
+
+What the operator actually decided on 2026-08-31 was *"admin xoá, giữ lại đăng ký"* — entries survive
+a removal — and the consequence I recorded against it was the **denominator**: team size drops, so a
+past date can flip. Whether those surviving entries still **count** is the numerator, and nobody had
+answered it. The triage had inferred one from the other and attributed the inference to the operator.
+
+Writing that up as `ACCEPTED by the operator` would have put a signature on a sentence they never
+said. Asked instead — one question, three readings.
+
+**The question was real even though its provenance was wrong**, and the observation that surfaced it
+is the sharpest thing in the report: under the reading triage assumed, **a month cell shows four
+avatars over a count of three**.
+
+**ADR-013**, and this time the signature is real: *"tính trước ngày xoá, không tính sau"*. An entry
+counts for a date when its member has `removed_at` null or after that date, and **a view draws an
+avatar exactly when the entry is counted** — so the cell and the number cannot disagree. That
+alignment is why this reading beat the other two, not a UI preference.
+
+Rejected: counting a departed member forever, which warns about crowding that cannot happen; and
+hiding them entirely, which rewrites the past and erases the evidence behind the brief's own
+overloaded-days metric in section 9.
+
+**Amended the ledger and the glossary in one commit**, as the triage correctly insisted — a glossary
+an agent may write and a ledger it may not, moved apart, is worse than either being wrong alone.
+`invariants.md` to `doc_version: 3`.
+
+The cost is stated in both files rather than only in the ADR: **the absence count for a date is no
+longer a function of that date's entries alone.** It needs the roster, so the computing function must
+be given `removed_at` per member — which is the same argument triage had already required for CAL-07,
+reached for a different reason. And a wrong or backdated `removed_at` now moves every past count
+silently, which is ADR-013's revert condition.
+
+Closed the stale blocking markers on CAL-04, CAL-07 and CAL-07's `ticket.yaml`, correcting the
+provenance in place rather than deleting it.
+
+### 2026-08-31 — three questions asked properly, three answered
+
+Operator: *"muốn hỏi gì hỏi rõ."* Fair — the previous sign-off ended with two vague asks, one of which
+("hai xác nhận của anh hôm nay") I had not even identified. Found both in the repository instead of
+asking the operator to remember them: they were marked on the CAL-06 and TEA-03 rows in
+`features.md`. Asking a person to recall what a marker already records is a waste of the one thing
+the markers exist to save.
+
+**ADR-014 — a policy-only migration is not `schema_delta: none`.** The literal reading was available
+and defensible: a policy is not a column. ADR-005 is what makes it wrong here — with no server, RLS
+is not one control among several but the entire authorization model, and `rbac-and-security.md`
+records as its first known weakness that a permissive policy **fails open and silently**. Under the
+literal reading that change passes the one gate positioned to stop and look at it.
+
+The cost was put in front of the operator before they chose and they took it: **most `TEA` and `ADM`
+tickets now need an ADR.** Rejected a `select` carve-out — a permissive `select` is exactly how data
+leaks, and a rule with an exception gets its exception argued at the gate under time pressure. The
+revert condition is three consecutive policy ADRs that read as paperwork.
+
+**CAL-06 — a removed member keeps a row for the part of the year they were present.** This follows
+ADR-013 rather than extending it: a view draws an entry exactly when that entry is counted, so the
+roster filters on `removed_at` per date and needs no display rule of its own. Recorded that way, as
+a consequence rather than a new decision, so the two cannot drift.
+
+**TEA-03 — the derived permission row is confirmed.** Kept the derivation in
+`rbac-and-security.md` rather than replacing it with the outcome, and wrote the sequence into the
+note: derived, flagged, then confirmed. **The flag is what made the confirmation possible**, and a
+row promoted quietly to "settled" would have erased the only evidence that anybody checked.
+
+Four rows unblocked. Audit 0 errors, 200 of 200.
+
+Remaining in the queue and neither is blocking: `ui-design-system.md` is still a stub, and the
+destructive-actions list is unwritten. Both need the operator, and the second one more than it looks
+— `.ai/standards/ui-design-system.md` calls it the section that is not decoration.
+
+### 2026-08-31 — two contradictions, one of them mine
+
+`/triage` closed the last idea and handed over a queue whose first two items were disagreements
+between documents that had both already been accepted.
+
+**The second one was my error, and it is the expensive kind.** ADR-014 stated in its Consequences
+that *"CAL-04 through CAL-07 add no policy and stay `none`"*. CAL-04's own registry note says it
+**owns the `team` select policy and the grant it needs** — and I had read that note earlier in the
+same session, while investigating INV-04. I wrote an exemption from a general belief about
+read-and-render rows rather than from the four rows I had just named.
+
+An ADR is what everything downstream treats as settled, so a wrong fact inside one costs more than
+the same fact wrong anywhere else. Corrected in place and **marked as corrected**, with the line
+rewritten to name no ticket at all — naming none is what makes it safe to rely on.
+
+Set `schema_delta` on CAL-02, CAL-03 and CAL-04 to describe the policy each adds. All three now fail
+Definition of Ready item 4 until an ADR is linked, **and that is the rule working rather than a new
+problem**.
+
+**The finding worth more than either contradiction**, recorded as known weakness 6 in
+`rbac-and-security.md` because it is a property of the authorization model and will outlive the row
+that exposed it: **`WITH CHECK` sees only the new row and cannot say "this column did not change".**
+So the obvious update policy — `member_id = auth.uid()`, letting a member edit their own entry —
+accepts a raw `PATCH {"status":"approved"}` against that member's own row. Their id matches, the
+predicate passes, and the entry is approved by the person who wrote it.
+
+Column grants do not close it, and the reason is the part that would be missed: they *did* close the
+equivalent hole on `team`, because nobody may rename a team and the privilege could simply be
+withheld. Here member and admin are **the same PostgreSQL role**, `authenticated` — the distinction
+lives in the predicate, not the role — so a grant that lets an admin write `status` lets a member
+write it too. What closes it is a `BEFORE UPDATE` trigger comparing `OLD` and `NEW`, the same shape
+ADR-016 uses for `approved_by` and the same reasoning ADR-005 accepted when it put INV-02 in a
+trigger.
+
+It opens the moment CAL-02 grants a member `update`, and both halves of the triage found it
+independently while working on a different idea.
+
+**Asked the WFH question before ADM-05 reaches SPEC rather than after**, as tech-lead-design advised.
+Answer: **WFH needs approval exactly as PTO does.** That is the zero-change answer — `status` stays
+meaningful on every row, INV-03 keeps no exception, the worklist needs no filter, and all three ADM
+rows keep their shape. Recorded in the glossary so it is not asked again.
+
+Audit 0 errors, 200 of 200.

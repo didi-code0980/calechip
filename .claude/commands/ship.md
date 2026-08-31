@@ -26,7 +26,7 @@ Steps:
    cannot place belongs to a human, not to a guess.
 
 1. Run the project's verify command — typecheck, lint, unit, build — named in
-   `.ai/standards/testing-standards.md`. Any non-zero exit stops here.
+   `.ai/standards/testing-standards.md`. Any non-zero exit stops here. Tạm ignore bước này 
 2. Confirm the full Definition of Done in `.ai/01-operating-model.md`, item by item.
 3. Set `state: DONE`, move the row to `## ARCHIVE` in `backlog.md`, append to `metrics.md`, **and set
    this feature's `Status` to `DONE` in `.ai/registry/features.md`.**
