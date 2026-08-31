@@ -1,6 +1,6 @@
 ---
-doc_version: 2
-last_updated: 2026-08-25
+doc_version: 3
+last_updated: 2026-09-01
 governed_by: [RULE-01, RULE-03, RULE-04, RULE-05, RULE-06, RULE-07, RULE-08, RULE-09, RULE-10, RULE-11, RULE-12, RULE-13, RULE-14, RULE-15, RULE-16, RULE-17]
 ---
 
@@ -40,6 +40,30 @@ IDEA -> TRIAGE -> [PROMOTE writes the feature row] -> BACKLOG
                                                     v
                                               ESCALATED -> human
 ```
+
+## The QA stage is waived — temporary, ADR-017
+
+**In force since 2026-09-01. While it stands, the loop runs `REVIEW -> DONE` and QA is not entered.**
+Delete this section to reverse it; nothing else in this document changes.
+
+`QA` keeps its place in the state enum, its row in the stage ownership table, its rows in the failure
+routing table and its entry in `ARTIFACTS_FOR`. It is an unvisited state, not a deleted one — which is
+what makes the reversal a deletion rather than a reconstruction.
+
+| Reads | While the waiver stands |
+|---|---|
+| Lifecycle | `REVIEW -> DONE`. The `QA` node and its `REWORK` edge are dormant |
+| `04-review.md` on PASS | `next_state: DONE`, not `next_state: QA` |
+| `/ship` preconditions | Three gates `passed: true` — `spec`, `design`, `review` — plus `gates.qa` carrying `waived: true`, `by: ADR-017` and a date. A `qa` gate that is neither passed nor waived still stops the ship |
+| Definition of Done | Items 3 and 4 are **suspended**, not satisfied. `/ship` says so in the pull request body. The other four are unaffected |
+| Ticket folder | Four artifacts, not six. `05-test-plan.md` and `06-test-report.md` are not produced |
+| `/qa` | Still correct and still runnable by hand. What is removed is automatic entry and the gate's power to block |
+| RULE-05, RULE-13, the `qa` chat budgets | Dormant, not repealed. They govern again the moment the stage is re-entered |
+
+**A ticket that ships under this waiver is untested, and `backlog.md` names the waiver on its archive
+row.** Not lightly tested — untested, with no automated evidence that any acceptance criterion holds.
+ADR-017 carries the reason, the cost and three revert conditions, the first of which is a single
+defect a test would have caught.
 
 **A `PROMOTE` verdict writes the feature row itself** — ADR-007 removed the human step that used to
 sit here. A ticket still cannot pass DoR unless its feature IDs exist in
@@ -338,12 +362,16 @@ than the gate.
 
 ## Definition of Done
 
-- four gates `passed: true` with timestamps
-- diff is a subset of `allowed_paths`
-- typecheck, lint, unit tests and end-to-end tests exit 0
-- every AC maps to a named test
-- zero invariant violations
-- `03-impl-log.md` lists every file touched with a one-line reason
+1. four gates `passed: true` with timestamps
+2. diff is a subset of `allowed_paths`
+3. typecheck, lint, unit tests and end-to-end tests exit 0
+4. every AC maps to a named test
+5. zero invariant violations
+6. `03-impl-log.md` lists every file touched with a one-line reason
+
+**Items 3 and 4 are suspended while ADR-017 stands**, and item 1 reads three gates passed plus a
+waived `qa` — see *The QA stage is waived* above. They are numbered here so the suspension can name
+them rather than describe them.
 
 **TODO(project): name the four commands.** Typecheck, lint, unit and end-to-end are roles, not
 command names. Write the exact invocations into `.ai/standards/testing-standards.md` once, and let

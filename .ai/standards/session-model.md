@@ -135,7 +135,8 @@ until the gates have all passed keeps that assertion honest.
 **`git branch --show-current` and `git status` before the first instruction of every session.** Not
 `pwd` any more — the folder is a constant. The branch and the tree are not.
 
-Everything a ticket has produced — the story, the design, the source, the tests, all six artifacts —
+Everything a ticket has produced — the story, the design, the source, the tests, all six artifacts
+(four while ADR-017 waives QA) —
 is **uncommitted until `/ship`**. There is no intermediate save point. So:
 
 - **A dirty tree is a stop, in every ticket command.** `git switch` carries modified and untracked

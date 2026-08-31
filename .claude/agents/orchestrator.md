@@ -44,7 +44,8 @@ the order of its steps: escalation check first, WIP check second, ticket selecti
   (RULE-09).
 
   **The whole ticket arrives uncommitted.** Since ADR-006 nothing before `/ship` commits, so the
-  story, the design, the source, the tests and all six artifacts are sitting in the working tree when
+  story, the design, the source, the tests and all six artifacts — four while ADR-017 waives QA —
+  are sitting in the working tree when
   you get there. Read `git status` before anything else, and classify what you find — a file you
   cannot place belongs to a human, not to a guess.
 - Session lifecycle: **REVIEW and QA each require a fresh session, discarded after the verdict**

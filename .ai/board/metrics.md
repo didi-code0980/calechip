@@ -27,6 +27,12 @@ it moves, which is what keeps two branches from appending to the same lines.
 | 2026-08-31T15:52:48Z | TEA-01 | IN_PROGRESS | REVIEW | tech-lead-review | 0 | — | — | R1-R9 all PASS. **RULE-13 disclosure in front-matter**: the second pass reused the session that produced the 15:08:58Z verdict; the reviewer stopped and the operator directed it to proceed. |
 | 2026-08-31T16:44:10Z | TEA-01 | REVIEW | QA | qa | 0 | — | — | **PASS by operator waiver.** Four passes: 15:18:06Z FAIL, 15:59:31Z BLOCKED, 16:36:28Z BLOCKED, 16:44:10Z PASS. Nothing was verified between the third and the fourth. Ten of twelve criteria have no test. |
 | 2026-08-31T16:46Z | TEA-01 | QA | DONE | orchestrator | 0 | — | — | Definition of Done met on five of six items. **Item 4, "every AC maps to a named test", is not met and was waived**; `waiver:` in `06-test-report.md` carries the terms and is `temporary: true`. |
+| 2026-08-31T16:56:07Z | TEA-02 | BACKLOG | SPEC | ba | 0 | — | — | Full DoR evaluated by orchestrator (six of six). `size_estimate` M. |
+| 2026-08-31T16:56:07Z | TEA-02 | SPEC | READY | orchestrator | 0 | — | — | Six of six. `schema_delta` cites ADR-009 / ADR-014. |
+| 2026-08-31T17:14:11Z | TEA-02 | READY | DESIGN | tech-lead-design | 0 | — | — | `size` M against estimate M, eleven files. Gate PASS. |
+| 2026-08-31T17:26:08Z | TEA-02 | DESIGN | IN_PROGRESS | developer | 0 | — | — | Nine files implemented. Typecheck and lint clean. |
+| 2026-09-01T00:33:50Z | TEA-02 | IN_PROGRESS | REVIEW | tech-lead-review | 0 | — | — | R1-R9 all PASS. All contract items implemented, no invariant violated. |
+| 2026-09-01T00:38:00Z | TEA-02 | REVIEW | DONE | orchestrator | 0 | — | — | QA gate waived per ADR-017 on operator direct instruction. |
 
 ## Targets
 

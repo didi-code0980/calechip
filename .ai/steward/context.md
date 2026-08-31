@@ -923,3 +923,120 @@ meaningful on every row, INV-03 keeps no exception, the worklist needs no filter
 rows keep their shape. Recorded in the glossary so it is not asked again.
 
 Audit 0 errors, 200 of 200.
+
+### 2026-09-01 — the migration applied, under a directed exception to RULE-09
+
+Operator: *"tự chạy luôn đi."* **RULE-09 says schema changes are permanently human.** I had stated
+that the turn before; they repeated the instruction, so it is a decision and I complied. Recorded as
+a directed exception rather than left to look like the rule does not exist. `git-conventions.md`
+carries the same shape for commits — *"the authorization is the instruction; it does not generalize
+to the next run"* — and RULE-09 has no such clause written. **If this is meant to be routine rather
+than one-off, that is an amendment to RULE-09 and it wants an ADR.**
+
+Three things went wrong before it worked, and each was worth the check that caught it:
+
+- **`.env` used unprefixed names.** `SUPABASE_URL` and `SUPABASE_ANON_KEY`, where the code reads
+  `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY`. Vite exposes only `VITE_`-prefixed variables, so
+  adding the file changed nothing — the app was still on the mock. Renamed the two client variables
+  and left `SUPABASE_SERVICE_ROLE_KEY` unprefixed **deliberately**, with a comment saying why:
+  prefixing it would ship the whole authorization model to every visitor.
+- **The connection string would not parse.** The password is fifteen characters and contains `#` and
+  `/`, neither encoded. `/` ends the authority section and `#` opens a fragment, so the URL pointed
+  nowhere. Percent-encoded in place — the same file the secret already lives in, no second copy.
+- **An attempt to write the encoded string to `/tmp` was refused by the harness, correctly.** Copying
+  a credential to a world-readable path is a bad idea whatever the intent. Did not work around it;
+  did the edit in place instead.
+
+`--dry-run` first, then the push. One migration applied: `20260831150024_tea01_membership.sql` —
+three tables, two functions, a trigger on `auth.users`, RLS enabled on all three tables, `revoke all`
+then per-privilege grants.
+
+**Verified afterwards rather than assumed**, by building and reading the bundle: `VITE_SUPABASE_URL`
+is present, so the seam selector now resolves to `supabase` rather than `mock`; the service-role key
+is **not** in `dist/`. Both checks matter — the first is what the operator asked for, the second is
+the one nobody asks for.
+
+`.env` still is not ignored, by the operator's standing decision. It now holds a service-role key and
+a database password, so `git add -A` remains off-limits in this session.
+
+### 2026-09-01 — seeded an admin, and found a defect in TEA-01's shipped seed
+
+Operator asked for an admin account, `admin@calachip.com` / `123456`. Said once that the password is
+weak for a real project and proceeded; it is a development credential and must not survive contact
+with real data.
+
+`seed.sql` already had the right shape — `auth.users` row with a bcrypt hash, then a `member` row
+with `role: 'admin'` — because the first admin of a team **cannot** come through sign-up: the
+`admit_allow_listed_member` trigger only ever admits a `member`. Added the operator's account to that
+file rather than running a one-off insert, so it is reproducible on a fresh database. That edit
+touches TEA-01's shipped artifact, and it was declared rather than done quietly.
+
+**Then it did not work, and the failure was worth the four turns it took.**
+
+`500 Database error querying schema` on sign-in. **Bisected instead of guessing**: a non-existent
+user returned 400 correctly, both seeded users returned 500. The failure was in reading a user that
+exists, not in reaching the database.
+
+Two hypotheses were wrong and were dropped when the file contradicted them — the `revoke` block
+touches nothing GoTrue uses, and the trigger fires only `on update of email_confirmed_at`, which a
+sign-in does not touch. **The third was right and I still could not confirm it without the right
+tool**, so I installed `psql` rather than guess a fourth time: `confirmation_token`,
+`recovery_token`, `email_change` and `email_change_token_new` were NULL on both rows. GoTrue scans
+them into non-nullable Go strings.
+
+A detail worth keeping: **`supabase db push --include-seed` reported "Updating seed hash" and did not
+re-run the file.** The fix was already written into `seed.sql` and had not been applied — which is
+why the retest failed identically and briefly looked like the diagnosis was wrong.
+
+Verified the end state rather than declaring it: all three sign-ins behave correctly, and the admin's
+own token — not the service-role key — reads its `member` row as `role: admin` and reads
+`allowed_email`, which only an admin may see. That last call is the first time this project's RLS
+policies have been exercised by a real user against a real database.
+
+**MD-014, severity high.** The seed defect is TEA-01's, shipped, and it is exactly the class the
+waived QA gate was covering — ten of twelve criteria untested. The fix shape says the real lesson: a
+test that signs a seeded user in is worth more than any assertion about that row's columns, and
+nothing noticed for a day.
+
+### 2026-09-01 — the QA stage is waived, temporarily and on purpose
+
+Operator instruction: *"tôi muốn tạm thời flow bỏ qua state qa testing."* Disagreed once, in one
+sentence — TEA-02 is sitting at REVIEW, and the standing instruction *do not patch the model while a
+ticket is mid-stage* was written for exactly this shape — then complied in full. The narrow reading
+holds: TEA-02 is not being judged by the QA gate right now, and the operator's word was *tạm thời*.
+
+The decision was **not** to delete QA. `QA` keeps its place in the state enum, the stage ownership
+table, the failure routing table and `ARTIFACTS_FOR`; what changes is that the lifecycle does not
+enter it. Reversal is deleting one section from `.ai/01-operating-model.md` and one `Status` line in
+the ADR, not reconstructing a stage from memory. Removing it properly would have meant a dozen
+coordinated edits with check D10 failing partway through, which is the right price for a permanent
+decision and the wrong one for a temporary switch.
+
+**The precedent mattered more than the instruction.** TEA-01 had already shipped on 2026-08-31 with
+its QA gate passed by an ad-hoc operator waiver — ten of twelve acceptance criteria untested, the
+permission-model test never written. So the real choice was never *run QA or skip it*; it was *skip it
+once per ticket by improvisation, in a different place each time, or skip it by one declared switch
+that can be read, counted and turned off*.
+
+- **Wrote** `.ai/registry/decisions/ADR-017-the-qa-gate-is-temporarily-waived.md`.
+  `ACCEPTED by the operator`, recorded not authored, quoting the instruction verbatim. Three revert
+  conditions, the first of which is a single defect a test would have caught — one is enough, no
+  count needed.
+- **Amended** `.ai/01-operating-model.md` to v3: a new section *The QA stage is waived*, placed with
+  the lifecycle, written as a table of what each reader does differently. The Definition of Done is
+  now numbered so the suspension can name items 3 and 4 rather than describe them.
+- **Amended** `/ship` (preconditions, DoD confirmation, the archive row, the PR body), `/review`
+  (`next_state: DONE` on PASS), `/qa` (a banner saying the loop does not route here, and that the
+  command still works by hand), and `.ai/templates/ticket.yaml` (the `waived:` shape).
+- **Fixed in the same turn**, outside the assigned scope and small: three documents claiming a ticket
+  produces "all six artifacts". Under the waiver it produces four.
+- **Recorded MD-016, high.** Nothing counts waived ships and nothing enforces the revert. Two of the
+  three revert conditions are numbers no check reads, and TEA-01 is the demonstration — waived one
+  day, still waived the next, because nothing was watching. The cheap fix shape is a D-check that
+  reports the waiver's age on every audit run.
+
+`check-docs.mjs`: 0 errors, 1 pre-existing advisory D8. `node --test`: 200 pass, 0 fail.
+
+Registry write, with confirmation: ADR-017, from the instruction quoted above. CODEOWNERS forces the
+operator's review of it at merge. No rule in `rules.md` was amended — RULE-05 and RULE-13 still say
+what they said, and a stage that is not entered does not need its rules rewritten.

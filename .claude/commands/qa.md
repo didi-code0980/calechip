@@ -3,6 +3,10 @@ description: Run the QA stage — test plan, tests, and test report in isolated 
 argument-hint: <TICKET-ID>
 ---
 
+> **The QA stage is waived — ADR-017, in force since 2026-09-01.** The loop runs `REVIEW -> DONE`
+> and does not route here. This command is not deleted and everything below is still correct: run it
+> when the operator asks for it by hand. Do not run it because a ticket reached REVIEW.
+
 Run in a **fresh session that is discarded after the verdict** — files only, no message channel
 (RULE-13). You are `qa`; nothing is dispatched. A re-run after rework opens another new session, for
 the same reason the reviewer does (`.ai/standards/session-model.md`).
