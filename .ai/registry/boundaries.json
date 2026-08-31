@@ -1,6 +1,6 @@
 {
   "_what_this_is": "Machine-checkable architectural boundaries, read by check D12 in scripts/check-docs.mjs. A boundary is a decision an ADR made about what may depend on what, written so the audit enforces it instead of trusting somebody to remember. Registry plane: changing it requires an ADR and human approval (RULE-01).",
-  "_todo_project": "Ships empty. D12 checks nothing and says so while boundaries is []. Add one entry per ADR that names an observable revert condition of the form: this package must not enter the dependency tree, or must only be reachable from this directory.",
+  "_todo_project": "One boundary is declared, from ADR-005. Add another per ADR that names an observable revert condition of the form: this package must not enter the dependency tree, or must only be reachable from this directory.",
   "_entry_shape": {
     "id": "short slug, printed in the finding",
     "adr": "ADR-nnn that decided this, cited in every finding so a reader can go and read the reasoning",
@@ -13,5 +13,22 @@
     "forbidden_exemption_substring": "a path fragment that must never appear in a lint exemption alongside the vendor name, typically the data seam",
     "reason": "one sentence, printed in the finding, saying what breaks when the boundary is crossed"
   },
-  "boundaries": []
+  "boundaries": [
+    {
+      "id": "supabase-client-in-seam",
+      "adr": "ADR-005",
+      "package_prefix": "@supabase/",
+      "allowed_packages": [
+        "@supabase/supabase-js"
+      ],
+      "manifest": "package.json",
+      "source_roots": [
+        "src"
+      ],
+      "exempt_dirs": [
+        "src/lib/data"
+      ],
+      "reason": "Authorization is enforced by row-level security and nothing else (ADR-005), so the seam's job is a single import site for the client library. A component reaching the datastore directly bypasses the one place the absence count is computed (INV-04) and puts query construction where no review check looks for it."
+    }
+  ]
 }

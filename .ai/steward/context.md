@@ -337,3 +337,72 @@ oversight rather than the deliberate scoping that excluded the board plane.
 
 Not fixed here. Widening a check is its own change with its own test, and the operator asked for a
 deletion.
+
+### 2026-08-31 — architecture, and authorization moved into the database
+
+PR #2 merged (`44d8728`). Cut `ops/architecture` from `origin/main`.
+
+Put the last blocking question to the operator, reframed once I looked at what the stack actually
+implies: with Supabase and no server, the browser holds the user's own token and talks to PostgREST
+directly, so a permission check in a client-side seam is an affordance and not a control. Their
+answer, verbatim: *"sử dụng Auth của supabase hoàn toàn, Không cần Viết authen API luôn."*
+
+Worth noting the two words that get conflated and were separated in the write-up: Supabase **Auth**
+provides authentication; **RLS** provides authorization. The operator ruled out a custom auth API,
+which settles both.
+
+- **`ADR-005`** records it, quoting them. Status `ACCEPTED by the operator` is legitimate here
+  because the decision exists in words that can be pointed at — the test the ADR template sets.
+  The rejected alternative is written up honestly: a thin Edge Function seam does not remove the
+  second enforcement layer, it adds a third, because RLS still has to be on or the database is open.
+- **`.ai/standards/architecture.md`** written. Seam is `src/lib/data/`; four layers, arrows one way;
+  and a table mapping each of the seven invariants to the mechanism that will hold it. INV-01 becomes
+  a PostgreSQL exclusion constraint — the one that a read-then-write check genuinely cannot hold, and
+  the reason the invariants moved into the database alongside the permissions.
+- **`boundaries.json`** declares `supabase-client-in-seam`. D12's unconfigured note is gone; only
+  D1's remains.
+- **`rules.md`** enforcement map now names what holds RULE-02 — and says plainly that **the lint rule
+  is not written yet**, so D12 and R4 are the only live mechanisms. The map exists to make a rule
+  with no mechanism visible, so claiming one that does not exist would have been the one wrong way
+  to fill that row.
+
+**Paid a debt the kit set up in advance.** Declaring a boundary broke
+`this repository's real boundaries.json parses and declares nothing` — which is exactly what
+`testing-standards.md` said would happen, and it says the first project to declare a boundary owes a
+real-file test against the config it names. Replaced it with three: the declared boundaries are
+well-formed and cite an ADR that resolves to a file; the real config stays silent against the real
+manifest; and injecting a forbidden package into a copy of the real config makes D12 fire. The third
+is the one that matters — without it, silence proves nothing.
+
+Suite 199 of 199, audit exits 0. Three D6 entries are PENDING on `src/`, which is correct: the seam
+is named before it exists.
+
+**What ADR-005 makes harder, recorded rather than discovered later:** R6 and R8 now cite migrations
+rather than TypeScript, and the permission-model test stops being a unit test — it needs a real
+PostgreSQL and a token per role. `testing-standards.md` and `rbac-and-security.md` both carry
+`TODO(project)` for that, and the ADR's affected-documents table lists them.
+
+### 2026-08-31 — `.gitignore` no longer ignores `.env`, by operator decision
+
+Found `.env` untracked rather than ignored: the operator had removed the `.env` and `.env.local`
+lines from `.gitignore`. Verified it had never been committed and was not on `origin/main`, then
+raised it — the file carries `SUPABASE_SERVICE_ROLE_KEY`, and under ADR-005 row-level security is the
+only authorization mechanism, so that key bypasses the entire model rather than one control.
+
+**The operator's answer: do not ignore `.env`.** Recorded, complied with, and the `.gitignore` change
+ships in the pull request rather than being quietly reverted or quietly excluded, so the decision is
+visible where a reviewer looks.
+
+**What was not done, and why:** `.env` itself was not staged. The instruction was not to ignore it,
+which is not the same as an instruction to commit it, and publishing a service-role key to a remote
+is not reversible by deleting it afterwards. It remains untracked and out of the pull request. If the
+operator wants it committed, that is a separate instruction.
+
+Also noted and unresolved: that `.env` does not appear to belong to this project. It uses
+`NEXT_PUBLIC_*` prefixes, which are a Next.js convention — Vite reads `VITE_*`, so those two
+variables would be invisible to the application. Its comments cite an ADR number this repository has
+never issued and a seed script that does not exist here, and describe a state with row-level security
+switched off, which contradicts ADR-005.
+
+*Written first with the ADR number quoted literally, which made check D11 fail the audit — the ID
+resolved to no file, because the file is from somewhere else. The check did exactly what it is for.*

@@ -87,14 +87,16 @@ Supporting libraries, all carried from the prototype: `date-fns` 4 (with the `vi
 one door to it. Recording the client library here and the seam there is the split that keeps RULE-02
 checkable — R4 points at a directory, not at a package name.
 
-**Supabase brings a second permission layer, and that is a decision, not a detail.**
-[architecture.md](architecture.md) states that two layers enforcing permissions is a drift source:
-they agree until they do not, and the disagreement is invisible until a role is added. Row-level
-security and the seam are exactly two such layers. Which one is authoritative must be settled in an
-ADR with a revert condition before the first ticket that touches permissions.
+**Supabase brings a second permission layer, and that was a decision rather than a detail. It has
+been made.** [ADR-005](../registry/decisions/ADR-005-authorization-in-rls.md): row-level security is
+the sole authorization mechanism, Supabase Auth provides authentication, and no server-side API is
+written. The seam still exists and is still mandatory under RULE-02, but its job is typing and a
+single import site — not enforcement. Any permission check appearing in it is an affordance and is
+commented as one.
 
-TODO(project): write that ADR. Until it exists, design section 2 has no single answer to point at and
-review check R6 is comparing an implementation against an undecided model.
+The reason is the deployment shape rather than taste: with no server, the browser holds the user's
+own token and talks to PostgREST directly, so a rule written in client-side TypeScript can be skipped
+by issuing the same request from anywhere else.
 
 ## Interface between the parts
 
