@@ -1,0 +1,21 @@
+name: allowed-paths
+
+# The second of exactly two status checks. It runs one script and nothing else.
+#
+# RULE-03 says an agent may not edit any file outside the active ticket's allowed_paths. Since
+# ADR-004 unwired the pre-write guard, this check and review check R1 are what remain — both after
+# the fact. It diffs origin/main...HEAD, the whole branch, which is why ticket work and chore work
+# must live on separate branches.
+
+on:
+  pull_request:
+
+jobs:
+  allowed-paths:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - run: node scripts/check-allowed-paths.mjs

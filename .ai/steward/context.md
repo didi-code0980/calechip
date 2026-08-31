@@ -556,3 +556,46 @@ deleted file. Stripped the slashes and rephrased the one path. Worth recording t
 noticed a rename the same way they would notice a mistake — which is the point of them.
 
 Audit exits 0, no notes, 4 pending on `src/`. 200 of 200 tests pass.
+
+### 2026-08-31 — the toolchain, built by reading rather than recalling
+
+PR #7 merged (`e90b217`). Cut `ops/toolchain` from `origin/main`.
+
+**All four commands in `testing-standards.md` now run**, plus the build. The audit is in strict mode
+with zero pending, because `src/` exists.
+
+**The `past reliable recall` rule paid for itself four times, and each one would have been a silent
+defect written from memory:**
+
+- **ESLint resolved to 10.9.1, not the 9 the stack recorded.** A flat config written from memory of
+  ESLint 9 would have been aimed at the wrong major. `tech-stack.md` now records 10 and keeps the
+  correction visible rather than overwriting it.
+- **Vitest 4 does not accept `test` in vite's `defineConfig`.** It must come from `vitest/config`.
+  `tsc` said so on the first run.
+- **`createClient` throws on an empty URL**, so the seam constructed its client eagerly and could not
+  be imported without environment variables. **The mandatory seam-parity test caught it on its first
+  execution**, which is precisely what that test is for. The client is now lazy.
+- **`vite preview` binds to `localhost`, not `127.0.0.1`.** Playwright waited sixty seconds for a
+  server that was already running. Found by attempt.
+
+**RULE-02 stopped being prose.** `no-restricted-imports`, scoped to `src/**` and exempting
+`src/lib/data/`, is in `eslint.config.js` — and it needed no plugin, which removed the one dependency
+whose flat-config shape was unconfirmed. **Verified firing**: a probe importing the client from
+outside the seam is reported with the rule's own message; the same import inside the seam is not.
+That is the first rule in this project to move from a sentence to a mechanism somebody has watched
+work.
+
+Also written: `tsconfig.json`, `vite.config.ts`, `playwright.config.ts`, a minimal `src/` shell whose
+only feature is a `data-testid` — exercising the selector contract end to end before any story
+depends on it — the seam with two implementations, the seam-parity test, both CI workflows named
+exactly `verify` and `allowed-paths`, the build output entries in `.gitignore`, and the four commands
+added to `.claude/settings.json` **and** `REQUIRED_READONLY_ALLOW` in the same commit, as SETUP step 5
+requires.
+
+**What is deliberately not built.** The permission-model test, the second mandatory test, cannot be
+written: under ADR-005 it must execute against a real PostgreSQL with a token per role, and no
+Supabase project exists. `src/` is a scaffold with no features — those are tickets. The Supabase CLI
+and the PostgreSQL major remain the only entries left on the unverified list.
+
+**One discrepancy left open:** the machine runs Node 23.6.0 while the recorded major is 22. The loop
+works on both, but the pin and the machine disagree and one of them should move.

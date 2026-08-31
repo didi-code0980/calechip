@@ -71,10 +71,15 @@ const REQUIRED_READONLY_ALLOW = [
   "Bash(node --test:*)",
   "Bash(node scripts/check-docs.mjs)",
   "Bash(node scripts/check-allowed-paths.mjs)",
-  // TODO(project): add the project's own typecheck, lint, unit and end-to-end commands here and to
-  // .claude/settings.json in the same commit. They are absent because a template cannot know their
-  // names, and an allow rule for a script that does not exist is worse than no rule: it reads as
-  // configured. Every entry must stay read-only in the sense the metacharacter test below asserts.
+  // The project's own four commands, added 2026-08-31 in the same commit as .claude/settings.json.
+  // They are the invocations named in .ai/standards/testing-standards.md; an allow rule the test
+  // does not know about is one a clobber can drop silently.
+  "Bash(pnpm exec tsc:*)",
+  "Bash(pnpm exec eslint:*)",
+  "Bash(pnpm exec vitest:*)",
+  "Bash(pnpm exec playwright:*)",
+  "Bash(pnpm exec vite:*)",
+  "Bash(pnpm install:*)",
 ];
 
 const REQUIRED_DENY = [

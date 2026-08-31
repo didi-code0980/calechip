@@ -38,7 +38,13 @@
       "Bash(pnpm --version)",
       "Bash(node --test:*)",
       "Bash(node scripts/check-docs.mjs)",
-      "Bash(node scripts/check-allowed-paths.mjs)"
+      "Bash(node scripts/check-allowed-paths.mjs)",
+      "Bash(pnpm exec tsc:*)",
+      "Bash(pnpm exec eslint:*)",
+      "Bash(pnpm exec vitest:*)",
+      "Bash(pnpm exec playwright:*)",
+      "Bash(pnpm exec vite:*)",
+      "Bash(pnpm install:*)"
     ],
     "deny": [
       "Bash(git push --force:*)",
