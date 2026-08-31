@@ -116,3 +116,137 @@ same preference twice.
 Append-only. Date, what changed, why, and every registry write with its confirmation.
 
 No entries yet. The first steward run in this repository writes the first one.
+
+### 2026-08-29 — first steward run in this repository
+
+Task: summarise what the template contains. Read-only survey plus one correction.
+
+- Ran `node scripts/check-docs.mjs` (exit 0, 0 errors, 0 warnings, 1 pending D6, 3 configuration
+  notes) and `node --test .claude/hooks/tests/*.test.mjs scripts/tests/*.test.mjs` (**211 pass, 0
+  fail**).
+- **Fixed:** `SETUP.md` claimed 192 passing tests in two places (step 0, and the closing honesty
+  paragraph). The real count is 211. The number is load-bearing — step 0 tells the operator to stop
+  if it does not match — so a stale one trains them to ignore a mismatch. Corrected both.
+- No registry write. No ADR. No ticket work.
+
+### 2026-08-31 — a single source for the tech stack
+
+Operator instruction: *"tôi muốn thay đổi, cần có 1 file định nghĩa techstack để cả project refer
+theo."* Disagreed once — the kit deliberately distributes stack facts to sit beside the check that
+enforces each — then complied in full, because the operator's point stands: nothing answered "what
+are we building with, at which major" in one read, and `CLAUDE.md § Stack` mixed it into a process
+document.
+
+Built to the pattern the kit already uses for rules and for the four commands: **one file is the
+source, every other document cites it and never restates it.**
+
+- **Added** `.ai/standards/tech-stack.md`. Records choices and majors only; resolved versions stay in
+  the manifest and the lockfile, with the reasoning stated in the file so the exclusion is not
+  mistaken for an oversight. Carries the "past reliable recall" instruction, moved here from
+  `CLAUDE.md` because it is about versions and now lives beside them. Contains an explicit table of
+  what does *not* belong in it, pointing at architecture, testing, data-model, integrations and
+  boundaries.
+- **Rewrote** `CLAUDE.md` § Stack as a pointer, and added tech stack to the standards row of the
+  read-first table.
+- **Amended** `architecture.md` (products are named in tech-stack; this file names shape — R4 points
+  at a directory, which does not change when a package does) and `testing-standards.md` (the table
+  holds invocations; the runners and their majors are named in tech-stack).
+- **Moved** `CLAUDE.md` to the end of SETUP step 5, since its Stack section is now a pointer and
+  there is nothing to write there before the file it points at exists.
+- **Recorded MD-008**: nothing enforces the single-source property. The fix shape is a D-check that
+  reads the names out of `tech-stack.md` and reports them appearing elsewhere. Not built in this run
+  — the operator asked for a file, and a new audit check is a separate decision.
+
+No registry write. `.ai/standards/**` is human-owned and CODEOWNERS-reviewed at merge; this is a
+change the operator asked for in words, so it is recorded, not authored.
+
+### 2026-08-31 — the tech stack, defined
+
+Operator added `_figma/`, a Figma Make export, and asked to define the stack by question and answer.
+Read the export before asking, so the questions were about what it does not settle.
+
+**What the export already decided** (adopted deliberately, so reference and implementation do not
+drift in tooling): React 19, react-router-dom 7, Vite 8, TypeScript 5 strict with `@/*`, Tailwind 4
+via the Vite plugin and no config file, date-fns 4 with the `vi` locale, lucide-react 1, clsx,
+tailwind-merge, oxfmt, Node 22, pnpm 10.34.3. It is client-only with data in component state.
+
+**What the operator decided**, four questions, one round: Supabase for the datastore; Vitest plus
+Playwright for the runners; ESLint 9 with an import-boundary rule; keep the export's frontend as-is.
+
+- **Filled** `.ai/standards/tech-stack.md`. Majors only. Nine dependencies listed by name under
+  *Versions the model cannot recall* — Vite 8, Tailwind 4, react-router 7, the React plugin,
+  lucide-react 1, oxfmt, ESLint 9 and its boundary plugin, Vitest, Playwright, and the Supabase
+  client. Tailwind 4 is called out specifically: it takes no config file, and writing a
+  `tailwind.config.js` is the Tailwind 3 reflex that produces a file nothing reads.
+- **Filled** the command table in `testing-standards.md`, and said plainly that none of the four runs
+  yet — nothing is installed and no config exists. A command table that has never been executed is a
+  claim, and the Definition of Done treats it as a fact.
+- **Settled** the selector attribute as `data-testid`. It is also what Playwright addresses by
+  default, so the contract and the runner agree without configuration.
+- **Added `_figma` to `SOURCE_ROOTS`** in `guard-read-scope.mjs`, with three tests. `ba` and `qa`
+  cannot read the prototype for the same reason they cannot read `src`: a test derived from an
+  implementation agrees with the implementation. 214 tests pass.
+- **Aligned** `packageManager` in `package.json` to the pin in `_figma/.mise.toml` — it read 10.15.1
+  against the toolchain's 10.34.3.
+
+**Left open, deliberately, and named in the file:** the seam path (SETUP step 4, and it gates the
+ESLint boundary rule), the deployment target, and — the one that matters — **which layer is
+authoritative for permissions.** Supabase row-level security and the seam are two enforcement layers,
+which `architecture.md` calls a drift source. That needs an ADR with a revert condition before the
+first ticket touching permissions, and it is the operator's decision to make, not mine to record.
+
+Not written: any ADR. No decision has been stated in words that could be cited yet.
+
+### 2026-08-31 — charter, glossary and a seeded invariant ledger
+
+Operator supplied `product_brief.md` (Draft v1, Min) — a team leave and WFH planner. Wrote SETUP
+steps 1 to 3 from it.
+
+- **`.ai/00-charter.md`.** The brief's Non-goals table was already written as refusals with reasons,
+  so the half that usually has to be excavated arrived intact. Added a sixth refusal the brief states
+  in 7.3 but does not file as a non-goal: *a warning never blocks an action* — the moment it can, the
+  system becomes the approval gate that refusal 2 forbids. Recorded explicitly that the P2 list is
+  **deferred, not refused**, so a later reader does not treat multi-team as forbidden.
+- **`.ai/registry/glossary.md`.** Fourteen terms. Two rows carry the weight: WFH versus PTO (both
+  reduce office presence, only one reduces capacity), and tentative versus approval status — two
+  independent axes that a schema will collapse into one field unless the glossary says not to.
+- **`.ai/registry/invariants.md`.** Five rows, and **only** the five the brief states in words:
+  overlap, approval revoked on edit, rejection reason, the single definition of the absence count,
+  and tentative still counting. D2's empty-ledger note is gone.
+
+**Five is below the five-to-fifteen the file recommends, and it was not padded.** Five further
+invariant-shaped statements are listed unnumbered under *Candidates not issued*, each naming the
+decision the brief does not contain — entry ownership, whether rejected entries count, which team
+size the threshold uses, whether a multi-day entry may carry a half-day portion (this one changes the
+schema and cannot wait past design), and whether editing a note revokes approval.
+
+One statement from the brief was **considered and rejected** as an invariant, recorded in the file so
+nobody re-derives it and reaches the other answer: *"a contiguous range is one entry, not one per
+day"* describes reality correctly either way, so it inconveniences a user rather than making data
+wrong. It is an acceptance criterion.
+
+Not written: any feature row, any ID prefix, any ADR. The product still has no name, which blocks
+`init-project.mjs`.
+
+### 2026-08-31 — bootstrapped as CaleChip
+
+Operator named the product **CaleChip**. Ran `init-project.mjs` after a dry run: `CLAUDE.md` heading,
+`@OWNER` in CODEOWNERS, and the `package.json` name (slug `calechip`).
+
+- **`--owner @didi-code0980`**, read from `gh auth status` rather than asked for. CODEOWNERS is a
+  plain text file and hand-editing it later costs nothing, unlike the other three anchors the script
+  consumes — so the cheap, reversible inference was better than blocking on a question.
+- **`--prefixes` deliberately not passed.** The previous turn advised the operator not to choose the
+  prefix set in a hurry, since extending it later requires an ADR. Contradicting that one turn later
+  on no new information would have been worse than a second pass at step 7.
+- **Four markers resolved** now that the name exists: the charter's naming TODO, the product
+  paragraph in `CLAUDE.md` (the line every agent reads every session), Visual direction — condensed
+  from brief section 8, with the density-over-charm principle kept because it is the one line that
+  constrains later design decisions — and the conversation-language marker, confirmed Vietnamese.
+
+**Recorded MD-009, severity high.** CODEOWNERS now names the one account that will open every pull
+request. GitHub does not permit self-approval, so enabling branch protection at SETUP step 8 would
+make every pull request unmergeable except by admin bypass — and RULE-01 would be held by a control
+that is overridden every single time. Either a second reviewer is named, or the enforcement map stops
+claiming a mechanism that is not there. This is not a defect introduced today; it is the model
+meeting a solo repository, and SETUP step 8 walks straight into it.

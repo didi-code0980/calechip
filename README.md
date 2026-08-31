@@ -12,7 +12,7 @@ runner.
 | Directory | What it holds |
 |---|---|
 | [.ai/registry/](.ai/registry/) | Rules, invariants, features, glossary, ADRs. Permanent, human-only, and the only valid source of feature IDs |
-| [.ai/standards/](.ai/standards/) | Architecture, coding, data model, RBAC, testing, UI, git, sessions, integrations |
+| [.ai/standards/](.ai/standards/) | Tech stack, architecture, coding, data model, RBAC, testing, UI, git, sessions, integrations |
 | [.ai/board/](.ai/board/) | Transient and agent-writable: backlog, tickets, metrics, ideas. Ships empty |
 | [.ai/templates/](.ai/templates/) | The nine stage artifacts — story, design, impl log, review, test plan, test report |
 | [.claude/agents/](.claude/agents/) | The nine agents and what each one may not do |

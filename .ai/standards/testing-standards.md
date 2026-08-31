@@ -8,22 +8,30 @@ governed_by: [RULE-05, RULE-07, RULE-08]
 
 ## Tools and commands
 
-TODO(project): name the unit runner, the component runner if there is one, and the end-to-end runner,
-and write the **exact command for each**. The Definition of Done in `.ai/01-operating-model.md`
-refers to them by role — typecheck, lint, unit, end-to-end — precisely so that this is the only file
-that has to know their names.
+The Definition of Done in `.ai/01-operating-model.md` refers to these by role — typecheck, lint,
+unit, end-to-end — precisely so that this is the only file that has to know their names.
 
 | Role | Command |
 |---|---|
-| typecheck | TODO(project) |
-| lint | TODO(project) |
-| unit | TODO(project) |
-| end-to-end | TODO(project) |
+| typecheck | `pnpm exec tsc --noEmit` |
+| lint | `pnpm exec eslint .` |
+| unit | `pnpm exec vitest run` |
+| end-to-end | `pnpm exec playwright test` |
 | documentation audit | `node scripts/check-docs.mjs` |
 | allowed-paths | `node scripts/check-allowed-paths.mjs` |
 | hook and script tests | `node --test .claude/hooks/tests/*.test.mjs scripts/tests/*.test.mjs` |
 
 The last three ship with this kit and need no editing.
+
+**None of the first four commands runs yet.** No dependency is installed in this repository and no
+config file for any of the four tools exists — the commands record the agreed invocation, not a
+working setup. Run each one and correct it here the moment the tooling lands; a command table that
+has never been executed is a claim, and the Definition of Done treats it as a fact.
+
+**The runners themselves are named in [tech-stack.md](tech-stack.md), with their majors.** This table
+holds the invocations and nothing else, because the Definition of Done and checks R2 and R3 refer to
+them by role and one file has to know their names. Naming the tool in both places would put the
+version in two files, and the copy is always the one that goes stale.
 
 ## The selector contract
 
@@ -39,8 +47,11 @@ The consequence is that a selector missing from design section 6 does not exist.
 it, cannot test it, and must not go looking for it. Check R7 verifies the reverse direction: every
 selector in section 6 exists in the markup.
 
-TODO(project): name the selector attribute — the origin used `data-testid` — and say it once here.
-Design section 6 and check R7 both refer to it.
+**The selector attribute is `data-testid`.** Said once, here. Design section 6 and check R7 both
+refer to it, and no other attribute, class or DOM path is an acceptable substitute.
+
+It is also what Playwright addresses by default through `getByTestId`, so the contract and the
+end-to-end runner agree without configuration.
 
 ## Test naming
 

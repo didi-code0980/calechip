@@ -22,10 +22,14 @@ import path from "node:path";
 const BLOCK = 2;
 const RESTRICTED = new Set(["ba", "qa"]);
 
-// TODO(project): the implementation source roots, relative to the repository root. One of the three
-// places in this kit that assume a directory layout; the other two are SCAFFOLD_ROOTS and
-// PATH_ROOTS in scripts/check-docs.mjs.
-const SOURCE_ROOTS = ["src"];
+// The implementation source roots, relative to the repository root. One of the three places in this
+// kit that assume a directory layout; the other two are SCAFFOLD_ROOTS and PATH_ROOTS in
+// scripts/check-docs.mjs.
+//
+// `_figma` is the Figma Make prototype, kept as a reference and named in
+// .ai/standards/tech-stack.md. It is here for the same reason `src` is: it is an implementation of
+// the interface, and a test derived from it agrees with the prototype rather than with the story.
+const SOURCE_ROOTS = ["src", "_figma"];
 
 function die(reason) {
   process.stderr.write(`guard-read-scope: BLOCKED — ${reason}\n`);
