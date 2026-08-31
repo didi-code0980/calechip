@@ -38,7 +38,7 @@ These are copied verbatim from `.ai/registry/rules.md` because they are too impo
 indirection away. `scripts/check-docs.mjs` check D7 verifies the copies match character-for-character.
 Every other rule is cited by ID, never restated.
 
-- **RULE-01** — Changing `.ai/registry/**` requires an ADR and human approval. Enforcement is CODEOWNERS review on the pull request, not a hook.
+- **RULE-01** — Changing `.ai/registry/**` requires human approval, and an ADR for everything except feature and glossary rows. Enforcement is CODEOWNERS review on the pull request, not a hook.
 - **RULE-02** — No component may bypass the data-access seam declared in `.ai/standards/architecture.md`. Enforced by a lint rule, not convention.
 - **RULE-03** — An agent may not edit any file outside the active ticket's `allowed_paths`.
 

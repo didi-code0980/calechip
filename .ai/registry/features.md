@@ -20,9 +20,12 @@ below fails Definition of Ready and is demoted to BACKLOG.
 
 ## Status
 
-Prefixes fixed on 2026-08-31. **No feature rows yet** — rows arrive one at a time, from a human, as
-ideas are promoted through `/triage`. An empty group table means no feature in that group has been
-specified, not that the group is unused.
+Prefixes fixed on 2026-08-31. **No feature rows yet** — rows arrive one at a time as ideas are
+promoted, written by `product` at `/triage` (ADR-007). An empty group table means no feature in that
+group has been specified, not that the group is unused.
+
+**Every row written by triage cites its idea file in `Notes`.** A row with no citation was not
+promoted from anything, and that is exactly what a reviewer should stop on.
 
 Check D1 now polices every three-letter feature token in every document against the rows below, so a
 citation of an ID that does not exist fails the audit rather than reading as evidence that somebody

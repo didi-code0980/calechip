@@ -1,5 +1,5 @@
 ---
-doc_version: 1
+doc_version: 2
 last_updated: 2026-08-25
 governed_by: [RULE-01, RULE-09, RULE-13]
 ---
@@ -599,3 +599,45 @@ and the PostgreSQL major remain the only entries left on the unverified list.
 
 **One discrepancy left open:** the machine runs Node 23.6.0 while the recorded major is 22. The loop
 works on both, but the pin and the machine disagree and one of them should move.
+
+### 2026-08-31 — `/triage` issues feature IDs; RULE-01 amended
+
+Operator: *"tôi không muốn có đoạn người thêm row. mọi thứ tự động cho tôi."*
+
+**Checked before arguing, and the check changed the argument.** The standing instructions in this
+file, in force since 2026-08-23, already say *"Feature rows, glossary entries, tracker fields — write
+them. They are a work queue."* The operating model said only a human could. **Two documents in this
+repository already disagreed**, and the operator was asking for the side their own standing
+instruction had granted eight days earlier. This was not a control being weakened; it was an
+inconsistency being resolved, and saying so was more useful than restating the objection.
+
+**ADR-007** records it. **RULE-01 amended** from *"requires an ADR and human approval"* to *"requires
+human approval, and an ADR for everything except feature and glossary rows"* — version 1 to 2.
+Applied literally, the old wording demanded an architecture decision record per line of a work queue,
+which nobody has ever done or intended.
+
+The cascade was the interesting part of the work: D9 fails any document citing a rule at a version
+above its own, so **13 files needed `doc_version` raised**, and D7 compares the verbatim copy of
+RULE-01 in `CLAUDE.md` character for character. Both handled in the same pass; the audit stayed at
+zero.
+
+**Three constraints keep this from being a licence to invent a feature**, and they are the reason it
+was safe enough to do rather than merely asked for:
+
+1. **The ID is issued at TRIAGE by `product`, never at SPEC by `ba`.** The role that will write the
+   story is not the role that grants the ID it writes against — the same maker-and-judge separation
+   the rest of the model runs on, and the part of the removed human step that actually carried weight.
+2. **Every row cites the idea file it came from, in `Notes`.** A fabricated feature then has no
+   provenance, and the reviewer has something concrete to check instead of a plausible line.
+3. The row is uncommitted when written and reaches the operator on the `ops/` branch at `/ship`,
+   under CODEOWNERS — where RULE-01 always said enforcement lives.
+
+**The cost, stated once in the ADR rather than repeated here:** D1 no longer catches an invented
+feature, only a dangling citation. The revert condition needs one occurrence — a row reaching a pull
+request that should not exist.
+
+Also fixed in the same pass: `architecture.md` still carried a `TODO(verify)` saying the ESLint rule
+was unwritten and the enforcement map was claiming a mechanism that did not exist. Both are now true,
+and the paragraph says which rule, in which file, and that it was watched firing.
+
+Audit 0 errors, 0 notes, 0 pending. 200 of 200.

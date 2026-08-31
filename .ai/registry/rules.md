@@ -1,5 +1,5 @@
 ---
-doc_version: 1
+doc_version: 2
 last_updated: 2026-08-25
 governed_by: [RULE-01, RULE-09]
 ---
@@ -27,7 +27,7 @@ enforcement map below, which is the point of that table.
 
 | ID | Rule | v | verbatim_in |
 |----|------|---|-------------|
-| RULE-01 | Changing `.ai/registry/**` requires an ADR and human approval. Enforcement is CODEOWNERS review on the pull request, not a hook. | 1 | CLAUDE.md |
+| RULE-01 | Changing `.ai/registry/**` requires human approval, and an ADR for everything except feature and glossary rows. Enforcement is CODEOWNERS review on the pull request, not a hook. | 2 | CLAUDE.md |
 | RULE-02 | No component may bypass the data-access seam declared in `.ai/standards/architecture.md`. Enforced by a lint rule, not convention. | 1 | CLAUDE.md |
 | RULE-03 | An agent may not edit any file outside the active ticket's `allowed_paths`. | 1 | CLAUDE.md |
 | RULE-04 | Contract-first: the Tech Lead declares signatures, input schemas, and types before the Developer writes code. The Developer may not invent field names. | 1 | — |
@@ -53,7 +53,7 @@ real, so that a rule with no mechanism is visible as such rather than assumed to
 
 | Rule | Mechanism |
 |------|-----------|
-| RULE-01 | `.github/CODEOWNERS` review on the pull request. **The hook is unwired** — see ADR-004 |
+| RULE-01 | `.github/CODEOWNERS` review on the pull request. **The hook is unwired** — see ADR-004. Feature and glossary rows are written by agents and reviewed at merge — ADR-007 |
 | RULE-02 | `no-restricted-imports` in `eslint.config.js`, scoped to `src/**` and exempting `src/lib/data/`, run by the `lint` command. Plus review check R4 and the `supabase-client-in-seam` boundary read by D12. **Verified firing**: a probe importing the client from outside the seam is reported as an error |
 | RULE-03 | Review check R1, plus `scripts/check-allowed-paths.mjs` in CI. **The hook is unwired** — see ADR-004 |
 | RULE-04 | Review check R5 |
