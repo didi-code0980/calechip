@@ -32,6 +32,10 @@ Under the current gate placement a ticket sits here until it has been specified 
 
 | # | Ticket | Title | State | Blocked on |
 |---|--------|-------|-------|------------|
+| 1 | TEA-01 | Sign up and establish the member record | BACKLOG | — |
+| 2 | TEA-02 | Manage the allow-list | BACKLOG | TEA-01 |
+| 3 | TEA-03 | Team member list | BACKLOG | TEA-01 |
+| 4 | TEA-04 | Remove a member, and promote a member to admin | BACKLOG | TEA-01 |
 
 ## BLOCKED
 

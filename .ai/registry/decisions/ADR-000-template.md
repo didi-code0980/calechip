@@ -31,9 +31,19 @@ the agent that wanted the exception is not evidence of a decision.
 
 ## Status
 
-`PROPOSED` | `ACCEPTED` | `SUPERSEDED by ADR-nnn` | `REJECTED`
+`PROPOSED` | `ACCEPTED by the operator` | `ACCEPTED by <agent>` | `SUPERSEDED by ADR-nnn` | `REJECTED`
 
-State the date the status last changed and who changed it.
+State the date the status last changed.
+
+**The two forms of `ACCEPTED` are not interchangeable** — ADR-008.
+
+- `ACCEPTED by the operator` is a claim about a person. It has to have happened, in words somewhere a
+  person can be shown. Writing it otherwise is forging a signature, and that has not changed.
+- `ACCEPTED by <agent>` is an agent's own decision, reviewed at merge under CODEOWNERS like any other
+  registry change.
+
+**An agent asks rather than decides when the ADR would supersede or reverse an accepted one.** That
+is the difference between deciding inside an existing envelope and changing the envelope.
 
 ## Context
 

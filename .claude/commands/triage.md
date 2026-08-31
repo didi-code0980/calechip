@@ -12,13 +12,40 @@ Dispatch `product` and `tech-lead-design` against the idea named in `$ARGUMENTS`
 | Verdict | Means |
 |---|---|
 | REJECT | Not worth doing, or already covered. Say which. |
-| NEEDS-ADR | Needs a registry, schema, or dependency decision. Name what must be decided. |
+| NEEDS-ADR | Needs a registry, schema, or dependency decision. **Write the ADR** — see below. |
 | PROMOTE | Worth building. Write the feature row. |
+
+**On NEEDS-ADR, draft the ADR — do not hand the operator homework.** Every ADR in this repository
+was written by an agent from a sentence the operator said; asking them to author one contradicts how
+the model actually works. Produce the whole document: context, the options with their trade-offs, a
+recommendation, consequences including what gets worse, and a revert condition.
+
+Then one of two things, and the test is not a judgement call:
+
+- **The decision sits inside what is already decided** — accept it yourself, `ACCEPTED by <agent>`
+  (RULE-09, ADR-008). The operator reviews it at merge.
+- **The decision would supersede or reverse an accepted ADR** — stop and ask, in one question. That
+  is changing the envelope rather than working inside it, and `ACCEPTED by the operator` is a claim
+  about a person that you may not write on their behalf.
 
 **On PROMOTE, `product` writes the row to `.ai/registry/features.md`** — ADR-007. Allocate the next
 free number in the group, set `Status` to `PLANNED`, and **put the idea filename in the `Notes`
 column**. That citation is not decoration: it is the only provenance a reviewer has, and a row
 without one is indistinguishable from an invented feature.
+
+**Then create the ticket, per row** — ADR-010. A promoted feature that appears in no ticket and no
+backlog row is a decision to build something the board cannot see, and `/next-ticket` will correctly
+report nothing to do.
+
+1. `.ai/board/tickets/<ID>/ticket.yaml`, copied from `.ai/templates/ticket.yaml`, `state: BACKLOG`.
+2. Fill **Definition of Ready items 1, 3, 4 and 6** — all four are produced at BACKLOG:
+   `feature_ids`, `depends_on`, `schema_delta` with its ADR linked when it is not `none`, and one
+   feature group per ticket.
+3. Append a row to `## BACKLOG` in `.ai/board/backlog.md`.
+
+**Leave `invariants_touched` and `size_estimate` empty.** They are items 2 and 5, they belong to the
+BA at SPEC, and the gate sits after SPEC precisely so they can. Filling them here is inventing an
+acceptance criterion's worth of judgement before the story exists.
 
 **`tech-lead-design` does not write the row.** Neither does `ba`, later, at `/spec`. The role that
 will write the story is never the role that granted the ID it writes against.

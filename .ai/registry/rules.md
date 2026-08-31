@@ -35,7 +35,7 @@ enforcement map below, which is the point of that table.
 | RULE-06 | Two failed rework cycles escalate. There is no third attempt. | 1 | — |
 | RULE-07 | An invariant violation escalates on first occurrence and never enters REWORK. | 1 | — |
 | RULE-08 | Only Developer-caused failures increment `rework_count`. | 1 | — |
-| RULE-09 | Schema changes, ADRs, registry edits, and PR merges are permanently human. | 1 | — |
+| RULE-09 | Schema changes and PR merges are permanently human. An ADR may be accepted by an agent, recorded under that agent's name; `ACCEPTED by the operator` remains a claim about a person. | 2 | — |
 | RULE-10 | Git is the source of truth. The tracker is a mirror and is never on the critical path. | 1 | — |
 | RULE-11 | Agents may chat for clarification. The written artifact is the only binding output. | 1 | — |
 | RULE-12 | An agent may not chat with the agent that will judge its work before that judgement is written to file. | 1 | — |
@@ -61,7 +61,7 @@ real, so that a rule with no mechanism is visible as such rather than assumed to
 | RULE-06 | Orchestrator dispatch loop; `rework_count` in `ticket.yaml` |
 | RULE-07 | Review check R8; failure routing table sends R8 to a human |
 | RULE-08 | Failure routing table; only the Developer column increments |
-| RULE-09 | `.github/CODEOWNERS`, branch protection, `gh pr merge` denied in settings |
+| RULE-09 | `.github/CODEOWNERS`, branch protection, `gh pr merge` denied in settings. The `Status` line names who accepted — ADR-008 |
 | RULE-10 | `sync_enabled` defaults to false; no gate reads tracker state |
 | RULE-11 | Artifact front-matter `consulted` block |
 | RULE-12 | `.claude/hooks/chat-guard.mjs`; front-matter attestation `chat_before_verdict` |
