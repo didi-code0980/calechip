@@ -13,3 +13,15 @@ coverage
 test-results
 playwright-report
 blob-report
+
+# Secrets. This file held no env rule until 2026-09-01, and by then `.env` had already been
+# committed once — 5a29434 on origin/ops/architecture, carrying a live SUPABASE_SERVICE_ROLE_KEY.
+# Under ADR-005 that key bypasses row-level security entirely, which is the whole authorization
+# model. The rule below stops the next commit; it does nothing about the one that already happened.
+.env
+.env.*
+!.env.example
+
+# Supabase CLI scratch. `supabase/migrations/` and `supabase/seed.sql` are source and are tracked;
+# `.temp/` is the CLI's own state and belongs to a machine, not to the repository.
+supabase/.temp/

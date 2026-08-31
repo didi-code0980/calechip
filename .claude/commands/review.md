@@ -47,6 +47,10 @@ its third column. Read the column; do not decide the increment yourself.
 **An R8 failure does not enter REWORK.** It escalates to a human on first occurrence (RULE-07): name
 the invariant, write `next_state: ESCALATED`, and halt.
 
+**On PASS, `next_state` is `DONE`, not `QA`** — the QA stage is waived under ADR-017
+(`.ai/01-operating-model.md`, *The QA stage is waived*). Nothing else about this command changes, and
+your verdict is worth more than usual while it stands: no stage downstream of you will run.
+
 ## You do not touch `ticket.yaml`
 
 **Write the verdict into `04-review.md`'s front-matter and stop.** `gate`, `blocking_reason` and
