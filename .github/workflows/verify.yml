@@ -1,0 +1,51 @@
+name: verify
+
+# One of exactly two status checks. Branch protection points at the job name below and at
+# `allowed-paths`; every additional job name is another thing to configure, keep green and explain.
+#
+# Do not enable branch protection until this has passed once. A required check that has never passed
+# blocks every pull request, including the operator's, and the only way out is to disable the
+# protection just configured.
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      # The four commands are named by role in .ai/standards/testing-standards.md, which is the only
+      # file that knows their invocations. Keep these in step with that table.
+      - name: typecheck
+        run: pnpm exec tsc --noEmit
+
+      - name: lint
+        run: pnpm exec eslint .
+
+      - name: unit
+        run: pnpm exec vitest run
+
+      - name: documentation audit
+        run: node scripts/check-docs.mjs
+
+      - name: hook and script tests
+        run: node --test .claude/hooks/tests/*.test.mjs scripts/tests/*.test.mjs
+
+      - name: install browsers
+        run: pnpm exec playwright install --with-deps chromium
+
+      - name: end-to-end
+        run: pnpm exec playwright test

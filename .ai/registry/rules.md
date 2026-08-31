@@ -54,7 +54,7 @@ real, so that a rule with no mechanism is visible as such rather than assumed to
 | Rule | Mechanism |
 |------|-----------|
 | RULE-01 | `.github/CODEOWNERS` review on the pull request. **The hook is unwired** — see ADR-004 |
-| RULE-02 | An ESLint rule forbidding `@supabase/supabase-js` outside `src/lib/data/`, plus review check R4 and the `supabase-client-in-seam` boundary read by D12. **The lint rule is not written yet** — `TODO(verify):` name it and its config file here once ESLint 9 flat config has been read rather than recalled. Until then D12 and R4 are the only live mechanisms |
+| RULE-02 | `no-restricted-imports` in `eslint.config.js`, scoped to `src/**` and exempting `src/lib/data/`, run by the `lint` command. Plus review check R4 and the `supabase-client-in-seam` boundary read by D12. **Verified firing**: a probe importing the client from outside the seam is reported as an error |
 | RULE-03 | Review check R1, plus `scripts/check-allowed-paths.mjs` in CI. **The hook is unwired** — see ADR-004 |
 | RULE-04 | Review check R5 |
 | RULE-05 | `.claude/hooks/guard-read-scope.mjs`, plus the `qa` agent definition |

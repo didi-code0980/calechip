@@ -53,7 +53,8 @@ the prototype rather than with the story.
 | Package manager | pnpm | 10 |
 
 Toolchain versions are pinned in `_figma/.mise.toml` and mirrored by `packageManager` in
-`package.json`. TypeScript runs in `strict` mode with `"@/*"` aliased to the source root — the
+`package.json`. **The machine used on 2026-08-31 ran Node 23.6.0 against a recorded major of 22** —
+the loop works on both, but the pin and the machine disagree and one of them should move. TypeScript runs in `strict` mode with `"@/*"` aliased to the source root — the
 configuration the prototype already uses, carried forward rather than re-derived.
 
 ## Framework
@@ -78,9 +79,9 @@ Supporting libraries, all carried from the prototype: `date-fns` 4 (with the `vi
 
 | | Choice | Major |
 |---|---|---|
-| Datastore | Supabase (PostgreSQL) | TODO(verify) |
-| Client | `@supabase/supabase-js` | TODO(verify) |
-| Migrations | Supabase CLI migrations | TODO(verify) |
+| Datastore | Supabase (PostgreSQL) | TODO(project) — no project provisioned yet |
+| Client | `@supabase/supabase-js` | 2 |
+| Migrations | Supabase CLI migrations | TODO(project) — CLI not installed yet |
 
 **Everything that reaches this datastore lives inside the seam**, which is declared in
 [architecture.md](architecture.md), not here. This section names the product; that file names the
@@ -108,8 +109,8 @@ state, so this has no prior art in `_figma/` and must be decided rather than cop
 
 | | Choice | Major |
 |---|---|---|
-| Unit and component | Vitest | TODO(verify) |
-| End-to-end | Playwright | TODO(verify) |
+| Unit and component | Vitest | 4 |
+| End-to-end | Playwright | 1 |
 
 Vitest was chosen because it reuses the Vite configuration this project already has, so the unit
 level costs almost no configuration. Playwright covers the end-to-end level that the Definition of
@@ -124,9 +125,21 @@ invocations.
 
 | | Choice | Major |
 |---|---|---|
-| Linter | ESLint | 9 |
-| Import boundaries | `import/no-restricted-paths` or `eslint-plugin-boundaries` | TODO(verify) |
+| Linter | ESLint | **10** |
+| TypeScript support | `typescript-eslint` | 8 |
+| Import boundaries | core `no-restricted-imports`, scoped by `files` in flat config | — no plugin |
 | Formatter | oxfmt | 0.2 |
+
+**ESLint resolved to 10, not the 9 recorded when the stack was chosen.** The correction is kept
+visible rather than overwritten, because it is the clearest example this repository has of why the
+list below exists: a flat config written from memory of ESLint 9 would have been written against the
+wrong major.
+
+**The boundary needs no plugin.** Core `no-restricted-imports`, scoped with `files` and `ignores` in
+flat config, expresses *"nothing under `src/` outside the seam may import `@supabase/*`"* exactly.
+That removes a dependency whose flat-config shape was unconfirmed, which was the main risk in this
+row. Verified by attempt: a probe file importing the client from outside the seam is reported, and
+the same import inside the seam is not.
 
 ESLint was chosen over the faster alternatives for one reason: **it is the mechanism behind RULE-02**,
 and a linter that cannot express "nothing outside this directory may import the datastore client"
@@ -136,9 +149,8 @@ architecture hangs from.
 oxfmt stays as the formatter, carried from the prototype. It formats; it does not lint, and it is not
 load-bearing for any rule.
 
-TODO(project): once the seam directory exists, configure the boundary rule, then record it in the
-enforcement map in [rules.md](../registry/rules.md) — that table is claiming something untrue until
-the rule is real.
+The seam exists at `src/lib/data/` and the boundary rule is configured in `eslint.config.js`. The
+enforcement map in [rules.md](../registry/rules.md) names it.
 
 ## Build and deployment
 
@@ -158,22 +170,25 @@ connection configuration between two files and inverted which one wanted which U
 memory, it produced migrations that failed intermittently rather than cleanly — the failure mode that
 costs the most to diagnose, because it looks like a data problem.
 
-**Open the real file before writing config against any of these:**
+**Verified by installing and running, on 2026-08-31.** These are no longer recalled; the resolved
+versions are in `pnpm-lock.yaml` and the configs were written against the installed packages.
 
-| Dependency | Why it is on this list |
-|---|---|
-| Vite 8 | Major is past reliable recall; plugin and config surface may have moved |
-| Tailwind CSS 4 | Config-file-less, CSS-first. Writing a `tailwind.config.js` here is the classic Tailwind 3 reflex and produces a file nothing reads |
-| react-router-dom 7 | Past recall; the routing API has changed shape across recent majors |
-| `@vitejs/plugin-react` 6 | Past recall, and coupled to the Vite major |
-| `lucide-react` 1 | Left `0.x` versioning; import surface unconfirmed |
-| oxfmt | Young tool, unconfirmed CLI surface |
-| ESLint 9 and the boundary plugin | Flat config is required at 9; the plugin's own config shape is unconfirmed |
-| Vitest, Playwright | Majors unconfirmed, and both are coupled to the Vite major |
-| `@supabase/supabase-js`, Supabase CLI | Major unconfirmed; auth and client initialisation are the parts most likely to have moved |
+| Dependency | Resolved | What reading it actually changed |
+|---|---|---|
+| ESLint | 10.9.1 | The recorded major was 9. A flat config written from memory would have targeted the wrong major. |
+| Vitest | 4.1.11 | `defineConfig` must come from `vitest/config`; vite's own export has no `test` key, and `tsc` said so immediately. |
+| Playwright | 1.62.1 | `vite preview` binds to `localhost`, not `127.0.0.1` — a `127.0.0.1` URL times out waiting for a server that is running. Found by attempt. |
+| Vite | 8.2.2 | Config surface unchanged from what the prototype uses. |
+| Tailwind CSS | 4.3.3 | Confirmed: no config file, no PostCSS config, wired through the Vite plugin and one `@import` in the CSS entry point. |
+| `@vitejs/plugin-react` | 6.1.1 | Default export, called as a plugin. No change. |
+| `@supabase/supabase-js` | 2.112.4 | `createClient` throws on an empty URL, so the seam constructs it lazily — the parity test caught eager construction on its first run. |
+| `typescript-eslint` | 8.68.0 | Provides the `config()` helper and the recommended sets used in flat config. |
+| TypeScript | 5.9.3 | `noUncheckedIndexedAccess` rejects destructuring the first element of an array, which is correct and was fixed rather than relaxed. |
+| `lucide-react`, `date-fns`, `clsx`, `tailwind-merge` | from the prototype's lockfile | Carried across unchanged, so already resolved once. |
 
-The authoritative source for each is `_figma/pnpm-lock.yaml` for what the prototype resolved, and the
-installed `node_modules` types once dependencies exist here.
+**Still unverified, and still on this list:** the Supabase CLI and its migration layout, and the
+PostgreSQL major behind the hosted project. Neither is installed. Read their own documentation before
+writing a migration path or an apply command.
 
 ## Changing anything on this page
 
