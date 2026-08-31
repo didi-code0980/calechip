@@ -1,8 +1,4 @@
 node_modules
-.env
-.env.local
-.claude/settings.local.json
-.ai/board/**/.local/
 
 # `node_modules` has no trailing slash on purpose. A trailing slash matches only directories, and a
 # worktree provisioned with a symlinked dependency tree produces a FILE — which then sits untracked

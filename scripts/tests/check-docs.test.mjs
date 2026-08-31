@@ -658,21 +658,70 @@ test("a boundary with no package_prefix is reported rather than silently skipped
   assert.match(r.findings("D12")[0], /boundary half-written has no package_prefix/);
 });
 
-test("this repository's real boundaries.json parses and declares nothing", () => {
-  // Real-file test, per "Fixtures that share the implementation's assumptions" in
-  // testing-standards.md. It is the only one available while the list is empty. THE FIRST PROJECT TO
-  // DECLARE A BOUNDARY OWES THIS RULE A REAL-FILE TEST against the lint config it names.
+// Real-file tests for the declared boundaries, per "Fixtures that share the implementation's
+// assumptions" in testing-standards.md. A hand-written fixture tests whether D12 works on the shape
+// its author imagined; only the real file tests whether it works on the one it will actually read.
+//
+// Both directions, because the way this check fails is by going quiet: silence proves nothing unless
+// the same config is also shown to fire.
+
+test("this repository's real boundaries.json parses and declares what it claims", () => {
   const real = fs.readFileSync(path.join(REPO, ".ai/registry/boundaries.json"), "utf8");
   const parsed = JSON.parse(real);
   assert.ok(Array.isArray(parsed.boundaries), "boundaries must be an array");
-  assert.deepEqual(
-    parsed.boundaries,
-    [],
-    "boundaries.json now declares a boundary. Add a real-file test against the config it names, then " +
-      "update this assertion."
+
+  for (const b of parsed.boundaries) {
+    assert.ok(b.id, "every boundary needs an id, or a finding cannot name it");
+    assert.ok(b.package_prefix, `boundary ${b.id} has no package_prefix, so it can check nothing`);
+    assert.match(
+      b.adr ?? "",
+      /^ADR-\d{3}$/,
+      `boundary ${b.id} must cite the ADR that decided it, so a finding can be traced to reasoning`
+    );
+    assert.ok(
+      fs.existsSync(path.join(REPO, ".ai/registry/decisions")),
+      "the decisions directory must exist for the cited ADR to be findable"
+    );
+    const adrs = fs.readdirSync(path.join(REPO, ".ai/registry/decisions"));
+    assert.ok(
+      adrs.some((f) => f.startsWith(b.adr)),
+      `boundary ${b.id} cites ${b.adr}, which has no file in .ai/registry/decisions/`
+    );
+  }
+});
+
+test("the real boundaries stay silent against the manifest as it stands", () => {
+  const real = fs.readFileSync(path.join(REPO, ".ai/registry/boundaries.json"), "utf8");
+  const manifest = fs.readFileSync(path.join(REPO, "package.json"), "utf8");
+  const r = run(
+    project(LEDGER + UNISSUED, "x", {
+      ".ai/registry/boundaries.json": real,
+      "package.json": manifest,
+    })
   );
-  const r = run(project(LEDGER + UNISSUED, "x", { ".ai/registry/boundaries.json": real }));
-  assert.deepEqual(r.findings("D12"), []);
+  assert.deepEqual(r.findings("D12"), [], "nothing in package.json crosses a declared boundary yet");
+});
+
+test("a forbidden package added to the manifest trips the real boundary", () => {
+  // The firing direction, injected into a copy of the real config rather than a fixture. If D12
+  // silently stopped reading this file, the test above would keep passing and this one would not.
+  const real = JSON.parse(fs.readFileSync(path.join(REPO, ".ai/registry/boundaries.json"), "utf8"));
+  const b = real.boundaries[0];
+  assert.ok(b, "this test describes the declared boundary and is meaningless without one");
+
+  const forbidden = `${b.package_prefix}definitely-not-allowed`;
+  const manifest = JSON.parse(fs.readFileSync(path.join(REPO, "package.json"), "utf8"));
+  manifest.dependencies = { ...(manifest.dependencies ?? {}), [forbidden]: "^1.0.0" };
+
+  const r = run(
+    project(LEDGER + UNISSUED, "x", {
+      ".ai/registry/boundaries.json": JSON.stringify(real, null, 2),
+      "package.json": JSON.stringify(manifest, null, 2),
+    })
+  );
+  assert.equal(r.findings("D12").length, 1, `expected one D12 finding, got:\n${r.stdout}`);
+  assert.match(r.findings("D12")[0], new RegExp(forbidden.replace(/[/\\]/g, "\\$&")));
+  assert.match(r.findings("D12")[0], new RegExp(b.id));
 });
 
 // --- D9: scoped to documents a human owns ------------------------------------------------------
