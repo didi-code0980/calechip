@@ -69,6 +69,28 @@ The unit everything else counts, approves and displays.
 | `created_at` | timestamptz, not null | |
 | `updated_at` | timestamptz, not null | |
 
+### `allowed_email`
+
+The gate on membership, from [ADR-009](../registry/decisions/ADR-009-how-a-person-becomes-a-member.md).
+An admin adds an address; the person signs themselves up; a trigger on `auth.users` creates the
+`member` row only if the address is here, and marks the entry consumed.
+
+| Field | Type | Notes |
+|---|---|---|
+| `email` | citext, pk | The address the person will sign up with. Case-insensitive, because an address that differs only in case is the same person and a case-sensitive gate silently refuses them. |
+| `team_id` | uuid, not null, references `team(id)` | Which team they join. |
+| `added_by` | uuid, not null, references `member(id)` | An admin. The only provenance for who let somebody in. |
+| `added_at` | timestamptz, not null | |
+| `consumed_at` | timestamptz, null | Set by the trigger when the `member` row is created. Null means the invitation is still open. |
+
+**The table name is the one invented name in this file**, and it is the Tech Lead's to confirm at
+DESIGN — RULE-04 allows a name to exist here *or* in design section 1. Everything else above comes
+from ADR-009 or from the entities it joins.
+
+**No elevated credential exists anywhere in this flow.** `inviteUserByEmail` was rejected precisely
+because it lives on Supabase's admin surface and needs the service-role key, which under ADR-005 has
+no server to live in. See ADR-009 for the verification.
+
 ### `holiday`
 
 | Field | Type | Notes |
@@ -169,10 +191,12 @@ it**, and each says what it does block.
    operate on, so `start_date` and `end_date` need a generated `daterange` beside them. The column's
    name is a choice nobody has made. *Blocks:* the migration that creates INV-01's constraint.
 
-4. **How a `member` row comes into existence.** Its primary key is `auth.users(id)`, so the row cannot
-   precede the auth user. That makes "invite a member" a Supabase Auth invitation, and leaves open
-   whether the `member` row is created by a trigger on `auth.users`, on first sign-in, or by an admin
-   completing a profile afterwards. *Blocks:* the first story touching team management.
+4. ~~**How a `member` row comes into existence.**~~ **Answered 2026-08-31 by
+   [ADR-009](../registry/decisions/ADR-009-how-a-person-becomes-a-member.md):** an admin adds the
+   address to `allowed_email`, the person signs themselves up on the ordinary client, and a trigger on
+   `auth.users` creates the `member` row only if the address is allow-listed. There is no invitation
+   email — the admin tells the person by whatever channel the team already uses, and a story must say
+   so rather than implying one arrives.
 
 5. **Does `updated_at` distinguish an edit by the owner from an edit by an admin?** An admin may edit
    another member's entry and v1 has no change feed, so `approved_by` is the only trace of anything.

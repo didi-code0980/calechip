@@ -41,6 +41,9 @@ and the permission-model test in [testing-standards.md](testing-standards.md) re
 | Remove a member | ❌ | ✅ |
 | Promote a member to admin | ❌ | ✅ |
 | Demote an admin to member | ❌ | ❌ **not decided — denied until it is** |
+| Read the allow-list | ❌ | ✅ |
+| Add an address to the allow-list | ❌ | ✅ |
+| Remove an address from the allow-list | ❌ | ✅ |
 | Read the overload threshold | ✅ | ✅ |
 | Set the overload threshold | ❌ | ✅ |
 
@@ -48,6 +51,12 @@ Every row above except the two marked was decided by the operator on 2026-08-31 
 `.ai/00-charter.md`. The two marked rows are denials by default rather than by decision: a denial
 that turns out to be wrong surfaces as a blocked story, which is cheap; a permission that turns out
 to be wrong surfaces as data somebody should not have touched.
+
+**The allow-list is how somebody joins** ([ADR-009](../registry/decisions/ADR-009-how-a-person-becomes-a-member.md)).
+A member must not read it: it is a list of people who have been invited and have not yet arrived, and
+that is admin information rather than team information. Sign-up itself needs no permission — the
+trigger refuses to create a `member` row for an address that is not listed, so an unlisted sign-up
+produces an auth user with no membership and sees nothing.
 
 **Removing a member does not remove their entries.** They stay, and the absence count for past dates
 changes because team size is read at evaluation time — the consequence recorded in the INV-04 note in

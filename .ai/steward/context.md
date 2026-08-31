@@ -641,3 +641,52 @@ was unwritten and the enforcement map was claiming a mechanism that did not exis
 and the paragraph says which rule, in which file, and that it was watched firing.
 
 Audit 0 errors, 0 notes, 0 pending. 200 of 200.
+
+### 2026-08-31 — RULE-09 amended, and the membership question answered
+
+Operator, after `/triage` returned NEEDS-ADR: *"tại sao lại có đoạn cần con người? tôi đã bảo không
+cần con người nhúng vào workflow mà?"*
+
+**Two things were tangled in that stop, and separating them was the whole of the answer.**
+
+- **The step they asked me to remove was already gone.** ADR-007 killed "a human adds the feature
+  row"; `features.md` was untouched this time because the verdict was NEEDS-ADR, not PROMOTE.
+- **But there was a real defect, and it was mine.** `triage.md` named NEEDS-ADR as a verdict and never
+  said *who writes the ADR*, so `product` handed the operator homework — *"anh viết ADR"*. That
+  contradicts how every ADR here was produced: 005, 006 and 007 were each one sentence from the
+  operator and a document written by an agent. They have not written a line of any of them.
+
+**Verified the product agent's finding independently before acting on it**, because it decided the
+architecture: `inviteUserByEmail` is on `GoTrueAdminApi.d.ts:131`, reached as `supabase.auth.admin.*`,
+and `signUp` does not appear on that surface at all (0 occurrences) while appearing 7 times on the
+ordinary client. The claim was correct. Admin invite needs the service-role key, and ADR-005 left no
+server to hold one.
+
+**ADR-008 — RULE-09 amended, v1 to v2.** Recommended keeping the rule and fixing only the command;
+the operator chose the broader change with the cost in front of them. Recorded that way rather than
+softened. What was preserved: **`ACCEPTED by the operator` still means a person said it**, and an
+agent signs `ACCEPTED by <agent>` instead. A relaxed rule with one status value would have made every
+signature in the decision log unfalsifiable. `triage.md` now states the test — decide inside an
+existing envelope, ask before changing the envelope.
+
+Cheap cascade this time: RULE-09 has no `verbatim_in`, so no D7 copy, and only two files needed a
+`doc_version` bump against RULE-01's thirteen.
+
+**ADR-009 — a person joins by signing up against an allow-list.** Chosen over an Edge Function
+holding the service-role key, which is *precisely the thin server seam ADR-005 refused this morning*;
+adopting it here would have superseded that decision as a side effect of a membership feature rather
+than on its own terms. No server, no elevated credential anywhere, ADR-005 untouched. The cost is
+stated in the ADR and must reach the story: **there is no invitation email.**
+
+Answered open question 4 in `data-model.md`, added the `allowed_email` table — whose name is the one
+invented name in that file and is flagged as the Tech Lead's to confirm — and three rows to the
+permission table.
+
+**MD-012 recorded.** D8 now warns on ADR-008 for quoting RULE-09 verbatim. The warning is correct
+mechanically and wrong in intent: an ADR recording an amendment is a snapshot of what a rule became on
+a date, not a copy to keep in step. The danger is the reflex it trains — the cheapest way to silence
+it is to reword the ADR until it no longer says what the rule says, which destroys the record. Left
+standing, annotated in the ADR, and the fix shape is scoping D8 out of `decisions/` with a test in
+both directions.
+
+Audit 0 errors, 1 advisory warning, 0 pending. 200 of 200.

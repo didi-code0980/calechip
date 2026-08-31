@@ -12,8 +12,21 @@ Dispatch `product` and `tech-lead-design` against the idea named in `$ARGUMENTS`
 | Verdict | Means |
 |---|---|
 | REJECT | Not worth doing, or already covered. Say which. |
-| NEEDS-ADR | Needs a registry, schema, or dependency decision. Name what must be decided. |
+| NEEDS-ADR | Needs a registry, schema, or dependency decision. **Write the ADR** — see below. |
 | PROMOTE | Worth building. Write the feature row. |
+
+**On NEEDS-ADR, draft the ADR — do not hand the operator homework.** Every ADR in this repository
+was written by an agent from a sentence the operator said; asking them to author one contradicts how
+the model actually works. Produce the whole document: context, the options with their trade-offs, a
+recommendation, consequences including what gets worse, and a revert condition.
+
+Then one of two things, and the test is not a judgement call:
+
+- **The decision sits inside what is already decided** — accept it yourself, `ACCEPTED by <agent>`
+  (RULE-09, ADR-008). The operator reviews it at merge.
+- **The decision would supersede or reverse an accepted ADR** — stop and ask, in one question. That
+  is changing the envelope rather than working inside it, and `ACCEPTED by the operator` is a claim
+  about a person that you may not write on their behalf.
 
 **On PROMOTE, `product` writes the row to `.ai/registry/features.md`** — ADR-007. Allocate the next
 free number in the group, set `Status` to `PLANNED`, and **put the idea filename in the `Notes`
