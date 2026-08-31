@@ -487,3 +487,36 @@ Two things recorded that are easy to leave implicit and expensive to discover:
 
 Five open questions, each saying what it blocks — three block nothing yet, and two block the first
 story that touches holidays or team management. Audit exits 0, one note left (D1). 199 of 199.
+
+### 2026-08-31 — feature prefixes fixed; the audit runs clean with no notes
+
+PR #5 merged (`3450d2f`). Cut `ops/features` from `origin/main`.
+
+Offered the operator three prefix sets — six groups, four, and three — with the argument that under-
+splitting is the more expensive mistake, since leaving a group empty costs nothing while adding one
+later needs an ADR. **They chose three: `CAL`, `ADM`, `TEA`.** Complied in full; the cost is written
+into `features.md` beside the table rather than argued again here: v1 has six areas of requirement
+and three groups, so most tickets will be `CAL-nn`, and a prefix that stops distinguishing anything
+stops carrying information. Splitting `CAL` later cannot renumber what already exists, so the set
+would end up mixed rather than migrated.
+
+Paid the same designed-in debt as the boundary work. Declaring prefixes broke the real-file test
+asserting `features.md` declares none — the test's own message says to replace it with an assertion
+about the real list. Replaced with two that assert **shape rather than the three specific letters**,
+so adding a group through an ADR will not break them: every prefix is three uppercase letters, none
+is the reserved `EXA`, none is duplicated, and the declared set and the group section headings agree
+in both directions. That last one catches a prefix nobody made a table for — D1 would police IDs in a
+group with nowhere to put a row, and the only way to satisfy it would be to stop citing the ID.
+
+**`node scripts/check-docs.mjs` now exits 0 with no `note:` lines.** By SETUP's own definition that
+means the model is configured. 200 of 200 tests pass.
+
+**What that milestone does not mean, stated so nobody reads it as readiness.** None of the four
+commands in `testing-standards.md` runs: nothing is installed, there is no `src/`, no ESLint config,
+no Vitest or Playwright config, no Supabase project. `.github/workflows/` is empty, so neither
+`verify` nor `allowed-paths` exists as a status check. The three worktrees of SETUP step 10 have not
+been created. The audit measures whether the documents agree with each other, and they now do — it
+cannot measure whether the toolchain exists, and it does not.
+
+A ticket run today would reach IN_PROGRESS and find typecheck, lint, unit and end-to-end are names
+without commands behind them.

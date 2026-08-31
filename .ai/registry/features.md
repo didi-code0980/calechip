@@ -1,6 +1,6 @@
 ---
-doc_version: 1
-last_updated: 2026-08-25
+doc_version: 2
+last_updated: 2026-08-31
 governed_by: [RULE-01, RULE-17]
 ---
 
@@ -18,17 +18,15 @@ Tables are populated incrementally. An empty group table means no feature in tha
 specified yet — not that the group is unused. A ticket whose `feature_ids` do not all resolve to rows
 below fails Definition of Ready and is demoted to BACKLOG.
 
-## TODO(project): this file ships empty and must be filled before the first `/spec`
+## Status
 
-Two things belong here and neither can be guessed:
+Prefixes fixed on 2026-08-31. **No feature rows yet** — rows arrive one at a time, from a human, as
+ideas are promoted through `/triage`. An empty group table means no feature in that group has been
+specified, not that the group is unused.
 
-1. **The group prefixes** — three uppercase letters each, one per coherent area of the product, with
-   the expansion written out. Fix the set once; extending it later requires an ADR.
-2. **One section per prefix**, each carrying the row table below with no rows.
-
-Nothing else in this kit needs editing to make feature IDs work. Check D1 reads the machine-readable
-prefix line below and reports any three-letter feature token in any document that does not resolve to
-a row.
+Check D1 now polices every three-letter feature token in every document against the rows below, so a
+citation of an ID that does not exist fails the audit rather than reading as evidence that somebody
+planned it.
 
 ## Columns
 
@@ -59,15 +57,40 @@ operating model, the standards, the commands and the templates — cites `EXA-01
 `.ai/templates/` and this file. A project that claimed `EXA` as a real group would be policing the
 kit's own prose. D1 drops it from the line below if it appears, and says so.
 
-<!-- id-prefixes: -->
+<!-- id-prefixes: CAL ADM TEA -->
 
 | Prefix | Expansion |
 |--------|-----------|
-| TODO(project) | one row per group, for example ORD — Orders |
+| CAL | Calendar — viewing, creating and editing entries, and the overload warning |
+| ADM | Admin — approval, the holiday calendar, and the overload threshold |
+| TEA | Team — members, roles, invitations and sign-in |
 
-## TODO(project): group sections go here
+Three groups, chosen by the operator on 2026-08-31 from options of three, four and six.
 
-One per prefix, in the shape below. Delete this heading once the first real one exists.
+**The known cost, recorded because it will be felt rather than remembered:** v1 has six areas of
+requirement and three groups, so most tickets will be `CAL-nn`. Where a prefix stops distinguishing
+anything it stops carrying information, and the `Title` column becomes the only way to tell two
+tickets apart. Splitting `CAL` later needs an ADR and cannot renumber what already exists — the IDs
+already issued keep their prefix, so the set would be mixed rather than migrated.
+
+## CAL — Calendar
+
+Viewing, creating and editing entries, and the overload warning. Brief sections 7.1, 7.2 and 7.3.
+
+| ID | Title | Group | Status | Invariants touched | Notes |
+|----|-------|-------|--------|--------------------|-------|
+
+## ADM — Admin
+
+Approval, the holiday calendar, and the overload threshold. Brief sections 7.4 and 7.5.
+
+| ID | Title | Group | Status | Invariants touched | Notes |
+|----|-------|-------|--------|--------------------|-------|
+
+## TEA — Team
+
+Members, roles, invitations and sign-in. Brief section 7.6, plus the authentication that
+[ADR-005](decisions/ADR-005-authorization-in-rls.md) places in Supabase Auth.
 
 | ID | Title | Group | Status | Invariants touched | Notes |
 |----|-------|-------|--------|--------------------|-------|
