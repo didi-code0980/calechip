@@ -11,6 +11,9 @@ import {
 import type { PostgrestError } from "@supabase/supabase-js";
 import type { AddAllowedEmailInput, DataSeam, SignUpInput, SignUpOutcome } from "./index";
 import type { AllowedEmail, Failure, Member, MemberRole, Result, Session } from "../domain/types";
+// TEA-03. A RUNTIME import, not a type one: AC-8 needs the value at the call. It comes from
+// ../domain/types and not from ./index, which imports this file back - 02-design.md section 1.1.
+import { ROSTER_LIMIT } from "../domain/types";
 
 // Vite exposes only variables prefixed VITE_. The anon key is public by design and ships in the
 // bundle; the service role key must never appear here. See "Secrets" in
@@ -292,5 +295,50 @@ export const seam: DataSeam = {
       ok: false,
       error: { code: "not_permitted", message: "Không gỡ được địa chỉ này." },
     };
+  },
+
+  // -------------------------------------------------------------------------
+  // TEA-03. 02-design.md sections 1.2, 1.4 and 3.
+  // -------------------------------------------------------------------------
+
+  // TEA-03 AC-1, AC-2, AC-3, AC-4, AC-6, AC-7, AC-8.
+  //
+  // No team parameter and no `eq` on team_id: `member_select_team` IS the team boundary (INV-07),
+  // and a filter here would be a second, weaker copy of it. The two policies on this table are
+  // permissive and OR together, so an active caller receives their whole team and a removed caller
+  // receives their own row - ADR-018 Consequences, reproduced in mock.ts.
+  //
+  // NO `removed_at` FILTER. ADR-013 and the INV-04 note require the counting function to be GIVEN
+  // the roster carrying `removedAt` per member; filtering here makes INV-04 uncomputable for every
+  // past date. MemberList.tsx does the filtering, above the seam, where it is a display decision.
+  //
+  // Two `order` calls, not one: `FIXTURE_ADMIN` and `FIXTURE_MEMBER` share a `created_at` literal,
+  // so created_at alone leaves their order undefined in PostgreSQL (02-design.md section 1.4).
+  async listMembers(): Promise<Member[]> {
+    const { data, error } = await client()
+      .from("member")
+      .select(MEMBER_COLUMNS)
+      .order("created_at", { ascending: true })
+      .order("id", { ascending: true })
+      .limit(ROSTER_LIMIT)
+      .returns<MemberRow[]>();
+
+    if (error) throw new Error(`listMembers failed: ${error.message}`);
+
+    const rows = data ?? [];
+
+    // AC-8. Under ADR-005 the browser reads PostgREST directly and PostgREST caps rows server-side,
+    // so a capped read returns a believable short answer with no error anywhere. The roster is
+    // INV-04's denominator, so a roster short by two people raises the ratio on every date and makes
+    // days look overloaded that are not. Throwing is what keeps a truncated roster out of every
+    // screen and every computation; the caller renders `member-list-unavailable`.
+    if (rows.length >= ROSTER_LIMIT) {
+      throw new Error(
+        `listMembers returned ${rows.length} rows at the ${ROSTER_LIMIT} limit: the roster may be ` +
+          `truncated and must not be consumed (TEA-03 AC-8)`,
+      );
+    }
+
+    return rows.map(toMember);
   },
 };

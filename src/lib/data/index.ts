@@ -81,6 +81,37 @@ export interface DataSeam {
 
   /** AC-6, AC-7, AC-8. Refused by the policy for a consumed entry and for a non-admin. */
   removeAllowedEmail(email: string): Promise<Result<void>>;
+
+  // -------------------------------------------------------------------------
+  // TEA-03 - the team member list. 02-design.md section 1.2.
+  // -------------------------------------------------------------------------
+
+  /**
+   * TEA-03 AC-1, AC-2, AC-3, AC-4, AC-6, AC-7, AC-8. The caller's team roster.
+   *
+   * Takes no team parameter: `member_select_team` scopes the rows to the caller's own team, and a
+   * parameter would imply the caller could ask for another team's and be answered - the same
+   * reasoning that kept `teamId` off `addAllowedEmail`.
+   *
+   * RETURNS REMOVED MEMBERS, carrying `removedAt`. Which rows the screen draws is a display
+   * decision above the seam; which rows the read returns is not - ADR-013 and the INV-04 note
+   * require the counting function to be GIVEN the roster with `removedAt` per member, because it
+   * cannot derive membership-as-of-a-date from the entries. A filter here would make INV-04
+   * uncomputable for every past date, and CAL-04 and CAL-06 unbuildable against this read.
+   *
+   * Ordered by `createdAt` ascending, then `id` ascending. Deterministic in both implementations -
+   * `FIXTURE_ADMIN` and `FIXTURE_MEMBER` share a `createdAt` literal, so the id tiebreaker is what
+   * stops the two implementations disagreeing about row order (02-design.md section 1.4).
+   *
+   * An empty array is a normal answer and not an error: it is what the policy returns to a caller
+   * with no member row (AC-7) and to a caller with no session (AC-6).
+   *
+   * THROWS on a transport failure and on a possibly-truncated answer (AC-8). There is no
+   * caller-visible failure shape, so a `Result` would have nothing to carry; returning `[]` for a
+   * broken connection would report "you are on no team" for what is a network fault, and returning
+   * a short list for a capped read is the exact failure AC-8 exists to prevent.
+   */
+  listMembers(): Promise<Member[]>;
 }
 
 export type { DataSeam as Seam };
