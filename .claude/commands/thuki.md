@@ -56,7 +56,7 @@ the standing instructions.*
 
 ## Not this command's job
 
-Ticket work. If the answer is "run `/spec EXA-01`", say that and stop — do not run it, and do not
+Ticket work. If the answer is "run `/plan EXA-01`", say that and stop — do not run it, and do not
 write the artifact yourself. The steward's judgement about a story is worth less than the BA's, and
 an artifact written by the wrong agent has a provenance nobody can audit later.
 

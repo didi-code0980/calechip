@@ -86,7 +86,7 @@ An admin adds an address; the person signs themselves up; a trigger on `auth.use
 | `consumed_at` | timestamptz, null | Set by the trigger when the `member` row is created. Null means the invitation is still open. |
 
 **The table name is the one invented name in this file**, and it is the Tech Lead's to confirm at
-DESIGN — RULE-04 allows a name to exist here *or* in design section 1. Everything else above comes
+PLAN — RULE-04 allows a name to exist here *or* in plan section 4. Everything else above comes
 from ADR-009 or from the entities it joins.
 
 **No elevated credential exists anywhere in this flow.** `inviteUserByEmail` was rejected precisely
