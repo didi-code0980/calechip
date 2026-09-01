@@ -1195,3 +1195,38 @@ the pre-amendment clause — is the orchestrator's write at the READY transition
 
 Audit 0 errors, 1 pre-existing advisory D8. 200 of 200 tests pass. Two registry writes in force,
 both from the instruction quoted above; CODEOWNERS puts them in front of the operator again at merge.
+
+### 2026-09-01 — a status run that found my own unfinished sweep
+
+`/thuki` with no argument. Read the board from `origin/main` rather than the working copy — the
+session was sitting on `feat/TEA-04`, two merges behind, and the same staleness nearly produced a
+false report twice today already.
+
+Board is clean: TEA-01 to TEA-04 DONE and merged, fifteen shells at BACKLOG, nothing ESCALATED, WIP
+0 of 1.
+
+**The finding: ADR-019 renamed two stages this morning and I did not finish the sweep.** Six
+documents that *instruct* were still describing `/spec` and `/design` — `SETUP.md` in four places,
+`README.md`'s command table, `CLAUDE.md` twice, `.ai/board/backlog.md`'s section prose, and
+`.claude/commands/thuki.md`'s own worked example, which told the steward to say *"run `/spec
+EXA-01`"* about a command that no longer exists. Fixed all six. Left every historical mention alone —
+`metrics.md` rows, this log, the retired files, ADR prose and `steward.md`'s account of the D13
+defect are records of what was true then.
+
+**MD-011 predicted exactly this and I annotated it rather than writing a new row.** D6 resolves path
+references only under `.ai/`, so `SETUP.md`, `README.md` and `CLAUDE.md` are never scanned — the
+audit reported zero errors for half a day while the three documents a newcomer reads first described
+a lifecycle that had been deleted. That is the second demonstration; the fix shape in MD-011 was
+already right.
+
+**What this says about the ADR-019 run, and it is not that the sweep was careless.** I greped for
+the stage names and worked through forty files. The three that got missed are the three no check can
+see, and I had no list to work from except the grep. The lesson is the one MD-011 already carries: a
+rename is only as complete as the checker that can see the corpus.
+
+Also repaired a genuine ID collision in `model-debt.md`: two different defects were both `MD-014`.
+Renumbered the **uncited** one — the metrics-writers entry from 2026-08-31 — to MD-020, and left
+MD-014 on the seed defect, which five artifacts already cite by that ID. Did it the wrong way round
+first. An ID belongs to whatever is citing it, not to whatever arrived first.
+
+Audit 0 errors, 1 pre-existing advisory D8. 200 of 200 tests pass. No registry write.

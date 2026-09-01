@@ -171,7 +171,7 @@ Two things, and neither can be guessed:
 Then one section per prefix, each with the row table and no rows. Rows arrive one at a time, from a
 human, as ideas are promoted.
 
-**Gates on:** step 3. **Gated by:** Definition of Ready item 1, and `/spec`.
+**Gates on:** step 3. **Gated by:** Definition of Ready item 1, and `/plan`.
 
 ## Step 8 — the repository plumbing
 
@@ -213,7 +213,7 @@ and that command is usually `/ship`.
 
 **What replaces the folder check.** `pwd` is now a constant, so the thing to read before the first
 instruction of a session is `git branch --show-current` **and `git status`**. A ticket stays
-uncommitted from `/spec` to `/ship`, so a dirty tree is not leftover noise — it is somebody's whole
+uncommitted from `/plan` to `/ship`, so a dirty tree is not leftover noise — it is somebody's whole
 ticket, and `git switch` will carry it onto whatever branch you arrive at.
 
 ---
@@ -227,7 +227,8 @@ node scripts/check-docs.mjs
 Zero errors and **no `note:` lines**. The notes are the checks telling you they are unconfigured; a
 clean run with three notes means the audit works and the registry is still empty.
 
-Then, in order: `/idea` in the product session, `/triage`, a human adds the feature row, and `/spec`
+Then, in order: `/triage` in the product session — it writes the idea and rules on it in one run
+(ADR-019) — which also writes the feature row and the ticket shell, and then `/plan`
 in the BA session.
 
 **The first ticket is the one that finds the problems.** Expect the charter to gain a refusal, the
@@ -264,5 +265,5 @@ one list change in `.claude/hooks/tests/settings-integrity.test.mjs`. Read ADR-0
 either way — it names what the removal bought and what it cost.
 
 **Nothing here has been run end to end in this repository.** The audit passes, all 211 tests pass,
-and no ticket has ever moved through this copy of the loop. The first `/spec` through `/ship` is what
+and no ticket has ever moved through this copy of the loop. The first `/plan` through `/ship` is what
 turns that from a claim into evidence.

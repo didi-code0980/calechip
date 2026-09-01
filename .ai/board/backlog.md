@@ -17,18 +17,18 @@ list, which is exactly what the first sentence says it must never be.
 
 ## READY
 
-Tickets that have been through SPEC and passed the full Definition of Ready. **READY means
-specified, sized, and safe to design** — the next stage for a row here is DESIGN, not SPEC.
+Tickets that have been through PLAN and passed the full Definition of Ready. **READY means
+planned, sized, and safe to build** — the next stage for a row here is IN_PROGRESS, not PLAN.
 
 | # | Ticket | Title | Size | Depends on |
 |---|--------|-------|------|------------|
 
 ## BACKLOG
 
-Tickets awaiting SPEC. **Ordered.** A human reorders; the orchestrator takes the top.
+Tickets awaiting PLAN. **Ordered.** A human reorders; the orchestrator takes the top.
 
-Under the current gate placement a ticket sits here until it has been specified — DoR is evaluated
-*after* SPEC. A row still at `BACKLOG` has not failed DoR; it has not reached it.
+Under the current gate placement a ticket sits here until it has been planned — DoR is evaluated
+*after* PLAN. A row still at `BACKLOG` has not failed DoR; it has not reached it.
 
 | # | Ticket | Title | State | Blocked on |
 |---|--------|-------|-------|------------|

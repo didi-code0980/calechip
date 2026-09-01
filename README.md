@@ -16,7 +16,7 @@ runner.
 | [.ai/board/](.ai/board/) | Transient and agent-writable: backlog, tickets, metrics, ideas. Ships empty |
 | [.ai/templates/](.ai/templates/) | The nine stage artifacts — story, design, impl log, review, test plan, test report |
 | [.claude/agents/](.claude/agents/) | The nine agents and what each one may not do |
-| [.claude/commands/](.claude/commands/) | The loop — `/idea` `/spec` `/design` `/implement` `/review` `/qa` `/ship` — and `/thuki`, which maintains the loop itself |
+| [.claude/commands/](.claude/commands/) | The loop — `/triage` `/plan` `/implement` `/review` `/qa` `/ship` — and `/thuki`, which maintains the loop itself. `/idea`, `/spec` and `/design` are retired (ADR-019) and kept only so shipped tickets stay readable |
 | [.claude/hooks/](.claude/hooks/) | Six guards, with tests. Three are wired; three are documented as deliberately unwired |
 | [scripts/](scripts/) | The documentation audit and the branch-scope check, with tests |
 

@@ -9,8 +9,8 @@ It is not an HR system, it holds no leave quota, and a warning here never blocks
 [.ai/00-charter.md](.ai/00-charter.md) carries the six refusals and the reason for each.
 
 **This repository was stood up from `aifw-template`.** Until the `TODO(project):` markers below and
-in `.ai/` are resolved, the loop will run and produce nothing useful: `/spec` has no feature ID to
-work from, `/design` has no architecture to design against, and `/qa` has no command to run. The
+in `.ai/` are resolved, the loop will run and produce nothing useful: `/plan` has no feature ID to
+work from and no architecture to design against, and `/qa` has no command to run. The
 ordered checklist is in [SETUP.md](SETUP.md).
 
 ## Read these before doing anything
@@ -81,7 +81,7 @@ view. Details, and the Vui/Gọn density toggle, are in
 - **No invention.** No invented feature IDs, acceptance criteria, database fields, or invariants.
   Missing information becomes a placeholder plus an entry under `OPEN QUESTIONS`.
 - **Additive only.** Do not delete or rewrite a file you did not create in the current run.
-- **Humans merge. Agents commit at `/ship` only.** Every stage leaves the tree dirty, from `/spec`
+- **Humans merge. Agents commit at `/ship` only.** Every stage leaves the tree dirty, from `/plan`
   all the way to the end. `/ship` classifies the tree, keeps ticket work and chore work on separate
   branches, records the state transition and opens the pull requests. Merging is permanently human —
   RULE-09. Scope and limits in
