@@ -1230,3 +1230,49 @@ MD-014 on the seed defect, which five artifacts already cite by that ID. Did it 
 first. An ID belongs to whatever is citing it, not to whatever arrived first.
 
 Audit 0 errors, 1 pre-existing advisory D8. 200 of 200 tests pass. No registry write.
+
+### 2026-09-01 — ADR-017 reverted; the QA gate is armed again
+
+`/next-ticket` routed here rather than to `/plan CAL-01`, on the ground that ADR-017's revert
+condition 2 had fired. It had. **So had the other two**, and checking that was the whole value of the
+run.
+
+**Condition 3 is the one that mattered, and it was not in the handover.** `testing-standards.md` still
+said *"None of the first four commands runs yet"*. Ran them instead of believing it: typecheck exit 0,
+lint exit 0, vitest 2 of 2, Playwright 10 tests discovered. A Supabase project is provisioned. The
+stated cause of TEA-01's original waiver — no database, no runnable commands — has been false for some
+time and nobody noticed, because the sentence asserting it was in a standard nothing re-reads.
+
+**Condition 1 fired too, in the strongest form available: six of ten end-to-end tests fail on `main`
+right now.** They are TEA-01's own acceptance tests. Nothing had run them since TEA-01 shipped,
+because no gate required it.
+
+**Read the failure before reporting it, and it is not a regression.** `src/lib/data/index.ts` picks
+the seam on `VITE_DATA_SEAM === "mock" || !VITE_SUPABASE_URL`. TEA-01's suite was written when neither
+variable existed, so the build resolved to the mock and rendered the `seam-banner` those six tests
+assert. A developer `.env` now supplies `VITE_SUPABASE_URL`, so the suite resolves to Supabase and the
+banner is correctly absent. **The suite never pinned its seam** — its verdict depends on an untracked
+file, and when it resolves this way it drives the live project with the developer's credentials.
+MD-021, high.
+
+**Did not fix the harness.** Repairing a test suite is ticket work, and a steward-written test has a
+provenance nobody can audit. Named it as a bug ticket owed ahead of CAL-01 instead.
+
+**Rejected fixing the harness before arming the gate**, which is the comfortable order and the wrong
+one. The failing suite is exactly what the gate exists to surface; a gate held back until nothing it
+guards is broken never arms. CAL-01 will now stop at QA, which is the loop working rather than
+failing.
+
+**Did not take it back to the operator.** They accepted ADR-017 with its three revert conditions
+attached. Asking again at the moment the conditions fire would make every revert condition in this
+repository advisory. `ACCEPTED by steward` on ADR-021 for the same reason — executing a revert clause
+an ADR wrote for itself is honouring it, not superseding it.
+
+The waiver stood four hours and three tickets. TEA-02, TEA-03 and TEA-04 are DONE, untested, and now
+sit behind an armed gate. ADR-021 names the second ticket that owes: retiring their untested surface,
+all of it row-level policy work, which under ADR-005 is the whole authorization model.
+
+Also corrected `testing-standards.md`, which had been claiming for a day that nothing ran.
+
+Audit 0 errors, 1 pre-existing advisory D8. 200 of 200 hook and script tests pass. Registry writes:
+ADR-021 new, ADR-017 to `SUPERSEDED`. CODEOWNERS review at merge.

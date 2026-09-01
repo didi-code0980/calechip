@@ -1,5 +1,5 @@
 ---
-doc_version: 2
+doc_version: 3
 last_updated: 2026-09-01
 governed_by: [RULE-01, RULE-09]
 ---
@@ -8,7 +8,11 @@ governed_by: [RULE-01, RULE-09]
 
 ## Status
 
-`ACCEPTED by the operator` — 2026-09-01.
+`SUPERSEDED by ADR-021` — 2026-09-01. Accepted by the operator earlier the same day; superseded that
+afternoon when all three of its revert conditions had fired. It stood for roughly four hours and three
+tickets — TEA-02, TEA-03 and TEA-04 — every one of which shipped untested and stays that way.
+
+The original acceptance, kept because the record is the point:
 
 Recorded, not authored. The operator's instruction, verbatim: *"tôi muốn tạm thời flow bỏ qua state
 qa testing"*. The word that governs this ADR is **tạm thời** — the decision is explicitly temporary,

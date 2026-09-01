@@ -6,18 +6,16 @@ argument-hint: <TICKET-ID>
 Run in the **orchestrator session** (`.ai/standards/session-model.md`). Nothing is dispatched.
 
 Since ADR-006 this is **the only command in the loop that commits.** Every stage before it left the
-tree dirty, so the whole ticket — plan, source, tests, all five artifacts (three while
-ADR-017 waives QA) — is sitting
+tree dirty, so the whole ticket — plan, source, tests, all five artifacts — is sitting
 uncommitted when you arrive.
 
-**Preconditions — while ADR-017 stands, two gates `passed: true` with timestamps** — `plan` and
-`review` — **plus `gates.qa` carrying `waived: true`, `by: ADR-017` and a date.** *ADR-019 merged the
-`spec` and `design` gates into `plan`; a ticket shipped before 2026-09-01 has the older four.* Verify
-against `ticket.yaml`, not against a summary. A `qa` gate that is neither passed nor waived stops
-here; write the waiver yourself only if the review gate passed and no QA stage was ever entered, and
-say in the pull request body that you did.
+**Preconditions — all three gates `passed: true` with timestamps:** `plan`, `review`, `qa`. Verify
+against `ticket.yaml`, not against a summary.
 
-*When ADR-017 is reverted this reads again as: all three gates `passed: true`.*
+*ADR-019 merged the `spec` and `design` gates into `plan`, so a ticket shipped before 2026-09-01
+carries four. ADR-017 waived the `qa` gate for one afternoon and **ADR-021 reverted that**: a `qa`
+gate reading `waived: true` rather than `passed: true` belongs to TEA-02, TEA-03 or TEA-04, and to no
+ticket after them. You do not write a waiver here, ever.*
 
 Steps:
 
@@ -34,12 +32,9 @@ Steps:
 
 1. Run the project's verify command — typecheck, lint, unit, build — named in
    `.ai/standards/testing-standards.md`. Any non-zero exit stops here. Tạm ignore bước này 
-2. Confirm the Definition of Done in `.ai/01-operating-model.md`, item by item. **Items 3 and 4 are
-   suspended under ADR-017** — do not confirm them, do not silently pass them: record in the pull
-   request body that this ticket shipped with QA waived and is untested. The other four are confirmed
-   as normal.
-3. Set `state: DONE`, move the row to `## ARCHIVE` in `backlog.md`, **naming the QA waiver on that
-   archive row in the form TEA-01's row already uses**, append to `metrics.md`, **and set
+2. Confirm the full Definition of Done in `.ai/01-operating-model.md`, item by item — all six. Items
+   3 and 4 were suspended under ADR-017 and ADR-021 restored them.
+3. Set `state: DONE`, move the row to `## ARCHIVE` in `backlog.md`, append to `metrics.md`, **and set
    this feature's `Status` to `DONE` in `.ai/registry/features.md`.**
 
    **This step is the only writer of that column.** In the origin project it had no writer at all for
@@ -77,11 +72,7 @@ Steps:
    the fix is to move that file to the second set, never to widen the list.
 
 7. **Open the pull request against `main`**, body linking `.ai/board/tickets/$ARGUMENTS/` and listing
-   the gate timestamps — two passed and the `qa` waiver with its date, while ADR-017 stands.
-
-   **The body says the ticket is untested and names ADR-017.** A reviewer reading a pull request with
-   no test files and no `06-test-report.md` must not have to work out whether that was a waiver or an
-   omission.
+   the three gate timestamps.
 
    `gh pr create` when `gh auth status` reports a logged-in host. **When it does not, the fallback is
    not an improvisation — it is this, and it counts as step 7 completed:** print a

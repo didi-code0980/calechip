@@ -153,8 +153,8 @@ RULE-05 makes this the only channel through which selectors reach QA. A control 
 table does not exist as far as QA is concerned, and check R7 verifies the reverse: every selector
 here exists in the markup.
 
-**Dormant while ADR-017 waives QA, and written anyway.** A section skipped for a year is a section
-nobody can restore from memory, and R7 still reads it.
+This section had no reader between 2026-09-01 and ADR-021, while ADR-017 waived QA, and was required
+to be written anyway. Its reader is back.
 
 | selector | Element | Used by |
 |---|---|---|

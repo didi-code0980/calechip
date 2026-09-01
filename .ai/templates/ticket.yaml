@@ -26,9 +26,9 @@ gates:
   plan:   { passed: false, at: null }   # ADR-019 merged the `spec` and `design` gates into one
   review: { passed: false, at: null }
   qa:     { passed: false, at: null }
-  # While ADR-017 stands the QA stage is not entered. `/ship` accepts, in place of `passed: true`:
-  #   qa:   { passed: false, at: null, waived: true, by: ADR-017, waived_at: <ISO 8601> }
-  # Neither passed nor waived stops the ship. Delete these three lines when ADR-017 is reverted.
+  # ADR-017 waived this gate on 2026-09-01; ADR-021 reverted the waiver the same afternoon. Three
+  # tickets shipped carrying `waived: true` in place of `passed: true` — TEA-02, TEA-03, TEA-04 —
+  # and no ticket after them may. `/ship` requires all three gates `passed: true`.
 
 # The state enum line above is machine-read. Checks D10 and D13 in scripts/check-docs.mjs both parse
 # it: D10 holds it and the stage ownership table to the same membership, D13 reads it as the
