@@ -1308,3 +1308,45 @@ Those follow ADR-019 and the established convention is that the Tech Lead migrat
 PLAN, one ticket at a time. The waiver comment was different because it was permissive.
 
 Audit 0 errors, 1 pre-existing advisory D8. No registry write.
+
+### 2026-09-01 — the operator wants to start CAL-01
+
+Instruction: *"tôi muốn bắt đầu làm CAL-01."* Read the board rather than answered from the previous
+run's picture. Routed it and did not run it — `/plan` is `tech-lead-design`'s, and a plan written by
+the steward has a provenance nobody can audit (`.claude/commands/thuki.md` §*Not this command's job*).
+
+**CAL-01 is plannable. All four Definition of Ready items produced at BACKLOG pass**, checked
+individually rather than assumed:
+
+- Item 1 — `feature_ids: [CAL-01]` resolves to `.ai/registry/features.md:87`.
+- Item 3 — `depends_on: [TEA-01]`, and `.ai/board/tickets/TEA-01/ticket.yaml` is `DONE`. **The
+  features row for TEA-01 says `IN_PROGRESS` and that is not a contradiction**: item 3 constrains
+  tickets, the row tracks the feature, and the feature stays `IN_PROGRESS` until TEA-05 ships as its
+  other half. Worth writing down because the two words disagree on the same screen.
+- Item 4 — `schema_delta` links ADR-005 (`ACCEPTED by the operator`) and ADR-011 (`ACCEPTED by
+  tech-lead-design`). Both read, both accepted.
+- Item 6 — one group, `CAL`.
+
+Items 2 and 5 belong to PLAN and are correctly empty.
+
+**Disagreed once on the ordering, then gave the command asked for.** ADR-021 §Consequences:99 says a
+ticket to fix the seam pinning goes ahead of CAL-01, and *"until it lands, no ticket can pass the QA
+gate, because Definition of Done item 3 requires the suites to exit 0."* Six of ten end-to-end tests
+fail on `main` (MD-021). So CAL-01 can be planned and implemented and will then stop at QA — which is
+the loop working, not failing, but it is a stall the operator should choose deliberately. They placed
+BUG-001 at backlog row 1 themselves yesterday, above TEA-05 and CAL-01.
+
+**Named the one decision owed before PLAN, rather than deciding it.** `features.md:87` carries
+`TODO(project)`: whether a member may create or edit an entry for a date in the past. Both answers
+are defensible, nothing in the brief, the charter or the registry says, and it changes the interface —
+one acceptance criterion once answered. Unanswered, the Tech Lead writes a placeholder and an
+`OPEN QUESTIONS` entry, and the hole lands in the acceptance criteria, which is the worst place for
+it. This is a product decision and recording one the operator did not make is forgery, not initiative.
+
+**Checked one hazard and found the model already covers it, so no debt row.** This session sits on
+`claude/serene-archimedes-2bhcf1`; `guard-allowed-paths.mjs:164` exits 0 on any non-`feat/` branch, so
+RULE-03 is inactive here. `.claude/commands/implement.md:52-53` already states exactly that, and
+`/plan` step 0 switches to `feat/CAL-01` from `origin/main` on a clean tree. Almost filed MD-022 for
+something two files already say.
+
+No registry write. No ADR. No ticket work. Tree was clean at the start of the run.
