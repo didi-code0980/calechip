@@ -32,32 +32,37 @@ Under the current gate placement a ticket sits here until it has been planned �
 
 | # | Ticket | Title | State | Blocked on |
 |---|--------|-------|-------|------------|
-| 1 | CAL-01 | Create an entry for themselves, over a range of dates | BACKLOG | TEA-01 |
-| 2 | CAL-02 | Edit or delete their own entry | BACKLOG | CAL-01 |
-| 3 | CAL-03 | Edit or delete another member's entry, as an admin | BACKLOG | CAL-02 |
-| 4 | CAL-04 | Month view — a day grid showing who is away and which days are overloaded | BACKLOG | CAL-01, TEA-03 |
-| 5 | CAL-05 | Week view — per-person detail for one week, with half-days, notes and who approved | BACKLOG | CAL-04 |
-| 6 | CAL-06 | Year view — one row per member across 365 days | BACKLOG | CAL-04, TEA-03 |
-| 7 | ADM-01 | Set the overload threshold | BACKLOG | TEA-01 |
-| 8 | CAL-07 | Overload warning shown while choosing dates, before the entry is saved | BACKLOG | CAL-01, CAL-04 |
-| 9 | ADM-02 | The national holiday calendar, seeded and readable | BACKLOG | TEA-01, ADM-01 |
-| 10 | ADM-03 | Add, edit or delete a holiday or swap day | BACKLOG | ADM-02 |
-| 11 | CAL-08 | Holidays and bridge days shown in the calendar views | BACKLOG | ADM-02, CAL-04, CAL-05, CAL-06 |
-| 12 | ADM-04 | The worklist of entries awaiting a decision | BACKLOG | CAL-01, TEA-03, ADM-01 |
-| 13 | ADM-05 | Approve or reject an entry, with a reason on rejection | BACKLOG | ADM-04, CAL-02 |
-| 14 | ADM-06 | Reject several entries at once, with one reason for the batch | BACKLOG | ADM-05 |
-| 15 | TEA-05 | Sign in, sign out, and the member-less landing state | BACKLOG | TEA-01 |
+| 1 | TEA-05 | Sign in, sign out, and the member-less landing state | BACKLOG | TEA-01 |
+| 2 | CAL-01 | Create an entry for themselves, over a range of dates | BACKLOG | TEA-01 |
+| 3 | CAL-02 | Edit or delete their own entry | BACKLOG | CAL-01 |
+| 4 | CAL-03 | Edit or delete another member's entry, as an admin | BACKLOG | CAL-02 |
+| 5 | CAL-04 | Month view — a day grid showing who is away and which days are overloaded | BACKLOG | CAL-01, TEA-03 |
+| 6 | CAL-05 | Week view — per-person detail for one week, with half-days, notes and who approved | BACKLOG | CAL-04 |
+| 7 | CAL-06 | Year view — one row per member across 365 days | BACKLOG | CAL-04, TEA-03 |
+| 8 | ADM-01 | Set the overload threshold | BACKLOG | TEA-01 |
+| 9 | CAL-07 | Overload warning shown while choosing dates, before the entry is saved | BACKLOG | CAL-01, CAL-04 |
+| 10 | ADM-02 | The national holiday calendar, seeded and readable | BACKLOG | TEA-01, ADM-01 |
+| 11 | ADM-03 | Add, edit or delete a holiday or swap day | BACKLOG | ADM-02 |
+| 12 | CAL-08 | Holidays and bridge days shown in the calendar views | BACKLOG | ADM-02, CAL-04, CAL-05, CAL-06 |
+| 13 | ADM-04 | The worklist of entries awaiting a decision | BACKLOG | CAL-01, TEA-03, ADM-01 |
+| 14 | ADM-05 | Approve or reject an entry, with a reason on rejection | BACKLOG | ADM-04, CAL-02 |
+| 15 | ADM-06 | Reject several entries at once, with one reason for the batch | BACKLOG | ADM-05 |
 
-**TEA-05 was appended, not inserted.** This file's header says it is an ordered list that a human
-reorders, so placing the row anywhere above 17 would have renumbered sixteen rows a human placed.
-`product` asserts nothing about its position. Two facts a human reordering it should have:
+**The operator placed TEA-05 at row 1 on 2026-09-01**, and the fourteen rows below it moved down one.
+That is a reordering, not the bookkeeping renumbering described below — a human moved a row relative
+to the others, which is the only way that is allowed to happen.
+
+*The paragraph below was written by `product` when the row was appended, and is kept because it names
+the two facts the reorder rested on.* **TEA-05 was appended, not inserted.** This file's header says
+it is an ordered list that a human reorders, so placing the row anywhere above 17 would have
+renumbered sixteen rows a human placed. `product` asserts nothing about its position. Two facts a human reordering it should have:
 `depends_on` is `[TEA-01]`, which is `DONE`, so nothing blocks it; and no row above it names TEA-05
 in `Blocked on`, although each of them describes something a signed-in person does.
 
 **The rows above have been renumbered twice by `orchestrator` on 2026-09-01** — to 1–16 when
 TEA-03 left this table for `## READY`, and to 1–15 when TEA-04 did. `product`'s paragraph is left as
 written; read its *17* and *sixteen rows* as the positions at the time it was written. TEA-05 is now
-row 15 and its position is still nobody's assertion but a human's to make. **The renumbering is
+row 1, placed there by the operator on 2026-09-01. **The renumbering is
 bookkeeping and never a reordering** — no row has moved relative to another since a human placed it.
 
 ## BLOCKED
