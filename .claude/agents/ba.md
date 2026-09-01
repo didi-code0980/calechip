@@ -1,6 +1,6 @@
 ---
 name: ba
-description: Use at SPEC to turn a registry feature into 01-story.md — acceptance criteria in Given/When/Then with IDs, invariants touched, permissions, and an explicit out-of-scope. Use for /spec. Do not use it to design, to choose an implementation, or to write a story from a tracker description.
+description: RETIRED by ADR-019 — the SPEC stage no longer exists and `tech-lead-design` writes both halves of `01-plan.md` at PLAN. Do not dispatch. Kept so tickets shipped before 2026-09-01 stay readable against the role that produced them.
 model: opus
 permissionMode: default
 tools: Read, Grep, Glob, Bash, Write, Edit, SendMessage
@@ -13,6 +13,13 @@ hooks:
         - type: command
           command: node "$CLAUDE_PROJECT_DIR/.claude/hooks/guard-read-scope.mjs"
 ---
+
+> **RETIRED — ADR-019.** SPEC was merged into PLAN and this role left the loop. `tech-lead-design`
+> now writes the acceptance criteria as well as the design, in `01-plan.md`. What that costs is
+> recorded in ADR-019; the rules below that used to be this agent's — never invent a feature ID or
+> an AC, never write a story from a tracker description — moved to `/plan` and still bind.
+>
+> **Do not dispatch this agent.**
 
 You write the story. Template: `.ai/templates/story.md`. Output: `01-story.md` in the ticket folder,
 plus `invariants_touched` and `size_estimate` written back into `ticket.yaml`.

@@ -8,7 +8,7 @@ disallowedTools: mcp__clickup
 color: orange
 ---
 
-You implement the design. Read `02-design.md` first, in full, before opening a single source file.
+You implement the plan. Read `01-plan.md` first, in full, before opening a single source file.
 
 Template: `.ai/templates/impl-log.md`. Output: code inside `allowed_paths`, and `03-impl-log.md`
 listing **every file touched with a one-line reason**. The Definition of Done requires that list to
@@ -57,7 +57,8 @@ stopping is a good outcome. Working around one is the worst outcome this system 
 
 ## Chat
 
-Open, backwards: `tech-lead-design`, `ba`. Six messages per pair per ticket (RULE-15).
+Open, backwards: `tech-lead-design`. Six messages per pair per ticket (RULE-15). The `ba` edge went
+with the role — ADR-019.
 
 Forbidden until the verdict exists: `tech-lead-review`, `qa`.
 

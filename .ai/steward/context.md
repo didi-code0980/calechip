@@ -1084,3 +1084,51 @@ steward into the ticket it unblocks has no second pair of eyes anywhere in it.
 Audit 0 errors, 1 pre-existing advisory D8. Registry write, with provenance: ADR-018, resting on the
 operator's 2026-08-31 confirmation quoted in `rbac-and-security.md:63`. CODEOWNERS forces their
 review at merge.
+
+### 2026-09-01 — two stages cut: IDEA into TRIAGE, SPEC and DESIGN into PLAN
+
+Operator instruction, after TEA-03 shipped and merged: *"đã tiến hành ship TEA-03 giờ bắt đầu tiến
+hành cắt bớt stage trong workflow."* Verified TEA-03 was actually DONE on `origin/main` before
+starting — the working copy said `state: BACKLOG`, which turned out to be a stale ops branch two
+merges behind, not a board defect. Checking cost one command and would have cost a false alarm.
+
+The enum went from twelve values to ten. `.ai/registry/decisions/ADR-019` carries the whole decision;
+what belongs here is what the run learned.
+
+**The merge forced a rule change I had told the operator it would not.** Two messages earlier I said
+cut 2 (SPEC+DESIGN) was separable from cut 3 (design section 6), and that only cut 3 would touch
+`rules.md`. Wrong. Merging the artifacts renumbers the sections, and RULE-05 names *"Design section
+6"* literally. There were two ways out — order the plan so the testability contract lands on 6 anyway,
+which means a plan that states its contract before its problem, or amend the rule. Amended it:
+version 1 to 2, wording only, substance untouched. Told the operator plainly.
+
+**The cascade is the part worth remembering.** A one-word edit to a rule bumped `doc_version` on three
+more documents, because D9 fails when a doc cites a rule at a version above its own. There is no such
+thing as a one-file rule edit here, and that is the mechanism working, not friction.
+
+**`ba` retired, and the choice was forced rather than made.** `guard-read-scope.mjs` lists `ba` in
+`RESTRICTED` and blocks it from `src/`, so `ba` cannot write a design. Whichever agent kept the merged
+stage had to be the one that can read the code. Recorded it that way in the ADR — a constraint
+discovered in a hook is more durable than a preference argued in prose.
+
+**What the merge actually costs, stated where it will be read:** the agent that writes an acceptance
+criterion now also writes the design that has to satisfy it. Nothing stands between an AC and a
+convenient reshaping of it. What replaced the separation is an ordering instruction in `/plan` and the
+plan template, plus a required Changelog entry for amendments — **a habit, not a control.** Said so in
+three places rather than one, because a cost recorded only in an ADR is a cost nobody reads twice.
+
+**Two D13 tests failed and both were right to.** They are real-file tests that inject a regression into
+the actual `01-operating-model.md` and the actual enum, and their fixtures named `SPEC` and `DESIGN`.
+Updated the fixtures to `PLAN`/`IN_PROGRESS`, not the checks — the intent of each test is unchanged and
+D13 still catches a DoR item produced after its own gate. 200 of 200 pass.
+
+Nothing deleted. Three commands, one agent and two templates carry retirement banners instead, so a
+ticket shipped before today stays readable against the files that produced it — and so the ADR's
+revert condition is a restoration rather than a reconstruction.
+
+Audit 0 errors, 1 pre-existing advisory D8. Registry writes, with the instruction quoted above:
+ADR-019 and RULE-05 v2. CODEOWNERS forces the operator's review of both at merge.
+
+**Not done, and named so it is not mistaken for finished:** cutting design section 8 (the testability
+contract) — the third item in the package. It is dormant under ADR-017 rather than removed, and
+removing it is now a smaller change than it was this morning, since RULE-05 has already moved.

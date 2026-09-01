@@ -1,6 +1,6 @@
 ---
-doc_version: 1
-last_updated: 2026-08-25
+doc_version: 2
+last_updated: 2026-09-01
 governed_by: [RULE-05, RULE-13, RULE-16]
 ---
 
@@ -22,7 +22,7 @@ ticket: <ID>
 stage: QA
 agent: qa
 produced_at: <ISO8601>
-inputs_read: [ .ai/board/tickets/<ID>/01-story.md, .ai/board/tickets/<ID>/02-design.md ]
+inputs_read: [ .ai/board/tickets/<ID>/01-plan.md ]
 consulted: []
 chat_before_verdict: none
 gate: PASS
@@ -40,7 +40,7 @@ Every AC from the story maps to at least one named test. The test name contains 
 | AC-1 |  | unit / component / e2e | from design section 6 |
 
 An AC with no row is a gate failure. An AC that cannot be given a row because it is unobservable from
-outside the system is not a QA problem — it routes to `ba`, and per RULE-08 it does not increment the
+outside the system is not a QA problem — it routes to `tech-lead-design`, and per RULE-08 it does not increment the
 Developer's rework count.
 
 ## Refusal cases

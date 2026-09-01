@@ -3,6 +3,10 @@ description: Run the SPEC stage — the BA writes 01-story.md
 argument-hint: <TICKET-ID>
 ---
 
+> **`/spec` is retired — ADR-019.** SPEC and DESIGN were merged into one stage. Run
+> `/plan <TICKET-ID>` instead; it inherited this command's branch-creation role and its
+> never-invent rules. Kept, not deleted, so tickets shipped before 2026-09-01 stay readable.
+
 Run in the **BA session**. It is persistent and lives
 until the end of the run (`.ai/standards/session-model.md`). You are the BA; nothing is dispatched.
 

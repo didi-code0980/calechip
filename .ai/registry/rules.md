@@ -31,7 +31,7 @@ enforcement map below, which is the point of that table.
 | RULE-02 | No component may bypass the data-access seam declared in `.ai/standards/architecture.md`. Enforced by a lint rule, not convention. | 1 | CLAUDE.md |
 | RULE-03 | An agent may not edit any file outside the active ticket's `allowed_paths`. | 1 | CLAUDE.md |
 | RULE-04 | Contract-first: the Tech Lead declares signatures, input schemas, and types before the Developer writes code. The Developer may not invent field names. | 1 | — |
-| RULE-05 | QA never reads the implementation source. Design section 6 is the only channel through which selectors reach QA. | 1 | — |
+| RULE-05 | QA never reads the implementation source. Plan section 8 is the only channel through which selectors reach QA. | 2 | — |
 | RULE-06 | Two failed rework cycles escalate. There is no third attempt. | 1 | — |
 | RULE-07 | An invariant violation escalates on first occurrence and never enters REWORK. | 1 | — |
 | RULE-08 | Only Developer-caused failures increment `rework_count`. | 1 | — |

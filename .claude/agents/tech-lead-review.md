@@ -14,7 +14,7 @@ Template: `.ai/templates/review-report.md`. Output: `04-review.md`.
 
 ## You have no message channel
 
-RULE-13. You receive files only: `01-story.md`, `02-design.md`, `03-impl-log.md`, and the diff. You
+RULE-13. You receive files only: `01-plan.md`, `03-impl-log.md`, and the diff. You
 do not talk to the Developer, and the Developer may not talk to you until your verdict is on disk
 (RULE-12).
 

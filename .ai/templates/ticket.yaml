@@ -1,6 +1,6 @@
 # Template: ticket.yaml. Copy to .ai/board/tickets/<ID>/ticket.yaml.
 # ticket.yaml is authoritative; backlog.md is a view (see .ai/01-operating-model.md).
-# state enum: IDEA TRIAGE BACKLOG SPEC READY DESIGN IN_PROGRESS REVIEW QA REWORK ESCALATED DONE
+# state enum: TRIAGE BACKLOG PLAN READY IN_PROGRESS REVIEW QA REWORK ESCALATED DONE
 id: EXA-01
 title: ""
 feature_ids: []
@@ -8,8 +8,8 @@ group: ORD
 state: BACKLOG
 owner: ""
 branch: ""
-size_estimate: ""     # S|M - set by ba at SPEC; gates DoR
-size: ""              # S|M|L|XL - set by tech-lead-design at DESIGN; decides splitting
+size_estimate: ""     # S|M - set by tech-lead-design at PLAN; gates DoR
+size: ""              # S|M|L|XL - set by tech-lead-design at PLAN; decides splitting
 depends_on: []
 invariants_touched: []
 allowed_paths: []
@@ -17,14 +17,13 @@ schema_delta: none
 requires_adr: false
 rework_count: 0
 chat_budget:
+  # ADR-019 retired `ba` from the loop, so the two `->ba` edges are gone. They are not listed as
+  # zeroes: an edge nobody can walk is not a budget, it is a row that invites someone to try.
   developer->tech-lead-design: { used: 0, max: 6 }
-  developer->ba:               { used: 0, max: 6 }
-  qa->ba:                      { used: 0, max: 6 }
   qa->tech-lead-design:        { used: 0, max: 6 }
 tracker: { provider: "", external_id: "", sync_enabled: false }
 gates:
-  spec:   { passed: false, at: null }
-  design: { passed: false, at: null }
+  plan:   { passed: false, at: null }   # ADR-019 merged the `spec` and `design` gates into one
   review: { passed: false, at: null }
   qa:     { passed: false, at: null }
   # While ADR-017 stands the QA stage is not entered. `/ship` accepts, in place of `passed: true`:
@@ -44,7 +43,7 @@ gates:
 # invariants_touched  [] means "considered, none engaged". Absent means nobody looked.
 #                     Definition of Ready requires it to be explicit.
 # allowed_paths       [] is a control, not a placeholder. guard-allowed-paths.mjs blocks every
-#                     write outside this ticket folder while it is empty. DESIGN fills it.
+#                     write outside this ticket folder while it is empty. PLAN fills it.
 # rework_count        Only Developer-caused failures increment it (RULE-08). Two failures
 #                     escalate (RULE-06).
 # chat_budget         Six messages per pair per ticket (RULE-15). chat-guard.mjs increments

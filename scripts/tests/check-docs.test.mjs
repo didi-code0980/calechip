@@ -1010,20 +1010,20 @@ test("D13 catches a regression injected into the real 01-operating-model.md", ()
   // A check that is green can be green because it is broken. This moves one real DoR item producer
   // past the gate, in the real document, and requires the check to notice.
   const model = realOpModel();
-  const regressed = model.replace(/^(\|\s*5\s*\|[^|]*\|\s*)SPEC(\s*\|)/m, "$1DESIGN$2");
+  const regressed = model.replace(/^(\|\s*5\s*\|[^|]*\|\s*)PLAN(\s*\|)/m, "$1IN_PROGRESS$2");
   assert.notEqual(regressed, model, "DoR row 5 not found — update this test to match the document");
 
   const r = run(realDorProject(regressed));
   assert.equal(r.findings("D13").length, 1, `expected one finding, got:\n${r.stdout}`);
-  assert.match(r.findings("D13")[0], /produced at DESIGN, which is after READY/);
+  assert.match(r.findings("D13")[0], /produced at IN_PROGRESS, which is after READY/);
 });
 
 test("D13 catches the enum falling out of lifecycle order", () => {
   // Position comes from the state enum. Reordering the lifecycle without reordering the enum would
   // leave the check measuring against the old order and agreeing with a document that has changed.
   const staleEnum = realTicketTpl().replace(
-    "# state enum: IDEA TRIAGE BACKLOG SPEC READY",
-    "# state enum: IDEA TRIAGE BACKLOG READY SPEC"
+    "# state enum: TRIAGE BACKLOG PLAN READY",
+    "# state enum: TRIAGE BACKLOG READY PLAN"
   );
   assert.notEqual(staleEnum, realTicketTpl(), "enum line not found — update this test");
 

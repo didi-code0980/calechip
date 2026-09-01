@@ -1,6 +1,6 @@
 ---
 doc_version: 2
-last_updated: 2026-08-25
+last_updated: 2026-09-01
 governed_by: [RULE-01, RULE-16]
 ---
 
@@ -17,7 +17,7 @@ Copy everything below the line.
 
 ```yaml
 ---
-stage: IDEA
+stage: TRIAGE
 agent: product
 produced_at: <ISO8601>
 inputs_read: []
@@ -56,7 +56,7 @@ space. Cite IDs.
 ## Out of scope
 
 What this idea explicitly does not cover. Writing this now is what stops the eventual ticket from
-growing during DESIGN.
+growing during PLAN.
 
 ## Open questions
 

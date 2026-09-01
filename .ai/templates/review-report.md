@@ -1,6 +1,6 @@
 ---
 doc_version: 1
-last_updated: 2026-08-25
+last_updated: 2026-09-01
 governed_by: [RULE-02, RULE-03, RULE-04, RULE-07, RULE-08, RULE-12, RULE-13, RULE-16]
 ---
 
@@ -22,7 +22,7 @@ ticket: <ID>
 stage: REVIEW
 agent: tech-lead-review
 produced_at: <ISO8601>
-inputs_read: [ .ai/board/tickets/<ID>/01-story.md, .ai/board/tickets/<ID>/02-design.md, .ai/board/tickets/<ID>/03-impl-log.md ]
+inputs_read: [ .ai/board/tickets/<ID>/01-plan.md, .ai/board/tickets/<ID>/03-impl-log.md ]
 consulted: []
 chat_before_verdict: none
 gate: PASS

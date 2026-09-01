@@ -1,6 +1,6 @@
 ---
 doc_version: 1
-last_updated: 2026-08-25
+last_updated: 2026-09-01
 governed_by: [RULE-11, RULE-12, RULE-14, RULE-15, RULE-16]
 ---
 
@@ -30,7 +30,7 @@ asked_at: 2026-08-11T10:00:00Z
 
 **A.** <the answer, written by the addressed agent>
 
-**Amended:** `02-design.md` §1 — <what changed>, or `none — the artifact was already correct`
+**Amended:** `01-plan.md` §4 — <what changed>, or `none — the artifact was already correct`
 ```
 
 ## Rules of use
