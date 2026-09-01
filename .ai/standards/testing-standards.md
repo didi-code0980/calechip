@@ -23,10 +23,25 @@ unit, end-to-end — precisely so that this is the only file that has to know th
 
 The last three ship with this kit and need no editing.
 
-**None of the first four commands runs yet.** No dependency is installed in this repository and no
-config file for any of the four tools exists — the commands record the agreed invocation, not a
-working setup. Run each one and correct it here the moment the tooling lands; a command table that
-has never been executed is a claim, and the Definition of Done treats it as a fact.
+**All four now run. Verified 2026-09-01, and that verification is what fired ADR-017's third revert
+condition.** This paragraph read *"none of the first four commands runs yet"* until then, which was
+true when written and became false without anyone noticing — which is the failure the sentence it
+replaces was warning about.
+
+| Role | Result on 2026-09-01 |
+|---|---|
+| typecheck | exit 0 |
+| lint | exit 0 |
+| unit | 1 file, 2 tests, all pass |
+| end-to-end | 10 tests in 2 files — **4 pass, 6 fail** |
+
+**The six end-to-end failures are one defect and it is in the harness, not in shipped behaviour.**
+The suite does not pin which seam it drives, so `src/lib/data/index.ts` resolves to Supabase whenever a
+`.env` carrying `VITE_SUPABASE_URL` is present, TEA-01's `seam-banner` assertions fail, and the run
+drives the live project. MD-021, and a bug ticket owed ahead of CAL-01 — ADR-021.
+
+Re-run each command and correct this table the moment the tooling changes. A command table that has
+never been executed is a claim, and the Definition of Done treats it as a fact.
 
 **The runners themselves are named in [tech-stack.md](tech-stack.md), with their majors.** This table
 holds the invocations and nothing else, because the Definition of Done and checks R2 and R3 refer to

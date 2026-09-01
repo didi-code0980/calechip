@@ -1,5 +1,5 @@
 ---
-doc_version: 4
+doc_version: 5
 last_updated: 2026-09-01
 governed_by: [RULE-01, RULE-03, RULE-04, RULE-05, RULE-06, RULE-07, RULE-08, RULE-09, RULE-10, RULE-11, RULE-12, RULE-13, RULE-14, RULE-15, RULE-16, RULE-17]
 ---
@@ -40,30 +40,6 @@ TRIAGE -> [PROMOTE writes the feature row and the ticket shell] -> BACKLOG
                                           v
                                     ESCALATED -> human
 ```
-
-## The QA stage is waived — temporary, ADR-017
-
-**In force since 2026-09-01. While it stands, the loop runs `REVIEW -> DONE` and QA is not entered.**
-Delete this section to reverse it; nothing else in this document changes.
-
-`QA` keeps its place in the state enum, its row in the stage ownership table, its rows in the failure
-routing table and its entry in `ARTIFACTS_FOR`. It is an unvisited state, not a deleted one — which is
-what makes the reversal a deletion rather than a reconstruction.
-
-| Reads | While the waiver stands |
-|---|---|
-| Lifecycle | `REVIEW -> DONE`. The `QA` node and its `REWORK` edge are dormant |
-| `04-review.md` on PASS | `next_state: DONE`, not `next_state: QA` |
-| `/ship` preconditions | Two gates `passed: true` — `plan`, `review` — plus `gates.qa` carrying `waived: true`, `by: ADR-017` and a date. A `qa` gate that is neither passed nor waived still stops the ship. *Was three gates until ADR-019 merged `spec` and `design` into `plan`* |
-| Definition of Done | Items 3 and 4 are **suspended**, not satisfied. `/ship` says so in the pull request body. The other four are unaffected |
-| Ticket folder | Four artifacts, not six. `05-test-plan.md` and `06-test-report.md` are not produced |
-| `/qa` | Still correct and still runnable by hand. What is removed is automatic entry and the gate's power to block |
-| RULE-05, RULE-13, the `qa` chat budgets | Dormant, not repealed. They govern again the moment the stage is re-entered |
-
-**A ticket that ships under this waiver is untested, and `backlog.md` names the waiver on its archive
-row.** Not lightly tested — untested, with no automated evidence that any acceptance criterion holds.
-ADR-017 carries the reason, the cost and three revert conditions, the first of which is a single
-defect a test would have caught.
 
 **A `PROMOTE` verdict writes the feature row itself** — ADR-007 removed the human step that used to
 sit here. A ticket still cannot pass DoR unless its feature IDs exist in
@@ -133,8 +109,8 @@ carry. One artifact, one author, one gate — ADR-019.
 Section 8 is the load-bearing one. QA never reads the implementation source (RULE-05), so a selector
 that is not in section 8 does not exist as far as QA is concerned. A plan that omits it produces a
 test suite that cannot address the interface, and the failure surfaces at the QA gate as something
-that looks like a Developer problem and is not. Dormant while ADR-017 waives QA, and written anyway —
-a section skipped for a year is a section nobody can restore from memory.
+that looks like a Developer problem and is not. It was dormant from 2026-09-01 while ADR-017 waived
+QA and was required to be written anyway; ADR-021 put its reader back.
 
 Section 7 is what `.claude/hooks/guard-allowed-paths.mjs` reads. Until PLAN writes it,
 `allowed_paths` is `[]` and the hook blocks every write outside the ticket folder. That emptiness is
@@ -381,9 +357,10 @@ than the gate.
 5. zero invariant violations
 6. `03-impl-log.md` lists every file touched with a one-line reason
 
-**Items 3 and 4 are suspended while ADR-017 stands**, and item 1 reads three gates passed plus a
-waived `qa` — see *The QA stage is waived* above. They are numbered here so the suspension can name
-them rather than describe them.
+All six are required again. **Items 3 and 4 were suspended from 2026-09-01 while ADR-017 waived the
+QA stage, and are restored by ADR-021** — three tickets shipped under that waiver, and all four
+commands in `.ai/standards/testing-standards.md` now run. The numbering is kept because the
+suspension named these two by number and the record has to stay legible.
 
 **TODO(project): name the four commands.** Typecheck, lint, unit and end-to-end are roles, not
 command names. Write the exact invocations into `.ai/standards/testing-standards.md` once, and let
