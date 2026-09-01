@@ -1276,3 +1276,35 @@ Also corrected `testing-standards.md`, which had been claiming for a day that no
 
 Audit 0 errors, 1 pre-existing advisory D8. 200 of 200 hook and script tests pass. Registry writes:
 ADR-021 new, ADR-017 to `SUPERSEDED`. CODEOWNERS review at merge.
+
+### 2026-09-01 — the operator reordered the backlog: TEA-05 to row 1
+
+Instruction: *"tôi muốn prority TEA-05 trước."* Executed the reorder rather than argued it — the
+header of `backlog.md` says a human reorders and the orchestrator takes the top, and `product`'s own
+note on that row said its position was *"nobody's assertion but a human's to make."* This is the
+first time a row has moved relative to another since the board was created; every prior change was
+renumbering, and the file now distinguishes the two in writing.
+
+Checked the merits before executing, and they hold: `depends_on: [TEA-01]` is DONE, `schema_delta` is
+`none` and `requires_adr` is `false` — which under ADR-014 makes it one of the very few TEA tickets
+that needs no ADR. It is also the other half of TEA-01, whose story claims the feature is delivered
+only when both are DONE.
+
+**Found one live hazard in the TEA-05 shell and fixed it.** Its `gates:` block still carried the
+ADR-017 instructions — *"Neither passed nor waived stops the ship"* — written hours before ADR-021
+reverted the waiver. That is not stale prose, it is an instruction `/ship` could follow to skip an
+armed gate. Replaced it. It was the only shell carrying that text; the other eighteen predate ADR-017
+entirely.
+
+**Appended a correction to the shell's section 6 rather than rewriting it**, and the second half
+matters more than the first. `product` wrote that *"every e2e test in the repository drives
+`VITE_DATA_SEAM=mock`"*, and used it to argue a green suite would prove nothing about signing in.
+**The premise is false — that is MD-021.** The suite pins nothing, inherits `.env`, and today resolves
+to Supabase. So the warning is right for a worse reason than the one it gives: a sign-in suite here
+would not be meaninglessly green, it would be non-deterministic and would write to the live project.
+
+Did not migrate TEA-05's `spec:`/`design:` gates, its state-enum comment or its `->ba` chat edges.
+Those follow ADR-019 and the established convention is that the Tech Lead migrates them in passing at
+PLAN, one ticket at a time. The waiver comment was different because it was permissive.
+
+Audit 0 errors, 1 pre-existing advisory D8. No registry write.
