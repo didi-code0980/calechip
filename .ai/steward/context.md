@@ -1040,3 +1040,47 @@ that can be read, counted and turned off*.
 Registry write, with confirmation: ADR-017, from the instruction quoted above. CODEOWNERS forces the
 operator's review of it at merge. No rule in `rules.md` was amended — RULE-05 and RULE-13 still say
 what they said, and a stage that is not entered does not need its rules rewritten.
+
+### 2026-09-01 — ADR-018, and a branch loss that was not one
+
+`/next-ticket` graded TEA-03's Definition of Ready, failed item 4 on a missing ADR, and handed over
+the one write that unblocks it. Verified every claim before writing: `features.md:118`, the
+`Read the member list` row at `rbac-and-security.md:40`, its confirmation note at line 63, and the
+session-log entry above that records the operator confirming it. All correct.
+
+**Wrote `ADR-018-who-may-read-the-member-list.md`, `ACCEPTED by steward`.** Not `by the operator`,
+and the split is the point: they confirmed the permission on 2026-08-31 and there is a quotable
+record of it; the policy shape is mine and there is not. ADR-008's test is whether the decision sits
+inside an accepted envelope or changes one, and this sits inside.
+
+**The ADR overturns one line of the ticket it unblocks.** `ticket.yaml` says the migration
+*replaces* `member_select_own` with a team-scoped policy. It must *add* alongside it.
+`public.member_team_id` filters `removed_at is null`, so a removed caller resolves to `null` and
+`team_id = null` matches nothing — replacement would leave a removed member unable to read even their
+own row. `readMember` filters by id alone and relies entirely on the policy, so `getOwnMember` would
+return `null`, which is byte-identical to the answer for somebody never admitted. TEA-03's own AC-7
+note says those two states *"are indistinguishable on screen and mean opposite things"*; replacing
+makes them indistinguishable in the datastore, below any screen that could tell them apart.
+
+Rejected the combined-predicate single policy too — correct, but it rewrites a policy TEA-01 already
+shipped and asserted against, to produce identical behaviour. A diff whose whole content is risk.
+
+**The orchestrator's branch warning was wrong, and checking cost one command.** It reported TEA-03's
+SPEC output stranded on `ops/triage-tea-05` while `ticket.yaml` names `feat/TEA-03`, and concluded
+that under ADR-006 a `git switch` loses it. `git show-ref` says both refs are `8e27d78` — the same
+commit — because `feat/TEA-03` was created at 00:49:52 and abandoned three minutes later for the ops
+branch, per the reflog. Uncommitted work follows a switch between two refs at the same commit.
+Nothing is at risk and `git switch feat/TEA-03` is safe.
+
+Recorded here rather than as model debt because the model has no defect: the branch check in
+`/spec` step 0 is correct, `feat/TEA-03` was created exactly as it says, and what followed was a
+checkout nobody wrote down. Manufacturing a debt row for it would put a permanent entry in the
+register for a one-time slip.
+
+**Did not touch `ticket.yaml`.** Item 4 needs the ADR *linked*, and the READY row of the stage
+ownership table gives that write to the orchestrator. An ADR written by the steward and linked by the
+steward into the ticket it unblocks has no second pair of eyes anywhere in it.
+
+Audit 0 errors, 1 pre-existing advisory D8. Registry write, with provenance: ADR-018, resting on the
+operator's 2026-08-31 confirmation quoted in `rbac-and-security.md:63`. CODEOWNERS forces their
+review at merge.
