@@ -112,6 +112,40 @@ export interface DataSeam {
    * a short list for a capped read is the exact failure AC-8 exists to prevent.
    */
   listMembers(): Promise<Member[]>;
+
+  // -------------------------------------------------------------------------
+  // TEA-04 - remove a member, and promote a member to admin. 01-plan.md section 4.2.
+  // -------------------------------------------------------------------------
+
+  /**
+   * TEA-04 AC-1, AC-3, AC-6, AC-9, AC-11, AC-12. Soft-removes a member of the caller's own team.
+   *
+   * TAKES NO TIMESTAMP. `removed_at` is written by the datastore's own clock and a caller-supplied
+   * value is discarded by the trigger (AC-3) - ADR-013's revert condition is a backdated removal
+   * moving every past absence count silently and everywhere, so there is no parameter here that
+   * could carry one.
+   *
+   * `memberId` is an ADDRESS and not a permission surface. It names an existing row that the policy
+   * then filters by team and by the caller's role - the shape `removeAllowedEmail(email)` already
+   * uses. It is unlike the `teamId` deliberately kept off `addAllowedEmail`, which would have
+   * SUPPLIED a value that landed in the row.
+   *
+   * Returns the updated row. The `.select()` in the real implementation is not a convenience: under
+   * row-level security a refused UPDATE is FILTERED, not errored - it matches nothing and PostgREST
+   * answers 200 with an empty body (ADR-016 section 4, behaviour 2). Zero rows returned is a
+   * refusal and is mapped to `not_permitted`; treating `!error` as success would report a refusal
+   * as done.
+   */
+  removeMember(memberId: string): Promise<Result<Member>>;
+
+  /**
+   * TEA-04 AC-4, AC-5, AC-6, AC-10, AC-11, AC-12. Promotes a member of the caller's own team to
+   * admin. ONE-WAY: there is no `demoteMember`, and adding one would be inventing a permission -
+   * `Demote an admin to member` is not decided and is denied until it is.
+   *
+   * Returns the updated row, and treats zero rows as a refusal, for the same reason as above.
+   */
+  promoteMember(memberId: string): Promise<Result<Member>>;
 }
 
 export type { DataSeam as Seam };

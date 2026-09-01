@@ -341,4 +341,80 @@ export const seam: DataSeam = {
 
     return rows.map(toMember);
   },
+
+  // -------------------------------------------------------------------------
+  // TEA-04. 01-plan.md sections 4.2 and 6.
+  // -------------------------------------------------------------------------
+
+  // TEA-04 AC-1, AC-3, AC-6, AC-9, AC-11, AC-12.
+  //
+  // No `eq` on team_id and no role check: `member_update_admin` IS the team boundary and the role
+  // boundary (INV-07), and a filter here would be a second, weaker copy of it. What this file does
+  // is issue the statement and read the answer honestly.
+  //
+  // ZERO ROWS BACK IS A REFUSAL. Under row-level security a refused UPDATE is FILTERED rather than
+  // errored - it matches no row and PostgREST answers 200 with an empty body - so `!error` is not
+  // success and treating it as such would report every policy refusal as a completed removal. The
+  // `.select()` exists to make the difference visible.
+  //
+  // The trigger's four refusals arrive the other way, as `42501`, and become `not_permitted`
+  // through `toPostgrestFailure`. There is no FailureCode per reason (01-plan.md section 4.1):
+  // demotion, promoting a removed member, undoing a removal and self-removal are all unreachable
+  // through the controls MemberList.tsx draws, so a code per reason would be a branch no screen
+  // can take.
+  //
+  // The `removed_at` sent here is NEVER the value stored. An UPDATE must name a value for the
+  // column, and the trigger overwrites whatever arrives with `now()` (AC-3) - which is the point:
+  // this column is INV-04's denominator and ADR-013's per-date condition, so a client clock has no
+  // business in it. It is deliberately not read back into anything either; the returned row carries
+  // the datastore's own value.
+  async removeMember(memberId: string): Promise<Result<Member>> {
+    const { data, error } = await client()
+      .from("member")
+      .update({ removed_at: new Date().toISOString() })
+      .eq("id", memberId)
+      .select(MEMBER_COLUMNS)
+      .returns<MemberRow[]>();
+
+    if (error) return { ok: false, error: toPostgrestFailure(error) };
+
+    const row = (data ?? [])[0];
+    if (!row) {
+      return {
+        ok: false,
+        error: { code: "not_permitted", message: "Không gỡ được thành viên này." },
+      };
+    }
+
+    return { ok: true, value: toMember(row) };
+  },
+
+  // TEA-04 AC-4, AC-5, AC-6, AC-10, AC-11, AC-12.
+  //
+  // One-way, and the one direction is written literally: `role` is set to `admin` and there is no
+  // parameter that could carry the other value. That is an affordance and not the check - the
+  // trigger refuses a demotion issued by any route, because `role` is granted `update` for exactly
+  // this path and the column is therefore writable in the direction that must be refused (AC-5).
+  //
+  // Zero rows back is a refusal, for the same reason as `removeMember` above.
+  async promoteMember(memberId: string): Promise<Result<Member>> {
+    const { data, error } = await client()
+      .from("member")
+      .update({ role: "admin" })
+      .eq("id", memberId)
+      .select(MEMBER_COLUMNS)
+      .returns<MemberRow[]>();
+
+    if (error) return { ok: false, error: toPostgrestFailure(error) };
+
+    const row = (data ?? [])[0];
+    if (!row) {
+      return {
+        ok: false,
+        error: { code: "not_permitted", message: "Không thăng quyền cho người này được." },
+      };
+    }
+
+    return { ok: true, value: toMember(row) };
+  },
 };

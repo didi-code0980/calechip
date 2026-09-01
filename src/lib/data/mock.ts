@@ -16,6 +16,7 @@ import {
   FIXTURE_MEMBER,
   FIXTURE_OTHER_TEAM_MEMBER,
   FIXTURE_REMOVED_MEMBER,
+  FIXTURE_SECOND_ADMIN,
   FIXTURE_TEAM,
 } from "../fixtures";
 
@@ -40,11 +41,22 @@ const SEEDED_AT = FIXTURE_ADMIN.createdAt;
 // TEA-03 adds the other two. Both exist to make a criterion OBSERVABLE that a one-team, all-active
 // roster cannot show: FIXTURE_OTHER_TEAM_MEMBER is the row AC-2 says must never come back, and
 // FIXTURE_REMOVED_MEMBER is the row AC-4 says the read must keep and the screen must not draw.
+//
+// TEA-04 adds FIXTURE_SECOND_ADMIN, for the same kind of reason: AC-13 asserts that an admin row
+// which is NOT the caller carries a remove control and no promote control, and with one admin
+// fixture the caller and that row are the same row.
+//
+// EACH ROW IS COPIED rather than referenced. TEA-04 is the first ticket whose writes MUTATE a
+// seeded row - `removeMember` sets `removedAt` and `promoteMember` sets `role` - and the fixtures
+// are shared module-level objects that every test and both implementations import. Holding the
+// references here would let one mock write change what `FIXTURE_MEMBER` means everywhere for the
+// rest of the process.
 const members: Member[] = [
-  FIXTURE_ADMIN,
-  FIXTURE_MEMBER,
-  FIXTURE_OTHER_TEAM_MEMBER,
-  FIXTURE_REMOVED_MEMBER,
+  { ...FIXTURE_ADMIN },
+  { ...FIXTURE_MEMBER },
+  { ...FIXTURE_SECOND_ADMIN },
+  { ...FIXTURE_OTHER_TEAM_MEMBER },
+  { ...FIXTURE_REMOVED_MEMBER },
 ];
 
 // TEA-03, 02-design.md section 1.4. `createdAt` ascending, then `id` ascending. The id tiebreaker is
@@ -275,5 +287,80 @@ export const seam: DataSeam = {
     }
 
     return bounded;
+  },
+
+  // -------------------------------------------------------------------------
+  // TEA-04. 01-plan.md section 5, "What the mock must reproduce".
+  // -------------------------------------------------------------------------
+
+  // TEA-04 AC-1, AC-3, AC-6, AC-9, AC-11, AC-12.
+  //
+  // This reproduces the POLICY AND THE TRIGGER, never the screen, and it matters more here than in
+  // any earlier ticket because six of the fifteen criteria are refusals. A mock that let a member
+  // remove somebody would make every component test pass against a missing policy, and the policy
+  // is the entire feature.
+  //
+  // The order below is the datastore's, read from the outside: `member_update_admin`'s `using`
+  // tests admin-and-own-team and a row failing it simply does not match (zero rows, which is a
+  // refusal); then the trigger's clauses raise `42501`. Both arrive at the seam as
+  // `not_permitted`, which is why they collapse to one code here (01-plan.md section 4.1).
+  async removeMember(memberId: string): Promise<Result<Member>> {
+    const me = currentAdmin();
+    if (!me) return refused("not_permitted", "Chỉ quản trị viên mới gỡ được thành viên.");
+
+    // `member_update_admin.using`, both halves - INV-07 is the team comparison and nothing else.
+    // A row on another team and a row that does not exist are the same answer, because the policy
+    // filters rather than errors and the caller learns nothing either way.
+    const target = members.find((m) => m.id === memberId && m.teamId === me.teamId);
+    if (!target) return refused("not_permitted", "Không gỡ được thành viên này.");
+
+    // AC-9, the trigger comparing `old.id` to `auth.uid()`.
+    if (target.id === me.id) {
+      return refused("not_permitted", "Bạn không thể tự gỡ mình khỏi nhóm.");
+    }
+
+    // The trigger's one-way clause. Removal is not undone and not re-dated - restoring a member is
+    // not a decided permission, and re-dating one is ADR-013's revert condition as an ordinary
+    // write.
+    if (target.removedAt !== null) {
+      return refused("not_permitted", "Người này đã rời nhóm rồi.");
+    }
+
+    // AC-3. The mock's own clock, standing for the trigger's `now()`. Nothing the caller passed can
+    // reach this line, here or in the real seam.
+    target.removedAt = new Date().toISOString();
+    return { ok: true, value: { ...target } };
+  },
+
+  // TEA-04 AC-4, AC-5, AC-6, AC-10, AC-11, AC-12.
+  //
+  // ONE PLACE THIS MOCK IS DELIBERATELY STRICTER THAN THE DATASTORE, called out because it will
+  // otherwise read as drift: promoting somebody who is already an admin updates zero columns in
+  // PostgreSQL and returns the row unchanged, so the real seam sees one row back and reports
+  // success. This refuses it. Neither behaviour is reachable from the interface - AC-13 draws no
+  // promote control on an admin row - and the honest reading is that `promoteMember` has no meaning
+  // for a row that is already admin. If this divergence is judged wrong at review, the correction is
+  // to make THIS report success, not to add a policy clause: the datastore is the authority on what
+  // the policy does, and there is nothing here to enforce.
+  async promoteMember(memberId: string): Promise<Result<Member>> {
+    const me = currentAdmin();
+    if (!me) return refused("not_permitted", "Chỉ quản trị viên mới thăng quyền được.");
+
+    const target = members.find((m) => m.id === memberId && m.teamId === me.teamId);
+    if (!target) return refused("not_permitted", "Không thăng quyền cho người này được.");
+
+    if (target.role === "admin") {
+      return refused("not_permitted", "Người này đã là quản trị viên rồi.");
+    }
+
+    // AC-10, the trigger. `is_admin` filters `removed_at is null`, so a promoted removed member
+    // would hold a role that answers false everywhere - a row that says `admin` and behaves as
+    // nobody.
+    if (target.removedAt !== null) {
+      return refused("not_permitted", "Người đã rời nhóm thì không thăng quyền được.");
+    }
+
+    target.role = "admin";
+    return { ok: true, value: { ...target } };
   },
 };

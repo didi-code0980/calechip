@@ -1,15 +1,21 @@
 // TEA-03 — Team member list. 02-design.md sections 1.3, 2 and 6.
+// TEA-04 — the remove and promote controls. 01-plan.md sections 4.3 and 8.
 //
 // EVERYTHING in this file is an affordance (ADR-005). The check lives in row-level security and
-// nowhere else: `member_select_team` scopes the rows to the caller's own team and `member_select_own`
-// returns a removed caller their own row, whoever issues the statement. There is no add, edit, remove
-// or promote control here — not because they are hidden, but because they do not exist on this
-// screen. TEA-04 owns the two that will, and it adds the policies for them (AC-5).
+// nowhere else: `member_select_team` scopes the rows to the caller's own team, `member_select_own`
+// returns a removed caller their own row, and `member_update_admin` plus the column grant plus
+// `member_enforce_role_and_removal` refuse every write this screen can issue and every write it
+// cannot — whoever issues the statement.
+//
+// The two controls below are hidden exactly where the policy or the trigger would refuse anyway: on
+// a member's own view (AC-14), on the caller's own row, and on a row that is already an admin
+// (AC-13). Hiding them saves a round trip and says why; it refuses nobody holding a token, which is
+// the whole of ADR-005.
 import { useCallback, useEffect, useState } from "react";
 // The seam, through its one door. 02-design.md section 6.2: nothing above the seam names an
 // implementation, and this file must never import `./supabase` or `./mock`.
 import { seam } from "@/lib/data";
-import type { Member, MemberRole } from "@/lib/domain/types";
+import type { Failure, Member, MemberRole } from "@/lib/domain/types";
 
 /** AC-1, AC-3. `role` is DISPLAYED and never acted on: two roles exist and a roster that does not
  *  say which of the two each person is leaves a member with no way to see whom to ask. */
@@ -26,6 +32,12 @@ type View =
 
 export default function MemberList() {
   const [view, setView] = useState<View>({ phase: "loading" });
+
+  // TEA-04, 01-plan.md section 4.3. Three pieces of local state, following AllowList.tsx: the row
+  // awaiting confirmation, whether a write is in flight, and the typed failure from either write.
+  const [pending, setPending] = useState<Member | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [actionError, setActionError] = useState<Failure | null>(null);
 
   const load = useCallback(async (): Promise<void> => {
     try {
@@ -54,6 +66,59 @@ export default function MemberList() {
   useEffect(() => {
     void load();
   }, [load]);
+
+  // TEA-04 AC-4. No confirmation, and that is a decision rather than an omission (01-plan.md
+  // section 2, Open questions): promotion destroys nothing, and the destructive-action rule in
+  // .ai/standards/ui-design-system.md is about what is lost. Removal, below, is the one that
+  // changes a number every calendar view divides by.
+  async function onPromote(member: Member) {
+    if (busy) return;
+
+    setBusy(true);
+    setActionError(null);
+    try {
+      const result = await seam.promoteMember(member.id);
+      if (result.ok) {
+        await load();
+      } else {
+        setActionError(result.error);
+      }
+    } catch {
+      // A THROW IS NOT A REFUSAL. A transport failure, or the Supabase client raising on an unusable
+      // configuration before any request leaves, must not be rendered as "you are not allowed" —
+      // that sentence would be false and would send an admin to ask for a permission they have.
+      setActionError({
+        code: "unknown",
+        message: "Chưa thăng quyền được. Thử lại giúp mình nhé.",
+      });
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  // TEA-04 AC-1, AC-15. Reached only from `member-list-remove-confirm-accept`, which is the only
+  // thing in this file that performs a removal.
+  async function onConfirmRemove() {
+    if (!pending || busy) return;
+
+    setBusy(true);
+    setActionError(null);
+    try {
+      const result = await seam.removeMember(pending.id);
+      if (result.ok) {
+        setPending(null);
+        await load();
+      } else {
+        // THE DIALOG STAYS OPEN on a refusal, the same shape AllowList.tsx uses: the row the
+        // sentence is about is named directly above it.
+        setActionError(result.error);
+      }
+    } catch {
+      setActionError({ code: "unknown", message: "Chưa gỡ được thành viên. Thử lại giúp mình nhé." });
+    } finally {
+      setBusy(false);
+    }
+  }
 
   if (view.phase === "loading") {
     return (
@@ -98,7 +163,16 @@ export default function MemberList() {
     );
   }
 
-  const { roster } = view;
+  const { me, roster } = view;
+
+  // TEA-04 AC-13, AC-14, and they are the conditions exactly.
+  //
+  // `m.removedAt === null` is deliberately NOT in either predicate: the screen only ever draws
+  // active members — `current` below runs first — and re-testing it here would imply the list might
+  // contain one.
+  const canRemove = (m: Member): boolean => me.role === "admin" && m.id !== me.id;
+  const canPromote = (m: Member): boolean =>
+    me.role === "admin" && m.id !== me.id && m.role === "member";
 
   // AC-4, second half. The READ deliberately returns removed members carrying `removedAt` — ADR-013
   // and the INV-04 note require the counting function to be given the roster with `removedAt` per
@@ -110,10 +184,28 @@ export default function MemberList() {
     <section className="mx-auto flex max-w-2xl flex-col gap-6">
       <header>
         <h1 className="text-xl font-semibold">Thành viên trong nhóm</h1>
+        {/* TEA-04. "Trang này chỉ để xem" was true until this ticket and is now true for a member
+            only — an admin has two controls on it. A standing sentence that stopped being true for
+            half the readers is worse than no sentence. */}
         <p className="mt-2 text-sm opacity-70">
-          Ai đang ở trong nhóm, và ai là quản trị viên. Trang này chỉ để xem.
+          {me.role === "admin"
+            ? "Ai đang ở trong nhóm, và ai là quản trị viên. Bạn có thể gỡ thành viên khỏi nhóm hoặc thăng quyền quản trị viên."
+            : "Ai đang ở trong nhóm, và ai là quản trị viên. Trang này chỉ để xem."}
         </p>
       </header>
+
+      {/* AC-13. The failure from a PROMOTION renders here, above the table; the failure from a
+          removal renders inside the dialog, where the row it is about is named. One selector, and
+          never both at once — `pending` is what decides which of the two is on screen. */}
+      {!pending && actionError ? (
+        <p
+          data-testid="member-list-action-error"
+          role="alert"
+          className="rounded-2xl bg-white p-4 text-sm text-rose-600 shadow-sm"
+        >
+          {actionError.message}
+        </p>
+      ) : null}
 
       {current.length === 0 ? (
         <p
@@ -129,6 +221,7 @@ export default function MemberList() {
               <th className="px-4 py-3 font-medium">Ảnh đại diện</th>
               <th className="px-4 py-3 font-medium">Tên</th>
               <th className="px-4 py-3 font-medium">Vai trò</th>
+              <th className="px-4 py-3" />
             </tr>
           </thead>
           <tbody>
@@ -165,11 +258,101 @@ export default function MemberList() {
                     {roleLabel(member.role)}
                   </span>
                 </td>
+                {/* AC-13, AC-14, as affordances ONLY. A member's view draws neither control; an
+                    admin's own row draws neither; an admin row draws remove and not promote. The
+                    policy and the trigger refuse each of those independently for anybody who
+                    issues the statement anyway (ADR-005). */}
+                <td className="px-4 py-3 text-right">
+                  <span className="inline-flex gap-2">
+                    {canPromote(member) ? (
+                      <button
+                        data-testid="member-list-row-promote"
+                        type="button"
+                        disabled={busy}
+                        onClick={() => {
+                          void onPromote(member);
+                        }}
+                        className="rounded-xl border border-violet-200 px-3 py-1 text-violet-800 disabled:opacity-40"
+                      >
+                        Thăng quyền
+                      </button>
+                    ) : null}
+                    {canRemove(member) ? (
+                      <button
+                        data-testid="member-list-row-remove"
+                        type="button"
+                        disabled={busy}
+                        onClick={() => {
+                          setActionError(null);
+                          setPending(member);
+                        }}
+                        className="rounded-xl border border-rose-200 px-3 py-1 text-rose-700 disabled:opacity-40"
+                      >
+                        Gỡ khỏi nhóm
+                      </button>
+                    ) : null}
+                  </span>
+                </td>
               </tr>
             ))}
           </tbody>
         </table>
       )}
+
+      {/* AC-15, and .ai/standards/ui-design-system.md, Destructive actions: the confirmation NAMES
+          what is about to be lost, and "Are you sure?" names nothing. What is lost here is a
+          person's presence on the roster and their contribution to the team size every overload
+          warning divides by; what is NOT lost is their entries, and an admin who assumes otherwise
+          will not remove anybody. So the dialog says both.
+
+          This is not an affordance over a permission. It protects against a mis-click by somebody
+          who is fully entitled to the action. */}
+      {pending ? (
+        <div
+          data-testid="member-list-remove-confirm"
+          role="dialog"
+          aria-modal="true"
+          aria-label="Xác nhận gỡ thành viên"
+          className="rounded-2xl bg-white p-6 shadow-sm"
+        >
+          <p className="text-sm">
+            Gỡ <strong>{pending.displayName}</strong> khỏi nhóm? Các đăng ký nghỉ/WFH của người này
+            vẫn được giữ lại và vẫn hiển thị trên lịch.
+          </p>
+
+          {actionError ? (
+            <p data-testid="member-list-action-error" role="alert" className="mt-2 text-sm text-rose-600">
+              {actionError.message}
+            </p>
+          ) : null}
+
+          <div className="mt-4 flex gap-2">
+            <button
+              data-testid="member-list-remove-confirm-accept"
+              type="button"
+              disabled={busy}
+              onClick={() => {
+                void onConfirmRemove();
+              }}
+              className="rounded-xl bg-rose-600 px-4 py-2 text-white disabled:opacity-40"
+            >
+              {busy ? "Đang gỡ…" : "Gỡ khỏi nhóm"}
+            </button>
+            <button
+              data-testid="member-list-remove-confirm-cancel"
+              type="button"
+              disabled={busy}
+              onClick={() => {
+                setActionError(null);
+                setPending(null);
+              }}
+              className="rounded-xl border border-slate-200 px-4 py-2 disabled:opacity-40"
+            >
+              Thôi
+            </button>
+          </div>
+        </div>
+      ) : null}
     </section>
   );
 }

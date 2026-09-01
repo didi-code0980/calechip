@@ -111,3 +111,29 @@ export const FIXTURE_REMOVED_MEMBER: Member = {
   removedAt: "2026-08-31T12:00:00+00:00",
   createdAt: "2026-08-31T00:00:00+00:00",
 };
+
+// ---------------------------------------------------------------------------
+// TEA-04. 01-plan.md section 6.1.
+// ---------------------------------------------------------------------------
+
+/**
+ * A SECOND admin on FIXTURE_TEAM. AC-13 needs an admin row that is not the caller, in order to
+ * assert *a remove control and no promote control* on it — and today FIXTURE_ADMIN is the only admin
+ * fixture on this team, so the caller and the only admin row are the same row and the criterion is
+ * unobservable.
+ *
+ * It also makes AC-9 concrete rather than hypothetical: with two admins, refusing self-removal costs
+ * nobody the ability to leave.
+ *
+ * `createdAt` is the shared literal, so this row's position in the roster is decided by the `id`
+ * tiebreaker — 02-design.md section 1.4, and the reason that tiebreaker exists.
+ */
+export const FIXTURE_SECOND_ADMIN: Member = {
+  id: "88888888-8888-4888-8888-888888888888",
+  teamId: FIXTURE_TEAM.id,
+  displayName: "Quản trị hai",
+  avatar: "🦊",
+  role: "admin",
+  removedAt: null,
+  createdAt: "2026-08-31T00:00:00+00:00",
+};
