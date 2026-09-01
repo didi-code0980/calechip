@@ -3,6 +3,9 @@ description: Run the DESIGN stage — the Tech Lead writes 02-design.md and fill
 argument-hint: <TICKET-ID>
 ---
 
+> **`/design` is retired — ADR-019.** SPEC and DESIGN were merged into one stage. Run
+> `/plan <TICKET-ID>` instead. Kept, not deleted, so tickets shipped before 2026-09-01 stay readable.
+
 Run in the **Tech Lead session**, which is persistent and lives until the end of the run
 (`.ai/standards/session-model.md`). You are `tech-lead-design`; nothing is dispatched.
 

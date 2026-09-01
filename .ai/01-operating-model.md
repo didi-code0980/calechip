@@ -1,5 +1,5 @@
 ---
-doc_version: 3
+doc_version: 4
 last_updated: 2026-09-01
 governed_by: [RULE-01, RULE-03, RULE-04, RULE-05, RULE-06, RULE-07, RULE-08, RULE-09, RULE-10, RULE-11, RULE-12, RULE-13, RULE-14, RULE-15, RULE-16, RULE-17]
 ---
@@ -32,13 +32,13 @@ important enough to count.
 ## Lifecycle
 
 ```
-IDEA -> TRIAGE -> [PROMOTE writes the feature row] -> BACKLOG
-  -> SPEC -> [DoR] -> READY -> DESIGN -> IN_PROGRESS -> REVIEW -> QA -> DONE
-                                            ^              |       |
-                                            +--- REWORK <--+-------+
-                                                    |  (rework_count >= 2, RULE-06)
-                                                    v
-                                              ESCALATED -> human
+TRIAGE -> [PROMOTE writes the feature row and the ticket shell] -> BACKLOG
+  -> PLAN -> [DoR] -> READY -> IN_PROGRESS -> REVIEW -> QA -> DONE
+                                   ^            |       |
+                                   +-- REWORK <-+-------+
+                                          |  (rework_count >= 2, RULE-06)
+                                          v
+                                    ESCALATED -> human
 ```
 
 ## The QA stage is waived — temporary, ADR-017
@@ -54,7 +54,7 @@ what makes the reversal a deletion rather than a reconstruction.
 |---|---|
 | Lifecycle | `REVIEW -> DONE`. The `QA` node and its `REWORK` edge are dormant |
 | `04-review.md` on PASS | `next_state: DONE`, not `next_state: QA` |
-| `/ship` preconditions | Three gates `passed: true` — `spec`, `design`, `review` — plus `gates.qa` carrying `waived: true`, `by: ADR-017` and a date. A `qa` gate that is neither passed nor waived still stops the ship |
+| `/ship` preconditions | Two gates `passed: true` — `plan`, `review` — plus `gates.qa` carrying `waived: true`, `by: ADR-017` and a date. A `qa` gate that is neither passed nor waived still stops the ship. *Was three gates until ADR-019 merged `spec` and `design` into `plan`* |
 | Definition of Done | Items 3 and 4 are **suspended**, not satisfied. `/ship` says so in the pull request body. The other four are unaffected |
 | Ticket folder | Four artifacts, not six. `05-test-plan.md` and `06-test-report.md` are not produced |
 | `/qa` | Still correct and still runnable by hand. What is removed is automatic entry and the gate's power to block |
@@ -70,67 +70,80 @@ sit here. A ticket still cannot pass DoR unless its feature IDs exist in
 `.ai/registry/features.md`; what changed is who puts them there.
 
 Two things keep that from becoming a licence to invent a feature. **The ID is issued at TRIAGE by
-`product`, never at SPEC by `ba`** — the role that will write the story is not the role that grants
-the ID it writes against. And **every row written this way cites the idea file it came from**, so a
+`product`, never at PLAN by `tech-lead-design`** — the role that will write the plan is not the role
+that grants the ID it writes against. And **every row written this way cites the idea file it came
+from**, so a
 fabricated feature has no provenance and the pull request has something concrete to check. The
 operator's approval did not disappear; it moved to CODEOWNERS review at merge, which is where RULE-01
 always said enforcement lives.
 
-**SPEC runs directly out of BACKLOG. The DoR gate sits between SPEC and READY.** Two of its six items
-are produced by the BA at SPEC, so a gate placed before SPEC could never read them. READY means
-"specified, sized, and safe to design" — the last checkpoint before design effort is spent.
+**PLAN runs directly out of BACKLOG. The DoR gate sits between PLAN and READY.** Two of its six items
+are produced at PLAN, so a gate placed before PLAN could never read them. READY means "planned,
+sized, and safe to build" — the last checkpoint before implementation effort is spent.
 
-A ticket that fails DoR after SPEC returns to BACKLOG with the failing item named. That is not REWORK
+**There is no separate IDEA stage and no separate SPEC stage** — ADR-019. TRIAGE absorbed the first
+and PLAN absorbed the second. What each cost and what each was carrying is in that ADR; this document
+records only the shape that resulted.
+
+A ticket that fails DoR after PLAN returns to BACKLOG with the failing item named. That is not REWORK
 and does not increment `rework_count`: nothing has been built, and the defect is in the specification
 or in the registry, not in an implementation.
 
 ## State enum
 
-`IDEA` `TRIAGE` `BACKLOG` `SPEC` `READY` `DESIGN` `IN_PROGRESS` `REVIEW` `QA` `REWORK` `ESCALATED`
-`DONE`
+`TRIAGE` `BACKLOG` `PLAN` `READY` `IN_PROGRESS` `REVIEW` `QA` `REWORK` `ESCALATED` `DONE`
 
-These twelve values are the complete enum for `ticket.yaml`'s `state` field. Check D10 verifies that
+These ten values are the complete enum for `ticket.yaml`'s `state` field. Check D10 verifies that
 this list and the stage ownership table below stay in agreement in both directions.
 
 ## Stage ownership
 
 | State | Agent | Reads | Writes | Gate |
 |---|---|---|---|---|
-| IDEA | `product` | `.ai/registry/**` | `.ai/board/ideas/**` | An idea file exists with a problem statement, not a solution |
-| TRIAGE | `product` + `tech-lead-design` | idea, registry | idea file; `features.md` on PROMOTE | Verdict is one of REJECT, NEEDS-ADR, PROMOTE, with a reason. On PROMOTE, a row exists citing the idea file |
+| TRIAGE | `product` + `tech-lead-design` | the raw request, registry | `.ai/board/ideas/**`; `features.md` and the ticket shell on PROMOTE | An idea file exists stating a problem and not a solution, **and** a verdict of REJECT, NEEDS-ADR or PROMOTE with a reason. On PROMOTE, a feature row exists citing that idea file |
 | BACKLOG | `orchestrator` | `features.md`, `backlog.md` | `backlog.md` | Feature IDs exist in the registry |
-| SPEC | `ba` | registry, `ticket.yaml` | `01-story.md`, `ticket.yaml` | ACs in Given/When/Then, each with an ID; `invariants_touched` populated; `size_estimate` set; Out-of-scope non-empty |
-| READY | `orchestrator` | `ticket.yaml`, `01-story.md`, `features.md` | `ticket.yaml`, `backlog.md` | Full DoR, below |
-| DESIGN | `tech-lead-design` | everything | `02-design.md`, `ticket.yaml` | Sections 1-7 complete; `allowed_paths` enumerated; `size` set |
-| IN_PROGRESS | `developer` | design first, then the source tree within `allowed_paths` | code, `03-impl-log.md` | typecheck + lint exit 0; every contract item implemented |
-| REVIEW | `tech-lead-review` | story, design, impl-log, `git diff` | `04-review.md` | R1-R9, each citing `file:line` |
-| QA | `qa` | story, design section 6, test plan | the test tree, `05-`, `06-` | Every `AC-n` maps to at least one named test; the test suites exit 0 |
+| PLAN | `tech-lead-design` | registry, standards, `ticket.yaml`, the source tree | `01-plan.md`, `ticket.yaml` | Sections 1-9 complete; ACs in Given/When/Then each with an ID; `invariants_touched` populated; `size_estimate` and `size` set; `allowed_paths` enumerated; Out-of-scope non-empty |
+| READY | `orchestrator` | `ticket.yaml`, `01-plan.md`, `features.md` | `ticket.yaml`, `backlog.md` | Full DoR, below |
+| IN_PROGRESS | `developer` | the plan first, then the source tree within `allowed_paths` | code, `03-impl-log.md` | typecheck + lint exit 0; every contract item implemented |
+| REVIEW | `tech-lead-review` | plan, impl-log, `git diff` | `04-review.md` | R1-R9, each citing `file:line` |
+| QA | `qa` | plan sections 1, 2 and 8, test plan | the test tree, `05-`, `06-` | Every `AC-n` maps to at least one named test; the test suites exit 0 |
 | REWORK | routed agent | the failing verdict plus its own prior artifact | its own artifact, code | The specific failed checks now pass |
 | ESCALATED | human | everything | anything | A human decides; the ticket does not self-resume |
 | DONE | `orchestrator` | all | `ticket.yaml`, `backlog.md`, `metrics.md` | Full DoD; opens PR (human merges, RULE-09) |
 
-The six rows from SPEC through QA are the implementation loop. The other six exist so that every
+The four rows from PLAN through QA are the implementation loop. The other six exist so that every
 value in the state enum has a declared owner — a state nobody owns is a state where a ticket stops
 silently.
 
-## `02-design.md` sections — all seven required
+## `01-plan.md` sections — all nine required
 
-1. **Contract** — exact function or endpoint signatures, input schemas, return types (RULE-04)
-2. **Permission model** — which role gate applies to each action and each control
-3. **Seam impact** — which functions in the data-access seam change, or "none"
-4. **Schema delta** — `none`, or a description plus an ADR link
-5. **allowed_paths** — explicit glob list
-6. **Testability contract** — every test selector, with the element it identifies (RULE-05)
-7. **Rejected alternatives** — at least one, with the reason
+Sections 1 and 2 are what `01-story.md` used to carry; 3 through 9 are what `02-design.md` used to
+carry. One artifact, one author, one gate — ADR-019.
 
-Section 6 is the load-bearing one. QA never reads the implementation source (RULE-05), so a selector
-that is not in section 6 does not exist as far as QA is concerned. A design that omits it produces a
+1. **Problem and scope** — what this ticket does, and an explicit **Out-of-scope** that is never empty
+2. **Acceptance criteria** — Given/When/Then, each with an `AC-n` ID
+3. **Permission model** — which role gate applies to each action and each control
+4. **Contract** — exact function or endpoint signatures, input schemas, return types (RULE-04)
+5. **Seam impact** — which functions in the data-access seam change, or "none"
+6. **Schema delta** — `none`, or a description plus an ADR link
+7. **allowed_paths** — explicit glob list
+8. **Testability contract** — every test selector, with the element it identifies (RULE-05)
+9. **Rejected alternatives** — at least one, with the reason
+
+Section 8 is the load-bearing one. QA never reads the implementation source (RULE-05), so a selector
+that is not in section 8 does not exist as far as QA is concerned. A plan that omits it produces a
 test suite that cannot address the interface, and the failure surfaces at the QA gate as something
-that looks like a Developer problem and is not.
+that looks like a Developer problem and is not. Dormant while ADR-017 waives QA, and written anyway —
+a section skipped for a year is a section nobody can restore from memory.
 
-Section 5 is what `.claude/hooks/guard-allowed-paths.mjs` reads. Until DESIGN writes it,
+Section 7 is what `.claude/hooks/guard-allowed-paths.mjs` reads. Until PLAN writes it,
 `allowed_paths` is `[]` and the hook blocks every write outside the ticket folder. That emptiness is
 a control, not an initial value.
+
+**Sections 1 and 2 are written before 3 through 9 are read.** The order is the whole of what survives
+of the SPEC/DESIGN separation: one agent now writes both halves, so the only thing standing between an
+acceptance criterion and the design that finds it convenient is the order they are written in.
+ADR-019 records this as the cost it is, not as a safeguard.
 
 ## Review checklist
 
@@ -140,9 +153,9 @@ a control, not an initial value.
 | R2 | typecheck exit 0 |
 | R3 | lint exit 0 |
 | R4 | Nothing outside the data-access seam reaches the datastore directly (RULE-02) |
-| R5 | Every contract item in design section 1 is implemented (RULE-04) |
-| R6 | Permission gating matches design section 2 |
-| R7 | Every test selector in design section 6 exists in the markup |
+| R5 | Every contract item in plan section 4 is implemented (RULE-04) |
+| R6 | Permission gating matches plan section 3 |
+| R7 | Every test selector in plan section 8 exists in the markup |
 | R8 | No invariant violated — reason through each ID in `invariants_touched` (RULE-07) |
 | R9 | No dependency added without an ADR |
 
@@ -156,10 +169,10 @@ in place of citation is a checklist that always passes.
 |---|---|---|
 | R1, R2, R3, R4, R5 implementable, R9 | `developer` | Yes |
 | R5 impossible as specified, R7 | `tech-lead-design` | No |
-| R6, QA: AC ambiguous or untestable | `ba` | No |
+| R6, QA: AC ambiguous or untestable | `tech-lead-design` | No |
 | QA: behaviour wrong | `developer` | Yes |
 | **R8** | **human, immediately** | ESCALATE (RULE-07) |
-| DoR item unsatisfied at the READY gate | `ba` if the item is produced at SPEC, otherwise a human | No |
+| DoR item unsatisfied at the READY gate | `tech-lead-design` if the item is produced at PLAN, otherwise a human | No |
 
 Per RULE-08, upstream defects must not burn the downstream agent's rework budget. A Developer who
 correctly implemented an incoherent design has not failed, and charging that failure to the Developer
@@ -248,12 +261,12 @@ Every artifact opens with:
 ```yaml
 ---
 ticket: <ID>
-stage: DESIGN
+stage: PLAN
 agent: tech-lead-design
 produced_at: <ISO8601>
-inputs_read: [ .ai/board/tickets/<ID>/01-story.md, .ai/registry/invariants.md ]
+inputs_read: [ .ai/board/tickets/<ID>/ticket.yaml, .ai/registry/invariants.md ]
 consulted:
-  - with: ba
+  - with: product
     asked: "..."
     answer: "..."
     resulted_in_amendment: true
@@ -285,17 +298,17 @@ runs is a real context boundary; a nested call is not.
 `/next-ticket` therefore emits something like:
 
 ```
-EXA-01 is in BACKLOG. Run /spec EXA-01 in the BA session.
+EXA-01 is in BACKLOG. Run /plan EXA-01 in the tech-lead-design session.
 ```
 
 ```
 loop:
   tickets = read all .ai/board/tickets/*/ticket.yaml
   if any state == ESCALATED:            notify human; halt that ticket
-  if count(state in SPEC..QA) >= WIP:   wait
+  if count(state in PLAN..QA) >= WIP:   wait
   t = first ordered ticket in backlog.md whose state != DONE
-  if t.state == BACKLOG:                PRINT "/spec <id> in the BA session"; continue
-  if t.state == SPEC and gate passed:   evaluate DoR
+  if t.state == BACKLOG:                PRINT "/plan <id> in the tech-lead-design session"; continue
+  if t.state == PLAN and gate passed:   evaluate DoR
                                           pass -> t.state = READY
                                           fail -> demote to BACKLOG; name the failing item; continue
   if t.state == REVIEW or QA:           require a FRESH session (RULE-13); never reuse a prior one
@@ -311,11 +324,10 @@ the reviewer's conclusions rather than the story.
 
 | State | ARTIFACTS_FOR |
 |---|---|
-| SPEC | `ticket.yaml`, registry |
-| DESIGN | `ticket.yaml`, `01-story.md`, registry, standards |
-| IN_PROGRESS | `ticket.yaml`, `01-story.md`, `02-design.md`, standards |
-| REVIEW | `01-story.md`, `02-design.md`, `03-impl-log.md`, `git diff`, registry |
-| QA | `01-story.md`, section 6 of `02-design.md`, `05-test-plan.md` |
+| PLAN | `ticket.yaml`, registry, standards, the source tree |
+| IN_PROGRESS | `ticket.yaml`, `01-plan.md`, standards |
+| REVIEW | `01-plan.md`, `03-impl-log.md`, `git diff`, registry |
+| QA | sections 1, 2 and 8 of `01-plan.md`, `05-test-plan.md` |
 
 ## Backlog
 
@@ -335,9 +347,9 @@ Ticket ID equals feature ID in the 1:1 case. Splits get `-a`, `-b`. Defects are 
 
 ## Definition of Ready
 
-**DoR gates the SPEC to READY transition.** The question it answers is not "may this ticket be
+**DoR gates the PLAN to READY transition.** The question it answers is not "may this ticket be
 specified" but "is this ticket safe to design and build". Four of its six items are produced at
-BACKLOG, by `/triage` when it creates the ticket (ADR-010); two are produced by the BA at SPEC. Every item names its producing stage, and every
+BACKLOG, by `/triage` when it creates the ticket (ADR-010); two are produced at PLAN. Every item names its producing stage, and every
 producing stage sits at or before the gate.
 
 Checked mechanically by the orchestrator.
@@ -345,17 +357,17 @@ Checked mechanically by the orchestrator.
 | # | Item | Produced at | By |
 |---|------|-------------|-----|
 | 1 | `feature_ids` non-empty, and every ID present in `.ai/registry/features.md` | BACKLOG | `product`, when promoting the idea (ADR-007) |
-| 2 | `invariants_touched` explicit — may be `[]`, never absent | SPEC | `ba` |
+| 2 | `invariants_touched` explicit — may be `[]`, never absent | PLAN | `tech-lead-design` |
 | 3 | Every ticket in `depends_on` is `DONE` | BACKLOG | `product`, when creating the shell (ADR-010) |
 | 4 | `schema_delta` is `none`, or an approved ADR is linked | BACKLOG | `product` + `tech-lead-design`; a schema change needs its ADR before the ticket exists (RULE-09). **A migration touching a policy, trigger or constraint is not `none`** — ADR-014 |
-| 5 | `size_estimate` is S or M | SPEC | `ba`, from the story's scope and its Out-of-scope section |
-| 6 | Exactly one feature group, or a stated split rationale | BACKLOG | `product`, or `ba` at SPEC if the story reveals a second group |
+| 5 | `size_estimate` is S or M | PLAN | `tech-lead-design`, from plan section 1 and its Out-of-scope |
+| 6 | Exactly one feature group, or a stated split rationale | BACKLOG | `product`, or `tech-lead-design` at PLAN if the plan reveals a second group |
 
 `[]` and absent are different answers. `[]` says the BA considered the invariants and found none
 engaged. Absent says nobody looked, and check R8 has nothing to reason through.
 
-Two earlier versions of this document placed the DoR gate before SPEC, which made items 2 and 5
-unsatisfiable: both are produced at SPEC, and SPEC was downstream of the gate that required them.
+Two earlier versions of this document placed the DoR gate before the stage that produced items 2 and
+5, which made them unsatisfiable: the producing stage was downstream of the gate that required them.
 Moving the owner of item 5 earlier did not fix it, because the gate itself was in the wrong place.
 Check D13 exists because of that defect and verifies that no DoR item names a producing stage later
 than the gate.
@@ -383,7 +395,7 @@ every other document go on referring to the role.
 |---|---|---|
 | S | up to 6 | proceed |
 | M | up to 12 | proceed |
-| L | more than 12 | must split at DESIGN |
+| L | more than 12 | must split at PLAN |
 | XL | any size, if it changes the schema, or changes the signature of an existing seam function, or changes a shared type module | escalate |
 
 Adding new functions to the data-access seam is ordinary feature work, not XL — every feature ticket
@@ -397,23 +409,28 @@ backend from frontend alone.** That produces a ticket that cannot be exercised e
 means the QA gate has nothing to run, which means the ticket reaches DONE with a gate that was
 skipped rather than passed.
 
-Two fields, two owners. `size_estimate` is the BA's judgement at SPEC, read from the story's scope;
-it gates DoR. `size` is the Tech Lead's verdict at DESIGN, read from the enumerated `allowed_paths`;
-it decides whether the ticket splits.
+Two fields, one owner now. `size_estimate` is read from plan section 1 and its Out-of-scope, and it
+gates DoR. `size` is read from the enumerated `allowed_paths` in section 7, and it decides whether the
+ticket splits. Both are written at PLAN, by `tech-lead-design`.
+
+**They stay two fields even though one agent writes both**, because they are read at different moments
+by different readers and one of them is a gate input. Collapsing them would put the gate's input and
+the splitting verdict in the same cell, and a disagreement between an estimate and a verdict is
+information — ADR-012 exists because of one.
 
 They are separate because the gate needs an estimate and only design produces a verdict. A single
 field could not be both without making one of the two stages impossible to reach.
 
-**When they disagree, the verdict wins and DESIGN proceeds** — ADR-012. The Tech Lead does not ask
-the BA and does not route the ticket back to SPEC. The second pass would read the same design and
+**When they disagree, the verdict wins and PLAN proceeds** — ADR-012. There is no longer anyone to
+ask: the estimate and the verdict are the same agent's, written minutes apart. The second pass would read the same design and
 reach the same size, because the size comes from the enumerated `allowed_paths` rather than from
 anything the story could have said differently.
 
-The gap is recorded rather than routed: design section 5 states both numbers and one line on why they
+The gap is recorded rather than routed: plan section 7 states both numbers and one line on why they
 differ, and `.ai/board/metrics.md` keeps the pair, so a BA whose estimates are consistently low shows
 up in the data. Per RULE-08 nothing increments `rework_count`.
 
-**The table above is untouched by that.** An `L` still must split at DESIGN and an `XL` still
+**The table above is untouched by that.** An `L` still must split at PLAN and an `XL` still
 escalates — a ticket that designs out to L is stopped by the split requirement, not by the
 disagreement. ADR-012 removes one of the two reasons such a ticket stops; it does not remove the
 other. Its revert condition is three consecutive tickets whose `size` exceeds `size_estimate`, which

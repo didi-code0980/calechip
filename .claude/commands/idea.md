@@ -3,6 +3,10 @@ description: Capture a raw request as a written idea under .ai/board/ideas/
 argument-hint: <text>
 ---
 
+> **`/idea` is retired — ADR-019.** The IDEA stage was absorbed into TRIAGE. Run
+> `/triage "<the raw request>"` instead; it writes the idea file and returns the verdict in one
+> run. Kept, not deleted, so the ideas already on the board stay readable against it.
+
 Dispatch the `product` subagent.
 
 **Input:** `$ARGUMENTS`

@@ -35,7 +35,7 @@ not.
 
 ### 1. One line: what is happening right now
 
-`EXA-01 at DESIGN, blocked on the seam contract in section 1.`
+`EXA-01 at PLAN, blocked on the seam contract in section 4.`
 
 If nothing is in flight, say so in one line. Do not pad it.
 
@@ -66,7 +66,7 @@ Which slash command, in which session, derived from the state and the lifecycle 
 `.ai/01-operating-model.md`:
 
 ```
-EXA-01 is READY. Run /design EXA-01 in the Tech Lead session.
+EXA-01 is READY. Run /implement EXA-01 in a fresh Developer session.
 ```
 
 **If the next move is a human decision, say that instead** — do not name a command that cannot

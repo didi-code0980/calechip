@@ -23,8 +23,8 @@ git status --porcelain
   `git switch feat/$ARGUMENTS` (add `-c feat/$ARGUMENTS origin/feat/$ARGUMENTS` when it is
   remote-only), then `git pull --ff-only`.
 - Tree dirty — **stop.** Print the paths and say which ticket they belong to.
-- **The branch does not exist — stop and report to the operator.** Do not create it. Only `/spec`
-  creates a `feat/` branch. Arriving here with no branch means SPEC never ran, or the ID is wrong,
+- **The branch does not exist — stop and report to the operator.** Do not create it. Only `/plan`
+  creates a `feat/` branch. Arriving here with no branch means PLAN never ran, or the ID is wrong,
   and the two need different answers. Say which you cannot rule out.
 
 **The session must be new every time, including on a re-review.** A session that remembers working
@@ -35,7 +35,7 @@ which is the entire reason there is a second pass. Reviewer memory is a liabilit
 You have no channel to the Developer and you did not talk to one. `chat_before_verdict` must be
 `none`; if it cannot truthfully be, the review is void and this stage re-runs in a clean session.
 
-**Artifacts in:** `01-story.md`, `02-design.md`, `03-impl-log.md`, `git diff`, `.ai/registry/**`
+**Artifacts in:** `01-plan.md`, `03-impl-log.md`, `git diff`, `.ai/registry/**`
 **Artifact out:** `.ai/board/tickets/$ARGUMENTS/04-review.md`
 **Template:** `.ai/templates/review-report.md`
 

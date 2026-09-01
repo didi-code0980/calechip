@@ -22,16 +22,16 @@ git status --porcelain
   `git switch feat/$ARGUMENTS` (add `-c feat/$ARGUMENTS origin/feat/$ARGUMENTS` when it is
   remote-only), then `git pull --ff-only`.
 - Tree dirty — **stop.** Print the paths and say which ticket they belong to.
-- **The branch does not exist — stop and report to the operator.** Do not create it. Only `/spec`
-  creates a `feat/` branch. Arriving here with no branch means SPEC never ran, or the ID is wrong,
+- **The branch does not exist — stop and report to the operator.** Do not create it. Only `/plan`
+  creates a `feat/` branch. Arriving here with no branch means PLAN never ran, or the ID is wrong,
   and the two need different answers. Say which you cannot rule out.
 
 The story and the design arrive **uncommitted, in the working tree** — since ADR-006 a ticket is
 committed once, at `/ship`. Read them from disk; do not expect them in history and do not go looking
 for a pushed branch.
 
-A branch that does not exist at all means SPEC never ran. That is not fixed by starting from `main`:
-`02-design.md` would be missing and `allowed_paths` with it, and RULE-03 would then have nothing to
+A branch that does not exist at all means PLAN never ran. That is not fixed by starting from `main`:
+`01-plan.md` would be missing and `allowed_paths` with it, and RULE-03 would then have nothing to
 enforce.
 
  That session is ephemeral but
@@ -40,7 +40,7 @@ the same session on a rework cycle. Restarting it every cycle would spend the RU
 re-deriving the design instead of fixing what the reviewer found
 (`.ai/standards/session-model.md`).
 
-**Artifacts in:** `ticket.yaml`, `01-story.md`, `02-design.md`, `.ai/standards/**`
+**Artifacts in:** `ticket.yaml`, `01-plan.md`, `.ai/standards/**`
 **Artifacts out:** code inside `allowed_paths`, and
 `.ai/board/tickets/$ARGUMENTS/03-impl-log.md`
 **Template:** `.ai/templates/impl-log.md`
@@ -52,7 +52,7 @@ implemented; `03-impl-log.md` lists every file touched with a one-line reason.
 Check the branch first. `guard-allowed-paths.mjs` resolves the ticket from `feat/<ID>`, so work done
 on another branch name runs with the path guard inactive.
 
-The Developer may consult `tech-lead-design` and `ba` by writing
+The Developer may consult `tech-lead-design` by writing
 `.ai/board/tickets/$ARGUMENTS/99-questions.md` with `to:` naming the agent. It may not address
 `tech-lead-review` or `qa` before their verdicts exist — `chat-guard.mjs` blocks that write
 (RULE-12).

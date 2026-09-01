@@ -1,6 +1,6 @@
 ---
 doc_version: 2
-last_updated: 2026-08-31
+last_updated: 2026-09-01
 governed_by: [RULE-03, RULE-09, RULE-10]
 ---
 
@@ -65,11 +65,11 @@ running agent's to choose.**
 
 | Mode | Commands | When the branch does not exist |
 |---|---|---|
-| **create** | `/spec` only | `git switch -c feat/<ID> origin/main` |
+| **create** | `/plan` only | `git switch -c feat/<ID> origin/main` |
 | **stop** | every other ticket command | **Stop and report to the operator.** Do not create it. |
 
-**Only `/spec` may bring a `feat/` branch into existence.** Every later stage arriving at a missing
-branch means something upstream did not happen — SPEC was never run, or the branch was never created,
+**Only `/plan` may bring a `feat/` branch into existence.** Every later stage arriving at a missing
+branch means something upstream did not happen — PLAN was never run, or the branch was never created,
 or the ID is wrong. Creating it there would manufacture an empty branch that looks like progress and
 hides which of the three it was.
 
@@ -104,7 +104,7 @@ needs the work committed before it can read it.
 | `/ship` | `orchestrator` | the story, the design, the source tree, the test tree, artifacts 01–06, `state: DONE`, the board files — then the pull request |
 
 **What this costs, and it is a real cost rather than a footnote.** Everything a ticket produces stays
-uncommitted from `/spec` to `/ship`. There is no intermediate save point, no continuous integration
+uncommitted from `/plan` to `/ship`. There is no intermediate save point, no continuous integration
 result until the end, and nothing in history to revert to. ADR-006 records both the acceptance and
 the revert condition: the first time a ticket's work is lost or lands on the wrong branch is enough
 to restore `handoff` as a checkpoint.

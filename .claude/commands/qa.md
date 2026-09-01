@@ -28,11 +28,11 @@ git status --porcelain
   `git switch feat/$ARGUMENTS` (add `-c feat/$ARGUMENTS origin/feat/$ARGUMENTS` when it is
   remote-only), then `git pull --ff-only`.
 - Tree dirty — **stop.** Print the paths and say which ticket they belong to.
-- **The branch does not exist — stop and report to the operator.** Do not create it. Only `/spec`
-  creates a `feat/` branch. Arriving here with no branch means SPEC never ran, or the ID is wrong,
+- **The branch does not exist — stop and report to the operator.** Do not create it. Only `/plan`
+  creates a `feat/` branch. Arriving here with no branch means PLAN never ran, or the ID is wrong,
   and the two need different answers. Say which you cannot rule out.
 
-**Artifacts in:** `01-story.md` and **section 6 of `02-design.md` only**. Do not pass the whole
+**Artifacts in:** **sections 1, 2 and 8 of `01-plan.md` only**. Do not pass the whole
 ticket folder — a QA agent that can see `04-review.md` is testing the reviewer's conclusions instead
 of the story.
 
@@ -51,7 +51,7 @@ section 6 — not by answering in place. You may not address `developer` or `tec
 their verdicts exist; `chat-guard.mjs` blocks that write (RULE-12).
 
 Behaviour that is wrong routes to `developer` and increments `rework_count`. An ambiguous or
-untestable AC routes to `ba` and does not (RULE-08). An invariant violation escalates (RULE-07).
+untestable AC routes to `tech-lead-design` and does not (RULE-08). An invariant violation escalates (RULE-07).
 
 ## You do not touch `ticket.yaml`, and you never mark a ticket DONE
 

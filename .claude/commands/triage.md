@@ -1,11 +1,35 @@
 ---
-description: Triage an idea into REJECT, NEEDS-ADR, or PROMOTE
-argument-hint: <idea-filename>
+description: Capture a request as an idea and triage it into REJECT, NEEDS-ADR, or PROMOTE
+argument-hint: <raw request in quotes> | <idea-filename>
 ---
 
-Dispatch `product` and `tech-lead-design` against the idea named in `$ARGUMENTS`.
+Dispatch `product` and `tech-lead-design`.
 
-**Input:** `.ai/board/ideas/$ARGUMENTS`, plus `.ai/registry/**`
+**This command absorbed `/idea` — ADR-019.** There is no longer a separate IDEA stage: writing the
+idea and judging it happen in one run. `$ARGUMENTS` is therefore one of two things, and you decide
+which by looking:
+
+| `$ARGUMENTS` is | What you do |
+|---|---|
+| A filename that exists under `.ai/board/ideas/` | Skip step 0. Judge the file as it stands. |
+| Anything else — a sentence, a paragraph, a complaint | Step 0 first: write the idea file, then judge it. |
+
+## Step 0 — write the idea, when there is not one yet
+
+**Template:** `.ai/templates/idea.md`
+**Output:** a new file in `.ai/board/ideas/`, named `<yyyy-mm-dd>-<kebab-slug>.md`
+**Gate for this half:** the file states a **problem, not a solution**, and carries no feature ID.
+
+**Write it before you judge it, and write it as though somebody else would judge it.** That order is
+the only thing left of the separation this command absorbed — the same run now states the problem and
+rules on it, so a problem quietly narrowed to fit the verdict its author already has in mind is the
+failure mode, and nothing catches it except writing the problem down first.
+
+An idea has no feature ID. The ID is issued below, on PROMOTE, and not before.
+
+## The verdict
+
+**Input:** the idea file, plus `.ai/registry/**`
 **Output:** the verdict appended to that idea file
 **Gate:** exactly one verdict, with a reason.
 
@@ -43,12 +67,14 @@ report nothing to do.
    feature group per ticket.
 3. Append a row to `## BACKLOG` in `.ai/board/backlog.md`.
 
-**Leave `invariants_touched` and `size_estimate` empty.** They are items 2 and 5, they belong to the
-BA at SPEC, and the gate sits after SPEC precisely so they can. Filling them here is inventing an
-acceptance criterion's worth of judgement before the story exists.
+**Leave `invariants_touched` and `size_estimate` empty.** They are items 2 and 5, they belong to
+PLAN, and the gate sits after PLAN precisely so they can. Filling them here is inventing an
+acceptance criterion's worth of judgement before the plan exists.
 
-**`tech-lead-design` does not write the row.** Neither does `ba`, later, at `/spec`. The role that
-will write the story is never the role that granted the ID it writes against.
+**`product` writes the row, not `tech-lead-design`** — including here, where both are dispatched
+together. `tech-lead-design` writes the plan later, at `/plan`, and the role that will write the plan
+is never the role that granted the ID it writes against. That separation survived ADR-019; it is the
+last one in the front half of the loop, which is why it is stated rather than assumed.
 
 The operator approves at merge, under CODEOWNERS — which is where RULE-01 says enforcement lives.
 Nothing here is committed; the row travels with the ticket and lands on the `ops/` branch at

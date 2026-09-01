@@ -1,6 +1,6 @@
 ---
 doc_version: 1
-last_updated: 2026-08-25
+last_updated: 2026-09-01
 governed_by: [RULE-03, RULE-04, RULE-08, RULE-15, RULE-16]
 ---
 
@@ -13,7 +13,7 @@ touched appears in the table below with a one-line reason. The Definition of Don
 to be complete — a file changed but not listed is an incomplete log, and R1 will find it anyway from
 `git diff --name-only`.
 
-**Sources:** `02-design.md` first and in full, then `01-story.md`, then the source tree within
+**Sources:** `01-plan.md` first and in full, then the source tree within
 `allowed_paths`.
 
 **Standing alone:** RULE-16. The reviewer receives this file, the story, the design, and the diff —
@@ -28,7 +28,7 @@ ticket: <ID>
 stage: IN_PROGRESS
 agent: developer
 produced_at: <ISO8601>
-inputs_read: [ .ai/board/tickets/<ID>/02-design.md, .ai/board/tickets/<ID>/01-story.md, .ai/board/tickets/<ID>/ticket.yaml ]
+inputs_read: [ .ai/board/tickets/<ID>/01-plan.md, .ai/board/tickets/<ID>/ticket.yaml ]
 consulted:
   - with: tech-lead-design
     asked: "..."

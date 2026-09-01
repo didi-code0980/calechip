@@ -10,12 +10,12 @@ a subagent and does not invoke a stage owner; see `.ai/standards/session-model.m
 
 ## Where the gate sits
 
-`BACKLOG -> SPEC -> [DoR] -> READY -> DESIGN`
+`BACKLOG -> PLAN -> [DoR] -> READY -> IN_PROGRESS`
 
-**SPEC runs directly out of BACKLOG. DoR is evaluated at the SPEC to READY transition, not before
-SPEC.** Two of its six items — `invariants_touched` and `size_estimate` — are produced by the BA at
-SPEC, so a gate ahead of SPEC would be asking for fields that do not exist yet. A ticket at BACKLOG
-is therefore *not* required to pass DoR to be dispatched; it is required to pass DoR to leave SPEC.
+**PLAN runs directly out of BACKLOG. DoR is evaluated at the PLAN to READY transition, not before
+PLAN.** Two of its six items — `invariants_touched` and `size_estimate` — are produced at PLAN, so a
+gate ahead of PLAN would be asking for fields that do not exist yet. A ticket at BACKLOG is therefore
+*not* required to pass DoR to be dispatched; it is required to pass DoR to leave PLAN.
 
 This is the third placement of this gate. The first two put it ahead of its own inputs; check D13
 exists so a fourth attempt fails loudly instead of deadlocking the board.
@@ -25,7 +25,7 @@ exists so a fourth attempt fails loudly instead of deadlocking the board.
 1. **The next actionable ticket**, which is whichever comes first:
    - the top row of `## READY` in `backlog.md` whose state is not `DONE` — ready to design; or
    - the top row of `## BACKLOG` — ready to specify
-2. For a ticket at **SPEC or later**, its full Definition of Ready evaluation, item by item, pass or
+2. For a ticket at **PLAN or later**, its full Definition of Ready evaluation, item by item, pass or
    fail, naming the producing stage of any item that fails
 3. For a ticket at **BACKLOG**, only the items produced at BACKLOG — items 1, 3, 4 and 6. Do not
    report items 2 and 5 as failures: the BA has not run, and reporting an unwritten field as a defect
@@ -43,11 +43,11 @@ state.
 **Print the next command and the session it belongs in**, exactly one line:
 
 ```
-EXA-01 is at BACKLOG and its BACKLOG-produced DoR items pass. Run /spec EXA-01 in the BA session.
+EXA-01 is at BACKLOG and its BACKLOG-produced DoR items pass. Run /plan EXA-01 in the Tech Lead session.
 ```
 
 ```
-EXA-01 is READY. Run /design EXA-01 in the Tech Lead session.
+EXA-01 is READY. Run /implement EXA-01 in a fresh Developer session.
 ```
 
 If nothing is runnable, say what is blocking instead. Never invoke the stage owner — a printed

@@ -26,7 +26,7 @@ anything else.
   `Notes`. The citation is the whole safeguard: a row without one cannot be told apart from a feature
   nobody asked for. Never write a row for an idea you have not just triaged, and never write one at
   any other stage.
-- **Write acceptance criteria.** That is the BA's output, at SPEC, from a registry entry.
+- **Write acceptance criteria.** That is `tech-lead-design`'s output, at PLAN, from a registry entry.
 - **Write a solution.** An idea that opens with a design has skipped the step where the problem gets
   checked.
 - **Estimate or prioritise.** `backlog.md` is ordered by a human.
@@ -52,7 +52,8 @@ PROMOTE is a recommendation, not a state change. The human step between TRIAGE a
 
 ## Chat
 
-You may be consulted by `ba` (RULE-11). Answer the question asked. If your answer reveals that the
+You may be consulted by `tech-lead-design` (RULE-11). Answer the question asked. If your answer
+reveals that the
 idea was incomplete, amend the idea file — answering in chat alone is prohibited (RULE-14), and an
 artifact must stand alone (RULE-16).
 

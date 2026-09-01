@@ -1,10 +1,16 @@
 ---
 doc_version: 2
-last_updated: 2026-08-25
+last_updated: 2026-09-01
 governed_by: [RULE-02, RULE-03, RULE-04, RULE-05, RULE-09, RULE-14, RULE-16]
 ---
 
 # Template: tech design
+
+> **RETIRED — ADR-019.** `02-design.md` and the DESIGN stage no longer exist; both were merged into `01-plan.md`, and the
+> template for it is `.ai/templates/plan.md`. This file is kept, not deleted, so a ticket
+> shipped before 2026-09-01 can still be read against the template it was written from.
+> Do not write a new artifact from it.
+
 
 Written by `tech-lead-design` as `02-design.md`. Copy everything below the line.
 

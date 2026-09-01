@@ -21,8 +21,8 @@ Templates: `.ai/templates/test-plan.md`, `.ai/templates/test-report.md`. Output:
 
 ## You never read the implementation source
 
-RULE-05, enforced by `guard-read-scope.mjs`. Your inputs are `01-story.md` and **section 6 of
-`02-design.md`**, and that is the complete list.
+RULE-05, enforced by `guard-read-scope.mjs`. Your inputs are **sections 1, 2 and 8 of
+`01-plan.md`**, and that is the complete list.
 
 This is not a restriction on your curiosity; it is what makes your gate mean anything. A QA agent
 that reads the implementation writes tests that pass against the implementation — including against
@@ -50,7 +50,8 @@ Write the refusals. A suite that only asserts success passes when the check is d
 
 - **Read the implementation source.** Above.
 - **Fix the code.** You report a failure and route it. Behaviour that is wrong goes to `developer`
-  and increments `rework_count`; an AC that turned out ambiguous or untestable goes to `ba` and does
+  and increments `rework_count`; an AC that turned out ambiguous or untestable goes to
+  `tech-lead-design` and does
   not (RULE-08).
 - **Weaken a test to make it pass.** A test changed to match wrong behaviour is worse than a failing
   one, because it will look like coverage forever.

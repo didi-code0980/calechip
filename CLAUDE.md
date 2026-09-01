@@ -155,8 +155,12 @@ stand as shipped and no translation is owed.
 
 ## Commands
 
-**The loop**, which builds the product — `/idea` `/triage` `/next-ticket` `/spec` `/design`
-`/implement` `/review` `/qa` `/ship` `/sprint-status` `/pull-tickets` `/sync-tracker` `/docs-audit`
+**The loop**, which builds the product — `/triage` `/next-ticket` `/plan` `/implement` `/review`
+`/qa` `/ship` `/sprint-status` `/pull-tickets` `/sync-tracker` `/docs-audit`
+
+`/idea`, `/spec` and `/design` are **retired** — ADR-019 folded IDEA into TRIAGE and merged SPEC and
+DESIGN into PLAN. Their files are kept, carrying a retirement banner, so tickets shipped before
+2026-09-01 stay readable against the commands that produced them.
 
 **The model**, which maintains the loop — `/thuki` (steward: rules, hooks, checks, registry; never
 ticket work) and `/status` (reads the board; reports what is true and what waits on a human).

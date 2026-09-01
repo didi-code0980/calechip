@@ -1,6 +1,6 @@
 ---
-doc_version: 1
-last_updated: 2026-08-25
+doc_version: 2
+last_updated: 2026-09-01
 governed_by: [RULE-05, RULE-07, RULE-08, RULE-12, RULE-13, RULE-16]
 ---
 
@@ -19,7 +19,7 @@ ticket: <ID>
 stage: QA
 agent: qa
 produced_at: <ISO8601>
-inputs_read: [ .ai/board/tickets/<ID>/01-story.md, .ai/board/tickets/<ID>/05-test-plan.md ]
+inputs_read: [ .ai/board/tickets/<ID>/01-plan.md, .ai/board/tickets/<ID>/05-test-plan.md ]
 consulted: []
 chat_before_verdict: none
 gate: PASS

@@ -1,6 +1,6 @@
 ---
 doc_version: 2
-last_updated: 2026-08-31
+last_updated: 2026-09-01
 governed_by: [RULE-11, RULE-12, RULE-13, RULE-14, RULE-15, RULE-16]
 ---
 
@@ -15,7 +15,7 @@ lifecycle that deliver it. Nothing here restates a rule.
 | Agent | Session | Closes when |
 |---|---|---|
 | `orchestrator` | persistent | end of run |
-| `ba` | persistent | end of run |
+| `ba` | — | retired by ADR-019; the role left the loop |
 | `tech-lead-design` | persistent | end of run |
 | `developer` | ephemeral | ticket DONE or ESCALATED — survives REWORK |
 | `tech-lead-review` | ephemeral | after **each** verdict, including a re-review |
@@ -55,20 +55,19 @@ call is not.
 
 Each line is run in the session named. The orchestrator prints the next line after each gate.
 
-`BACKLOG -> SPEC -> [DoR] -> READY -> DESIGN -> IN_PROGRESS -> REVIEW -> QA -> DONE`
+`BACKLOG -> PLAN -> [DoR] -> READY -> IN_PROGRESS -> REVIEW -> QA -> DONE`
 
 | # | Command | Session | Produces |
 |---|---|---|---|
-| 1 | `/spec EXA-01` | BA — persistent | `01-story.md`, plus `invariants_touched` and `size_estimate` in `ticket.yaml` |
-| — | `/next-ticket` | orchestrator — lead | the DoR evaluation; `SPEC -> READY` on a pass, back to `BACKLOG` on a fail |
-| 2 | `/design EXA-01` | Tech Lead — persistent | `02-design.md`, `allowed_paths` and `size` in `ticket.yaml` |
+| 1 | `/plan EXA-01` | Tech Lead — persistent | `01-plan.md`, plus `invariants_touched`, `size_estimate`, `size` and `allowed_paths` in `ticket.yaml` |
+| — | `/next-ticket` | orchestrator — lead | the DoR evaluation; `PLAN -> READY` on a pass, back to `BACKLOG` on a fail |
 | 3 | `/implement EXA-01` | Developer — fresh, kept until DONE or ESCALATED | code, `03-impl-log.md` |
 | 4 | `/review EXA-01` | **fresh session, discarded after the verdict** | `04-review.md` |
 | 5 | `/qa EXA-01` | **fresh session, discarded after the verdict** | `05-test-plan.md`, `06-test-report.md`, the tests |
 | 6 | `/ship EXA-01` | orchestrator — lead | PR opened; a human merges (RULE-09) |
 
-**The unnumbered row is not optional.** SPEC runs directly out of BACKLOG, and DoR is evaluated
-between SPEC and READY, because two of its six items are the BA's output. The BA does not promote its
+**The unnumbered row is not optional.** PLAN runs directly out of BACKLOG, and DoR is evaluated
+between PLAN and READY, because two of its six items are PLAN's output. The Tech Lead does not promote its
 own ticket to READY — that evaluation belongs to the orchestrator, and an agent that walks its own
 work past the gate judging it has removed the gate.
 
@@ -186,14 +185,14 @@ sometimes not. Putting them in a fixed place at a fixed time is worth more than 
   tool writes `unavailable` and says why; `product` is the case that exists today.
 - **The block leaking into an artifact.** It is conversation, addressed to one reader. Artifacts carry
   front-matter with `gate`, `produced_at` and `inputs_read`, and that is the record. A sign-off pasted
-  into `01-story.md` is noise in a document that a reviewer, a QA session and a human all read later.
+  into `01-plan.md` is noise in a document that a reviewer, a QA session and a human all read later.
 
 **It does not replace the gate.** The gate is in the artifact's front-matter and the sign-off quotes
 it. If the two ever disagree, the artifact is right — a sign-off is a summary and summaries drift.
 
 ## Phase 2 — a live multi-agent session
 
-The intended next step is to move SPEC, DESIGN and IN_PROGRESS onto a live shared session, so the
+The intended next step is to move PLAN and IN_PROGRESS onto a live shared session, so the
 constructing roles share context, while REVIEW and QA stay exactly as they are: fresh, isolated,
 files only. The isolation of the judging roles is not negotiable and is not what this changes.
 

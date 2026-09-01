@@ -1,10 +1,16 @@
 ---
 doc_version: 1
-last_updated: 2026-08-25
+last_updated: 2026-09-01
 governed_by: [RULE-04, RULE-14, RULE-16, RULE-17]
 ---
 
 # Template: story
+
+> **RETIRED — ADR-019.** `01-story.md` and the SPEC stage no longer exist; both were merged into `01-plan.md`, and the
+> template for it is `.ai/templates/plan.md`. This file is kept, not deleted, so a ticket
+> shipped before 2026-09-01 can still be read against the template it was written from.
+> Do not write a new artifact from it.
+
 
 Written by `ba` as `01-story.md` in the ticket folder. Copy everything below the line.
 

@@ -1,6 +1,6 @@
 ---
-doc_version: 1
-last_updated: 2026-08-25
+doc_version: 2
+last_updated: 2026-09-01
 governed_by: [RULE-05, RULE-07, RULE-08]
 ---
 
