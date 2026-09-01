@@ -6,6 +6,7 @@
 import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
 import { seamName } from "./lib/data";
 import AllowList from "./routes/AllowList";
+import MemberList from "./routes/MemberList";
 import SignUp from "./routes/SignUp";
 
 export default function App() {
@@ -35,6 +36,11 @@ export default function App() {
               hide an item from yet. The first ticket that adds a menu inherits the real version of
               that criterion. */}
           <Route path="/allow-list" element={<AllowList />} />
+          {/* TEA-03. Reachable by address only, for the same reason /allow-list is: there is no
+              navigation yet to add an item to. Unlike /allow-list this route is open to both roles
+              — one permission, two roles (AC-3) — and the screen itself draws no control that
+              writes anything, which is the whole of its affordance over AC-5. */}
+          <Route path="/members" element={<MemberList />} />
           {/* Temporary, and named as such: this half of TEA-01 has exactly one screen, and a route
               that renders nothing would leave the ticket unexercisable. The sign-in half replaces
               this with /signin and /. */}

@@ -67,3 +67,47 @@ export const FIXTURE_MEMBER: Member = {
 
 /** A second team, for AC-4. Nothing renders it; it exists so that "another team" is a real id. */
 export const FIXTURE_OTHER_TEAM_ID: string = "44444444-4444-4444-8444-444444444444";
+
+// ---------------------------------------------------------------------------
+// TEA-03. 02-design.md section 1.5.
+// ---------------------------------------------------------------------------
+
+/**
+ * The second team, behind the id above. `FIXTURE_OTHER_TEAM_ID` was a bare id and needs a real
+ * `team` row now, because `member.team_id` references `team(id)` and AC-2 needs a member on it.
+ *
+ * Exactly one team exists in v1, so AC-2 is unobservable through the interface and is asserted
+ * against seeded data instead — ADR-018's revert condition names this data specifically. A one-team
+ * fixture passes whether the team scope is in the policy predicate or absent from it.
+ */
+export const FIXTURE_OTHER_TEAM: { id: string; name: string; overloadThreshold: number } = {
+  id: FIXTURE_OTHER_TEAM_ID,
+  name: "Nhóm khác",
+  overloadThreshold: 0.5,
+};
+
+/** A member of the OTHER team. AC-2: no read by anybody on FIXTURE_TEAM may ever return this row. */
+export const FIXTURE_OTHER_TEAM_MEMBER: Member = {
+  id: "66666666-6666-4666-8666-666666666666",
+  teamId: FIXTURE_OTHER_TEAM.id,
+  displayName: "Người nhóm khác",
+  avatar: "🐰",
+  role: "member",
+  removedAt: null,
+  createdAt: "2026-08-31T00:00:00+00:00",
+};
+
+/**
+ * A removed member of FIXTURE_TEAM. AC-4: the READ returns this row carrying `removedAt`, and the
+ * screen does not list it. The two halves are different layers and this fixture is what separates
+ * them — a seam that filtered it would pass every component test and leave INV-04 uncomputable.
+ */
+export const FIXTURE_REMOVED_MEMBER: Member = {
+  id: "77777777-7777-4777-8777-777777777777",
+  teamId: FIXTURE_TEAM.id,
+  displayName: "Đã rời nhóm",
+  avatar: "🐶",
+  role: "member",
+  removedAt: "2026-08-31T12:00:00+00:00",
+  createdAt: "2026-08-31T00:00:00+00:00",
+};

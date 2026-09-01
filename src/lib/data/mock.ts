@@ -7,11 +7,15 @@
 // pass against a broken trigger, which is the one failure a mock seam can cause and not catch.
 import type { AddAllowedEmailInput, DataSeam, SignUpInput, SignUpOutcome } from "./index";
 import type { AllowedEmail, Member, Result } from "../domain/types";
+// TEA-03. A RUNTIME import, not a type one - 02-design.md section 1.1.
+import { ROSTER_LIMIT } from "../domain/types";
 import {
   FIXTURE_ADMIN,
   FIXTURE_ALLOWED_EMAIL,
   FIXTURE_CONSUMED_EMAIL,
   FIXTURE_MEMBER,
+  FIXTURE_OTHER_TEAM_MEMBER,
+  FIXTURE_REMOVED_MEMBER,
   FIXTURE_TEAM,
 } from "../fixtures";
 
@@ -32,7 +36,24 @@ const SEEDED_AT = FIXTURE_ADMIN.createdAt;
 //
 // TEA-02 adds FIXTURE_MEMBER: the denial half of AC-8 needs somebody to be denied as, and
 // `__setCurrentMember` below is how a test becomes them.
-const members: Member[] = [FIXTURE_ADMIN, FIXTURE_MEMBER];
+//
+// TEA-03 adds the other two. Both exist to make a criterion OBSERVABLE that a one-team, all-active
+// roster cannot show: FIXTURE_OTHER_TEAM_MEMBER is the row AC-2 says must never come back, and
+// FIXTURE_REMOVED_MEMBER is the row AC-4 says the read must keep and the screen must not draw.
+const members: Member[] = [
+  FIXTURE_ADMIN,
+  FIXTURE_MEMBER,
+  FIXTURE_OTHER_TEAM_MEMBER,
+  FIXTURE_REMOVED_MEMBER,
+];
+
+// TEA-03, 02-design.md section 1.4. `createdAt` ascending, then `id` ascending. The id tiebreaker is
+// not decoration: FIXTURE_ADMIN, FIXTURE_MEMBER and FIXTURE_REMOVED_MEMBER share a `createdAt`
+// literal, so `createdAt` alone leaves their order dependent on insertion order here and on physical
+// row order in PostgreSQL - two implementations that disagree about order fail nothing and produce a
+// flaky test.
+const byCreatedAtThenId = (a: Member, b: Member): number =>
+  a.createdAt === b.createdAt ? a.id.localeCompare(b.id) : a.createdAt.localeCompare(b.createdAt);
 
 const allowedEmails: AllowedEmailRow[] = [
   {
@@ -207,5 +228,52 @@ export const seam: DataSeam = {
 
     allowedEmails.splice(index, 1);
     return { ok: true, value: undefined };
+  },
+
+  // -------------------------------------------------------------------------
+  // TEA-03. 02-design.md sections 1.2, 1.4 and 3.
+  // -------------------------------------------------------------------------
+
+  // TEA-03 AC-1, AC-2, AC-3, AC-4, AC-6, AC-7, AC-8.
+  //
+  // This reproduces the two POLICIES composing, not the screen (02-design.md section 3). Row-level
+  // security policies are permissive and OR together (ADR-018), and `member_team_id` filters
+  // `removed_at is null`, so there are three distinct answers and the middle one is the state
+  // ADR-018 created on purpose:
+  //
+  //   no member row      -> []                     AC-6, AC-7
+  //   a REMOVED caller   -> their own row only     `member_select_own` answers; the team policy
+  //                                                does not, because member_team_id filtered them
+  //                                                out. Collapsing this into [] would erase the
+  //                                                difference between removed and never admitted.
+  //   an active caller   -> their whole team, REMOVED MEMBERS INCLUDED
+  //
+  // The role is not consulted anywhere below, which is AC-3: an admin cannot receive a row or a
+  // field a member does not, because there is no second policy and no branch on role.
+  //
+  // NO `removedAt` FILTER on the team answer. A mock that filtered would make every component test
+  // pass against a seam that has already made INV-04 uncomputable, and MemberList.tsx's own filter
+  // would hide the difference. ADR-013, and 02-design.md section 3, "Shape 1".
+  async listMembers(): Promise<Member[]> {
+    const me = members.find((m) => m.id === currentMemberId) ?? null;
+    if (!me) return [];
+
+    const rows =
+      me.removedAt !== null
+        ? [me]
+        : members.filter((m) => m.teamId === me.teamId); // INV-07: the team boundary, and nothing else
+
+    // AC-8. The same limit and the same raise as supabase.ts. This array is bounded by the fixtures
+    // so it never fires; it is here so the two implementations tell one story rather than because
+    // the mock can truncate.
+    const bounded = rows.slice().sort(byCreatedAtThenId).slice(0, ROSTER_LIMIT);
+    if (bounded.length >= ROSTER_LIMIT) {
+      throw new Error(
+        `listMembers returned ${bounded.length} rows at the ${ROSTER_LIMIT} limit: the roster may ` +
+          `be truncated and must not be consumed (TEA-03 AC-8)`,
+      );
+    }
+
+    return bounded;
   },
 };

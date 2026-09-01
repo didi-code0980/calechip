@@ -139,3 +139,106 @@ values (
   '2026-09-01T00:00:00+00:00'
 )
 on conflict (id) do nothing;
+
+-- ---------------------------------------------------------------------------
+-- TEA-03. 02-design.md section 4.1.
+--
+-- Three rows the story's criteria have nothing to run against without: a second team, a member on
+-- it (AC-2), and a removed member on the first team (AC-4). Every literal below also appears in
+-- src/lib/fixtures.ts as FIXTURE_OTHER_TEAM, FIXTURE_OTHER_TEAM_MEMBER and FIXTURE_REMOVED_MEMBER.
+--
+-- Why they are seeded rather than created by a test. Exactly one team exists in v1, so AC-2 is
+-- unobservable through the interface: a one-team fixture passes whether the team scope is in
+-- `member_select_team`'s predicate or absent from it. ADR-018's revert condition names this data
+-- specifically. AC-4 is the same shape one layer down — an all-active roster cannot show whether
+-- the read kept a removed member or dropped one.
+--
+-- Insert order is forced by the foreign keys and none of them cascade: team -> auth user -> member.
+-- Each auth.users insert sets confirmation_token, recovery_token, email_change_token_new and
+-- email_change to '' — MD-014, the same reason every seeded account above does.
+-- ---------------------------------------------------------------------------
+
+insert into public.team (id, name, overload_threshold, created_at)
+values (
+  '44444444-4444-4444-8444-444444444444',
+  'Nhóm khác',
+  0.5,
+  '2026-08-31T00:00:00+00:00'
+)
+on conflict (id) do nothing;
+
+-- AC-2. A member of the OTHER team. No read by anybody on the first team may ever return this row.
+--
+-- `email_confirmed_at` is set, so `admit_allow_listed_member` fires on this insert. It finds no
+-- allow-list entry for this address — there is none, and there must not be one, or the trigger would
+-- put this person on the FIRST team and destroy the criterion — and returns having created nothing.
+-- The member row below is this seed's write, as it is for the two admins above.
+insert into auth.users (
+  instance_id, id, aud, role, email, encrypted_password, email_confirmed_at,
+  raw_app_meta_data, raw_user_meta_data, created_at, updated_at,
+  confirmation_token, recovery_token, email_change_token_new, email_change
+)
+values (
+  '00000000-0000-0000-0000-000000000000',
+  '66666666-6666-4666-8666-666666666666',
+  'authenticated',
+  'authenticated',
+  'chi@other.example.com',
+  extensions.crypt('password123', extensions.gen_salt('bf')),
+  '2026-08-31T00:00:00+00:00',
+  '{"provider":"email","providers":["email"]}'::jsonb,
+  '{"display_name":"Người nhóm khác","avatar":"🐰"}'::jsonb,
+  '2026-08-31T00:00:00+00:00',
+  '2026-08-31T00:00:00+00:00',
+  '', '', '', ''
+)
+on conflict (id) do nothing;
+
+insert into public.member (id, team_id, display_name, avatar, role, removed_at, created_at)
+values (
+  '66666666-6666-4666-8666-666666666666',
+  '44444444-4444-4444-8444-444444444444',
+  'Người nhóm khác',
+  '🐰',
+  'member',
+  null,
+  '2026-08-31T00:00:00+00:00'
+)
+on conflict (id) do nothing;
+
+-- AC-4. A REMOVED member of the first team. `member_select_team` does not filter `removed_at`, so
+-- this row is returned to their teammates carrying it — ADR-013 and the INV-04 note require the
+-- counting function to be given the roster with `removed_at` per member. The screen does not draw
+-- them; the read does return them, and those are two different layers.
+insert into auth.users (
+  instance_id, id, aud, role, email, encrypted_password, email_confirmed_at,
+  raw_app_meta_data, raw_user_meta_data, created_at, updated_at,
+  confirmation_token, recovery_token, email_change_token_new, email_change
+)
+values (
+  '00000000-0000-0000-0000-000000000000',
+  '77777777-7777-4777-8777-777777777777',
+  'authenticated',
+  'authenticated',
+  'cu@example.com',
+  extensions.crypt('password123', extensions.gen_salt('bf')),
+  '2026-08-31T00:00:00+00:00',
+  '{"provider":"email","providers":["email"]}'::jsonb,
+  '{"display_name":"Đã rời nhóm","avatar":"🐶"}'::jsonb,
+  '2026-08-31T00:00:00+00:00',
+  '2026-08-31T00:00:00+00:00',
+  '', '', '', ''
+)
+on conflict (id) do nothing;
+
+insert into public.member (id, team_id, display_name, avatar, role, removed_at, created_at)
+values (
+  '77777777-7777-4777-8777-777777777777',
+  '11111111-1111-4111-8111-111111111111',
+  'Đã rời nhóm',
+  '🐶',
+  'member',
+  '2026-08-31T12:00:00+00:00',
+  '2026-08-31T00:00:00+00:00'
+)
+on conflict (id) do nothing;

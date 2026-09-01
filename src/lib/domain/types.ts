@@ -87,3 +87,25 @@ export const AVATAR_CHOICES: readonly string[] = [
   "🐧",
   "🦉",
 ];
+
+// ---------------------------------------------------------------------------
+// TEA-03. 02-design.md section 1.1.
+// ---------------------------------------------------------------------------
+
+/**
+ * AC-8. The explicit row limit the roster read asks for, and the count at which it refuses to
+ * answer. Above any plausible team size — the glossary records exactly one team in v1 and the
+ * brief's worked example is ten people — and deliberately far below the datastore's own cap, so
+ * that this assertion fires before the server's silent one does.
+ *
+ * It lives here and NOT in src/lib/data/index.ts because both implementations need it at RUNTIME.
+ * They already import types from `./index`, and those imports are erased at build; a runtime import
+ * would not be, and `index.ts` imports both implementations — that is a real cycle at load time.
+ * This module imports nothing from src/lib/data/.
+ *
+ * The constant's validity has one external dependency, cited rather than re-raised: the assertion
+ * only fires if this number sits BELOW the datastore's own `max-rows` cap. That unknown cap is the
+ * `TODO(verify):` already carried by CAL-04, ADM-02 and ADM-04 in .ai/registry/features.md. If it
+ * turns out to be lower, the fix is this one number.
+ */
+export const ROSTER_LIMIT = 500;
