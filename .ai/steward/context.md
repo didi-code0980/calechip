@@ -1132,3 +1132,66 @@ ADR-019 and RULE-05 v2. CODEOWNERS forces the operator's review of both at merge
 **Not done, and named so it is not mistaken for finished:** cutting design section 8 (the testability
 contract) — the third item in the package. It is dormant under ADR-017 rather than removed, and
 removing it is now a smaller change than it was this morning, since RULE-05 has already moved.
+
+### 2026-09-01 — ADR-020 written and deliberately not accepted
+
+`/next-ticket` graded TEA-04, failed DoR item 4 on a missing ADR, and handed over the write. Verified
+the permission rows first — `Remove a member` ✅ admin, `Promote a member to admin` ✅ admin, `Demote
+an admin to member` ❌/❌, all operator-decided 2026-08-31 — and the Tech Lead's envelope argument is
+correct as far as it goes.
+
+**It does not go far enough, and the obstacle is a sentence I wrote yesterday.** ADR-018 Decision
+point 3 reads *"No insert, **update** or delete policy is added, now or by any later ticket."*
+TEA-04's plan adds `member_update_admin`, an update policy. The plan cites that clause four times —
+`01-plan.md:165`, `:296`, `:544`, and `schema_delta` — and every citation paraphrases it as *insert*,
+or *insert or delete*. The word `update` is in the clause and in none of the citations. Not evasion:
+it read the clause as the narrower thing TEA-01's design says, which is about `insert` alone and for a
+reason specific to `insert`.
+
+**Wrote ADR-020 in full and left it `PROPOSED`.** It amends the Decision of an accepted ADR, which
+ADR-008 and `triage.md` both make a stop-and-ask rather than a judgement call. The aggravating fact is
+whose clause it is: I wrote ADR-018 yesterday and would now be deleting the sentence that blocks the
+ticket in front of me. Being confident the sentence was wrong is not a reason to be the one who
+deletes it. One question at the end of the document, one word to answer.
+
+**The finding that makes it a narrowing rather than an exception:** the only implementation shape that
+satisfies point 3 as written is a `security definer` RPC, and ADR-005 forbids exactly that — it moves
+authorization out of row-level security into a function body. ADR-016 §4 already drew the line,
+allowing a bulk operation to become a function only on condition it stayed `security invoker`. **A
+constraint with no compliant implementation is a deadlock, not a constraint.**
+
+**Where point 3 went wrong, recorded because I will write another one like it.** ADR-018 answers *who
+may read the member list*. Point 3 legislated on writes, permanently, for every future ticket, in a
+document nobody consults when designing a write. It took TEA-01's `insert` reasoning — an insert
+policy lets a person choose their own `team_id` and `role` — and extended it to `update` and `delete`
+without saying why, because no update was in front of me to test it against. The reasoning does not
+transfer to a column-limited update that withholds `team_id`.
+
+Did not touch `ADR-018` — the amendment is listed under *Affected documents* as on-acceptance only.
+Did not touch `ticket.yaml`; linking is the orchestrator's write at READY. Did not correct the
+mistyped ADR-019 filename in the plan's `inputs_read` — a provenance line is another agent's
+attestation of what it read, and the orchestrator has already surfaced it.
+
+Audit 0 errors, 1 pre-existing advisory D8. No registry write is in force: ADR-020 is `PROPOSED` and
+changes nothing until the operator answers.
+
+### 2026-09-01 — the operator chose A; ADR-020 accepted, ADR-018 point 3 narrowed
+
+Operator's answer, verbatim: *"chọn A"* — narrow ADR-018 Decision point 3, admit a column-limited
+`update` policy under three conditions held together.
+
+- **Amended `ADR-018`** to `doc_version` 3. Point 3 now forbids `insert` and `delete` permanently and
+  admits `update` only with a by-column grant, a policy scoped to an admin of the caller's own team,
+  and a `BEFORE UPDATE` trigger for what `WITH CHECK` structurally cannot express. **Kept the original
+  wording beside the new one**, with one line on why it was wrong. A clause that was over-broad is
+  more useful visible than deleted — the next person tempted to legislate about writes inside an ADR
+  about reads needs to be able to find it.
+- **`ADR-020` to `ACCEPTED by the operator`**, quoting the answer. Kept the two options and the fact
+  that B was refused: the `Status` line rests on a person having chosen between them, and an ADR that
+  deletes the alternative on acceptance has erased what makes the signature mean anything.
+
+Did not touch `ticket.yaml`. Linking the ADR and re-reading `schema_delta` — which still paraphrases
+the pre-amendment clause — is the orchestrator's write at the READY transition.
+
+Audit 0 errors, 1 pre-existing advisory D8. 200 of 200 tests pass. Two registry writes in force,
+both from the instruction quoted above; CODEOWNERS puts them in front of the operator again at merge.
