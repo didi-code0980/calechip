@@ -33,6 +33,12 @@ it moves, which is what keeps two branches from appending to the same lines.
 | 2026-08-31T17:26:08Z | TEA-02 | DESIGN | IN_PROGRESS | developer | 0 | — | — | Nine files implemented. Typecheck and lint clean. |
 | 2026-09-01T00:33:50Z | TEA-02 | IN_PROGRESS | REVIEW | tech-lead-review | 0 | — | — | R1-R9 all PASS. All contract items implemented, no invariant violated. |
 | 2026-09-01T00:38:00Z | TEA-02 | REVIEW | DONE | orchestrator | 0 | — | — | QA gate waived per ADR-017 on operator direct instruction. |
+| 2026-08-31T17:53:58Z | TEA-03 | BACKLOG | SPEC | ba | 0 | — | — | Story complete. Invariants INV-04 and INV-07 identified. `size_estimate` S. Gate PASS. |
+| 2026-09-01T00:58:00Z | TEA-03 | SPEC | READY | orchestrator | 0 | — | — | Full DoR evaluated by orchestrator (six of six). ADR-018 linked. |
+| 2026-09-01T00:58:50Z | TEA-03 | READY | DESIGN | tech-lead-design | 0 | — | — | `size` M against estimate S (11 files, ADR-012). Gate PASS. |
+| 2026-09-01T01:16:23Z | TEA-03 | DESIGN | IN_PROGRESS | developer | 0 | — | — | Nine files implemented. Typecheck and lint clean. |
+| 2026-09-01T01:20:08Z | TEA-03 | IN_PROGRESS | REVIEW | tech-lead-review | 0 | — | — | R1-R9 all PASS. All contract items implemented, no invariant violated. |
+| 2026-09-01T01:27:10Z | TEA-03 | REVIEW | DONE | orchestrator | 0 | — | — | QA gate waived per ADR-017 on operator standing instruction. |
 
 ## Targets
 
