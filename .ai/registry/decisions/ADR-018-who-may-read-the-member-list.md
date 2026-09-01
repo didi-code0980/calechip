@@ -1,5 +1,5 @@
 ---
-doc_version: 2
+doc_version: 3
 last_updated: 2026-09-01
 governed_by: [RULE-01, RULE-09]
 ---
@@ -59,9 +59,24 @@ Three things about that statement are the decision, not the implementation:
    teammates, carrying `removed_at`. Which rows the *screen* draws is a display decision above the
    seam; which rows the *read* returns is not — INV-04 cannot derive membership-as-of-a-date from the
    entries, so ADR-013 requires the roster to arrive carrying it.
-3. **No insert, update or delete policy is added, now or by any later ticket.** Restated here because
-   this is the ticket that opens this table's `select`, and the specific risk of widening a read is
-   that a write is dragged along with it.
+3. **No insert or delete policy is added to `public.member`, now or by any later ticket.** An
+   `update` policy is admissible only when all three of these hold together: the `update` privilege
+   is granted **by column** and never blanket; the policy is scoped to an admin of the caller's own
+   team; and a `BEFORE UPDATE` trigger enforces every constraint that `WITH CHECK` structurally
+   cannot express.
+
+   Restated here because this is the ticket that opens this table's `select`, and the specific risk
+   of widening a read is that a write is dragged along with it. `insert` and `delete` keep the reason
+   TEA-01 gave them: the admission trigger is the only creator of a `member` row, any insert policy a
+   signed-in person can satisfy lets them choose their own `team_id` and `role`, and a delete would
+   destroy the `removed_at` ADR-013 requires.
+
+   **Amended 2026-09-01 by ADR-020, on the operator's instruction.** This point read *"No insert,
+   update or delete policy is added, now or by any later ticket"* until TEA-04 showed that the only
+   implementation satisfying it was a `security definer` write path — which ADR-005 forbids. The
+   original wording is kept here rather than replaced silently: it extended TEA-01's reasoning about
+   `insert` to `update` and `delete` without saying why, in an ADR about reads, and that is a mistake
+   worth being able to find again.
 
 Row-level security policies are permissive and OR together, so the two policies compose without
 either one being rewritten.

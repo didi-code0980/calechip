@@ -39,6 +39,11 @@ it moves, which is what keeps two branches from appending to the same lines.
 | 2026-09-01T01:16:23Z | TEA-03 | DESIGN | IN_PROGRESS | developer | 0 | — | — | Nine files implemented. Typecheck and lint clean. |
 | 2026-09-01T01:20:08Z | TEA-03 | IN_PROGRESS | REVIEW | tech-lead-review | 0 | — | — | R1-R9 all PASS. All contract items implemented, no invariant violated. |
 | 2026-09-01T01:27:10Z | TEA-03 | REVIEW | DONE | orchestrator | 0 | — | — | QA gate waived per ADR-017 on operator standing instruction. |
+| 2026-09-01T03:40:34Z | TEA-04 | BACKLOG | PLAN | tech-lead-design | 0 | — | — | First ticket planned under ADR-019, which merged SPEC and DESIGN into one PLAN stage. `size_estimate` M and `size` M agree; ADR-012 not engaged. Nine `allowed_paths`. Gate PASS. |
+| 2026-09-01T04:30:00Z | TEA-04 | PLAN | READY | orchestrator | 0 | — | — | Full DoR, six of six. Item 4 failed on a missing ADR until ADR-020 was accepted by the operator; `schema_delta` re-read at this transition per ADR-020 §Affected documents, because it had been written against ADR-018 point 3 as it read before the amendment. |
+| 2026-09-01T04:38:11Z | TEA-04 | READY | IN_PROGRESS | developer | 0 | — | — | Seven files. The migration is the feature under ADR-005; everything above it is an affordance. |
+| 2026-09-01T04:46:50Z | TEA-04 | IN_PROGRESS | REVIEW | tech-lead-review | 0 | — | — | R1-R9 all PASS, every item citing file:line. |
+| 2026-09-01T04:48:46Z | TEA-04 | REVIEW | DONE | orchestrator | 0 | — | — | **QA gate WAIVED per ADR-017 — the third, which fires revert condition 2.** TEA-02, TEA-03 and TEA-04 are the three rows that condition counts. Reverting is registry work under RULE-01 and was not done here. |
 
 ## Targets
 
