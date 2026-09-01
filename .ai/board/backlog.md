@@ -1,6 +1,6 @@
 ---
 doc_version: 1
-last_updated: 2026-08-25
+last_updated: 2026-09-01
 governed_by: [RULE-06, RULE-10]
 ---
 
@@ -48,6 +48,13 @@ Under the current gate placement a ticket sits here until it has been specified 
 | 14 | ADM-04 | The worklist of entries awaiting a decision | BACKLOG | CAL-01, TEA-03, ADM-01 |
 | 15 | ADM-05 | Approve or reject an entry, with a reason on rejection | BACKLOG | ADM-04, CAL-02 |
 | 16 | ADM-06 | Reject several entries at once, with one reason for the batch | BACKLOG | ADM-05 |
+| 17 | TEA-05 | Sign in, sign out, and the member-less landing state | BACKLOG | TEA-01 |
+
+**TEA-05 was appended, not inserted.** This file's header says it is an ordered list that a human
+reorders, so placing the row anywhere above 17 would have renumbered sixteen rows a human placed.
+`product` asserts nothing about its position. Two facts a human reordering it should have:
+`depends_on` is `[TEA-01]`, which is `DONE`, so nothing blocks it; and no row above it names TEA-05
+in `Blocked on`, although each of them describes something a signed-in person does.
 
 ## BLOCKED
 
