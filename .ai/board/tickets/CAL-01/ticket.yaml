@@ -88,7 +88,7 @@ gates:
 # policy on `entry` compares it to auth.uid() under ADR-005.
 #
 # ---------------------------------------------------------------------------
-# PLAN, 2026-09-01, `tech-lead-design`. 01-plan.md, gate BLOCKED.
+# PLAN, 2026-09-01, `tech-lead-design`. 01-plan.md, gate PASS.
 #
 # Items 2 and 5 are now filled above and the two comments they replace are left standing: they say
 # "the BA at SPEC", and ADR-019 retired that stage and moved both fields to `tech-lead-design` at
@@ -97,15 +97,22 @@ gates:
 # Item 3 IS now satisfied: TEA-01 reached DONE on 2026-09-01, as did TEA-02, TEA-03 and TEA-04.
 # The note above stands as what was true when the shell was written.
 #
-# THE GATE IS BLOCKED ON ONE ACCEPTANCE CRITERION, and it is the `TODO(project):` marker that
-# .ai/registry/features.md already carries on the CAL-01 row: may a member create an entry for a
-# date in the PAST? Nothing in the brief, the charter or the registry settles it - the charter's
-# "at any time" governs when the action may be taken, not which dates it may target. features.md
-# section Columns defines a Notes marker as known-incomplete and needing a human decision before
-# READY, and both CLAUDE.md and the operator's standing instructions in .ai/steward/context.md
-# carve acceptance criteria out of the decide-and-report autonomy grant. It is 01-plan.md's AC-17,
-# a placeholder, with both branches costed and a recommendation of ALLOW under Open questions.
-# A one-word answer turns it into a criterion and this gate into PASS with nothing else changed.
+# The gate was BLOCKED on one acceptance criterion, and that is now answered. May a member create
+# an entry for a date in the PAST? Nothing in the brief, the charter or the registry settled it -
+# the charter's "at any time" governs when the action may be taken, not which dates it may target -
+# so it stood as the `TODO(project):` marker on the CAL-01 row of .ai/registry/features.md, and an
+# agent may not invent an acceptance criterion.
+#
+# DECIDED BY THE OPERATOR ON 2026-09-01: ALLOW. It is 01-plan.md AC-17, recorded in that file's
+# `consulted` block and Changelog per RULE-14. What it changed, in full: AC-17, one line in
+# section 4.3 (neither date control carries a `min`), and three `Used by` cells in section 8. No
+# schema statement, no policy, no grant, no seam signature and no FailureCode - which is what the
+# triage verdict meant by "not ADR-shaped". None of the four fields above moved.
+#
+# THE MARKER IN .ai/registry/features.md IS NOW STALE AND THIS RUN MAY NOT CLEAR IT. That file is
+# registry, human-only under RULE-01, and is not in allowed_paths above, so RULE-03 forbids it.
+# 01-plan.md Open questions item 5 carries the replacement sentence for the steward. CAL-02
+# inherits the same answer for the "or edit" half and should cite it rather than re-ask.
 #
 # A SECOND thing stands between this ticket and IN_PROGRESS, and it is not this gate's: ADR-021
 # section Consequences puts BUG-001 - the end-to-end suite pins no seam - AHEAD of CAL-01, and

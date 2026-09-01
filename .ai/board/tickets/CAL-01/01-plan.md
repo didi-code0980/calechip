@@ -32,23 +32,18 @@ inputs_read:
   - src/App.tsx
   - src/routes/MemberList.tsx
   - scripts/check-allowed-paths.mjs
-consulted: []
+consulted:
+  - with: operator
+    asked: "May a member create an entry for a date in the past? It is the `TODO(project):` marker
+      on the CAL-01 row of `.ai/registry/features.md`, nothing in the brief, the charter or the
+      registry settles it, and an agent may not invent an acceptance criterion. Both branches were
+      costed and `allow` was recommended."
+    answer: "cho phép — allow. Decided 2026-09-01."
+    resulted_in_amendment: true
 chat_before_verdict: none
-gate: BLOCKED
-blocking_reason: >-
-  One acceptance criterion cannot be written without a human decision, and it is the
-  `TODO(project):` marker `.ai/registry/features.md` already carries on the CAL-01 row:
-  **may a member create an entry for a date in the past?** Nothing in the brief, the charter or
-  the registry settles it; the charter's *at any time* governs when the action may be taken, not
-  which dates it may target. `features.md` § Columns defines a `Notes` marker as *known-incomplete
-  and needs a human decision before it can reach READY*, and both `CLAUDE.md` and the operator's
-  own standing instructions in `.ai/steward/context.md` carve acceptance criteria out of the
-  decide-and-report autonomy grant — *never invent a feature ID, an invariant, or an acceptance
-  criterion*. It is recorded as **AC-17 (placeholder)** in section 2 and under *Open questions*,
-  with both branches costed and a recommendation. Everything else in this plan is complete: a
-  one-word answer turns AC-17 into a criterion, the placeholder row in section 8 into a selector,
-  and this gate into PASS with nothing else changed.
-next_state: READY      # the transition this plan proposes; not taken while `gate` is BLOCKED
+gate: PASS
+blocking_reason: ""
+next_state: READY
 ---
 
 # CAL-01 — Create an entry for themselves, over a range of dates
@@ -250,10 +245,19 @@ later changed one, the Changelog says so.
 - When the read comes back at its own row limit, so it may have been truncated
 - Then the screen shows an unavailable state and **not** a short list presented as complete
 
-**AC-17 — PLACEHOLDER. Whether a date in the past may be chosen.**
-- **Not written.** This is the `TODO(project):` on the CAL-01 row of `.ai/registry/features.md`, and
-  it is one human decision. See *Open questions* below for both branches, what each costs, and the
-  recommendation. It is the gate's `blocking_reason`.
+**AC-17 — a date in the past may be chosen**
+
+Decided by the operator on 2026-09-01: **allow.** This is the `TODO(project):` on the CAL-01 row of
+`.ai/registry/features.md`, and it is that marker's answer rather than this plan's invention.
+
+- Given a signed-in member, and today's date
+- When they submit an entry whose `start_date` and `end_date` are both before today
+- Then the entry is created, and it is listed exactly as a future-dated one is — no warning, no
+  second confirmation, no visual distinction
+- And the date controls offer **no lower bound**: nothing in the form marks a past date as
+  unavailable, and nothing refuses one on submit
+- And an entry whose range **straddles** today — starting before it and ending after it — is created
+  as one entry, which is the case a naive `start_date >= today` refusal would break
 
 ### Invariants touched
 
@@ -280,9 +284,12 @@ It becomes engaged at CAL-04 and is sharpest at CAL-07.
 
 ### Open questions
 
-**1. May a member create an entry for a date in the past? — BLOCKING. This is AC-17.**
+**1. May a member create an entry for a date in the past? — ANSWERED 2026-09-01 by the operator:
+allow. This is AC-17.** The two branches and their costs are kept below rather than deleted, because
+the reasoning is what a later reader needs in order to reopen the question competently — and because
+`.ai/registry/features.md` still carries the `TODO(project):` marker this answers (see item 5).
 
-Nothing settles it. The charter's *"Create, edit and delete their own entries, at any time"* governs
+Nothing in the written sources settled it. The charter's *"Create, edit and delete their own entries, at any time"* governs
 when the action may be taken, not which dates it may target; the brief is silent; the registry is
 silent. It is **not ADR-shaped** — neither answer touches the schema (`start_date` is a plain `date`
 either way), the seam contract, the policies or any dependency — which is why it is one acceptance
@@ -293,11 +300,16 @@ criterion and a `TODO(project):` rather than a decision record.
 | **Allow** | The historical record can be edited after the fact. Nothing in the product reads `start_date` as a claim about the past, so nothing is misled today; CAL-05's *who approved* and ADM-04's past-dated-pending marker are the first readers that would care. | AC-17 states that a past date is accepted, and the date inputs carry no `min`. **No code beyond one criterion and one test.** |
 | **Refuse** | The *"I was actually out"* case becomes unrecordable, and the brief's own success measure counts entries. It also needs a mechanism decision this plan would then owe: a `CHECK` cannot reference `now()` (it is not immutable), so the refusal is a **trigger** clause or an affordance only — and an affordance only is not a control under ADR-005. | AC-17 states the refusal; §6 gains a clause on a `before insert` trigger that does not otherwise exist, which is a second trigger on `entry` and inherits ADR-016's alphabetical-ordering trap; §4 gains a `FailureCode`. |
 
-**Recommendation, for a one-word answer: allow.** It is `product`'s recommendation in the idea file,
-it is the cheaper answer by a wide margin, and the asymmetry runs the right way — allowing and later
-refusing is a trigger clause added, while refusing and later allowing leaves entries that could not
-be recorded when they happened. The refusing branch is also the one that would need a new `before
-insert` trigger on a table ADR-016 has already made single-trigger-sensitive.
+**Recommended `allow`, and the operator decided `allow` on 2026-09-01.** It was `product`'s
+recommendation in the idea file, it is the cheaper answer by a wide margin, and the asymmetry runs
+the right way — allowing and later refusing is a trigger clause added, while refusing and later
+allowing leaves entries that could not be recorded when they happened. The refusing branch was also
+the one that would have needed a new `before insert` trigger on a table ADR-016 has already made
+single-trigger-sensitive.
+
+**What the answer changed in this plan, in full: AC-17 above, one line in section 4.3, and three
+`Used by` cells in section 8.** No schema statement, no policy, no grant, no seam signature and no
+`FailureCode` — which is what *not ADR-shaped* meant, now demonstrated rather than predicted.
 
 **2. Is the note's team-wide visibility what the operator intends? — not blocking, already answered
 by mechanical consequence.** *Read any entry in the team* is ✅ for a member, and under ADR-005 that
@@ -317,6 +329,19 @@ interface must at minimum explain the refusal rather than surfacing the SQLSTATE
 written to be true under either answer. It is recorded here because the refusal sentence AC-9
 specifies will, in that case, be shown to somebody trying to correct a rejection, and whoever writes
 that sentence should know it.
+
+**5. The `TODO(project):` marker on the CAL-01 row of `.ai/registry/features.md` is now stale, and
+this plan may not clear it.** That row still reads *"whether a member may create or edit an entry for
+a date in the past is undecided"*, and it is decided. `features.md` is registry, human-only under
+RULE-01, and it is not in this ticket's `allowed_paths`, so RULE-03 forbids this run editing it —
+correcting a registry row from inside a ticket stage is exactly the shape the plane split exists to
+prevent. It is a steward chore, and the replacement text is one sentence:
+
+> Whether a member may create an entry for a date in the past was decided by the operator on
+> 2026-09-01: **allowed**, with no lower bound on the date controls. CAL-01 AC-17.
+
+The marker also says *"or edit"*, and **CAL-02 inherits the answer** — the same decision covers
+moving an existing entry onto a past date, and CAL-02's plan should cite it rather than re-ask.
 
 **4. `BUG-001` is owed ahead of this ticket — not blocking the plan, blocking its QA gate.** ADR-021
 §Consequences puts the end-to-end seam-pinning fix ahead of CAL-01, and `.ai/board/tickets/BUG-001`
@@ -547,6 +572,9 @@ const [error, setError] = useState<Failure | null>(null);
 - **Setting `startDate` sets `endDate` to the same value when `endDate` is empty or earlier.** An
   affordance for AC-2 and AC-12, not a control — AC-12's control is the check constraint, and the
   form still submits whatever the member finally types.
+- **Neither date control carries a `min`** (AC-17). A past date is an ordinary date here, and the
+  absence of the attribute is the whole of the implementation — there is no clause to write, on
+  either side of the seam.
 - **`note.trim() === "" ? null : note`** on submit. AC-6: an empty note is the absence of one.
 - On success, `setError(null)` and reload the list, so AC-1 is observable as one new row.
 - On a returned `Failure`, render its `message` in `entry-form-error` with `role="alert"`. The
@@ -919,8 +947,8 @@ verifies the reverse — every selector below exists in the markup.
 | `entry-form` | The `<form>` wrapping the creation controls | AC-1, AC-2, AC-3, AC-4, AC-5, AC-6 |
 | `entry-form-type` | The type control — `pto` / `wfh` | AC-4 |
 | `entry-form-portion` | The portion control — `full` / `am` / `pm` | AC-3, AC-10, AC-11 |
-| `entry-form-start-date` | The start date input | AC-1, AC-2, AC-12 |
-| `entry-form-end-date` | The end date input, inclusive | AC-1, AC-2, AC-12 |
+| `entry-form-start-date` | The start date input, with no lower bound | AC-1, AC-2, AC-12, AC-17 |
+| `entry-form-end-date` | The end date input, inclusive, with no lower bound | AC-1, AC-2, AC-12, AC-17 |
 | `entry-form-tentative` | The tentative control | AC-5 |
 | `entry-form-note` | The note field | AC-6 |
 | `entry-form-note-visibility` | The standing sentence that the whole team reads the note, rendered beside the field and before anything is typed | AC-6 |
@@ -929,7 +957,7 @@ verifies the reverse — every selector below exists in the markup.
 | `entry-form-not-on-a-team` | The sentence shown instead of the form when the caller has no `member` row | AC-15 |
 | `entry-list` | The list of the caller's own entries | AC-1, AC-16 |
 | `entry-list-row` | One entry. AC-1 counts these | AC-1, AC-2, AC-10 |
-| `entry-list-row-dates` | The inclusive date span on a row | AC-1, AC-2, AC-3 |
+| `entry-list-row-dates` | The inclusive date span on a row | AC-1, AC-2, AC-3, AC-17 |
 | `entry-list-row-type` | The type on a row, `pto` distinguished from `wfh` | AC-4 |
 | `entry-list-row-portion` | The portion on a row | AC-3, AC-10, AC-11 |
 | `entry-list-row-status` | The approval status on a row | AC-5, AC-8 |
@@ -937,7 +965,6 @@ verifies the reverse — every selector below exists in the markup.
 | `entry-list-row-note` | The note on a row, present only when there is one | AC-6 |
 | `entry-list-empty` | The empty state, shown instead of an empty table | AC-16 |
 | `entry-list-unavailable` | The unavailable state, shown for a failed **or possibly truncated** read | AC-16 |
-| — | **PLACEHOLDER for AC-17.** If the answer to *Open questions* item 1 is *refuse*, the refusal needs a selector on `entry-form-error` and nothing new; if it is *allow*, this row is deleted. Either way no new selector is expected — recorded so the placeholder does not read as an omission | AC-17 |
 
 **Six criteria have no selector, and that is correct rather than a gap.** AC-7, AC-8's refusal half,
 AC-13, AC-14 and AC-15's request half are properties of the grant and the policies. Per
@@ -1008,4 +1035,15 @@ everybody to read its silence as permission.
   at *you have declared nothing*. Recorded here rather than absorbed, because an AC added at design
   time to fit what is easy to build is exactly the failure the SPEC/DESIGN split used to prevent, and
   this is now the only place that shows it.
-- `2026-09-01T08:16:29+00:00` — `gate: BLOCKED` on **AC-17** only. Every other section is complete.
+- `2026-09-01T08:16:29+00:00` — `gate: BLOCKED` on **AC-17** only. Every other section was complete.
+- `2026-09-01T08:34:00+00:00` — section 2 **AC-17 written**, and the gate moved to `PASS`. Raised by
+  `tech-lead-design` as the plan's `blocking_reason`; **answered by the operator on 2026-09-01 —
+  *allow*** — and amended by `tech-lead-design`. Per RULE-14 the answer is written into the plan
+  rather than left in the conversation: AC-17 now states the criterion, section 4.3 states that
+  neither date control carries a `min`, and section 8 adds AC-17 to three existing selectors. The
+  rejected branch and its cost are kept in *Open questions* item 1 rather than deleted, so the
+  question can be reopened competently. **No schema, policy, grant, seam signature or `FailureCode`
+  changed** — which is what the triage verdict meant by *not ADR-shaped*, now demonstrated.
+- `2026-09-01T08:34:00+00:00` — *Open questions* gained item 5: the `TODO(project):` marker on the
+  CAL-01 row of `.ai/registry/features.md` is now stale and this run may not clear it (RULE-01,
+  RULE-03). Replacement text supplied there for the steward.
