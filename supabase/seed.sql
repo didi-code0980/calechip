@@ -242,3 +242,55 @@ values (
   '2026-08-31T00:00:00+00:00'
 )
 on conflict (id) do nothing;
+
+-- ---------------------------------------------------------------------------
+-- TEA-04. 01-plan.md section 6.1.
+--
+-- One row, and it is a SECOND ADMIN on the first team. AC-13 asserts that an admin viewing the
+-- roster sees a remove control and NO promote control on a row whose role is already `admin`, and
+-- with FIXTURE_ADMIN the only admin on this team the caller and that row are the same row — so the
+-- criterion is unobservable and passes whether the promote control is correctly withheld or the
+-- caller's own row is simply being skipped. It also makes AC-9 concrete: with two admins, refusing
+-- self-removal costs nobody the ability to leave.
+--
+-- Every literal below also appears in src/lib/fixtures.ts as FIXTURE_SECOND_ADMIN.
+--
+-- `email_confirmed_at` is set, so `admit_allow_listed_member` fires on this insert. It finds no
+-- allow-list entry for this address — there is none, and there must not be one — and returns having
+-- created nothing. The member row below is this seed's write, as it is for every admin above.
+-- Insert order is forced by the foreign keys: auth user -> member. The four token columns are set
+-- to '' for the reason MD-014 records and every seeded account above repeats.
+-- ---------------------------------------------------------------------------
+
+insert into auth.users (
+  instance_id, id, aud, role, email, encrypted_password, email_confirmed_at,
+  raw_app_meta_data, raw_user_meta_data, created_at, updated_at,
+  confirmation_token, recovery_token, email_change_token_new, email_change
+)
+values (
+  '00000000-0000-0000-0000-000000000000',
+  '88888888-8888-4888-8888-888888888888',
+  'authenticated',
+  'authenticated',
+  'dung@example.com',
+  extensions.crypt('password123', extensions.gen_salt('bf')),
+  '2026-08-31T00:00:00+00:00',
+  '{"provider":"email","providers":["email"]}'::jsonb,
+  '{"display_name":"Quản trị hai","avatar":"🦊"}'::jsonb,
+  '2026-08-31T00:00:00+00:00',
+  '2026-08-31T00:00:00+00:00',
+  '', '', '', ''
+)
+on conflict (id) do nothing;
+
+insert into public.member (id, team_id, display_name, avatar, role, removed_at, created_at)
+values (
+  '88888888-8888-4888-8888-888888888888',
+  '11111111-1111-4111-8111-111111111111',
+  'Quản trị hai',
+  '🦊',
+  'admin',
+  null,
+  '2026-08-31T00:00:00+00:00'
+)
+on conflict (id) do nothing;
