@@ -338,3 +338,183 @@ Each of these must be answered before or at triage; none is answered here.
    repository today drives `VITE_DATA_SEAM=mock`, and the mock's `__setCurrentMember` fabricates
    exactly the thing this ticket exists to produce. A green mock-driven suite would say nothing about
    whether anybody can sign in. Related to ADR-017 and MD-016, and not decided by either.
+
+---
+
+## Triage verdict — 2026-09-01
+
+**PROMOTE.**
+
+`product` and `tech-lead-design` triaged this on 2026-09-01 and reached the same verdict
+independently. Recorded, with the technical half's citations re-read against the tree at
+`8e27d78` rather than accepted.
+
+### Why PROMOTE and not the other two
+
+**Not REJECT.** The idea is not covered by anything on the board. The check that matters is the one
+the idea itself invited: `2026-08-31-nobody-can-join-the-board.md` promoted to TEA-01 through TEA-04,
+and all four rows were re-read here. TEA-01 is admission, TEA-02 is the allow-list, TEA-03 is the
+member list, TEA-04 is removal and promotion. None of them establishes a session, and the TEA-01 row
+at `features.md:116` says so in its own words. The absence is also load-bearing rather than cosmetic:
+`.ai/board/tickets/TEA-01/ticket.yaml:8` and `.ai/board/tickets/TEA-02/ticket.yaml:8` both read
+`state: DONE`, so the product now holds two shipped tickets and no screen a human can open.
+
+**Not NEEDS-ADR.** Three candidates were tested and each fails to reach the bar.
+
+- *Writing a fifth TEA row* is what ADR-007 §Decision authorises `/triage` to do on PROMOTE. An ADR
+  per queue entry is the thing that ADR rejected by name as "unserious".
+- *Putting two feature IDs on one ticket* changes no decision. `feature_ids` is a list in the
+  template — `.ai/templates/ticket.yaml:6`, and note that the technical half cited line 7, which is
+  `group` — and Definition of Ready item 1 (`.ai/01-operating-model.md:347`) requires only that every
+  ID resolve to a row. Two IDs on one ticket is permitted by the field's own type and contradicts
+  nothing. ADR-010 is not superseded: it creates one shell per *promoted row*, and one shell is
+  created here, for TEA-05.
+- *`schema_delta`* is `none` on the evidence below, so ADR-014 is not engaged and Definition of Ready
+  item 4 is satisfied without a link.
+
+Nothing here supersedes or reverses an accepted decision, so ADR-008's stop-and-ask test does not
+fire. **PROMOTE is a recommendation about readiness, not a state change**; the row, the shell and the
+backlog entry written below are what ADR-007 and ADR-010 make this command's own output.
+
+### The seven open questions, closed by name
+
+**1 — New feature row, or a second ticket against TEA-01? → A new row, `TEA-05`, and one ticket
+carrying `feature_ids: [TEA-05, TEA-01]`. Answered here.**
+
+A second ticket against an existing row has no mechanism, exactly as the question says: ADR-010
+§Decision creates a shell per promoted row and nothing creates a second one. A new row does have a
+mechanism, and `features.md:111` already describes the group as *"Members, roles, invitations **and
+sign-in**"* — the group was defined to hold this and has been waiting for it.
+
+The second ID is what keeps the question's own objection from biting. TEA-01's story fixes both
+halves at `feature_ids: [TEA-01]` and says the feature is delivered only when both are DONE
+(`01-story.md:212`, re-read; the technical half cited 210, which is the *Files* row). Listing TEA-01
+beside TEA-05 preserves that claim rather than overriding it, and it is what finally lets TEA-01's row
+leave `IN_PROGRESS` — a row that, as things stand, has no path to `DONE` at all. Both IDs are group
+`TEA`, so Definition of Ready item 6 is unaffected.
+
+**The cost, recorded rather than smoothed:** `/ship` step 3 (`.claude/commands/ship.md:42`) says *"set
+this feature's `Status` to `DONE`"* — singular, written when no ticket had two IDs. It must be read as
+plural here, and both TEA-05 and TEA-01 go to `DONE` together. The recommendation is written into the
+shell's comment block so it is met at `/ship` rather than discovered there.
+
+The process defect underneath this question is **not** fixed by the answer, and the question says so
+itself. It is raised as model debt — see below.
+
+**2 — Directory and branch? → `.ai/board/tickets/TEA-05/` and `feat/TEA-05`. Answered here.**
+
+The `-a` / `-b` split scheme asserted at `01-story.md:225` is dropped rather than followed: the
+question is right that it exists nowhere else in the repository, and it becomes unnecessary the moment
+a real ID is issued. A plain `feat/TEA-05` needs no suffix and no special case in any resolver.
+
+**A hazard was found while confirming this and it is worse than the question anticipated.** Three
+mechanisms derive the ticket id identically — `branch.slice("feat/".length).split("/")[0]` at
+`scripts/check-allowed-paths.mjs:90`, `.claude/hooks/guard-allowed-paths.mjs:166`, and
+`.claude/hooks/chat-guard.mjs`. A hyphen suffix survives that derivation; **a slash does not**.
+`feat/TEA-01/b` resolves to ticket `TEA-01` and fails *open* into a shipped ticket's `allowed_paths`
+rather than closed. Nothing here relies on it. It is raised as model debt below.
+
+**3 — The text of AC-6. → Not recoverable. The BA writes it afresh at SPEC. Deferred to SPEC, with
+the `TODO(verify):` closed.**
+
+The verification this session could not perform has been performed. `01-story.md` entered git history
+in exactly one commit, `c9e5574`, already carrying the post-split placeholder; `git fsck
+--lost-found --unreachable` is empty, the stash is empty, and no artifact anywhere quotes the original
+wording. **The original text does not exist in this repository.**
+
+So *"AC-6 as written above the split"* points at nothing, and the BA writes the criterion from the
+three surviving fragments the question already enumerated — `02-design.md:160-163`,
+`02-design.md:818`, `01-story.md:102-105`. **The story must say it was reconstructed rather than
+transcribed.** A criterion presented as a transcription of text nobody can produce is the more
+expensive of the two errors.
+
+**4 — Where does a signed-in member land? → Bounded here; the content is the BA's at SPEC.**
+
+The bound is not a preference, it is forced by a policy this ticket does not own. `public.team` has
+row-level security enabled with everything revoked and **no select policy anywhere** — the migration
+does `revoke all on public.team, public.member, public.allowed_email from anon, authenticated` at
+`supabase/migrations/20260831150024_tea01_membership.sql:145` — and that policy is already owned by
+CAL-04 per ADR-014's *Correction* paragraph of 2026-08-31.
+
+**Therefore: the landing screen reads the caller's own `member` row and nothing else**, plus one link
+to `/allow-list` when that row is an admin. It is served by a policy that already exists —
+`member_select_own`, whose own comment at `20260831150024_tea01_membership.sql:152` says *"the sign-in
+half depends on this policy rather than adding one"*. **If DESIGN cannot hold the screen inside that,
+narrow the screen; do not take CAL-04's policy early.** The month view is CAL-04 and stays there.
+
+This is a BACKLOG-time claim that DESIGN is free to contradict, which is ADR-010 §Revert condition's
+first clause. Named as such so that contradicting it is read as the revert signal it would be.
+
+**5 — Is sign-out in scope? → Yes. In scope. Answered here.**
+
+It costs no additional file: `signOut` is already in the carved-out seam list at `01-story.md:210`,
+and the seam-parity test means the mock gains it in the same edit. On a shared machine, in a product
+where every member reads the whole team's calendar, a session nobody can end is a real gap rather than
+a tidiness one. Excluding it would mean shipping the sign-in half twice.
+
+**6 — Expiry, and where the session is read? → Refused here. Raised to the operator.**
+
+`.ai/standards/rbac-and-security.md:114` is still open, verbatim, and the question is correct that the
+answer belongs in that file. `.ai/standards/` is human plane under RULE-01 and neither this triage nor
+this ticket may close it. **This is a decision a human owes before DESIGN**, since expiry behaviour
+changes what `useSession.ts` is. It is not in `depends_on` — a standards marker is not a ticket — and
+it is not a blocker on promotion.
+
+**7 — Must the QA gate run against a real Supabase project? → Not decided here. It is ADR-017's, and
+therefore the operator's. Flagged on the shell.**
+
+Triage cannot waive or unwaive a gate. What triage can do is record that this is the ticket where the
+waiver costs the most, and the arithmetic that makes it so: **ADR-017's revert condition 2 is three
+tickets shipped waived. TEA-02 was the first. This would be the second.** The idea's own
+*Constraints* section already reached the conclusion and it holds — a sign-in feature verified only
+against `VITE_DATA_SEAM=mock`, where `__setCurrentMember` fabricates the exact thing the ticket exists
+to produce, has verified nothing about signing in. Carried into the shell's comment block. Related to
+MD-016, which records that nothing counts the waivers.
+
+### What was promoted
+
+| | |
+|---|---|
+| Feature row | `TEA-05`, `Status: PLANNED`, group `TEA`, citing this file |
+| Ticket | `.ai/board/tickets/TEA-05/ticket.yaml`, `state: BACKLOG`, `feature_ids: [TEA-05, TEA-01]` |
+| Branch, when it starts | `feat/TEA-05` |
+| `depends_on` | `[TEA-01]` — `state: DONE`, so Definition of Ready item 3 passes |
+| `schema_delta` | `none`, `requires_adr: false`, on the condition in question 4 above |
+| Backlog | appended to `## BACKLOG` |
+
+**`depends_on` deliberately excludes TEA-02.** Nothing in the carved-out file list touches the
+allow-list; TEA-02 is the beneficiary of this work, not its prerequisite.
+
+**Definition of Ready item 3 passes on a dependency whose QA was waived**, with ten of twelve criteria
+untested (`backlog.md` § ARCHIVE). The item asks only whether TEA-01 is `DONE`, and it is. Recorded
+because *passes* and *is verified* are different statements here.
+
+**Two things left out of `depends_on` on purpose, and raised instead.** The *Appendix A* provisioning
+chore has no feature ID, and `OPS` is not a declared prefix — `features.md:65` reads
+`<!-- id-prefixes: CAL ADM TEA -->` — so an `OPS-nnn` written today would be the dangling citation
+that check D1 exists to report. And question 6's standards marker, for the reason given there.
+
+### Two facts found stale while triaging, noted and not corrected
+
+Both are in `.ai/registry/features.md`, whose `Status` column has exactly one writer — `/ship` step 3,
+which says so at `.claude/commands/ship.md:44`. Correcting them here would take a write from another
+command and put two writers on one column.
+
+1. **The TEA-02 row reads `Status: IN_PROGRESS` with the note *"PR #13 open"*.** PR #13 is merged and
+   `.ai/board/tickets/TEA-02/ticket.yaml:8` reads `state: DONE`. The row is behind the ticket.
+2. **The TEA-01 row's first reason is still stale**, exactly as this idea's *Evidence* item 8
+   predicted: it cites an unmerged pull request that `backlog.md` § ARCHIVE records as merged on
+   2026-08-31. Its conclusion — `IN_PROGRESS` rather than `DONE` — remains correct on its second
+   reason, which is this idea, and stops being correct the moment TEA-05 ships.
+
+### Model debt raised
+
+Two rows appended to `.ai/board/model-debt.md`: **MD-017**, that no command owns a ticket shell
+created by a split at DESIGN — which is why this work went missing, and for which TEA-05 is the
+workaround and not the fix — and **MD-018**, the branch-derivation hazard found under question 2.
+
+### A note on the backlog row's position
+
+It was **appended**, at the end of `## BACKLOG`. `backlog.md`'s own header says it is an ordered list
+that a human reorders, so inserting this row higher would renumber sixteen rows a human placed.
+Nothing about the position is asserted here.
