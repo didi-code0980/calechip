@@ -8,11 +8,59 @@ group: CAL
 state: BACKLOG
 owner: ""
 branch: ""
-size_estimate: ""     # S|M - set by ba at SPEC; gates DoR
-size: ""              # S|M|L|XL - set by tech-lead-design at DESIGN; decides splitting
+size_estimate: "M"    # S|M - set by tech-lead-design at PLAN; gates DoR. Read from 01-plan.md
+                      # section 1: one migration creating `entry` with three enums, two generated
+                      # columns, three constraints, a function and a trigger; two new seam
+                      # functions with two implementations each; one new screen and its route.
+size: "M"             # S|M|L|XL - set by tech-lead-design at PLAN; decides splitting. Counted
+                      # from the eleven allowed_paths below, 01-plan.md section 7. AGREES with
+                      # size_estimate; ADR-012 is not engaged. The XL row was checked and is not
+                      # engaged: no existing seam signature changes, no existing type changes
+                      # shape, `FailureCode` is a widened union, and the migration alters no
+                      # existing table - the operating model's own test is whether existing
+                      # callers must change. TEA-02, TEA-03 and TEA-04 are the precedent.
 depends_on: [TEA-01]
-invariants_touched: []
-allowed_paths: []
+invariants_touched: [INV-01, INV-02, INV-03, INV-06, INV-07]
+                      # 01-plan.md section 2. The feature row lists three; this is five and the
+                      # two additions are argued there rather than assumed. INV-01 directly - this
+                      # ticket creates the exclusion constraint. INV-06 directly - one portion
+                      # column, so a per-day portion is unrepresentable. INV-07 directly and twice
+                      # - the not-null foreign key, and `entry_select_team` is the only thing
+                      # deciding whose entries a caller sees. INV-02 and INV-03 because the
+                      # feature row's own Notes put INV-02's trigger and INV-03's check in this
+                      # migration, so both are plausibly affected by construction.
+                      #
+                      # INV-04 and INV-05 are deliberately ABSENT, not overlooked. Nothing here
+                      # counts, displays a count, reads `team.overload_threshold` or reads the
+                      # roster - INV-04 is about the UNIQUENESS of the definition and this ticket
+                      # contains no definition of it. The triage verdict names the one thing that
+                      # would engage it, an acceptance criterion showing a count in the creation
+                      # form, and 01-plan.md section 1 refuses it to CAL-07.
+# allowed_paths - 01-plan.md section 7. Eleven globs, eleven files.
+#
+# NO INLINE COMMENTS ON THE ITEMS. `readYamlList` in scripts/check-allowed-paths.mjs and in
+# .claude/hooks/guard-allowed-paths.mjs strips only a LEADING and a TRAILING quote, so a
+# trailing `# ...` is swallowed into the pattern and the glob then matches nothing.
+#
+# `supabase/migrations/*.sql` is ONE new file; the glob is only because `supabase migration new`
+# generates the timestamp. TEA-01's, TEA-02's, TEA-03's and TEA-04's are not to be edited.
+#
+# DELIBERATELY ABSENT: tests/seam-parity.test.ts (must pass unedited with two seam functions
+# added), tests/e2e/smoke.spec.ts and tests/e2e/tea-01-signup.spec.ts (no shipped behaviour they
+# assert changes; App.tsx gains a route and its `*` fallback is untouched), eslint.config.js and
+# package.json (no dependency is added - check R9). 01-plan.md section 7.
+allowed_paths:
+  - "supabase/migrations/*.sql"
+  - "supabase/seed.sql"
+  - "src/lib/domain/types.ts"
+  - "src/lib/data/index.ts"
+  - "src/lib/data/supabase.ts"
+  - "src/lib/data/mock.ts"
+  - "src/lib/fixtures.ts"
+  - "src/routes/Entries.tsx"
+  - "src/App.tsx"
+  - "tests/permission-model.test.ts"
+  - "tests/e2e/cal-01-create-entry.spec.ts"
 schema_delta: creates `entry`, its three enums, the generated columns `date_range` and `portion_slots`, INV-01's exclusion constraint with the `btree_gist` extension, INV-03's check and INV-02's trigger — ADR-005, ADR-011
 requires_adr: true
 rework_count: 0
@@ -38,3 +86,28 @@ gates:
 # Item 3 is not yet satisfied and that is expected: TEA-01 is not DONE. No entry can exist before a
 # member row can, because `entry.member_id` is not-null against `member(id)` (INV-07) and every
 # policy on `entry` compares it to auth.uid() under ADR-005.
+#
+# ---------------------------------------------------------------------------
+# PLAN, 2026-09-01, `tech-lead-design`. 01-plan.md, gate BLOCKED.
+#
+# Items 2 and 5 are now filled above and the two comments they replace are left standing: they say
+# "the BA at SPEC", and ADR-019 retired that stage and moved both fields to `tech-lead-design` at
+# PLAN. Correcting a comment in place would erase which model produced the row.
+#
+# Item 3 IS now satisfied: TEA-01 reached DONE on 2026-09-01, as did TEA-02, TEA-03 and TEA-04.
+# The note above stands as what was true when the shell was written.
+#
+# THE GATE IS BLOCKED ON ONE ACCEPTANCE CRITERION, and it is the `TODO(project):` marker that
+# .ai/registry/features.md already carries on the CAL-01 row: may a member create an entry for a
+# date in the PAST? Nothing in the brief, the charter or the registry settles it - the charter's
+# "at any time" governs when the action may be taken, not which dates it may target. features.md
+# section Columns defines a Notes marker as known-incomplete and needing a human decision before
+# READY, and both CLAUDE.md and the operator's standing instructions in .ai/steward/context.md
+# carve acceptance criteria out of the decide-and-report autonomy grant. It is 01-plan.md's AC-17,
+# a placeholder, with both branches costed and a recommendation of ALLOW under Open questions.
+# A one-word answer turns it into a criterion and this gate into PASS with nothing else changed.
+#
+# A SECOND thing stands between this ticket and IN_PROGRESS, and it is not this gate's: ADR-021
+# section Consequences puts BUG-001 - the end-to-end suite pins no seam - AHEAD of CAL-01, and
+# BUG-001 is BACKLOG. It is recorded in 01-plan.md Open questions item 4 as blocking this ticket's
+# QA gate rather than its plan.
