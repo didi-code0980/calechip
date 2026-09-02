@@ -5,7 +5,7 @@ id: BUG-001
 title: "The end-to-end suite does not pin which seam it drives"
 feature_ids: [TEA-01]
 group: TEA
-state: BACKLOG
+state: REVIEW
 owner: ""
 branch: "bugfix/BUG_TEA-01_01"   # OPERATOR DECISION, 2026-09-01 — see §4. GUARD IS OFF ON THIS BRANCH.
 size_estimate: "S"    # S|M - set by tech-lead-design at PLAN; gates DoR. Read from 01-plan.md

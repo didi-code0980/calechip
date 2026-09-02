@@ -118,10 +118,12 @@ one-ticket-in-flight property ADR-006 rests on. So `.ai/board/tickets/BUG-001/01
 four filled `ticket.yaml` fields in this diff are **PLAN's work, not this stage's** — they are
 unmodified from `1230c7f`.
 
-**2. `state:` still reads `BACKLOG` in `ticket.yaml`.** PLAN's front-matter says `next_state: READY`
-but the field was never advanced, so the ticket has passed through PLAN and IN_PROGRESS without its
-state ever leaving `BACKLOG`. Not corrected here: the field is the orchestrator's, and a developer
-advancing it two steps by hand would hide the miss rather than surface it.
+**2. `state:` was `BACKLOG` on arrival and this stage set it to `REVIEW`.** PLAN's front-matter says
+`next_state: READY`, but the field was never advanced — so the ticket passed through PLAN and reached
+IN_PROGRESS while still reading `BACKLOG`. `/implement` requires this stage to set `REVIEW` on PASS,
+so it does; the jump skips `READY` and `IN_PROGRESS`, and that gap is PLAN's miss rather than a
+correction made here. Recorded rather than smoothed over, because the state field is how the board
+reports which stage a ticket really cleared.
 
 **3. RULE-03 has no automation on any of the three candidate branch names**, since both resolvers
 hard-code `feat/`. The subset check in the table above was performed by hand, and R1 must be too —
