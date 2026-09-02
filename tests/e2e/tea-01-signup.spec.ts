@@ -12,10 +12,14 @@ import { expect, test, type Page } from "@playwright/test";
 // records that the database does not exist yet. See 05-test-plan.md for the mapping.
 //
 // **This suite drives the in-memory seam, and the first test below proves it rather than assuming
-// it.** Section 6.2 resolves a build with no `VITE_SUPABASE_URL` to the mock, which is what the
-// end-to-end command named in .ai/standards/testing-standards.md produces. Section 6.2 is explicit
-// that such a run "proves the screen and the mock's imitation of the trigger" and "proves nothing
-// about the policies or the real trigger". Nothing below may be read as covering those.
+// it.** BUG-001 corrected what this paragraph used to claim: the end-to-end command named in
+// .ai/standards/testing-standards.md did NOT produce a mock build on its own — it inherited
+// whichever `.env` the machine carried, which is the defect that ticket exists for. The seam is now
+// pinned in `playwright.config.ts`'s `webServer.env`, and the `seam-guard` project — which the
+// project carrying these tests declares in `dependencies` — refuses a run whose served page
+// resolved to anything else. Section 6.2 is explicit that such a run "proves the screen and the
+// mock's imitation of the trigger" and "proves nothing about the policies or the real trigger".
+// Nothing below may be read as covering those.
 
 const SIGNUP = "/signup";
 

@@ -12,7 +12,7 @@ import SignUp from "./routes/SignUp";
 export default function App() {
   return (
     <BrowserRouter>
-      <main data-testid="app-root" className="min-h-screen bg-slate-50 p-8 font-sans">
+      <main data-testid="app-root" data-seam={seamName} className="min-h-screen bg-slate-50 p-8 font-sans">
         {/* Design section 6.2 rule 2. A build with no VITE_SUPABASE_URL resolves to the in-memory
             seam rather than to a screen that throws — but a SILENT fallback to a fake datastore is
             worse than the crash it replaces: a deployment that forgets one environment variable
