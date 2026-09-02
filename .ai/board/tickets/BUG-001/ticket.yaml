@@ -8,11 +8,60 @@ group: TEA
 state: BACKLOG
 owner: ""
 branch: "bugfix/BUG_TEA-01_01"   # OPERATOR DECISION, 2026-09-01 — see §4. GUARD IS OFF ON THIS BRANCH.
-size_estimate: ""     # S|M - set by tech-lead-design at PLAN; gates DoR
-size: ""              # S|M|L|XL - set by tech-lead-design at PLAN; decides splitting
+size_estimate: "S"    # S|M - set by tech-lead-design at PLAN; gates DoR. Read from 01-plan.md
+                      # section 1: one config change, one attribute, one setup file, one comment
+                      # correction, and the acceptance suite. No schema, no policy, no seam
+                      # function, no screen.
+size: "S"             # S|M|L|XL - set by tech-lead-design at PLAN; decides splitting. Counted
+                      # from the six allowed_paths below, 01-plan.md section 7. AGREES with
+                      # size_estimate; ADR-012 is not engaged. It sits exactly on the S/M
+                      # boundary, and the file that put it there is tests/playwright-config.test.ts
+                      # - see the 01-plan.md Changelog entry on AC-5. The XL row is not engaged:
+                      # no schema, no seam signature, no shared type module, and an added HTML
+                      # attribute has no callers.
 depends_on: []        # nothing blocks it — see §3 below, a reviewer will ask about TEA-01
 invariants_touched: []
-allowed_paths: []
+                      # 01-plan.md section 2, written explicitly and argued there rather than left
+                      # to read as an oversight. This ticket writes no domain data and reads none:
+                      # it touches the test runner's configuration, one presentational attribute,
+                      # and the test tree. INV-01..INV-07 all constrain the state of `entry`,
+                      # `member` and `team`, none of which is reachable from anything it edits.
+                      #
+                      # The strongest candidate was followed and does not hold: an acceptance run
+                      # against the live project DOES write auth users and, through TEA-01's
+                      # trigger, `member` rows - but that is the behaviour this ticket STOPS, and
+                      # a spurious member row violates no invariant. It is a blast-radius problem
+                      # and 01-plan.md section 3 is where it is held.
+# allowed_paths - 01-plan.md section 7. Six globs, six files.
+#
+# NO INLINE COMMENTS ON THE ITEMS. `readYamlList` in scripts/check-allowed-paths.mjs and in
+# .claude/hooks/guard-allowed-paths.mjs strips only a LEADING and a TRAILING quote, so a
+# trailing `# ...` is swallowed into the pattern and the glob then matches nothing.
+#
+# *** THIS LIST IS A PROMISE AND NOT A FENCE ON THIS BRANCH. *** Both resolvers hard-code `feat/`,
+# so nothing enforces it at write time and nothing checks the diff in CI - §4 above says so in
+# capitals and 01-plan.md Open questions item 2 repeats it for /review. R1 must be performed BY
+# HAND on this ticket. It is the one review check with no automation behind it.
+#
+# WHO WRITES WHICH FILE is resolved in 01-plan.md section 7, because .ai/01-operating-model.md:85
+# gives `qa` the test tree and this fix lives both in it and outside it. Developer:
+# playwright.config.ts, src/App.tsx, tests/e2e/seam.setup.ts (the fix's mechanism - the command
+# cannot run at all without it once the config names it in `dependencies`) and the COMMENT ONLY in
+# tests/e2e/tea-01-signup.spec.ts. QA: the other two. The Developer changes no assertion in
+# tea-01-signup.spec.ts - AC-8.
+#
+# DELIBERATELY ABSENT: .github/workflows/verify.yml (AC-9 requires it UNCHANGED - a pin in the
+# config fixes CI and the QA gate together because both invoke the same binary),
+# src/lib/data/index.ts and tests/seam-parity.test.ts (section 5, and Out of scope),
+# tests/e2e/smoke.spec.ts, and the two `feat/`-hard-coded resolvers (Out of scope - steward work
+# on an ops/ branch).
+allowed_paths:
+  - "playwright.config.ts"
+  - "src/App.tsx"
+  - "tests/e2e/seam.setup.ts"
+  - "tests/e2e/tea-01-signup.spec.ts"
+  - "tests/e2e/bug-001-seam-pin.spec.ts"
+  - "tests/playwright-config.test.ts"
 schema_delta: none
 requires_adr: false
 rework_count: 0
@@ -219,3 +268,27 @@ gates:
 #     this as the cheapest way out and the destructive one: it makes the suite green in BOTH
 #     configurations and removes the only thing that would ever again report which datastore an
 #     acceptance run touched.
+
+# ---------------------------------------------------------------------------------------------
+# 11. PLAN, 2026-09-02, `tech-lead-design`. 01-plan.md, gate PASS.
+#
+# Items 2 and 5 are now filled above. The four fields are the only thing this run wrote here.
+#
+# THE DESIGN, IN ONE PARAGRAPH, because §§5-9 above bound it and a reader should see how it landed:
+# the seam is PINNED in playwright.config.ts's `webServer.env` (not in the workflow, not in a
+# package.json script - both leave the local /qa run unpinned, which is where the gate is actually
+# evaluated); a `seam-guard` Playwright PROJECT that `chromium` declares in `dependencies` ABORTS
+# the suite rather than reporting beside it, which is §6's requirement; and the guard reads THE
+# SERVED PAGE, never process.env or the config, which is §7's. `reuseExistingServer` is KEPT - §7
+# left that open - because the guard converts the stale-server hazard from a silent breach into a
+# loud refusal, and `false` costs every local run a full build.
+#
+# ONE SCOPE WIDENING, declared: src/App.tsx gains ONE attribute, `data-seam` on `app-root`, so the
+# page states its seam in BOTH configurations. `seam-banner` renders only in the mock case, so a
+# guard built on it can assert nothing but absence - and "the banner is missing" is the same guess
+# that produced this ticket. No behaviour changes and TEA-01 asserts nothing different.
+#
+# BOTH OF §4's WARNINGS SURVIVED INTO THE PLAN rather than being noted and dropped: RULE-03 is
+# unenforced on this branch (Open questions item 2) and /plan step 0's `feat/BUG-001` contradicts
+# both this file's `branch` and git-conventions.md:36 (Open questions item 1 - a steward chore,
+# blocking nothing).
