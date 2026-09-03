@@ -5,14 +5,55 @@ id: BUG-001
 title: "The end-to-end suite does not pin which seam it drives"
 feature_ids: [TEA-01]
 group: TEA
-state: BACKLOG
+state: DONE      # orchestrator at /ship, 2026-09-03. The developer's comment below is left
+                 # verbatim and describes the REVIEW value it was written against; the skipped
+                 # bookkeeping it names is repaired in this same write, see `gates:` below.
+                 # ---- developer, /implement, 2026-09-03, per the /implement command's own
+                 # instruction ----
+                 # IT SKIPPED READY AND IN_PROGRESS: this ticket arrived still in
+                 # BACKLOG although 01-plan.md carries `gate: PASS` / `next_state: READY`, so the
+                 # orchestrator's DoR evaluation and PLAN->READY->IN_PROGRESS bookkeeping
+                 # (.ai/01-operating-model.md:285) never ran. `gates.plan.passed` is deliberately
+                 # LEFT FALSE below rather than forged — see 03-impl-log.md Open questions item 2.
 owner: ""
-branch: "bugfix/BUG_TEA-01_01"   # OPERATOR DECISION, 2026-09-01 — see §4. GUARD IS OFF ON THIS BRANCH.
-size_estimate: ""     # S|M - set by tech-lead-design at PLAN; gates DoR
-size: ""              # S|M|L|XL - set by tech-lead-design at PLAN; decides splitting
+branch: "feat/BUG-001"   # OPERATOR DECISION, 2026-09-03, SUPERSEDING the 2026-09-01 one. The
+                         # previous value was `bugfix/BUG_TEA-01_01`; §4 below is the record of that
+                         # decision and is left standing rather than rewritten. See §4 CORRECTION
+                         # at the end of this file, and 01-plan.md section 7.
+                         # THE PATH GUARD IS ON: check-allowed-paths.mjs:90 resolves this branch to
+                         # ticket BUG-001 and :94 finds this file, so allowed_paths IS enforced in CI.
+size_estimate: "S"    # S|M - set by tech-lead-design at PLAN; gates DoR. Read from 01-plan.md
+                      # section 1. Two files, one of them new, no application code, no schema, no
+                      # dependency.
+size: "S"             # S|M|L|XL - set by tech-lead-design at PLAN; decides splitting. Counted from
+                      # the two allowed_paths below, 01-plan.md section 7. AGREES with
+                      # size_estimate; ADR-012 is not engaged and nothing splits.
 depends_on: []        # nothing blocks it — see §3 below, a reviewer will ask about TEA-01
-invariants_touched: []
-allowed_paths: []
+invariants_touched: []   # 01-plan.md section 2. EXPLICIT, not absent — DoR item 2. INV-01..INV-07
+                         # all range over `entry` and `member` rows; neither file below contains
+                         # application code, writes a row, or is imported by anything that does.
+                         # src/lib/data/index.ts is deliberately out of scope and out of the list.
+                         # invariants.md warns that concluding `none` from safe behaviour is
+                         # circular, so the mechanism is stated rather than the conclusion.
+                         # ONE ADJACENCY, and it points the other way: today's unpinned runs create
+                         # auth users in the live project, the admission trigger turns allow-listed
+                         # ones into member rows, and those rows enter INV-04's denominator. This
+                         # ticket REMOVES that mechanism rather than engaging it.
+# allowed_paths — 01-plan.md section 7. Two globs, two files; tests/e2e/seam.setup.ts is new.
+#
+# NO INLINE COMMENTS ON THE ITEMS. `readYamlList` in scripts/check-allowed-paths.mjs and in
+# .claude/hooks/guard-allowed-paths.mjs strips only a LEADING and a TRAILING quote, so a trailing
+# `# ...` is swallowed into the pattern and the glob then matches nothing.
+#
+# DELIBERATELY ABSENT, each with its reason in 01-plan.md section 7: src/lib/data/index.ts (the
+# application's own seam resolution is out of scope); tests/e2e/tea-01-signup.spec.ts (its guard at
+# :52-56 is TEA-01's, is correct, and §10 forbids removing it); tests/e2e/smoke.spec.ts (matched by
+# the new per-project testMatch with no edit); .github/workflows/verify.yml (needs none — AC-7 is
+# the assertion of that); .ai/standards/testing-standards.md (standards plane, RULE-01, and it is
+# owed a human edit — 01-plan.md Open questions item 2); package.json (no script change).
+allowed_paths:
+  - "playwright.config.ts"
+  - "tests/e2e/seam.setup.ts"
 schema_delta: none
 requires_adr: false
 rework_count: 0
@@ -23,11 +64,26 @@ chat_budget:
   qa->tech-lead-design:        { used: 0, max: 6 }
 tracker: { provider: "", external_id: "", sync_enabled: false }
 gates:
-  plan:   { passed: false, at: null }   # ADR-019 merged the `spec` and `design` gates into one
-  review: { passed: false, at: null }
+  plan:   { passed: true, at: "2026-09-03T08:20:02+07:00" }   # ADR-019 merged `spec` and `design`
+  review: { passed: true, at: "2026-09-03T08:48:29+07:00" }
   qa:     { passed: false, at: null }
-  # ADR-021 REVERTED the ADR-017 waiver on 2026-09-01. All three gates are armed and `/ship`
-  # requires `passed: true` on each. There is no waiver shape in this file and none may be added.
+  # ADR-021 REVERTED the ADR-017 waiver on 2026-09-01. There is no waiver shape in this file and
+  # none may be added.
+  #
+  # WRITTEN BY `orchestrator` AT /ship, 2026-09-03, AND THIS IS THE REPAIR THE TWO STAGES ASKED FOR.
+  # Both stages ran and both declined to write this block themselves — correctly, it is not theirs:
+  # 03-impl-log.md Open questions item 2, and 04-review.md's closing note 1. Neither value is
+  # inferred. Each `at` is the `produced_at` of the artifact carrying the gate:
+  #   plan   -> 01-plan.md:5   `produced_at: 2026-09-03T08:20:02+07:00`, `gate: PASS`
+  #   review -> 04-review.md:5 `produced_at: 2026-09-03T08:48:29+07:00`, `gate: PASS`
+  # The PLAN->READY Definition of Ready grade that .ai/01-operating-model.md:285 owes was run by
+  # `orchestrator` at /next-ticket on 2026-09-03, six of six PASS; it writes no file, so this
+  # comment is its only record. The ticket reached REVIEW without passing through READY or
+  # IN_PROGRESS and the state rows in metrics.md say so rather than inventing the two transitions.
+  #
+  # `qa` STAYS false AND IS NOT REQUIRED. ADR-022 removed the QA stage; this ticket was planned
+  # 2026-09-03, after that date, so /ship requires `plan` and `review` only. The key is left in
+  # place rather than deleted because the shell predates ADR-022 and nothing is owed by removing it.
 
 # Created by `product` at /triage on 2026-09-01, on a PROMOTE verdict, from
 # .ai/board/ideas/2026-09-01-the-end-to-end-suite-does-not-pin-which-seam-it-drives.md.
@@ -219,3 +275,62 @@ gates:
 #     this as the cheapest way out and the destructive one: it makes the suite green in BOTH
 #     configurations and removes the only thing that would ever again report which datastore an
 #     acceptance run touched.
+
+# ---------------------------------------------------------------------------------------------
+# §4 CORRECTION, tech-lead-design 2026-09-03 — APPENDED, and §4 above is left exactly as written.
+#
+# THE BRANCH IS `feat/BUG-001` AND THE PATH GUARD IS ON. §4 above records the operator's 2026-09-01
+# choice of `bugfix/BUG_TEA-01_01` and three consequences of it. Two of those three no longer hold:
+#
+#   - "RULE-03 IS NOT MECHANICALLY ENFORCED ON THIS TICKET" — false now.
+#     scripts/check-allowed-paths.mjs:90 computes `branch.slice("feat/".length).split("/")[0]` =
+#     `BUG-001`, and :94 finds .ai/board/tickets/BUG-001/ticket.yaml, which exists. So CI checks the
+#     real diff against the two globs above. On a `bugfix/` branch, :85-87 exits 0 saying "nothing
+#     to check".
+#   - "THE REVIEWER MUST CHECK THE DIFF AGAINST allowed_paths BY HAND" — R1 is still the reviewer's
+#     and still owes its file:line, but it is no longer the one check with no automation behind it.
+#   - The third stands unchanged: git-conventions.md:49 says the cheapest moment to fix the two
+#     `bugfix/` resolvers is before any `bugfix/` branch exists. THIS TICKET NO LONGER SPENDS THAT
+#     MOMENT — none is created. The fix stays available, stays steward work on an `ops/` branch, and
+#     is still not this ticket.
+#
+# WHY IT WAS RE-PUT TO THE OPERATOR RATHER THAN OBEYED OR OVERRIDDEN. `/plan` step 0 mandates
+# `feat/<TICKET-ID>`, which contradicts the recorded decision, and the triage had put `feat/BUG-001`
+# to the operator as UNAVAILABLE, citing git-conventions.md:36. The resolver measurement above was
+# not available to them at that moment and it inverts the trade-off: the option presented as
+# unavailable is the only one that enforces RULE-03. The operator was given that fact and chose
+# `feat/BUG-001` on 2026-09-03.
+#
+# WHAT IT COSTS, recorded rather than glossed: `feat/BUG-001` contradicts git-conventions.md:36,
+# which says `<FEATURE-ID>` is a row in features.md and nothing else — and BUG-001 is not a row.
+# That inconsistency is standards plane under RULE-01 and is NOT resolved here.
+#
+# ---------------------------------------------------------------------------------------------
+# §1 and §6 CORRECTION, tech-lead-design 2026-09-03 — ADR-022 REMOVED THE QA STAGE.
+#
+# This shell was written on 2026-09-01, hours before ADR-022. Three things in it now read wrong:
+#
+#   - §1 "no ticket can pass the QA gate" — there is no QA gate. The `gates:` block above still
+#     carries a `qa` key; ADR-022 Decision point 2 keeps it on tickets planned before 2026-09-01,
+#     and the two gates that decide anything are `plan` and `review`.
+#   - THE TICKET IS NOT LESS URGENT FOR IT. Definition of Done item 3 — typecheck, lint, unit and
+#     end-to-end exit 0 — SURVIVES ADR-022 explicitly (Decision point 7) and is now `/ship`'s alone.
+#     An end-to-end suite that cannot exit 0 deterministically now blocks `/ship` instead of QA.
+#   - §9's OWNERSHIP STRADDLE IS DISSOLVED, not resolved. It asked which agent writes
+#     `tests/e2e/**` when qa owned the test tree and developer did not. ADR-022 retired the qa role;
+#     .claude/agents/developer.md:33-35 now says unit AND acceptance tests are the developer's.
+#     `developer` writes both files in allowed_paths.
+#   - §9's other half is also void: RULE-05 is RETIRED at v3 and plan section 8 (the testability
+#     contract) no longer exists — the plan has eight sections and 8 is Rejected alternatives. The
+#     selectors §9 demanded reach the developer through 01-plan.md section 4, which names
+#     `data-testid="seam-banner"` and `data-seam="mock"` with their line numbers in src/App.tsx.
+#
+# ---------------------------------------------------------------------------------------------
+# §5 CONFIRMATION, tech-lead-design 2026-09-03. Every measurement in §5 was re-run at PLAN against
+# the installed packages rather than accepted: webServer.env merges over process.env
+# (playwright/lib/runner/index.js:858-862); Vite applies process.env after the parsed .env
+# (vite/dist/node/chunks/node.js:5926); a failing setup project reports "1 failed ... 1 did not run";
+# pinned build 269.78 kB with `supabase.co` x0, unpinned 479.97 kB with it x2. All four reproduce.
+# One thing §5 did not say and 01-plan.md section 8 turns on: `seam-banner` appears ZERO times in the
+# unpinned bundle — the branch is constant-folded away — so the served page is the only place the
+# answer exists, which is why the guard may not read the config.
