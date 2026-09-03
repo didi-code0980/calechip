@@ -62,7 +62,7 @@ test.describe("TEA-05 sign in, sign out, and session", () => {
 
     await expect(page.getByTestId("home-member-name")).toHaveText("Thành viên");
     await expect(page.getByTestId("home-member-avatar")).toHaveText("🐱");
-    await expect(page.getByTestId("home-member-role")).toHaveText("Thành viên");
+    await expect(page.getByTestId("home-member-role")).toHaveText("Member");
   });
 
   test("AC-2: a wrong address and a wrong password are refused identically", async ({ page }) => {
@@ -143,7 +143,7 @@ test.describe("TEA-05 sign in, sign out, and session", () => {
   test("AC-10: the allow-list link is shown to an admin and to nobody else", async ({ page }) => {
     // Admin sees link
     await submitSignIn(page, ADMIN_EMAIL, PASSWORD);
-    await expect(page.getByTestId("home-member-role")).toHaveText("Quản trị viên");
+    await expect(page.getByTestId("home-member-role")).toHaveText("Admin");
     await expect(page.getByTestId("home-allow-list-link")).toBeVisible();
 
     // Sign out
@@ -152,7 +152,7 @@ test.describe("TEA-05 sign in, sign out, and session", () => {
 
     // Member does not see link
     await submitSignIn(page, MEMBER_EMAIL, PASSWORD);
-    await expect(page.getByTestId("home-member-role")).toHaveText("Thành viên");
+    await expect(page.getByTestId("home-member-role")).toHaveText("Member");
     await expect(page.getByTestId("home-allow-list-link")).toHaveCount(0);
   });
 

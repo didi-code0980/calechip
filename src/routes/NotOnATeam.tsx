@@ -37,10 +37,10 @@ export default function NotOnATeam({ user, signOut }: NotOnATeamProps) {
       data-testid="not-on-a-team"
       className="mx-auto max-w-md rounded-2xl bg-white p-8 text-center shadow-sm"
     >
-      <h1 className="text-xl font-semibold">Bạn đã đăng nhập</h1>
+      <h1 className="text-xl font-semibold">You are signed in</h1>
       <p className="mt-2 text-sm opacity-70">
-        Tài khoản {user.email} chưa thuộc nhóm nào. Nhờ quản trị viên thêm địa chỉ này vào danh sách
-        trước, rồi bạn đăng nhập lại là vào được nhóm.
+        The account {user.email} is not on a team yet. Ask an admin to add this address to the
+        allowed list first, then sign in again to join.
       </p>
 
       {/* AC-6. Somebody in this state has no other way out, which is why the control is here and not
@@ -52,7 +52,7 @@ export default function NotOnATeam({ user, signOut }: NotOnATeamProps) {
         disabled={signingOut}
         className="mt-6 rounded-xl border border-slate-200 px-4 py-2 text-sm disabled:opacity-40"
       >
-        {signingOut ? "Đang thoát…" : "Đăng xuất"}
+        {signingOut ? "Signing out…" : "Sign out"}
       </button>
     </section>
   );

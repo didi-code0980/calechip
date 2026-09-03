@@ -18,18 +18,11 @@
   ],
   "diacritic": "[\\u00C0-\\u024F\\u1E00-\\u1EFF]",
   "copyDebt": [
-    "src/App.tsx",
     "src/components/EntryForm.tsx",
     "src/lib/data/mock.ts",
     "src/lib/data/supabase.ts",
-    "src/routes/AllowList.tsx",
     "src/routes/EditEntry.tsx",
-    "src/routes/Home.tsx",
-    "src/routes/MemberList.tsx",
-    "src/routes/NewEntry.tsx",
-    "src/routes/NotOnATeam.tsx",
-    "src/routes/SignIn.tsx",
-    "src/routes/SignUp.tsx"
+    "src/routes/NewEntry.tsx"
   ],
   "userContent": ["src/lib/fixtures.ts", "supabase/seed.sql"]
 }

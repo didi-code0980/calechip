@@ -53,7 +53,7 @@ export default function SignUp() {
     } catch {
       setState({
         phase: "editing",
-        error: { code: "unknown", message: "Đăng ký không thành công. Thử lại giúp mình nhé." },
+        error: { code: "unknown", message: "Sign-up failed. Please try again." },
       });
     }
   }
@@ -64,9 +64,9 @@ export default function SignUp() {
         data-testid="signup-confirm-notice"
         className="mx-auto max-w-md rounded-2xl bg-white p-8 text-center shadow-sm"
       >
-        <h1 className="text-xl font-semibold">Kiểm tra email nhé</h1>
+        <h1 className="text-xl font-semibold">Check your email</h1>
         <p className="mt-2 text-sm opacity-70">
-          Mình vừa gửi một liên kết xác nhận tới địa chỉ bạn nhập. Mở liên kết đó để hoàn tất đăng ký.
+          We have sent a confirmation link to the address you entered. Open it to finish signing up.
         </p>
       </section>
     );
@@ -80,7 +80,7 @@ export default function SignUp() {
       onSubmit={onSubmit}
       className="mx-auto flex max-w-md flex-col gap-4 rounded-2xl bg-white p-8 shadow-sm"
     >
-      <h1 className="text-xl font-semibold">Đăng ký</h1>
+      <h1 className="text-xl font-semibold">Sign up</h1>
 
       <label className="flex flex-col gap-1 text-sm">
         Email
@@ -95,7 +95,7 @@ export default function SignUp() {
       </label>
 
       <label className="flex flex-col gap-1 text-sm">
-        Mật khẩu
+        Password
         <input
           data-testid="signup-password"
           type="password"
@@ -109,7 +109,7 @@ export default function SignUp() {
       {/* AC-8: the person supplies both. There is no server to fill them in (ADR-005) and no
           correction screen in v1, so sign-up is the only moment they can be collected. */}
       <label className="flex flex-col gap-1 text-sm">
-        Tên hiển thị
+        Display name
         <input
           data-testid="signup-display-name"
           type="text"
@@ -121,11 +121,11 @@ export default function SignUp() {
       </label>
 
       <fieldset className="flex flex-col gap-2 text-sm">
-        <legend>Ảnh đại diện</legend>
+        <legend>Avatar</legend>
         <div
           data-testid="signup-avatar-picker"
           role="radiogroup"
-          aria-label="Ảnh đại diện"
+          aria-label="Avatar"
           className="flex flex-wrap gap-2"
         >
           {AVATAR_CHOICES.map((choice) => (
@@ -161,7 +161,7 @@ export default function SignUp() {
         disabled={!complete || submitting}
         className="rounded-xl bg-slate-900 px-4 py-2 text-white disabled:opacity-40"
       >
-        {submitting ? "Đang gửi…" : "Đăng ký"}
+        {submitting ? "Sending…" : "Sign up"}
       </button>
     </form>
   );

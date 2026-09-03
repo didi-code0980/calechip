@@ -83,7 +83,7 @@ export default function AllowList() {
         setAddError(result.error);
       }
     } catch {
-      setAddError({ code: "unknown", message: "Không thêm được địa chỉ. Thử lại giúp mình nhé." });
+      setAddError({ code: "unknown", message: "Could not add the address. Please try again." });
     } finally {
       setAdding(false);
     }
@@ -106,7 +106,7 @@ export default function AllowList() {
         setRemoveError(result.error);
       }
     } catch {
-      setRemoveError({ code: "unknown", message: "Không gỡ được địa chỉ. Thử lại giúp mình nhé." });
+      setRemoveError({ code: "unknown", message: "Could not remove the address. Please try again." });
     } finally {
       setRemoving(false);
     }
@@ -119,7 +119,7 @@ export default function AllowList() {
         role="status"
         className="mx-auto max-w-2xl rounded-2xl bg-white p-8 text-center text-sm opacity-70 shadow-sm"
       >
-        Đang mở danh sách…
+        Opening the list…
       </p>
     );
   }
@@ -130,9 +130,9 @@ export default function AllowList() {
         data-testid="allow-list-refused"
         className="mx-auto max-w-2xl rounded-2xl bg-white p-8 text-center shadow-sm"
       >
-        <h1 className="text-xl font-semibold">Trang này dành cho quản trị viên</h1>
+        <h1 className="text-xl font-semibold">This page is for admins</h1>
         <p className="mt-2 text-sm opacity-70">
-          Danh sách địa chỉ được phép vào nhóm chỉ quản trị viên mới xem và sửa được.
+          Only an admin can see and edit the list of addresses allowed to join the team.
         </p>
       </section>
     );
@@ -143,7 +143,7 @@ export default function AllowList() {
   return (
     <section className="mx-auto flex max-w-2xl flex-col gap-6">
       <header>
-        <h1 className="text-xl font-semibold">Danh sách được phép vào nhóm</h1>
+        <h1 className="text-xl font-semibold">Addresses allowed to join</h1>
         {/* AC-10. Permanent, and it is the whole of that criterion: ADR-009 sends nothing to the
             address, so the screen has to say so where an admin will otherwise wait for an
             invitation that is never coming. */}
@@ -151,18 +151,18 @@ export default function AllowList() {
           data-testid="allow-list-no-email-notice"
           className="mt-2 rounded-xl bg-violet-100 px-4 py-2 text-sm text-violet-900"
         >
-          Hệ thống không gửi email hay thông báo nào cho địa chỉ này. Bạn nhớ tự báo cho người đó vào
-          đăng ký nhé.
+          The system sends no email and no notification to this address. Remember to tell the person
+          yourself to go and sign up.
         </p>
       </header>
 
       <form
         onSubmit={onAdd}
         className="flex flex-col gap-3 rounded-2xl bg-white p-6 shadow-sm"
-        aria-label="Thêm địa chỉ"
+        aria-label="Add an address"
       >
         <label className="flex flex-col gap-1 text-sm">
-          Địa chỉ email
+          Email address
           <input
             data-testid="allow-list-add-email"
             type="email"
@@ -185,7 +185,7 @@ export default function AllowList() {
           disabled={adding || !email.trim()}
           className="self-start rounded-xl bg-slate-900 px-4 py-2 text-white disabled:opacity-40"
         >
-          {adding ? "Đang thêm…" : "Thêm địa chỉ"}
+          {adding ? "Adding…" : "Add address"}
         </button>
       </form>
 
@@ -194,15 +194,15 @@ export default function AllowList() {
           data-testid="allow-list-empty"
           className="rounded-2xl bg-white p-8 text-center text-sm opacity-70 shadow-sm"
         >
-          Chưa có địa chỉ nào trong danh sách. Thêm một địa chỉ ở trên để mời người đầu tiên.
+          No addresses on the list yet. Add one above to invite the first person.
         </p>
       ) : (
         <table data-testid="allow-list-table" className="w-full rounded-2xl bg-white shadow-sm">
           <thead>
             <tr className="text-left text-xs uppercase opacity-60">
-              <th className="px-4 py-3 font-medium">Địa chỉ</th>
-              <th className="px-4 py-3 font-medium">Trạng thái</th>
-              <th className="px-4 py-3 font-medium">Ai thêm, khi nào</th>
+              <th className="px-4 py-3 font-medium">Address</th>
+              <th className="px-4 py-3 font-medium">Status</th>
+              <th className="px-4 py-3 font-medium">Added by, when</th>
               <th className="px-4 py-3" />
             </tr>
           </thead>
@@ -227,14 +227,14 @@ export default function AllowList() {
                           : "rounded-full bg-slate-100 px-3 py-1 text-slate-600"
                       }
                     >
-                      {state === "open" ? "Chưa vào" : "Đã vào"}
+                      {state === "open" ? "Not joined" : "Joined"}
                     </span>
                   </td>
                   {/* AC-1. `addedBy` is a member id and there is no seam function that turns one
                       into a name — the member list is TEA-03. The caller's own id is the one this
                       screen can resolve honestly, so it does that and shows the id otherwise. */}
                   <td data-testid="allow-list-row-added-by" className="px-4 py-3 opacity-70">
-                    {entry.addedBy === me.id ? "Bạn" : entry.addedBy} · {day(entry.addedAt)}
+                    {entry.addedBy === me.id ? "You" : entry.addedBy} · {day(entry.addedAt)}
                   </td>
                   <td className="px-4 py-3 text-right">
                     {/* AC-7, as an affordance ONLY: a `joined` row gets no remove control, and the
@@ -249,7 +249,7 @@ export default function AllowList() {
                         }}
                         className="rounded-xl border border-rose-200 px-3 py-1 text-rose-700"
                       >
-                        Gỡ
+                        Remove
                       </button>
                     ) : null}
                   </td>
@@ -268,12 +268,12 @@ export default function AllowList() {
           data-testid="allow-list-remove-confirm"
           role="dialog"
           aria-modal="true"
-          aria-label="Xác nhận gỡ địa chỉ"
+          aria-label="Confirm removing the address"
           className="rounded-2xl bg-white p-6 shadow-sm"
         >
           <p className="text-sm">
-            Gỡ <strong>{pending.email}</strong> khỏi danh sách? Người này sẽ không đăng ký vào nhóm
-            được nữa cho tới khi bạn thêm lại địa chỉ.
+            Remove <strong>{pending.email}</strong> from the list? They will not be able to sign up
+            for the team until you add the address again.
           </p>
 
           {removeError ? (
@@ -290,7 +290,7 @@ export default function AllowList() {
               onClick={onConfirmRemove}
               className="rounded-xl bg-rose-600 px-4 py-2 text-white disabled:opacity-40"
             >
-              {removing ? "Đang gỡ…" : "Gỡ địa chỉ"}
+              {removing ? "Removing…" : "Remove address"}
             </button>
             <button
               data-testid="allow-list-remove-confirm-cancel"
@@ -302,7 +302,7 @@ export default function AllowList() {
               }}
               className="rounded-xl border border-slate-200 px-4 py-2 disabled:opacity-40"
             >
-              Thôi
+              Cancel
             </button>
           </div>
         </div>

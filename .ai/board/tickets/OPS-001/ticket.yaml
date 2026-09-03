@@ -5,18 +5,73 @@ id: OPS-001
 title: "UI copy to English — chrome, account and team screens"
 feature_ids: [TEA-01, TEA-02, TEA-03, TEA-04, TEA-05]
 group: TEA
-state: BACKLOG
+state: DONE     # orchestrator at /ship, 2026-09-03, on 04-review.md `gate: PASS` /
+                # `next_state: DONE`. The developer's line, left as the record of the prior value:
+                # "state: REVIEW  # developer at /implement, 2026-09-03, on 03-impl-log.md gate: PASS."
+                # NOTE: gates.plan below is still `passed: false` and DoR was never evaluated —
+                # 01-plan.md carries `gate: PASS` / `next_state: READY` but nothing recorded it.
+                # That transition is orchestrator-owned (.ai/01-operating-model.md:82) and is NOT
+                # the developer's to make, so it is left alone rather than back-filled. /ship
+                # requires BOTH gates true, so it blocks there until the orchestrator records it.
 owner: ""
 branch: "feat/OPS-001"   # NOT `ops/<slug>`. See §4 — this is deliberate and it is not free.
-size_estimate: ""     # S|M - set by tech-lead-design at PLAN; gates DoR
-size: ""              # S|M|L|XL - set by tech-lead-design at PLAN; decides splitting
+size_estimate: "M"    # S|M - set by tech-lead-design at PLAN; gates DoR. Read from 01-plan.md
+                      # section 1. Nine files - seven shipped screens, one config, one spec - and 72
+                      # lines carrying a diacritic, MEASURED on origin/main rather than recalled.
+                      # Not S: seven files, and AllowList and MemberList carry 23 and 25 lines each.
+size: "M"             # S|M|L|XL - set by tech-lead-design at PLAN; decides splitting. Counted from
+                      # the nine allowed_paths below, 01-plan.md section 7. AGREES with
+                      # size_estimate; ADR-012 is not engaged. Nine sits inside M's ceiling of
+                      # twelve, which is what the OPS-001/OPS-002 split at triage was for.
 depends_on: [CAL-03]  # see §3 — this FAILS Definition of Ready item 3 today, on purpose
-invariants_touched: []   # LEFT AS THE TEMPLATE SHIPS IT. This is item 2 and belongs to
-                         # tech-lead-design at PLAN. `[]` here is the template's default, NOT a
-                         # considered answer, and PLAN must reach its own. See the note below §2.
-allowed_paths: []     # LEFT EMPTY DELIBERATELY. guard-allowed-paths.mjs blocks every write outside
-                      # this ticket folder while it is empty. PLAN fills it. The file list in §1 is
-                      # the triage's scope statement and is NOT an allowed_paths list.
+invariants_touched: []
+# 01-plan.md section 2. `[]` REACHED, NOT DEFAULTED - the value above is identical to the template's
+# default and this comment is the difference. invariants.md warns that concluding "none" from safe
+# behaviour is circular, so the MECHANISM is stated rather than the conclusion:
+#
+# NO FILE IN allowed_paths READS OR WRITES A ROW. All seven source files sit ABOVE the seam - none is
+# under src/lib/data/, none imports the Supabase client (RULE-02's lint rule would refuse it), and
+# none contains a query, a policy, a migration or an arithmetic. ui-language.json is lint and test
+# configuration. The one spec edited changes three assertions about a rendered label.
+#
+# THE SEAM FILES THAT DO CARRY COPY - src/lib/data/mock.ts and supabase.ts, 26 and 24 diacritic lines
+# - ARE DELIBERATELY OPS-002's. So this ticket does not touch the layer where a row could be reached
+# at all, which is why `[]` is a fact about the file list rather than a judgement about behaviour.
+#
+# INV-03 IS THE NEAREST and is written out because it is the only invariant whose subject is TEXT: a
+# rejected entry must carry a non-empty rejection_reason. That text is USER-AUTHORED and this ticket
+# changes no default for it, no validation of it and no storage of it. ui-design-system.md § Language
+# settles the category - "what the product says is English; what a user typed is whatever they typed".
+# allowed_paths - 01-plan.md section 7. Nine globs, nine files. NOTHING IS NEW; the first ticket on
+# this board to create no file at all.
+#
+# NO INLINE COMMENTS ON THE ITEMS. `readYamlList` in scripts/check-allowed-paths.mjs and in
+# .claude/hooks/guard-allowed-paths.mjs strips only a LEADING and a TRAILING quote, so a trailing
+# `# ...` is swallowed into the pattern and the glob then matches nothing.
+#
+# ***src/lib/fixtures.ts AND supabase/seed.sql ARE ABSENT AND THAT IS A CONTROL, NOT AN OMISSION.***
+# They are § Language's permanent exception and ui-language.json's `userContent` - the product's only
+# coverage for the diacritics requirement in CLAUDE.md § Visual direction. A file outside
+# allowed_paths is refused by guard-allowed-paths.mjs at write time and by check-allowed-paths.mjs in
+# CI, so RULE-03 enforces the exception here even though no rule was written to do so.
+#
+# ALSO DELIBERATELY ABSENT, each with its reason in 01-plan.md section 7: tests/ui-language.test.ts
+# (THE SAFETY NET - must pass UNEDITED; it is what fails if the exception is translated away or a
+# paid debt stays listed); eslint.config.js (it READS copyDebt from ui-language.json and needs no
+# change - editing the rule instead of the list is how a ratchet becomes a suppression list);
+# OPS-002's five files; every other shipped e2e suite (they assert selectors and no selector
+# changes); .ai/standards/ui-design-system.md (the standard is IMPLEMENTED, never amended - RULE-01);
+# .ai/registry/features.md (/triage already appended the provenance sentence; Status is /ship's).
+allowed_paths:
+  - "src/App.tsx"
+  - "src/routes/Home.tsx"
+  - "src/routes/SignIn.tsx"
+  - "src/routes/SignUp.tsx"
+  - "src/routes/NotOnATeam.tsx"
+  - "src/routes/AllowList.tsx"
+  - "src/routes/MemberList.tsx"
+  - "ui-language.json"
+  - "tests/e2e/tea-05-sign-in.spec.ts"
 schema_delta: none
 requires_adr: false
 rework_count: 0
@@ -27,8 +82,25 @@ chat_budget:
   # ADR-022 removed the QA stage, and the `qa->tech-lead-design` edge with it.
 tracker: { provider: "", external_id: "", sync_enabled: false }
 gates:
-  plan:   { passed: false, at: null }   # ADR-019 merged the `spec` and `design` gates into one
-  review: { passed: false, at: null }
+  plan:   { passed: true, at: 2026-09-03T16:29:46+07:00 }   # ADR-019 merged `spec` and `design`
+  review: { passed: true, at: 2026-09-03T16:56:32+07:00 }
+  #
+  # WRITTEN BY `orchestrator` AT /ship on 2026-09-03, each QUOTED from the artifact that carries it
+  # rather than re-judged:
+  #   plan   -> 01-plan.md:5   `produced_at: 2026-09-03T16:29:46+07:00`, `gate: PASS`
+  #   review -> 04-review.md:5 `produced_at: 2026-09-03T16:56:32+07:00`, `gate: PASS`
+  #
+  # NO `qa` KEY AND NONE IS OWED. This shell was created by `product` on 2026-09-03, after ADR-022,
+  # so it is the first in this repository to arrive at /ship already carrying the correct two-gate
+  # shape. The five tickets before it each carried the four pre-ADR-019 keys and each had to be
+  # migrated by whichever role noticed. Nothing needed migrating here.
+  #
+  # THE DEFINITION OF READY WAS GRADED and this is its only record: `orchestrator` graded all six
+  # items at /next-ticket on 2026-09-03, six of six PASS. Item 3 is worth naming because this file
+  # still says otherwise a few lines above: the comment beside `depends_on` reads "this FAILS
+  # Definition of Ready item 3 today, on purpose", which was true when `product` wrote it and is
+  # false now — CAL-03 reached DONE on 2026-09-03 in PR #38. The comment is left standing rather
+  # than rewritten, as the record of what was true at triage.
   # No `qa` key. ADR-022 removed the stage and this shell is created after that date, so the two
   # gates that decide anything are `plan` and `review`. /ship requires both.
 

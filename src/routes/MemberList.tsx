@@ -19,8 +19,7 @@ import type { Failure, Member, MemberRole } from "@/lib/domain/types";
 
 /** AC-1, AC-3. `role` is DISPLAYED and never acted on: two roles exist and a roster that does not
  *  say which of the two each person is leaves a member with no way to see whom to ask. */
-const roleLabel = (role: MemberRole): string =>
-  role === "admin" ? "Quản trị viên" : "Thành viên";
+const roleLabel = (role: MemberRole): string => (role === "admin" ? "Admin" : "Member");
 
 // The four states of design section 1.3. `loading` MUST resolve, which is why every path out of the
 // effect below sets one of the other three.
@@ -89,7 +88,7 @@ export default function MemberList() {
       // that sentence would be false and would send an admin to ask for a permission they have.
       setActionError({
         code: "unknown",
-        message: "Chưa thăng quyền được. Thử lại giúp mình nhé.",
+        message: "Could not promote. Please try again.",
       });
     } finally {
       setBusy(false);
@@ -114,7 +113,7 @@ export default function MemberList() {
         setActionError(result.error);
       }
     } catch {
-      setActionError({ code: "unknown", message: "Chưa gỡ được thành viên. Thử lại giúp mình nhé." });
+      setActionError({ code: "unknown", message: "Could not remove the member. Please try again." });
     } finally {
       setBusy(false);
     }
@@ -127,7 +126,7 @@ export default function MemberList() {
         role="status"
         className="mx-auto max-w-2xl rounded-2xl bg-white p-8 text-center text-sm opacity-70 shadow-sm"
       >
-        Đang mở danh sách nhóm…
+        Opening the team list…
       </p>
     );
   }
@@ -138,10 +137,10 @@ export default function MemberList() {
         data-testid="member-list-not-on-a-team"
         className="mx-auto max-w-2xl rounded-2xl bg-white p-8 text-center shadow-sm"
       >
-        <h1 className="text-xl font-semibold">Bạn chưa ở trong nhóm nào</h1>
+        <h1 className="text-xl font-semibold">You are not on a team yet</h1>
         <p className="mt-2 text-sm opacity-70">
-          Tài khoản này chưa được thêm vào nhóm nào, nên chưa có danh sách thành viên để xem. Nhờ
-          quản trị viên thêm địa chỉ của bạn vào danh sách được phép vào nhóm nhé.
+          This account has not been added to a team yet, so there is no member list to show. Ask an
+          admin to add your address to the list of addresses allowed to join the team.
         </p>
       </section>
     );
@@ -154,10 +153,9 @@ export default function MemberList() {
         role="alert"
         className="mx-auto max-w-2xl rounded-2xl bg-white p-8 text-center shadow-sm"
       >
-        <h1 className="text-xl font-semibold">Chưa đọc được danh sách nhóm</h1>
+        <h1 className="text-xl font-semibold">Could not read the team list</h1>
         <p className="mt-2 text-sm opacity-70">
-          Danh sách có thể chưa đầy đủ nên mình không hiển thị một phần. Thử tải lại trang giúp mình
-          nhé.
+          The list may be incomplete, so none of it is shown. Please reload the page.
         </p>
       </section>
     );
@@ -183,14 +181,14 @@ export default function MemberList() {
   return (
     <section className="mx-auto flex max-w-2xl flex-col gap-6">
       <header>
-        <h1 className="text-xl font-semibold">Thành viên trong nhóm</h1>
-        {/* TEA-04. "Trang này chỉ để xem" was true until this ticket and is now true for a member
+        <h1 className="text-xl font-semibold">Members on the team</h1>
+        {/* TEA-04. "This page is view-only" was true until this ticket and is now true for a member
             only — an admin has two controls on it. A standing sentence that stopped being true for
             half the readers is worse than no sentence. */}
         <p className="mt-2 text-sm opacity-70">
           {me.role === "admin"
-            ? "Ai đang ở trong nhóm, và ai là quản trị viên. Bạn có thể gỡ thành viên khỏi nhóm hoặc thăng quyền quản trị viên."
-            : "Ai đang ở trong nhóm, và ai là quản trị viên. Trang này chỉ để xem."}
+            ? "Who is on the team, and who is an admin. You can remove a member from the team or promote them to admin."
+            : "Who is on the team, and who is an admin. This page is view-only."}
         </p>
       </header>
 
@@ -212,15 +210,15 @@ export default function MemberList() {
           data-testid="member-list-empty"
           className="rounded-2xl bg-white p-8 text-center text-sm opacity-70 shadow-sm"
         >
-          Chưa có thành viên nào đang ở trong nhóm.
+          Nobody is on the team yet.
         </p>
       ) : (
         <table data-testid="member-list-table" className="w-full rounded-2xl bg-white shadow-sm">
           <thead>
             <tr className="text-left text-xs uppercase opacity-60">
-              <th className="px-4 py-3 font-medium">Ảnh đại diện</th>
-              <th className="px-4 py-3 font-medium">Tên</th>
-              <th className="px-4 py-3 font-medium">Vai trò</th>
+              <th className="px-4 py-3 font-medium">Avatar</th>
+              <th className="px-4 py-3 font-medium">Name</th>
+              <th className="px-4 py-3 font-medium">Role</th>
               <th className="px-4 py-3" />
             </tr>
           </thead>
@@ -274,7 +272,7 @@ export default function MemberList() {
                         }}
                         className="rounded-xl border border-violet-200 px-3 py-1 text-violet-800 disabled:opacity-40"
                       >
-                        Thăng quyền
+                        Promote
                       </button>
                     ) : null}
                     {canRemove(member) ? (
@@ -288,7 +286,7 @@ export default function MemberList() {
                         }}
                         className="rounded-xl border border-rose-200 px-3 py-1 text-rose-700 disabled:opacity-40"
                       >
-                        Gỡ khỏi nhóm
+                        Remove from team
                       </button>
                     ) : null}
                   </span>
@@ -312,12 +310,12 @@ export default function MemberList() {
           data-testid="member-list-remove-confirm"
           role="dialog"
           aria-modal="true"
-          aria-label="Xác nhận gỡ thành viên"
+          aria-label="Confirm removing the member"
           className="rounded-2xl bg-white p-6 shadow-sm"
         >
           <p className="text-sm">
-            Gỡ <strong>{pending.displayName}</strong> khỏi nhóm? Các đăng ký nghỉ/WFH của người này
-            vẫn được giữ lại và vẫn hiển thị trên lịch.
+            Remove <strong>{pending.displayName}</strong> from the team? Their leave and WFH entries
+            are kept and still show on the calendar.
           </p>
 
           {actionError ? (
@@ -336,7 +334,7 @@ export default function MemberList() {
               }}
               className="rounded-xl bg-rose-600 px-4 py-2 text-white disabled:opacity-40"
             >
-              {busy ? "Đang gỡ…" : "Gỡ khỏi nhóm"}
+              {busy ? "Removing…" : "Remove from team"}
             </button>
             <button
               data-testid="member-list-remove-confirm-cancel"
@@ -348,7 +346,7 @@ export default function MemberList() {
               }}
               className="rounded-xl border border-slate-200 px-4 py-2 disabled:opacity-40"
             >
-              Thôi
+              Cancel
             </button>
           </div>
         </div>

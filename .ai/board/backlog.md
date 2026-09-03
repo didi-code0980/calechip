@@ -43,8 +43,14 @@ Under the current gate placement a ticket sits here until it has been planned �
 | 9 | ADM-04 | The worklist of entries awaiting a decision | BACKLOG | CAL-01, TEA-03, ADM-01 |
 | 10 | ADM-05 | Approve or reject an entry, with a reason on rejection | BACKLOG | ADM-04, CAL-02 |
 | 11 | ADM-06 | Reject several entries at once, with one reason for the batch | BACKLOG | ADM-05 |
-| 12 | OPS-001 | UI copy to English — chrome, account and team screens | BACKLOG | — |
-| 13 | OPS-002 | UI copy to English — entry screens and the seam's error messages | BACKLOG | — |
+| 12 | OPS-002 | UI copy to English — entry screens and the seam's error messages | BACKLOG | — |
+
+**OPS-001 shipped from row 12 while CAL-04 sat at row 1, and the rows above it did not move.**
+Recorded because this file's header reserves reordering to a human and says the orchestrator takes
+the top — so this ship did not follow the order, and nothing in the table shows it. Only OPS-002
+renumbered, 13 to 12, which is the ordinary bookkeeping when a row leaves. **CAL-04 is still row 1
+and is still the top of this list.** If OPS-001 was meant to come first, the row a human moves is
+the one that records it; if it was not, the order is intact and this paragraph is the only trace.
 
 **Renumbered again to 1–11 by `orchestrator` at /ship on 2026-09-03**, when CAL-03 left this table
 for `## ARCHIVE`. Bookkeeping, not a reordering. **CAL-04 is now row 1**, and it is the first row in
@@ -197,6 +203,22 @@ Tickets that cannot proceed until a human decides something. Name the decision, 
 | 7 | CAL-01 | Create an entry for themselves, over a range of dates | 2026-09-03 | [#32](https://github.com/didi-code0980/calechip/pull/32); board and registry in [#34](https://github.com/didi-code0980/calechip/pull/34) |
 | 8 | CAL-02 | Edit or delete their own entry | 2026-09-03 | [#36](https://github.com/didi-code0980/calechip/pull/36) |
 | 9 | CAL-03 | Edit or delete another member's entry, as an admin | 2026-09-03 | [#38](https://github.com/didi-code0980/calechip/pull/38) |
+| 10 | OPS-001 | UI copy to English — chrome, account and team screens | 2026-09-03 | [#40](https://github.com/didi-code0980/calechip/pull/40) |
+
+**OPS-001 is the first ticket that ships no capability at all** — it translates the copy of seven
+already-shipped screens and changes no behaviour. Its five `feature_ids` are all TEA rows, and four
+of the five were already `DONE`, so `/ship` step 3 had almost nothing to write.
+
+**The exception is TEA-02, and it was stale rather than open.** That row read `IN_PROGRESS` with a
+Notes sentence saying *"PR #13 open"*. [#13](https://github.com/didi-code0980/calechip/pull/13) merged
+on 2026-08-31, hours after that sentence was written, and nothing updated the row for three days —
+the exact silent drift `/ship` step 3 names as the reason it is the column's only writer. It is
+corrected to `DONE` here, on the fact of the merge rather than on this ticket's work.
+
+**Its `gates:` block was already correct** — `plan` and `review`, no `spec`, `design` or `qa`. First
+ticket to reach `/ship` that way, because `product` created the shell on 2026-09-03 from the current
+template. The five before it were each created before 2026-09-01 and each had to be migrated by
+whichever role noticed.
 
 **CAL-03 completes the write path on `entry`: CAL-02 gave a member their own rows, this gives an
 admin every row on their own team.** Two policies and nothing else — `entry_update_admin` and
