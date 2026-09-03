@@ -1,6 +1,6 @@
 ---
 doc_version: 1
-last_updated: 2026-09-03
+last_updated: 2026-09-01
 governed_by: [RULE-06, RULE-10]
 ---
 
@@ -32,25 +32,22 @@ Under the current gate placement a ticket sits here until it has been planned �
 
 | # | Ticket | Title | State | Blocked on |
 |---|--------|-------|-------|------------|
-| 1 | TEA-05 | Sign in, sign out, and the member-less landing state | BACKLOG | TEA-01 |
-| 2 | CAL-01 | Create an entry for themselves, over a range of dates | BACKLOG | TEA-01 |
-| 3 | CAL-02 | Edit or delete their own entry | BACKLOG | CAL-01 |
-| 4 | CAL-03 | Edit or delete another member's entry, as an admin | BACKLOG | CAL-02 |
-| 5 | CAL-04 | Month view — a day grid showing who is away and which days are overloaded | BACKLOG | CAL-01, TEA-03 |
-| 6 | CAL-05 | Week view — per-person detail for one week, with half-days, notes and who approved | BACKLOG | CAL-04 |
-| 7 | CAL-06 | Year view — one row per member across 365 days | BACKLOG | CAL-04, TEA-03 |
-| 8 | ADM-01 | Set the overload threshold | BACKLOG | TEA-01 |
-| 9 | CAL-07 | Overload warning shown while choosing dates, before the entry is saved | BACKLOG | CAL-01, CAL-04 |
-| 10 | ADM-02 | The national holiday calendar, seeded and readable | BACKLOG | TEA-01, ADM-01 |
-| 11 | ADM-03 | Add, edit or delete a holiday or swap day | BACKLOG | ADM-02 |
-| 12 | CAL-08 | Holidays and bridge days shown in the calendar views | BACKLOG | ADM-02, CAL-04, CAL-05, CAL-06 |
-| 13 | ADM-04 | The worklist of entries awaiting a decision | BACKLOG | CAL-01, TEA-03, ADM-01 |
-| 14 | ADM-05 | Approve or reject an entry, with a reason on rejection | BACKLOG | ADM-04, CAL-02 |
-| 15 | ADM-06 | Reject several entries at once, with one reason for the batch | BACKLOG | ADM-05 |
-
-**The rows above were renumbered to 1–15 by `orchestrator` at /ship on 2026-09-03**, when BUG-001
-left this table for `## ARCHIVE`. **Bookkeeping, not a reordering** — no row moved relative to
-another, and TEA-05 is row 1 again by the same operator placement recorded below, not by a new one.
+| 1 | BUG-001 | The end-to-end suite does not pin which seam it drives | BACKLOG | — |
+| 2 | TEA-05 | Sign in, sign out, and the member-less landing state | BACKLOG | TEA-01 |
+| 3 | CAL-01 | Create an entry for themselves, over a range of dates | BACKLOG | TEA-01 |
+| 4 | CAL-02 | Edit or delete their own entry | BACKLOG | CAL-01 |
+| 5 | CAL-03 | Edit or delete another member's entry, as an admin | BACKLOG | CAL-02 |
+| 6 | CAL-04 | Month view — a day grid showing who is away and which days are overloaded | BACKLOG | CAL-01, TEA-03 |
+| 7 | CAL-05 | Week view — per-person detail for one week, with half-days, notes and who approved | BACKLOG | CAL-04 |
+| 8 | CAL-06 | Year view — one row per member across 365 days | BACKLOG | CAL-04, TEA-03 |
+| 9 | ADM-01 | Set the overload threshold | BACKLOG | TEA-01 |
+| 10 | CAL-07 | Overload warning shown while choosing dates, before the entry is saved | BACKLOG | CAL-01, CAL-04 |
+| 11 | ADM-02 | The national holiday calendar, seeded and readable | BACKLOG | TEA-01, ADM-01 |
+| 12 | ADM-03 | Add, edit or delete a holiday or swap day | BACKLOG | ADM-02 |
+| 13 | CAL-08 | Holidays and bridge days shown in the calendar views | BACKLOG | ADM-02, CAL-04, CAL-05, CAL-06 |
+| 14 | ADM-04 | The worklist of entries awaiting a decision | BACKLOG | CAL-01, TEA-03, ADM-01 |
+| 15 | ADM-05 | Approve or reject an entry, with a reason on rejection | BACKLOG | ADM-04, CAL-02 |
+| 16 | ADM-06 | Reject several entries at once, with one reason for the batch | BACKLOG | ADM-05 |
 
 **The operator placed TEA-05 at row 1 on 2026-09-01**, and the fourteen rows below it moved down one.
 That is a reordering, not the bookkeeping renumbering described below — a human moved a row relative
@@ -94,17 +91,6 @@ file's own header reserves reordering to a human, and those two are only reconci
 `.ai/board/tickets/BUG-001/ticket.yaml`; the guard consequence is recorded there in §4 so that
 whoever runs `/implement` reads it rather than rediscovering it.
 
-**CORRECTION, `orchestrator` at /ship on 2026-09-03 — the branch is `feat/BUG-001`, and the paragraph
-above is left standing rather than rewritten.** The operator superseded the 2026-09-01 choice on
-2026-09-03, after `tech-lead-design` measured a fact that was not available at triage:
-`scripts/check-allowed-paths.mjs:90` resolves a `feat/` branch to its ticket and finds
-`.ai/board/tickets/BUG-001/ticket.yaml`, so the option triage had presented as *unavailable* is the
-only one under which RULE-03 is enforced in CI — a `bugfix/` branch exits 0 saying "nothing to
-check" (`:85-87`). So the guard consequence the paragraph above warns about **does not apply**:
-`allowed_paths` is checked mechanically on this branch, and `/ship` step 6 is where that check runs
-against the committed diff. The full record, including what the new name costs against
-`git-conventions.md:36`, is the §4 CORRECTION block at the end of that `ticket.yaml`.
-
 ## BLOCKED
 
 Tickets that cannot proceed until a human decides something. Name the decision, not the topic.
@@ -120,7 +106,6 @@ Tickets that cannot proceed until a human decides something. Name the decision, 
 | 2 | TEA-02 | Manage the allow-list | 2026-09-01 | [#13](https://github.com/didi-code0980/calechip/pull/13) |
 | 3 | TEA-03 | Team member list | 2026-09-01 | [#17](https://github.com/didi-code0980/calechip/pull/17) |
 | 4 | TEA-04 | Remove a member, and promote a member to admin | 2026-09-01 | [#20](https://github.com/didi-code0980/calechip/pull/20) |
-| 5 | BUG-001 | The end-to-end suite does not pin which seam it drives | 2026-09-03 | PENDING_PR |
 
 **TEA-01 shipped with its QA gate passed by operator waiver.** Ten of twelve acceptance criteria
 have no test; `tests/permission-model.test.ts` does not exist because no database was provisioned.
