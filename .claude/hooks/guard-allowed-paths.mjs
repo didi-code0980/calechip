@@ -10,6 +10,9 @@
 //      nothing should be written against a contract that does not exist yet.
 //   2. Non-feat/ branches are allowed through. Bootstrap and chore work has no ticket, and a guard
 //      that blocked it would block its own installation.
+//   3. The ship-owned set is allowed through on any branch — ADR-023. `/ship` writes exactly those
+//      three files outside allowed_paths and now carries them on the ticket branch, so a guard that
+//      blocked them would block the only command permitted to write them.
 //
 // Fails closed everywhere else: a feat/ branch with no ticket.yaml, an unparseable payload, or an
 // unresolvable root all block.
@@ -20,6 +23,17 @@ import fs from "node:fs";
 import path from "node:path";
 
 const BLOCK = 2;
+
+// ADR-023. Kept character-identical to SHIP_OWNED in scripts/check-allowed-paths.mjs — the hooks
+// share no library on purpose, so the duplication is the cost of that isolation. Fixed and closed:
+// a fourth path is an edit to both arrays plus an ADR, never a judgement made at ship time.
+//
+// Read by the exemption in the loop at the foot of this file. Matched with includes() on the exact
+// repo-relative path: not a prefix, not a glob. ".ai/board/" is not exempt and ".ai/registry/" is
+// not exempt, and neither is a ship-owned basename nested anywhere else.
+//
+// Not yet covered by .claude/hooks/tests/guard-allowed-paths.test.mjs — MD-022.
+const SHIP_OWNED = [".ai/board/backlog.md", ".ai/board/metrics.md", ".ai/registry/features.md"];
 
 function die(reason) {
   process.stderr.write(`guard-allowed-paths: BLOCKED — ${reason}\n`);
@@ -191,6 +205,9 @@ for (const raw of targetPaths(payload.tool_input ?? {})) {
 
   // The ticket's own folder is always writable: that is where the stage artifacts go.
   if (rel === ticketDir || rel.startsWith(`${ticketDir}/`)) continue;
+
+  // The ship-owned set — ADR-023. Three names, matched exactly; no prefix, no glob.
+  if (SHIP_OWNED.includes(rel)) continue;
 
   if (allowed.length === 0) {
     die(

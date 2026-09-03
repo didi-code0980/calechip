@@ -43,37 +43,58 @@ Steps:
    value the pull request you are about to open will make true, and a human merging it is what makes
    it so.
 
-   `features.md` is registry plane. It goes in the **second set** at step 4 and ships on the `ops/`
-   branch at step 8, never on `feat/$ARGUMENTS` — `scripts/check-allowed-paths.mjs` fails the ticket
-   branch on any path outside `allowed_paths`, and no ticket's list contains the registry. Say so in
-   that pull request's body, per step 8's CODEOWNERS clause.
-4. **Classify the working tree.** `git status --porcelain`, and sort every dirty path into two sets
-   against `allowed_paths` in `ticket.yaml`:
+   `features.md` is registry plane, and since **ADR-023 it ships on `feat/$ARGUMENTS` with
+   everything else** — it is one of the three paths in the *ship-owned set*, exempted by name in
+   `scripts/check-allowed-paths.mjs`. It is still a CODEOWNERS path: say so explicitly in the pull
+   request body at step 7, file by file. You are recording a state transition so a human can review
+   it, not authoring a registry decision — RULE-01 is untouched.
 
-   - **Ticket set** — matches `allowed_paths`, or sits under `.ai/board/tickets/$ARGUMENTS/`. After
-     step 0 this is normally only what step 3 just wrote: `ticket.yaml`, `backlog.md`, `metrics.md`.
-   - **Everything else** — model, registry, standards, hooks, scripts, tooling, stray files.
+   *This paragraph used to send `features.md` to a second branch and a second pull request. ADR-023
+   ended that: a board that records a ship in a different pull request from the ship can be merged
+   out of order, and PR #27 and PR #28 demonstrated it.*
+4. **Classify the working tree.** `git status --porcelain`, and sort every dirty path against
+   `allowed_paths` in `ticket.yaml`:
 
-   A path you cannot classify goes in the second set; you do not guess it into the ticket. **Do not
-   print the two sets** — the commit is the record. Print only the paths that made you stop.
+   - **The ship set — this is what you commit.** A path matching `allowed_paths`; a path under
+     `.ai/board/tickets/$ARGUMENTS/`; or one of the three **ship-owned** paths —
+     `.ai/board/backlog.md`, `.ai/board/metrics.md`, `.ai/registry/features.md`. Those three are what
+     step 3 just wrote, and `scripts/check-allowed-paths.mjs` exempts them **by name** so they can
+     ride on the ticket branch (ADR-023).
+   - **Everything else — you do not commit it, and you do not branch it.** Model, standards, hooks,
+     scripts, tooling, other tickets' folders, any registry path but `features.md`, stray files.
+
+   A path you cannot classify is *everything else*; you never guess it into the ship set. The set is
+   three names, not a category — `.ai/board/` is not exempt, `.ai/registry/` is not exempt. Adding a
+   fourth is an edit to two arrays plus an ADR, never a decision made here.
+
+   **Everything else stays dirty, and that is the correct outcome.** It is not this ticket's work, and
+   `/ship` is not a general-purpose committer. Leave it in the tree and **name every such path in
+   your reply**, so the operator can see what is waiting and which session owns it — model and tooling
+   work belongs to `/thuki` on an `ops/<slug>` branch, and it goes there in its own session, not here.
+
+   *Until ADR-023 this step produced a second branch and a second pull request. Print only the paths
+   you are leaving behind; the commit is the record of the rest.*
 
    **`metrics.md` and `backlog.md` are yours and only yours.** No other command writes them — see
-   *The one surface that still collides* in `.ai/standards/session-model.md`. They sit outside every
-   `allowed_paths`, and they belong in the ticket set anyway, because a board that records a ship in a
-   separate pull request from the ship is a board that can be merged out of order.
+   *The one surface that still collides* in `.ai/standards/session-model.md`.
 
-5. **Commit the ticket set on `feat/$ARGUMENTS`.** Confirm the branch first; if it is anything else,
+5. **Commit the ship set on `feat/$ARGUMENTS`.** Confirm the branch first; if it is anything else,
    stop. `git add` with explicit paths — never `-A`, never `.`. This is the **only** commit the
-   ticket gets: the artifacts, the source, the tests, the state transition and the board files, all
-   of it. Message form per `.ai/standards/git-conventions.md`. Then
+   ticket gets: the artifacts, the source, the tests, the state transition, the board files and the
+   `features.md` row, all of it. Message form per `.ai/standards/git-conventions.md`. Then
    `git push origin feat/$ARGUMENTS`, which prompts.
 
 6. `node scripts/check-allowed-paths.mjs`. It diffs `origin/main...HEAD` — the **whole branch**, not
-   your last commit. A FAIL here means the ticket branch carries a file outside `allowed_paths`, and
-   the fix is to move that file to the second set, never to widen the list.
+   your last commit. A FAIL here means the branch carries a file that is neither in `allowed_paths`
+   nor ship-owned. **The fix is to take that file back out of the commit**, never to widen
+   `allowed_paths` and never to add a name to the ship-owned set.
 
-7. **Open the pull request against `main`**, body linking `.ai/board/tickets/$ARGUMENTS/` and listing
-   both gate timestamps.
+7. **Open the one pull request against `main`**, body linking `.ai/board/tickets/$ARGUMENTS/`,
+   listing both gate timestamps, and naming `.ai/registry/features.md` as a CODEOWNERS path carried
+   by this branch (step 3).
+
+   **A ship opens exactly one pull request — ADR-023.** If you find yourself composing a second, stop:
+   something is in the commit that step 4 should have left dirty.
 
    `gh pr create` when `gh auth status` reports a logged-in host. **When it does not, the fallback is
    not an improvisation — it is this, and it counts as step 7 completed:** print a
@@ -91,24 +112,22 @@ Steps:
    column and a human left to guess the next move. A branch name is not a request; it is homework.
    Check `gh auth status` once, before the first ship, rather than discovering it at the last step.
 
-8. **If the second set is non-empty, it gets its own branch and its own pull request.** `git switch
-   -c ops/<slug> main`, commit it there in whatever grouping you judge coherent, push, `gh pr
-   create`. Name the slug for the work, not for the ticket. Do **not** leave it dirty and do not
-   fold it into the ticket branch — step 6 will fail if you do, and branch protection will then
-   block the merge a human is waiting to make.
+8. **Retired by ADR-023.** This step cut an `ops/<slug>` branch for everything that was not the
+   ticket and opened a second pull request. It no longer exists, and the step number is kept rather
+   than reused so that tickets shipped before 2026-09-03 stay readable against the command that
+   produced them.
 
-   If that set touches a CODEOWNERS path — `.ai/registry/`, `.ai/standards/`, `.claude/`,
-   `.github/`, `.mcp.json` — say so explicitly in the PR body, file by file. You are recording a
-   human's change so it can be reviewed, not authoring one: RULE-01 still governs who writes the
-   registry, and `guard-registry.mjs` still refuses you.
+   `ops/<slug>` is unchanged as a branch name — it is simply not `/ship`'s to cut. It belongs to the
+   session that did the work, which for model, hooks, standards and tooling is `/thuki`.
 
 9. If `tracker.sync_enabled` is true, push `gate_state` and `pr_url`. If it is false, skip silently —
    that is the expected state for early tickets.
 
-10. **Sign off — and the pull request URL goes above the block.** The next command and its folder are
+10. **Sign off — and the pull request URL goes above the block**, with any paths step 4 left dirty. The next command and its folder are
     the *Tiếp theo* line of the block in `CLAUDE.md`; the PR link is the one thing a ship produces that
-    the operator cannot get anywhere else, so it goes in the prose above it. Everything else — the
-    gates you checked, the files you classified, the commands you ran — stays out. `git show --stat`
+    the operator cannot get anywhere else, so it goes in the prose above it. **Uncommitted paths are
+    the second thing**, one line, because nothing else will tell them. Everything else — the gates you
+    checked, the files you classified, the commands you ran — stays out. `git show --stat`
     and the ticket folder hold all of it.
 
     Name the session, not just the command. RULE-13 makes a correct command in a reused session a
@@ -120,12 +139,13 @@ Steps:
 
     There is nothing to release: with one working directory nothing else is waiting for the name.
 
-**The output is an open pull request. Never a merge.** RULE-09 makes merging permanently human, and
-`gh pr merge` is denied in settings.
+**The output is one open pull request. Never two, and never a merge.** ADR-023 makes the count one;
+RULE-09 makes merging permanently human, and `gh pr merge` is denied in settings.
 
 You commit here and nowhere else. Every stage leaves its tree dirty and this command is the only one
 that persists it. Two things are never yours: `main` as a target, and the merge.
 
 **Definition of Done item 2 — "diff is a subset of `allowed_paths`" — is a statement about the
-ticket branch**, which is why step 8 exists. It was written when nothing was ever committed, so it
-never had to say which branch it meant. It means `feat/$ARGUMENTS`.
+ticket branch, and since ADR-023 about `allowed_paths` plus the three ship-owned paths.** It was
+written when nothing was ever committed, so it never had to say which branch it meant. It means
+`feat/$ARGUMENTS`, and `scripts/check-allowed-paths.mjs` at step 6 is what decides it.

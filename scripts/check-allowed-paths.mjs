@@ -6,6 +6,8 @@
 //
 // Exits 0 on any non-feat/ branch: bootstrap and chore work has no ticket.
 //
+// Since ADR-023 it also exempts the ship-owned set below, so that a ship is one pull request.
+//
 // Run: node scripts/check-allowed-paths.mjs
 
 import { execFileSync } from "node:child_process";
@@ -14,6 +16,15 @@ import path from "node:path";
 
 const ROOT = process.cwd();
 const BASE = process.env.GITHUB_BASE_REF || "main";
+
+// The ship-owned set — ADR-023. These are the only three files `/ship` writes outside any ticket's
+// allowed_paths, and since ADR-023 it carries them on the ticket branch so that a ship produces one
+// pull request instead of two that have to be merged together or not at all.
+//
+// The list is fixed and closed on purpose. A fourth path is an edit to this array plus an ADR, never
+// a judgement made at ship time — the moment the exemption becomes a category rather than three
+// names, RULE-03 stops being enforceable in CI, which is the whole reason this file exists.
+const SHIP_OWNED = [".ai/board/backlog.md", ".ai/board/metrics.md", ".ai/registry/features.md"];
 
 function git(args) {
   return execFileSync("git", args, { cwd: ROOT, encoding: "utf8" }).trim();
@@ -118,6 +129,7 @@ try {
 const matchers = allowed.map(globToRegExp);
 const violations = changed.filter((f) => {
   if (f === ticketDir || f.startsWith(`${ticketDir}/`)) return false;
+  if (SHIP_OWNED.includes(f)) return false;
   return !matchers.some((re) => re.test(f));
 });
 
@@ -126,6 +138,7 @@ console.log(`allowed_paths: ${allowed.length ? allowed.join(", ") : "(empty)"}`)
 
 if (violations.length) {
   console.error("allowed-paths: FAIL — files outside allowed_paths (RULE-03):");
+  console.error(`  (exempt: the ticket folder, and the ship-owned set ${SHIP_OWNED.join(", ")})`);
   for (const v of violations) console.error(`  - ${v}`);
   if (allowed.length === 0) {
     console.error("  allowed_paths is empty, which means DESIGN has not enumerated it yet.");

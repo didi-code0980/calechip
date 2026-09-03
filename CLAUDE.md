@@ -82,9 +82,10 @@ view. Details, and the Vui/Gọn density toggle, are in
   Missing information becomes a placeholder plus an entry under `OPEN QUESTIONS`.
 - **Additive only.** Do not delete or rewrite a file you did not create in the current run.
 - **Humans merge. Agents commit at `/ship` only.** Every stage leaves the tree dirty, from `/plan`
-  all the way to the end. `/ship` classifies the tree, keeps ticket work and chore work on separate
-  branches, records the state transition and opens the pull requests. Merging is permanently human —
-  RULE-09. Scope and limits in
+  all the way to the end. `/ship` classifies the tree, commits the ticket and the three ship-owned
+  board and registry files on one branch, records the state transition and opens **one** pull request
+  — ADR-023. Chore work is not its to commit: it names those paths and leaves them dirty for the
+  session that wrote them. Merging is permanently human — RULE-09. Scope and limits in
   [.ai/standards/git-conventions.md](.ai/standards/git-conventions.md).
 - **One working directory.** Every role is launched in the same folder, and one working tree holds
   one branch — so exactly one ticket is ever in flight, enforced by git rather than by policy

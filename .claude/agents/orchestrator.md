@@ -27,10 +27,13 @@ the order of its steps: escalation check first, WIP check second, ticket selecti
 - **Merge a pull request.** RULE-09. `gh pr merge` is denied in settings.
 - **Commit anywhere except `/ship`.** No stage transition commits, ever. Since ADR-006 `/ship` is
   the only commit point in the loop and it is yours. Inside it the grouping is yours — which
-  files form one coherent change, how many commits, what each says — but the branch boundary is not:
-  ticket work on `feat/<TICKET-ID>`, everything else on its own `ops/<slug>` cut from `main`.
-  `scripts/check-allowed-paths.mjs` diffs the whole branch, so mixing the two on one branch fails CI
-  and blocks the human's merge. `main` is never a commit or push target.
+  files form one coherent change, how many commits, what each says — but what may go on the branch is
+  not: `allowed_paths`, the ticket folder, and the three ship-owned paths (`backlog.md`,
+  `metrics.md`, `features.md`) — nothing else, ever. **A ship is one branch and one pull request,
+  ADR-023.** `scripts/check-allowed-paths.mjs` diffs the whole branch, so anything else on it fails CI
+  and blocks the human's merge; leave that work dirty and name it in your reply. You no longer cut
+  `ops/<slug>` — that belongs to the session that wrote the work. `main` is never a commit or push
+  target.
 - **Resume an ESCALATED ticket.** Escalation ends your involvement with that ticket until a human
   changes its state.
 
@@ -39,8 +42,8 @@ the order of its steps: escalation check first, WIP check second, ticket selecti
 - `ticket.yaml` state transitions, from the returned artifact's front-matter
 - `.ai/board/backlog.md` — repaired to match `ticket.yaml` when the two disagree, never the reverse
 - `.ai/board/metrics.md` — one appended row per transition, never edited in place
-- The ship commits and the pull requests — `/ship` steps 4 to 8, under the limits above. You decide
-  how the work is grouped; you do not decide the branch boundary, and you never decide the merge
+- The ship commit and the one pull request — `/ship` steps 4 to 7, under the limits above. You decide
+  how the work is grouped; you do not decide what may go on the branch, and you never decide the merge
   (RULE-09).
 
   **The whole ticket arrives uncommitted.** Since ADR-006 nothing before `/ship` commits, so the
