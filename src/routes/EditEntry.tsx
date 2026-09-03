@@ -6,11 +6,17 @@
 // `entry_enforce_decision()` is INV-02 and AC-5 and AC-6. This screen implements none of them; it
 // shows what the datastore answered.
 //
-// **THE ENTRY IS LOADED FROM `listOwnEntries` AND THERE IS NO SECOND READ.** One function, one
-// policy path, and the entry a member may edit is by definition one of their own — a `getEntryById`
-// would be a read whose only distinct behaviour is answering about rows the caller may not edit
-// (01-plan.md section 4.3). It also makes `edit-entry-not-found` say nothing about whether the id
+// **THE ENTRY IS LOADED FROM ONE LIST READ AND THERE IS NO `getEntryById`.** A single-row read would
+// be a read whose only distinct behaviour is answering about rows the caller may not edit (CAL-02
+// 01-plan.md section 4.3). It also makes `edit-entry-not-found` say nothing about whether the id
 // exists: not in your list and no such entry are one answer here, as they are in the seam.
+//
+// **CAL-03 CHOOSES WHICH LIST BY THE CALLER'S ROLE, and that is the whole of this screen's change.**
+// An admin loads `listTeamEntries()`, everybody else `listOwnEntries()`. THIS IS AN AFFORDANCE AND
+// NOT A CONTROL: both reads are served by `entry_select_team`, which admits the team's rows to BOTH
+// roles, so the branch decides which rows this screen OFFERS and decides nothing about which writes
+// succeed. `entry_update_admin` is the control, and a member who reached an admin's list would still
+// have every save refused (CAL-03 AC-5).
 //
 // **NOTHING ON THIS SCREEN WRITES `status`.** The status is displayed because AC-5 and AC-6 turn on
 // it — a substantive edit returns an approved entry to pending and a note-only edit does not — and a
@@ -40,6 +46,11 @@ export default function EditEntry() {
   const { id } = useParams<{ id: string }>();
   const [state, setState] = useState<LoadState>({ phase: "loading" });
 
+  // CAL-03. Held separately from `LoadState` rather than folded into its `ready` case, because
+  // `onSave` replaces that case with the row the datastore returned and would have to carry the
+  // role through a value that has nothing to do with it. It governs ONE link.
+  const [admin, setAdmin] = useState(false);
+
   const load = useCallback(async (): Promise<void> => {
     if (!id) {
       setState({ phase: "missing" });
@@ -47,12 +58,20 @@ export default function EditEntry() {
     }
 
     try {
-      const own = await seam.listOwnEntries();
-      const entry = own.find((e) => e.id === id);
+      // CAL-03 AC-1, AC-3, AC-4, AC-9. `getCurrentMember()` is one call and no new policy — TEA-02
+      // built it and `member_select_own` already serves it. A null member takes the `listOwnEntries`
+      // branch, which answers `[]`, which is the refusal below: a caller with no member row has
+      // nothing to edit, and INV-07 is why.
+      const me = await seam.getCurrentMember();
+      const isAdmin = me?.role === "admin";
+      setAdmin(isAdmin);
+
+      const reachable = isAdmin ? await seam.listTeamEntries() : await seam.listOwnEntries();
+      const entry = reachable.find((e) => e.id === id);
       setState(entry ? { phase: "ready", entry } : { phase: "missing" });
     } catch {
-      // `listOwnEntries` throws on a transport failure and on a possibly-truncated read. Neither has
-      // an acceptance criterion here, and the honest consequence is the same refusal a missing entry
+      // Both reads throw on a transport failure and on a possibly-truncated read. Neither has an
+      // acceptance criterion here, and the honest consequence is the same refusal a missing entry
       // gets: this screen has nothing to edit either way.
       setState({ phase: "missing" });
     }
@@ -160,7 +179,26 @@ export default function EditEntry() {
           Sửa lần cuối: {entry.updatedAt}
         </span>
 
-        <Link data-testid="edit-entry-back" to="/entries/new" className="ml-auto underline">
+        {/* CAL-03. An ADDITIONAL link, and `edit-entry-back` below keeps its name, its destination
+            and its position — tests/e2e/cal-02-edit-delete-entry.spec.ts clicks it and expects the
+            own-entry form, and 01-plan.md section 4.3 requires that suite to pass UNEDITED.
+            An admin who arrived from the team list needs the way back to the team list; sending them
+            to their own entries would be the screen forgetting where they came from. Declared in
+            03-impl-log.md as an addition beyond section 4.3.
+
+            It is `admin` and not "did they arrive from /entries/team", because a role is a fact the
+            seam already answered and a referrer is not. */}
+        {admin ? (
+          <Link data-testid="edit-entry-team-back" to="/entries/team" className="ml-auto underline">
+            Back to the team&rsquo;s entries
+          </Link>
+        ) : null}
+
+        <Link
+          data-testid="edit-entry-back"
+          to="/entries/new"
+          className={admin ? "underline" : "ml-auto underline"}
+        >
           Về danh sách
         </Link>
       </div>

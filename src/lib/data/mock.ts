@@ -23,7 +23,7 @@ import type {
   Session,
 } from "../domain/types";
 // TEA-03. A RUNTIME import, not a type one - 02-design.md section 1.1.
-import { ROSTER_LIMIT } from "../domain/types";
+import { ROSTER_LIMIT, TEAM_ENTRY_LIMIT } from "../domain/types";
 import {
   FIXTURE_ADMIN,
   FIXTURE_ALLOWED_EMAIL,
@@ -33,6 +33,7 @@ import {
   FIXTURE_CONSUMED_EMAIL,
   FIXTURE_CREDENTIALS,
   FIXTURE_MEMBER,
+  FIXTURE_OTHER_TEAM_ENTRY,
   FIXTURE_OTHER_TEAM_MEMBER,
   FIXTURE_REMOVED_MEMBER,
   FIXTURE_SECOND_ADMIN,
@@ -264,7 +265,15 @@ const refused = (
 // is lost on reload - a mock that quietly contradicted its own banner would be a worse lie than the
 // one it fixed. Nothing in plan section 2 requires an entry to survive a navigation, and a reload
 // restores this row exactly as re-running the seed would.
-const entries: Entry[] = [{ ...FIXTURE_APPROVED_ENTRY }];
+// CAL-03 SEEDS A SECOND ROW, and it is the row AC-8 has nothing to assert against otherwise. The
+// fixtures have held a second team and a member on it since TEA-03 and no ENTRY on it, so
+// "an admin of one team may not touch an entry of another" had no entry to be refused.
+//
+// It is here rather than created by a test for the same reason FIXTURE_APPROVED_ENTRY is: nobody can
+// create it through the product. `entry_insert_own` admits only `member_id = auth.uid()`, so an
+// entry on the other team can be created only by that team's own member signing in — and every
+// suite in this repository signs in on FIXTURE_TEAM.
+const entries: Entry[] = [{ ...FIXTURE_APPROVED_ENTRY }, { ...FIXTURE_OTHER_TEAM_ENTRY }];
 
 let nextEntryId = 0;
 const newEntryId = (): string => `ee000000-0000-4000-8000-${String(++nextEntryId).padStart(12, "0")}`;
@@ -294,6 +303,48 @@ const datesIntersect = (a: Entry, b: { startDate: string; endDate: string }): bo
 
 const slotsIntersect = (a: EntryPortion, b: EntryPortion): boolean =>
   PORTION_SLOTS[a].some((slot) => PORTION_SLOTS[b].includes(slot));
+
+// ---------------------------------------------------------------------------
+// CAL-03. 01-plan.md section 5, "the subtle shape is the mock's team scoping".
+// ---------------------------------------------------------------------------
+
+// `public.member_team_id(uuid)`, reproduced (TEA-01's migration, line 64). It answers the member's
+// team and NULL for a member who does not exist OR HAS BEEN REMOVED — that `removed_at is null` is
+// in the function body, not in the policies that call it, so every policy built on it inherits the
+// removal filter without naming it.
+const memberTeamId = (memberId: string | null): string | null =>
+  members.find((m) => m.id === memberId && m.removedAt === null)?.teamId ?? null;
+
+// The SQL comparison those policies write, and the reason it is a function rather than `===`.
+//
+// `entry_select_team`, `entry_update_admin` and `entry_delete_admin` all compare
+// `member_team_id(member_id) = member_team_id(auth.uid())`. In SQL `null = null` is NULL and NOT
+// true, so a comparison with an unknown side admits NOTHING — which means a removed member's entries
+// are invisible and untouchable to everybody, and a removed caller reads no entry at all. A
+// JavaScript `===` would answer TRUE for two nulls and open exactly the rows PostgreSQL closes.
+const sameTeam = (a: string | null, b: string | null): boolean => a !== null && a === b;
+
+// `entry_update_admin` and `entry_delete_admin`'s shared `using` clause, reproduced. Both policies
+// carry the identical predicate, so it is one function here for the same reason it is two identical
+// clauses there: they are the same rule about the same rows.
+//
+// THE TEAM HALF IS THE ONE WITH NO TEST BEHIND IT and is why this function exists at all. Dropping
+// it leaves `me.role === "admin"`, which passes every test a one-team fixture can carry while
+// letting an admin of any team edit every entry in the product — rbac-and-security.md known weakness
+// 1, and the shape ADR-016 Consequences names for this ticket by name.
+//
+// `me.removedAt === null` is `public.is_admin`'s own filter (same migration, line 54): a removed
+// admin is not an admin.
+const adminMayReach = (me: Member, entry: Entry): boolean =>
+  me.role === "admin" &&
+  me.removedAt === null &&
+  sameTeam(memberTeamId(entry.memberId), memberTeamId(me.id));
+
+// `entry_update_own` and `entry_delete_own`'s `using (member_id = (select auth.uid()))`, CAL-02's
+// and unchanged by this ticket. It is named here only so the OR below reads as the two permissive
+// policies it stands for rather than as one merged predicate — 01-plan.md section 8 rejects merging
+// them in the migration, and merging them here would lose the same property one layer up.
+const ownsEntry = (me: Member, entry: Entry): boolean => entry.memberId === me.id;
 
 export const seam: DataSeam = {
   async ready() {
@@ -767,7 +818,19 @@ export const seam: DataSeam = {
     // AC-9, and the two cases are DELIBERATELY ONE ANSWER: "this entry is not yours" and "no such
     // entry" are indistinguishable under the policy and must stay so here, or the mock becomes an
     // oracle for which entry ids exist in the team while the real seam is not one.
-    const row = entries.find((e) => e.id === entryId && e.memberId === me.id) ?? null;
+    //
+    // CAL-03 AC-1, AC-5, AC-8. The `||` is the two PERMISSIVE policies composing, which is what
+    // PostgreSQL does by its own rule: `entry_update_own` admits the caller's own rows and
+    // `entry_update_admin` admits their team's rows when the caller is an admin, and a caller gets
+    // the union. CAL-02's half is `ownsEntry` and is untouched — an implementation that replaced it
+    // with a single merged predicate would be the rejected alternative 1 of 01-plan.md section 8,
+    // one layer up.
+    //
+    // CAL-03 AC-3's `entry_not_permitted` still covers "not yours", "no such entry" AND now
+    // "another team's" alike, and must keep doing so. A distinct answer for the cross-team case
+    // would tell an admin that an id exists in a team they cannot read.
+    const row =
+      entries.find((e) => e.id === entryId && (ownsEntry(me, e) || adminMayReach(me, e))) ?? null;
     if (!row) {
       return {
         ok: false,
@@ -778,10 +841,18 @@ export const seam: DataSeam = {
     // AC-7. INV-01 reached on UPDATE, which is what a constraint over (member_id, date_range,
     // portion_slots) does without being told: the row being edited is EXCLUDED from the comparison,
     // because an entry cannot clash with itself.
+    //
+    // CAL-03 AC-9, AND THE COMPARISON KEYS ON `row.memberId` RATHER THAN ON `me.id`. That was the
+    // same value through CAL-02, because the only editable row was the caller's own; it stops being
+    // the same value the moment an admin edits somebody else's. `entry_no_overlapping_portion` keys
+    // on the ROW's `member_id`, so an admin's edit collides with THAT MEMBER's other entries and
+    // never with the admin's own — and this is the line an implementation written from the admin's
+    // point of view gets wrong, in both directions at once: it would refuse an edit that clashes
+    // with the ADMIN's calendar and accept one that double-books the OWNER.
     const clash = entries.some(
       (e) =>
         e.id !== row.id &&
-        e.memberId === me.id &&
+        e.memberId === row.memberId &&
         datesIntersect(e, input) &&
         slotsIntersect(e.portion, input.portion),
     );
@@ -842,10 +913,15 @@ export const seam: DataSeam = {
   // The owner comparison is the policy's `using (member_id = auth.uid())`, and zero rows removed is
   // `entry_not_permitted` and not success - the shape the real implementation reads off the deleted
   // representation it asks for.
+  //
+  // CAL-03 AC-2, AC-5, AC-8, AC-12. The same `||` as `updateEntry` above, standing for the same two
+  // permissive policies — `entry_delete_own` and `entry_delete_admin`. AC-12 needs no line of its
+  // own: the row leaves the array carrying its `approvedBy` and `approvedAt` with it, because they
+  // are fields OF the row and there is nothing left to refer to either.
   async deleteEntry(entryId: string): Promise<Result<void>> {
     const me = members.find((m) => m.id === currentMemberId && m.removedAt === null) ?? null;
     const index = me
-      ? entries.findIndex((e) => e.id === entryId && e.memberId === me.id)
+      ? entries.findIndex((e) => e.id === entryId && (ownsEntry(me, e) || adminMayReach(me, e)))
       : -1;
 
     if (index === -1) {
@@ -857,5 +933,51 @@ export const seam: DataSeam = {
 
     entries.splice(index, 1);
     return { ok: true, value: undefined };
+  },
+
+  // -------------------------------------------------------------------------
+  // CAL-03. 01-plan.md sections 4.1 and 5.
+  // -------------------------------------------------------------------------
+
+  // CAL-03 AC-1, AC-2, AC-3, AC-4, AC-9, AC-10, AC-12. Newest start date first, then id ascending -
+  // the same two-key ordering the real implementation asks PostgreSQL for, so the two cannot
+  // disagree about row order when two entries share a start date. Across a whole team a shared start
+  // date is the normal case rather than the edge one.
+  //
+  // THIS FUNCTION FILTERS BY TEAM AND THE REAL ONE DOES NOT, and that asymmetry is the subtle shape
+  // 01-plan.md section 5 names. The real implementation issues an unfiltered select and is scoped by
+  // `entry_select_team`; the mock has no policy, so the scope has to be written. A mock that returned
+  // every entry it holds would pass seam parity, pass every happy path, and leave AC-8 UNTESTABLE
+  // against the seam the acceptance suite actually drives - BUG-001 pinned that suite to this
+  // implementation.
+  //
+  // `sameTeam` and not `===`: `member_team_id` is null for a removed member, and `null = null` is
+  // NULL in SQL rather than true. So a removed member's entries are invisible here exactly as they
+  // are there, and a removed caller reads none - which is the policy's answer and not a choice this
+  // function makes.
+  async listTeamEntries(): Promise<Entry[]> {
+    const mine = memberTeamId(currentMemberId);
+
+    const rows = entries
+      .filter((e) => sameTeam(memberTeamId(e.memberId), mine))
+      .slice()
+      .sort((a, b) =>
+        a.startDate === b.startDate
+          ? a.id.localeCompare(b.id)
+          : b.startDate.localeCompare(a.startDate),
+      )
+      .slice(0, TEAM_ENTRY_LIMIT);
+
+    // The same limit and the same raise as supabase.ts, and the same reason as `listMembers`: this
+    // array is bounded by the fixtures so it never fires, and it is here so the two implementations
+    // tell one story rather than because the mock can truncate.
+    if (rows.length >= TEAM_ENTRY_LIMIT) {
+      throw new Error(
+        `listTeamEntries returned ${rows.length} rows at the ${TEAM_ENTRY_LIMIT} limit: the list ` +
+          `may be truncated and must not be consumed`,
+      );
+    }
+
+    return rows.map((e) => ({ ...e }));
   },
 };

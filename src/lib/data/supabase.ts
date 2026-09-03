@@ -33,7 +33,7 @@ import type {
 // TEA-03, and CAL-01 for the second constant. RUNTIME imports, not type ones: both are needed as
 // values at the call. They come from ../domain/types and not from ./index, which imports this file
 // back - 02-design.md section 1.1.
-import { OWN_ENTRY_LIMIT, ROSTER_LIMIT } from "../domain/types";
+import { OWN_ENTRY_LIMIT, ROSTER_LIMIT, TEAM_ENTRY_LIMIT } from "../domain/types";
 
 // Vite exposes only variables prefixed VITE_. The anon key is public by design and ships in the
 // bundle; the service role key must never appear here. See "Secrets" in
@@ -794,5 +794,57 @@ export const seam: DataSeam = {
     }
 
     return { ok: true, value: undefined };
+  },
+
+  // -------------------------------------------------------------------------
+  // CAL-03. 01-plan.md sections 4.1 and 5.
+  //
+  // `updateEntry` and `deleteEntry` above are UNCHANGED by this ticket — not one character. They
+  // issue the statement and count the rows the datastore let through; `entry_update_admin` and
+  // `entry_delete_admin` widen what those same statements reach. That is ADR-005 working as
+  // designed, and it is the evidence that CAL-02 put the check in the datastore rather than here.
+  // -------------------------------------------------------------------------
+
+  // CAL-03 AC-1, AC-2, AC-3, AC-4, AC-9, AC-10, AC-12.
+  //
+  // NO FILTER OF ANY KIND, and that is the difference from `listOwnEntries`. That function narrows
+  // to `member_id = auth.uid()` as an AFFORDANCE, because the own-entry screen shows only the
+  // caller's rows; `entry_select_team` was always what stopped anybody reading another team's. Here
+  // the screen shows the whole team, so there is nothing to narrow and the policy is the only scope.
+  // A `member_team_id` filter written here would be a second, weaker copy of the policy.
+  //
+  // NO `is_admin` CHECK. `Read any entry in the team` is checked for BOTH roles in
+  // rbac-and-security.md, so this read is not where the admin capability lives — TeamEntries.tsx
+  // refuses a non-admin as an affordance, and `entry_update_admin` is the control.
+  //
+  // Two `order` calls, not one, for the reason `listOwnEntries` and `listMembers` both record: two
+  // entries can share a `start_date`, so `start_date` alone leaves their order undefined in
+  // PostgreSQL and the two implementations would disagree about row order while failing nothing.
+  // Across a whole team, shared start dates are the normal case rather than the edge one.
+  async listTeamEntries(): Promise<Entry[]> {
+    const { data, error } = await client()
+      .from("entry")
+      .select(ENTRY_COLUMNS)
+      .order("start_date", { ascending: false })
+      .order("id", { ascending: true })
+      .limit(TEAM_ENTRY_LIMIT)
+      .returns<EntryRow[]>();
+
+    if (error) throw new Error(`listTeamEntries failed: ${error.message}`);
+
+    const rows = data ?? [];
+
+    // The same assertion as `listOwnEntries` and `listMembers`, and here the loss is the worst of
+    // the three: a truncated read hides an entry from the one person able to correct it, and it
+    // hides it silently — PostgREST caps rows server-side and answers a believable short list with
+    // no error anywhere.
+    if (rows.length >= TEAM_ENTRY_LIMIT) {
+      throw new Error(
+        `listTeamEntries returned ${rows.length} rows at the ${TEAM_ENTRY_LIMIT} limit: the list ` +
+          `may be truncated and must not be consumed`,
+      );
+    }
+
+    return rows.map(toEntry);
   },
 };

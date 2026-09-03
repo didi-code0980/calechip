@@ -350,3 +350,46 @@ export const FIXTURE_APPROVED_MEMBER_CREDENTIAL: FixtureCredential = {
   emailConfirmed: true,
   membership: "member",
 };
+
+// ---------------------------------------------------------------------------
+// CAL-03. 01-plan.md section 7.
+//
+// ONE new row, and it is AC-8's. Everything else AC-1 to AC-12 needs already exists:
+// FIXTURE_APPROVED_ENTRY belongs to FIXTURE_APPROVED_MEMBER, who is NOT the admin, so AC-3, AC-4
+// and AC-12 have an approved entry of somebody else's to act on without a new fixture.
+// ---------------------------------------------------------------------------
+
+/**
+ * An entry owned by FIXTURE_OTHER_TEAM_MEMBER. AC-8: an admin of FIXTURE_TEAM may not edit it and
+ * may not delete it, and no read by anybody on FIXTURE_TEAM may return it.
+ *
+ * The fixtures have held a second team since TEA-03 and a member on it, and no ENTRY on it — so
+ * until now "an admin of one team may not touch another team's entry" had nothing to be refused
+ * against, and a policy missing its team predicate would have passed every test in the repository.
+ * That is the gap ADR-018's revert condition names for TEA-03's read, arriving on the write side.
+ *
+ * IT IS A FIXTURE AND NOT A TEST'S CREATION, because no test can create it. `entry_insert_own`
+ * admits only `member_id = auth.uid()`, so an entry on the other team can be created only by that
+ * team's own member signing in, and every suite here signs in on FIXTURE_TEAM.
+ *
+ * `status` is `pending` — the plain case, so that a refusal observed against this row is the TEAM
+ * boundary refusing and not INV-02's trigger doing something else. Its dates sit clear of every date
+ * used by CAL-01's, CAL-02's and this ticket's criteria, so nothing collides with it by accident
+ * under INV-01 — though nothing on FIXTURE_TEAM could, since INV-01 keys on `member_id`.
+ */
+export const FIXTURE_OTHER_TEAM_ENTRY: Entry = {
+  id: "dd000000-0000-4000-8000-000000000002",
+  memberId: FIXTURE_OTHER_TEAM_MEMBER.id,
+  type: "pto",
+  portion: "full",
+  startDate: "2026-09-21",
+  endDate: "2026-09-22",
+  tentative: false,
+  status: "pending",
+  rejectionReason: null,
+  note: "Nghỉ của nhóm khác",
+  approvedBy: null,
+  approvedAt: null,
+  createdAt: "2026-09-01T01:00:00+00:00",
+  updatedAt: "2026-09-01T01:00:00+00:00",
+};

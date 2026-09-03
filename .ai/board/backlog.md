@@ -32,18 +32,21 @@ Under the current gate placement a ticket sits here until it has been planned �
 
 | # | Ticket | Title | State | Blocked on |
 |---|--------|-------|-------|------------|
-| 1 | CAL-03 | Edit or delete another member's entry, as an admin | BACKLOG | CAL-02 |
-| 2 | CAL-04 | Month view — a day grid showing who is away and which days are overloaded | BACKLOG | CAL-01, TEA-03 |
-| 3 | CAL-05 | Week view — per-person detail for one week, with half-days, notes and who approved | BACKLOG | CAL-04 |
-| 4 | CAL-06 | Year view — one row per member across 365 days | BACKLOG | CAL-04, TEA-03 |
-| 5 | ADM-01 | Set the overload threshold | BACKLOG | TEA-01 |
-| 6 | CAL-07 | Overload warning shown while choosing dates, before the entry is saved | BACKLOG | CAL-01, CAL-04 |
-| 7 | ADM-02 | The national holiday calendar, seeded and readable | BACKLOG | TEA-01, ADM-01 |
-| 8 | ADM-03 | Add, edit or delete a holiday or swap day | BACKLOG | ADM-02 |
-| 9 | CAL-08 | Holidays and bridge days shown in the calendar views | BACKLOG | ADM-02, CAL-04, CAL-05, CAL-06 |
-| 10 | ADM-04 | The worklist of entries awaiting a decision | BACKLOG | CAL-01, TEA-03, ADM-01 |
-| 11 | ADM-05 | Approve or reject an entry, with a reason on rejection | BACKLOG | ADM-04, CAL-02 |
-| 12 | ADM-06 | Reject several entries at once, with one reason for the batch | BACKLOG | ADM-05 |
+| 1 | CAL-04 | Month view — a day grid showing who is away and which days are overloaded | BACKLOG | CAL-01, TEA-03 |
+| 2 | CAL-05 | Week view — per-person detail for one week, with half-days, notes and who approved | BACKLOG | CAL-04 |
+| 3 | CAL-06 | Year view — one row per member across 365 days | BACKLOG | CAL-04, TEA-03 |
+| 4 | ADM-01 | Set the overload threshold | BACKLOG | TEA-01 |
+| 5 | CAL-07 | Overload warning shown while choosing dates, before the entry is saved | BACKLOG | CAL-01, CAL-04 |
+| 6 | ADM-02 | The national holiday calendar, seeded and readable | BACKLOG | TEA-01, ADM-01 |
+| 7 | ADM-03 | Add, edit or delete a holiday or swap day | BACKLOG | ADM-02 |
+| 8 | CAL-08 | Holidays and bridge days shown in the calendar views | BACKLOG | ADM-02, CAL-04, CAL-05, CAL-06 |
+| 9 | ADM-04 | The worklist of entries awaiting a decision | BACKLOG | CAL-01, TEA-03, ADM-01 |
+| 10 | ADM-05 | Approve or reject an entry, with a reason on rejection | BACKLOG | ADM-04, CAL-02 |
+| 11 | ADM-06 | Reject several entries at once, with one reason for the batch | BACKLOG | ADM-05 |
+
+**Renumbered again to 1–11 by `orchestrator` at /ship on 2026-09-03**, when CAL-03 left this table
+for `## ARCHIVE`. Bookkeeping, not a reordering. **CAL-04 is now row 1**, and it is the first row in
+months whose `Blocked on` was never CAL-01 alone — it names TEA-03 too, and both are DONE.
 
 **Renumbered again to 1–12 by `orchestrator` at /ship on 2026-09-03**, when CAL-02 left this table
 for `## ARCHIVE`. Bookkeeping, not a reordering. **CAL-03 is now row 1 and is blocked on nothing** —
@@ -133,6 +136,19 @@ Tickets that cannot proceed until a human decides something. Name the decision, 
 | 6 | TEA-05 | Sign in, sign out, and the member-less landing state | 2026-09-03 | [#29](https://github.com/didi-code0980/calechip/pull/29); board and registry in [#30](https://github.com/didi-code0980/calechip/pull/30) |
 | 7 | CAL-01 | Create an entry for themselves, over a range of dates | 2026-09-03 | [#32](https://github.com/didi-code0980/calechip/pull/32); board and registry in [#34](https://github.com/didi-code0980/calechip/pull/34) |
 | 8 | CAL-02 | Edit or delete their own entry | 2026-09-03 | [#36](https://github.com/didi-code0980/calechip/pull/36) |
+| 9 | CAL-03 | Edit or delete another member's entry, as an admin | 2026-09-03 | [#38](https://github.com/didi-code0980/calechip/pull/38) |
+
+**CAL-03 completes the write path on `entry`: CAL-02 gave a member their own rows, this gives an
+admin every row on their own team.** Two policies and nothing else — `entry_update_admin` and
+`entry_delete_admin`, both `using (is_admin(uid) and the entry's member is on the caller's team)`,
+the update one additionally `with check` on team so an admin cannot move an entry to another team.
+No new grant (CAL-02's are role-blind and already held), no insert policy, no change to
+`entry_enforce_decision()`, and CAL-02's policies untouched. **Approving and rejecting is not here** —
+that is ADM-05, and this row deliberately stops at edit and delete.
+
+**Its `gates:` block still carried the four pre-ADR-019 keys — the fourth ticket running.** TEA-05
+was migrated at PLAN, CAL-01 at `/implement`, CAL-02 and CAL-03 at `/ship`: four tickets, three
+roles, none of them instructed to. Every remaining shell created before 2026-09-01 is the same.
 
 **CAL-02 is the first ticket to ship under ADR-023 — one pull request, not two.** The three
 ship-owned paths (`backlog.md`, `metrics.md`, `features.md`) ride on the ticket branch, exempted by

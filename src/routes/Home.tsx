@@ -75,6 +75,24 @@ export default function Home({ member, signOut }: HomeProps) {
         </p>
       ) : null}
 
+      {/* CAL-03. The third link, and the SECOND admin-only one — so `home-allow-list-link` above is
+          no longer alone and the "one link" framing TEA-05 wrote has been overtaken twice. Both
+          admin links are still AFFORDANCES over policies that refuse without them: a member who
+          types /entries/team reaches TeamEntries.tsx, which calls getCurrentMember() and renders
+          `team-entries-refused`, and `entry_update_admin` refuses every write regardless. Hiding the
+          link saves a pointless journey and refuses nobody (CAL-03 AC-10, and 01-plan.md section 3,
+          "The affordances").
+
+          Placed BESIDE the allow-list link and under the same condition, which is the shape
+          01-plan.md section 4.3 asks for. */}
+      {member.role === "admin" ? (
+        <p className="mt-2">
+          <Link data-testid="home-team-entries-link" to="/entries/team" className="text-sm underline">
+            The team&rsquo;s entries
+          </Link>
+        </p>
+      ) : null}
+
       {/* CAL-01. The second link on this screen, and it is shown to BOTH roles because the
           permission is the same for both: `Create an entry for themselves` is checked for a member
           and for an admin in .ai/standards/rbac-and-security.md, and `entry_insert_own` carries no
