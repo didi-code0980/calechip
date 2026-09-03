@@ -1429,3 +1429,37 @@ the reader to ignore a mismatch, which is the whole reason step 0 prints one.
 No registry write. No ADR. No ticket work. Model debt unchanged at fourteen open rows, and MD-021
 is now fixed in code by BUG-001 while its row still reads open — the register has no resolution
 column, which is a smaller version of the same problem.
+
+### 2026-09-03 — the operator moved ADM to the top of the backlog
+
+Instruction, verbatim: *"team khác đang làm tính năng CAL rồi, giờ tôi muốn làm ADM để không
+conflict."* Reordered `.ai/board/backlog.md` — ADM-01, ADM-02, ADM-03 to rows 1–3, the eleven CAL and
+ADM rows below them moved down. That file says a human reorders and an agent does not; this is the
+operator's reorder recorded by the steward, and the recording paragraph in the file says so in those
+terms rather than leaving a moved row unexplained.
+
+**The dependency claim holds and is why the reorder is cheap.** ADM-01 depends on TEA-01 alone, which
+is DONE; ADM-02 on TEA-01 and ADM-01; ADM-03 on ADM-02. No CAL ticket appears in any of the three
+`Blocked on` cells, so three tickets of runway exist with no wait on the other team. ADM-04, ADM-05
+and ADM-06 name CAL-01 and CAL-02 and could not be pulled up with them; the approval half of ADM is
+downstream of entries existing, and it stayed below the CAL rows.
+
+**Told the operator once, and it is the part the reorder does not solve.** Choosing ADM over CAL
+separates the two groups on the board and in the routes, and does not separate them in the seam:
+`src/lib/data/index.ts`, `mock.ts` and `supabase.ts` are written by every ticket in both groups, and
+`DataSeam` grows one entry per designed contract item. `metrics.md` already carries the shape at
+TEA-05 cycle 2 — eighty lines inserted above an earlier block in `mock.ts` invalidated every citation
+in two artifacts. Migrations are the exception; they are one timestamped file each and merge cleanly.
+
+**The larger thing, and it is a decision rather than a fix.** Two teams working this repository at
+once is not something the operating model supports. ADR-006 gives up parallelism deliberately — one
+working directory, one branch, one ticket in flight, *enforced by git rather than by policy* — and
+MD-013 (high) records that concurrent sessions therefore share one HEAD and one working tree, with an
+observed instance of a session finding itself on a branch it had not moved to, in a tree holding
+twelve files from three sessions. Ordering the backlog around another team makes that model's
+assumption false; ordering it differently does not restore it. MD-013's own fix shape names the two
+candidates and calls the choice a real one. It is the operator's to make and it needs an ADR under
+RULE-01, so nothing was written to `.ai/registry/**` here.
+
+No registry write. No ADR. No ticket work. Audit re-run after the edit: 0 errors, 1 pre-existing
+advisory D8.

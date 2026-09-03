@@ -32,20 +32,43 @@ Under the current gate placement a ticket sits here until it has been planned �
 
 | # | Ticket | Title | State | Blocked on |
 |---|--------|-------|-------|------------|
-| 1 | CAL-01 | Create an entry for themselves, over a range of dates | BACKLOG | TEA-01 |
-| 2 | CAL-02 | Edit or delete their own entry | BACKLOG | CAL-01 |
-| 3 | CAL-03 | Edit or delete another member's entry, as an admin | BACKLOG | CAL-02 |
-| 4 | CAL-04 | Month view — a day grid showing who is away and which days are overloaded | BACKLOG | CAL-01, TEA-03 |
-| 5 | CAL-05 | Week view — per-person detail for one week, with half-days, notes and who approved | BACKLOG | CAL-04 |
-| 6 | CAL-06 | Year view — one row per member across 365 days | BACKLOG | CAL-04, TEA-03 |
-| 7 | ADM-01 | Set the overload threshold | BACKLOG | TEA-01 |
-| 8 | CAL-07 | Overload warning shown while choosing dates, before the entry is saved | BACKLOG | CAL-01, CAL-04 |
-| 9 | ADM-02 | The national holiday calendar, seeded and readable | BACKLOG | TEA-01, ADM-01 |
-| 10 | ADM-03 | Add, edit or delete a holiday or swap day | BACKLOG | ADM-02 |
+| 1 | ADM-01 | Set the overload threshold | BACKLOG | TEA-01 |
+| 2 | ADM-02 | The national holiday calendar, seeded and readable | BACKLOG | TEA-01, ADM-01 |
+| 3 | ADM-03 | Add, edit or delete a holiday or swap day | BACKLOG | ADM-02 |
+| 4 | CAL-01 | Create an entry for themselves, over a range of dates | BACKLOG | TEA-01 |
+| 5 | CAL-02 | Edit or delete their own entry | BACKLOG | CAL-01 |
+| 6 | CAL-03 | Edit or delete another member's entry, as an admin | BACKLOG | CAL-02 |
+| 7 | CAL-04 | Month view — a day grid showing who is away and which days are overloaded | BACKLOG | CAL-01, TEA-03 |
+| 8 | CAL-05 | Week view — per-person detail for one week, with half-days, notes and who approved | BACKLOG | CAL-04 |
+| 9 | CAL-06 | Year view — one row per member across 365 days | BACKLOG | CAL-04, TEA-03 |
+| 10 | CAL-07 | Overload warning shown while choosing dates, before the entry is saved | BACKLOG | CAL-01, CAL-04 |
 | 11 | CAL-08 | Holidays and bridge days shown in the calendar views | BACKLOG | ADM-02, CAL-04, CAL-05, CAL-06 |
 | 12 | ADM-04 | The worklist of entries awaiting a decision | BACKLOG | CAL-01, TEA-03, ADM-01 |
 | 13 | ADM-05 | Approve or reject an entry, with a reason on rejection | BACKLOG | ADM-04, CAL-02 |
 | 14 | ADM-06 | Reject several entries at once, with one reason for the batch | BACKLOG | ADM-05 |
+
+**The operator moved ADM-01, ADM-02 and ADM-03 to rows 1–3 on 2026-09-03**, and the eleven CAL and
+ADM rows below them moved down. **This is a reordering, not bookkeeping** — rows moved relative to one
+another, which only a human may cause, and the instruction was theirs: *another team is already
+working the CAL features, and this working tree should take work that does not collide with them.*
+Recorded by `steward`, who moved no row of its own judgement.
+
+Three facts a later reader should have, because the reorder rests on them and two of them limit it:
+
+- **ADM-01, ADM-02 and ADM-03 are a closed chain that names no CAL ticket.** `ADM-01` depends on
+  `TEA-01` alone, which is `DONE`; `ADM-02` on `TEA-01` and `ADM-01`; `ADM-03` on `ADM-02`. Nothing
+  in the three `Blocked on` cells is a CAL row, so the three can be planned and shipped in order
+  without waiting on the other team. That is the whole runway the reorder buys.
+- **ADM-04, ADM-05 and ADM-06 cannot be pulled up with them.** `ADM-04` names `CAL-01`, `ADM-05`
+  names `CAL-02`, and `ADM-06` follows `ADM-05`. The approval half of ADM is downstream of entries
+  existing, so it stays below the CAL rows and the reorder deliberately did not move it.
+- **Separating the groups on the board does not separate them in the files.** Both write the same
+  three seam files — `src/lib/data/index.ts`, `mock.ts` and `supabase.ts` — and `DataSeam` in
+  `index.ts` grows one entry per designed contract item, so two teams shipping in parallel append to
+  the same interface. `metrics.md` already records the shape at TEA-05 cycle 2: eighty lines inserted
+  above an earlier block in `mock.ts` moved every citation in two artifacts. Migrations are the
+  exception and merge cleanly, being one timestamped file each. Routes are the other: ADM builds
+  admin screens, CAL builds calendar views, and those do not overlap.
 
 **Renumbered again to 1–14 by `orchestrator` at /ship on 2026-09-03**, when TEA-05 left this table
 for `## ARCHIVE`. Bookkeeping, not a reordering. **CAL-01 is now row 1**, and it is there because
