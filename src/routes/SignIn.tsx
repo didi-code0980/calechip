@@ -51,7 +51,7 @@ export default function SignIn({ signIn }: SignInProps) {
       // still raises on an unusable configuration before any request leaves.
       setState({
         phase: "editing",
-        error: { code: "unknown", message: "Đăng nhập không thành công. Thử lại giúp mình nhé." },
+        error: { code: "unknown", message: "Sign-in failed. Please try again." },
       });
     }
   }
@@ -64,7 +64,7 @@ export default function SignIn({ signIn }: SignInProps) {
       onSubmit={onSubmit}
       className="mx-auto flex max-w-md flex-col gap-4 rounded-2xl bg-white p-8 shadow-sm"
     >
-      <h1 className="text-xl font-semibold">Đăng nhập</h1>
+      <h1 className="text-xl font-semibold">Sign in</h1>
 
       <label className="flex flex-col gap-1 text-sm">
         Email
@@ -80,7 +80,7 @@ export default function SignIn({ signIn }: SignInProps) {
       </label>
 
       <label className="flex flex-col gap-1 text-sm">
-        Mật khẩu
+        Password
         <input
           data-testid="sign-in-password"
           type="password"
@@ -104,7 +104,7 @@ export default function SignIn({ signIn }: SignInProps) {
         disabled={!complete || submitting}
         className="rounded-xl bg-slate-900 px-4 py-2 text-white disabled:opacity-40"
       >
-        {submitting ? "Đang vào…" : "Đăng nhập"}
+        {submitting ? "Signing in…" : "Sign in"}
       </button>
 
       {/* NO LINK TO /signup, and its absence is deliberate. 01-plan.md section 1 puts a navigation

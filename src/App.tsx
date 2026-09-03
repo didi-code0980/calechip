@@ -40,7 +40,7 @@ export default function App() {
             role="status"
             className="mx-auto mb-6 max-w-md rounded-xl bg-amber-100 px-4 py-2 text-center text-sm text-amber-900"
           >
-            Bản chạy thử — dữ liệu chỉ nằm trong bộ nhớ trình duyệt và sẽ mất khi tải lại trang.
+            Demo build — data lives only in this browser and is lost when you reload the page.
           </p>
         ) : null}
 
@@ -53,7 +53,7 @@ export default function App() {
             role="status"
             className="mx-auto max-w-md rounded-2xl bg-white p-8 text-center text-sm opacity-70 shadow-sm"
           >
-            Đang tải…
+            Loading…
           </p>
         ) : (
           <Routes>
