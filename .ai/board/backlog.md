@@ -128,7 +128,7 @@ Tickets that cannot proceed until a human decides something. Name the decision, 
 | 4 | TEA-04 | Remove a member, and promote a member to admin | 2026-09-01 | [#20](https://github.com/didi-code0980/calechip/pull/20) |
 | 5 | BUG-001 | The end-to-end suite does not pin which seam it drives | 2026-09-03 | [#27](https://github.com/didi-code0980/calechip/pull/27); board files in [#28](https://github.com/didi-code0980/calechip/pull/28) |
 | 6 | TEA-05 | Sign in, sign out, and the member-less landing state | 2026-09-03 | [#29](https://github.com/didi-code0980/calechip/pull/29); board and registry in [#30](https://github.com/didi-code0980/calechip/pull/30) |
-| 7 | CAL-01 | Create an entry for themselves, over a range of dates | 2026-09-03 | [#32](https://github.com/didi-code0980/calechip/pull/32); board and registry in COMPANION_PR |
+| 7 | CAL-01 | Create an entry for themselves, over a range of dates | 2026-09-03 | [#32](https://github.com/didi-code0980/calechip/pull/32); board and registry in [#34](https://github.com/didi-code0980/calechip/pull/34) |
 
 **CAL-01 is the first ticket to ship a migration, and the first whose invariants are enforced by the
 database rather than by code.** Five of the seven are touched — INV-01 by an exclusion constraint
