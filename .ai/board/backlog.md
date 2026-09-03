@@ -32,20 +32,23 @@ Under the current gate placement a ticket sits here until it has been planned �
 
 | # | Ticket | Title | State | Blocked on |
 |---|--------|-------|-------|------------|
-| 1 | CAL-01 | Create an entry for themselves, over a range of dates | BACKLOG | TEA-01 |
-| 2 | CAL-02 | Edit or delete their own entry | BACKLOG | CAL-01 |
-| 3 | CAL-03 | Edit or delete another member's entry, as an admin | BACKLOG | CAL-02 |
-| 4 | CAL-04 | Month view — a day grid showing who is away and which days are overloaded | BACKLOG | CAL-01, TEA-03 |
-| 5 | CAL-05 | Week view — per-person detail for one week, with half-days, notes and who approved | BACKLOG | CAL-04 |
-| 6 | CAL-06 | Year view — one row per member across 365 days | BACKLOG | CAL-04, TEA-03 |
-| 7 | ADM-01 | Set the overload threshold | BACKLOG | TEA-01 |
-| 8 | CAL-07 | Overload warning shown while choosing dates, before the entry is saved | BACKLOG | CAL-01, CAL-04 |
-| 9 | ADM-02 | The national holiday calendar, seeded and readable | BACKLOG | TEA-01, ADM-01 |
-| 10 | ADM-03 | Add, edit or delete a holiday or swap day | BACKLOG | ADM-02 |
-| 11 | CAL-08 | Holidays and bridge days shown in the calendar views | BACKLOG | ADM-02, CAL-04, CAL-05, CAL-06 |
-| 12 | ADM-04 | The worklist of entries awaiting a decision | BACKLOG | CAL-01, TEA-03, ADM-01 |
-| 13 | ADM-05 | Approve or reject an entry, with a reason on rejection | BACKLOG | ADM-04, CAL-02 |
-| 14 | ADM-06 | Reject several entries at once, with one reason for the batch | BACKLOG | ADM-05 |
+| 1 | CAL-02 | Edit or delete their own entry | BACKLOG | CAL-01 |
+| 2 | CAL-03 | Edit or delete another member's entry, as an admin | BACKLOG | CAL-02 |
+| 3 | CAL-04 | Month view — a day grid showing who is away and which days are overloaded | BACKLOG | CAL-01, TEA-03 |
+| 4 | CAL-05 | Week view — per-person detail for one week, with half-days, notes and who approved | BACKLOG | CAL-04 |
+| 5 | CAL-06 | Year view — one row per member across 365 days | BACKLOG | CAL-04, TEA-03 |
+| 6 | ADM-01 | Set the overload threshold | BACKLOG | TEA-01 |
+| 7 | CAL-07 | Overload warning shown while choosing dates, before the entry is saved | BACKLOG | CAL-01, CAL-04 |
+| 8 | ADM-02 | The national holiday calendar, seeded and readable | BACKLOG | TEA-01, ADM-01 |
+| 9 | ADM-03 | Add, edit or delete a holiday or swap day | BACKLOG | ADM-02 |
+| 10 | CAL-08 | Holidays and bridge days shown in the calendar views | BACKLOG | ADM-02, CAL-04, CAL-05, CAL-06 |
+| 11 | ADM-04 | The worklist of entries awaiting a decision | BACKLOG | CAL-01, TEA-03, ADM-01 |
+| 12 | ADM-05 | Approve or reject an entry, with a reason on rejection | BACKLOG | ADM-04, CAL-02 |
+| 13 | ADM-06 | Reject several entries at once, with one reason for the batch | BACKLOG | ADM-05 |
+
+**Renumbered again to 1–13 by `orchestrator` at /ship on 2026-09-03**, when CAL-01 left this table
+for `## ARCHIVE`. Bookkeeping, not a reordering. **CAL-02 is now row 1 and it is blocked on nothing**
+— its `Blocked on` names CAL-01, which is now DONE.
 
 **Renumbered again to 1–14 by `orchestrator` at /ship on 2026-09-03**, when TEA-05 left this table
 for `## ARCHIVE`. Bookkeeping, not a reordering. **CAL-01 is now row 1**, and it is there because
@@ -125,6 +128,17 @@ Tickets that cannot proceed until a human decides something. Name the decision, 
 | 4 | TEA-04 | Remove a member, and promote a member to admin | 2026-09-01 | [#20](https://github.com/didi-code0980/calechip/pull/20) |
 | 5 | BUG-001 | The end-to-end suite does not pin which seam it drives | 2026-09-03 | [#27](https://github.com/didi-code0980/calechip/pull/27); board files in [#28](https://github.com/didi-code0980/calechip/pull/28) |
 | 6 | TEA-05 | Sign in, sign out, and the member-less landing state | 2026-09-03 | [#29](https://github.com/didi-code0980/calechip/pull/29); board and registry in [#30](https://github.com/didi-code0980/calechip/pull/30) |
+| 7 | CAL-01 | Create an entry for themselves, over a range of dates | 2026-09-03 | [#32](https://github.com/didi-code0980/calechip/pull/32); board and registry in [#34](https://github.com/didi-code0980/calechip/pull/34) |
+
+**CAL-01 is the first ticket to ship a migration, and the first whose invariants are enforced by the
+database rather than by code.** Five of the seven are touched — INV-01 by an exclusion constraint
+over `date_range` (needing the `btree_gist` extension), INV-02 by a trigger, INV-03 by a check, and
+INV-06 and INV-07 by the table's own shape. ADR-005 and ADR-011 are the linked decisions; ADR-014 is
+why `schema_delta` could not be `none`. **One implement cycle, no rework, R1–R8 all PASS.**
+
+**All four verify commands were re-run at REVIEW and exit 0** — typecheck, lint, `vitest run`, and
+`playwright test` with 32 passing, which is this ticket's eleven plus the four earlier suites
+unedited. `/ship` did not re-run them; the operator instructed step 1 to be skipped.
 
 **TEA-05 completes TEA-01, and both feature rows go to `DONE` together.** TEA-01 delivered sign-up
 only; the sign-in half was carved out at DESIGN on 2026-08-31 and reached a ticket a day later
