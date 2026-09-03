@@ -2,7 +2,7 @@
 ticket: TEA-05
 stage: IN_PROGRESS
 agent: developer
-produced_at: 2026-09-01T15:14:14+07:00
+produced_at: 2026-09-03T09:39:34+07:00   # cycle 2; cycle 1 was 2026-09-01T15:14:14+07:00
 inputs_read:
   - .ai/board/tickets/TEA-05/01-plan.md
   - .ai/board/tickets/TEA-05/ticket.yaml
@@ -31,6 +31,13 @@ inputs_read:
   - node_modules/.pnpm/@supabase+auth-js@2.112.4/node_modules/@supabase/auth-js/dist/module/GoTrueClient.d.ts
   - node_modules/.pnpm/@supabase+auth-js@2.112.4/node_modules/@supabase/auth-js/dist/module/lib/types.d.ts
   - node_modules/.pnpm/@supabase+auth-js@2.112.4/node_modules/@supabase/auth-js/dist/module/lib/error-codes.d.ts
+  # cycle 2 only, below.
+  - .ai/registry/decisions/ADR-022-the-qa-stage-is-removed.md
+  - .ai/board/tickets/TEA-05/04-review.md
+  - .ai/board/tickets/TEA-05/06-test-report.md
+  - tests/e2e/tea-05-sign-in.spec.ts
+  - tests/e2e/seam.setup.ts
+  - vite.config.ts
 consulted: []
 chat_before_verdict: none
 gate: PASS
@@ -215,3 +222,108 @@ artifact, where the next reader will not look for it.
 same two Vietnamese labels. `MemberList.tsx` is not in this ticket's `allowed_paths`, so extracting
 it was not available — the duplication is declared at the call site rather than left for a reviewer
 to find. The next ticket that may touch both files should lift it into one place.
+
+---
+
+## Cycle 2 — 2026-09-03. What changed, and why there was a second run
+
+**Appended, not rewritten. Everything above is cycle 1 as it stood on 2026-09-01** — including Open
+question 1, which predicted this cycle's only defect and named the file it lived in.
+
+### Why this ran at all
+
+Cycle 1 ended `gate: PASS` and REVIEW returned `gate: PASS` on the same day
+(`04-review.md:11`). What followed was not a rework routed from a verdict on this code:
+
+- QA ran once, on this ticket, and returned `gate: FAIL` — thirteen end-to-end failures, blocked on
+  BUG-001 (`06-test-report.md:10`). **Its `next_state: REWORK` no longer routes anywhere: ADR-022
+  removed the QA stage the day that report was written**, so no gate carries that verdict and the
+  REWORK it asked for has no producer.
+- BUG-001 has since merged and `origin/main` is merged into this branch at `9f086e9`. The suite is
+  now pinned — `playwright.config.ts` sets `VITE_DATA_SEAM=mock` on `webServer.env`, and
+  `tests/e2e/seam.setup.ts` refuses the run from the served page if it is not.
+
+So the run that cycle 1 could only describe is now actually possible. **It was run, and it found one
+real defect in this ticket's code**, distinct from the thirteen environment failures QA reported:
+19 of 21 passed, and the 2 that failed were both TEA-05's.
+
+### The defect: the mock did not reproduce AC-7, and both failures were that
+
+| Test | Failure | Cause |
+|---|---|---|
+| `tea-05-sign-in.spec.ts:135` AC-7 — a reload keeps the session | `home-member-name` not found after `page.reload()` | the mock's session is module state, and a reload discards it |
+| `tea-05-sign-in.spec.ts:159` AC-11 — signing in creates, updates and deletes nothing | `member-list-row` not found after `page.goto("/members")` | the same: `goto` is a full page load, so the admin is signed out before `/members` renders and the screen fails safe |
+
+**This is cycle 1's Open question 1, arriving as predicted and resolved rather than re-declared.**
+That note argued AC-7 belonged in §8.1's real-project-only list beside AC-3 and AC-8. On re-reading,
+it does not, and the difference is the reason it is fixed here instead of being escalated:
+
+- AC-3 and AC-8 are GoTrue **behaviours** — a confirmation state and a token clock. The mock has
+  neither, and inventing one would be a second definition of when a session ends (§5).
+- AC-7 is **storage**, and the real seam does not implement it either. `persistSession` is a
+  `@supabase/auth-js` default, so the client writes the session to `localStorage` and reads it back
+  on the next load — `supabase.ts:454` already says so in as many words. A mock that keeps the
+  session only in memory is not "missing a clock", it is answering `null` where the real one answers
+  the session, for a call §5's own table puts opposite AC-7: *"`getSession` after `signIn` and before
+  `signOut` → the session"*. A reload sits inside that window.
+
+So the mock stores it too. No plan change is owed and none was made.
+
+### Files touched in cycle 2
+
+| file | created/modified | why | contract item it satisfies |
+|------|------------------|-----|----------------------------|
+| `src/lib/data/mock.ts` | modified | `SESSION_STORAGE_KEY`, `sessionStore()`, `readStoredSession()` and `writeStoredSession()`. `currentSession` initialises from the store instead of `null`, `currentMemberId` derives from it, and `setSession` persists on the way in and clears on the way out — so `signOut` removes the stored copy in the same call that clears the in-memory one, which is AC-6 and not only AC-7. | §5, AC-7 |
+
+Nothing else changed. `git status --porcelain` is one line.
+
+Three things the fix is deliberately careful about, because each is a way it could have been worse
+than the defect:
+
+1. **`localStorage` is absent under vitest.** `vite.config.ts:17` sets `environment: "node"`, and
+   `tests/seam-parity.test.ts:12` imports this module at the top level — so a bare `localStorage`
+   reference at module load would take the unit suite down. `sessionStore()` returns `null` for both
+   `typeof localStorage === "undefined"` and a store that throws on access, and every caller reads
+   that as "no stored session" rather than as an error.
+2. **The stored value is shape-checked, not cast.** It comes back from a store a person can edit by
+   hand; a malformed one returns `null` and lands on the sign-in screen rather than rendering a
+   signed-in screen for a user with no id.
+3. **A blocked or full store costs persistence, not the sign-in.** `writeStoredSession` swallows its
+   own failure and the in-memory session stands, so that load behaves exactly as the mock did before.
+
+**The key is the mock's own** — `calechip.mock.session`. The real client never reads it, and the mock
+never reads the client's, so the two implementations cannot end up sharing a session across a seam
+switch.
+
+### Verification run — cycle 2
+
+Run on this branch with `origin/main` merged in, and with **no environment variable supplied on the
+command line**: `playwright.config.ts` pins the seam now, which is the whole of BUG-001.
+
+| Command | Exit | Notes |
+|---------|------|-------|
+| typecheck — `pnpm exec tsc --noEmit` | 0 | |
+| lint — `pnpm exec eslint .` | 0 | |
+| unit — `pnpm exec vitest run` | 0 | 1 file, 2 tests. `tests/seam-parity.test.ts` still passes **unedited** — the four helpers are module-local functions, not seam keys. |
+| end-to-end — `pnpm exec playwright test` | 0 | **21 passed**, across `seam-guard`, `smoke`, `tea-01-signup` and this ticket's eleven. Before this fix: 19 passed, 2 failed. |
+| `node scripts/check-allowed-paths.mjs` | 0 | 18 changed files against `origin/main`, all inside the twelve globs. |
+
+**All four Definition of Done commands exit 0 on a plain invocation.** That is worth stating rather
+than assuming: ADR-022 §Consequences makes `/ship` item 3 the last check on the suites, and it is the
+first time in this ticket's history that the end-to-end command can be run without a variable in
+front of it.
+
+### What cycle 2 does NOT close
+
+- **`tests/e2e/tea-05-sign-in.spec.ts` was written by the `qa` agent on 2026-09-01, and the role that
+  wrote it no longer exists.** ADR-022 §Consequences: *"Nobody writes tests."* The file is in
+  `allowed_paths` and was not edited here — the two failures were defects in `mock.ts`, not in the
+  spec, and editing a failing test written against the plan would have been the wrong repair. It is
+  named here so the next reader knows why this ticket has an acceptance suite and later ones will
+  not.
+- **AC-3 and AC-8 remain unprovable against the mock**, exactly as §8.1 says. The suite passes them
+  by asserting the mock's own answers; neither has been observed against a real Supabase project.
+  MD-014 is the standing proof that this difference is not theoretical.
+- **Open questions 2, 3 and 4 above.** 2 is discharged by BUG-001 having merged. 3
+  (`rbac-and-security.md:114`) and 4 (`roleLabel` duplicated at `Home.tsx:26` and
+  `MemberList.tsx:22`) stand unchanged — both need a file outside `allowed_paths`.

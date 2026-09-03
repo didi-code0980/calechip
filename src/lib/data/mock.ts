@@ -100,14 +100,88 @@ const newUserId = (): string => `00000000-0000-4000-8000-${String(++nextUserId).
 // FIXTURE_ADMIN and moved only by the test hook - the mock fabricated an identity because nothing
 // could establish one. It no longer fabricates: `signIn` sets both of these together and `signOut`
 // clears both, which is what the real seam does by way of `auth.getUser()` reading the stored
-// session. Starting at null is the consequence, and it is the correct one: with nobody signed in,
-// `getCurrentMember()` answers null in BOTH implementations, and /allow-list and /members fail safe
-// against the mock exactly as they already do against Supabase.
-let currentSession: Session | null = null;
+// session. With nobody signed in, `getCurrentMember()` answers null in BOTH implementations, and
+// /allow-list and /members fail safe against the mock exactly as they already do against Supabase.
+//
+// AMENDED on the second cycle. This paragraph read "Starting at null is the consequence, and it is
+// the correct one" - and null was the wrong start, because the real seam does not start at null
+// after a reload. See the block immediately below; the amendment is that sentence and nothing else.
+// TEA-05 AC-7. Where the mock's session survives a page load.
+//
+// The real seam does not IMPLEMENT AC-7 either, it inherits it: `persistSession` is a
+// @supabase/auth-js default, so the client writes the session to `localStorage` and restores it on
+// the next load (supabase.ts:454). A mock holding the session only in module state answers null
+// after a reload while the real one answers the session - parity in the seam's KEYS and not in its
+// behaviour, and AC-7 is the criterion that difference shows up in. 01-plan.md section 5 puts
+// `getSession` after `signIn` and before `signOut` opposite AC-7, and a reload sits inside that
+// window. So the mock stores it too, under its own key, which the real client never reads.
+const SESSION_STORAGE_KEY = "calechip.mock.session";
+
+// `localStorage` is absent under the vitest `node` environment (vite.config.ts:17), which imports
+// this module at the top of tests/seam-parity.test.ts, and a browser can refuse it outright in a
+// private context. Both are read as "no stored session" rather than as an error: persistence is what
+// AC-7 needs and nothing else in the mock depends on it.
+function sessionStore(): Storage | null {
+  try {
+    return typeof localStorage === "undefined" ? null : localStorage;
+  } catch {
+    return null;
+  }
+}
+
+// Shape-checked rather than cast. The value comes back from a store a person can edit by hand, and a
+// malformed one has to land on the sign-in screen rather than render a signed-in screen for a user
+// with no id.
+function readStoredSession(): Session | null {
+  const store = sessionStore();
+  if (!store) return null;
+
+  try {
+    const raw = store.getItem(SESSION_STORAGE_KEY);
+    if (!raw) return null;
+
+    const parsed: unknown = JSON.parse(raw);
+    if (typeof parsed !== "object" || parsed === null) return null;
+
+    const { user, accessToken } = parsed as { user?: unknown; accessToken?: unknown };
+    if (typeof accessToken !== "string") return null;
+    if (typeof user !== "object" || user === null) return null;
+
+    const { id, email, emailConfirmed } = user as {
+      id?: unknown;
+      email?: unknown;
+      emailConfirmed?: unknown;
+    };
+    if (typeof id !== "string" || typeof email !== "string") return null;
+    if (typeof emailConfirmed !== "boolean") return null;
+
+    return { user: { id, email, emailConfirmed }, accessToken };
+  } catch {
+    return null;
+  }
+}
+
+function writeStoredSession(session: Session | null): void {
+  const store = sessionStore();
+  if (!store) return;
+
+  try {
+    if (session) store.setItem(SESSION_STORAGE_KEY, JSON.stringify(session));
+    else store.removeItem(SESSION_STORAGE_KEY);
+  } catch {
+    // A full quota or a blocked store costs persistence, not the sign-in: the in-memory session
+    // stands and this load behaves exactly as the mock did before AC-7 was reproduced.
+  }
+}
+
+// Restored on module load, which is the reload path: nothing above the seam re-establishes a session
+// after a navigation, and `useSession` reads this through `getSession()` on its first effect.
+let currentSession: Session | null = readStoredSession();
 
 // TEA-02. Who `getCurrentMember` answers as. Since TEA-05 it follows `currentSession` and is never
-// set independently except by the test hook below.
-let currentMemberId: string | null = null;
+// set independently except by the test hook below - including across a reload, where it is derived
+// from the restored session rather than persisted a second time.
+let currentMemberId: string | null = currentSession ? currentSession.user.id : null;
 
 /** Test-only. Sets which seeded member `getCurrentMember` answers as. Not part of the seam - it is a
  *  named export beside `seam`, so seam parity, which compares the keys of `seam`, is untouched.
@@ -129,6 +203,10 @@ const sessionListeners = new Set<(session: Session | null) => void>();
 function setSession(session: Session | null): void {
   currentSession = session;
   currentMemberId = session ? session.user.id : null;
+  // AC-7 on the way in, AC-6 on the way out: `signOut` passes null here, so the stored copy is
+  // removed in the same call that clears the in-memory one. A sign-out that ended the session for
+  // this page and left it in the store would be the shared-machine gap AC-6 exists to close.
+  writeStoredSession(session);
   // A copy per listener, so one subscriber cannot hand a mutated session to the next.
   for (const listener of sessionListeners) listener(session ? { ...session } : null);
 }
