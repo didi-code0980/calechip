@@ -136,7 +136,7 @@ Tickets that cannot proceed until a human decides something. Name the decision, 
 | 6 | TEA-05 | Sign in, sign out, and the member-less landing state | 2026-09-03 | [#29](https://github.com/didi-code0980/calechip/pull/29); board and registry in [#30](https://github.com/didi-code0980/calechip/pull/30) |
 | 7 | CAL-01 | Create an entry for themselves, over a range of dates | 2026-09-03 | [#32](https://github.com/didi-code0980/calechip/pull/32); board and registry in [#34](https://github.com/didi-code0980/calechip/pull/34) |
 | 8 | CAL-02 | Edit or delete their own entry | 2026-09-03 | [#36](https://github.com/didi-code0980/calechip/pull/36) |
-| 9 | CAL-03 | Edit or delete another member's entry, as an admin | 2026-09-03 | PENDING_PR |
+| 9 | CAL-03 | Edit or delete another member's entry, as an admin | 2026-09-03 | [#38](https://github.com/didi-code0980/calechip/pull/38) |
 
 **CAL-03 completes the write path on `entry`: CAL-02 gave a member their own rows, this gives an
 admin every row on their own team.** Two policies and nothing else — `entry_update_admin` and
