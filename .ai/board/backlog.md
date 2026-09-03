@@ -32,21 +32,24 @@ Under the current gate placement a ticket sits here until it has been planned �
 
 | # | Ticket | Title | State | Blocked on |
 |---|--------|-------|-------|------------|
-| 1 | TEA-05 | Sign in, sign out, and the member-less landing state | BACKLOG | TEA-01 |
-| 2 | CAL-01 | Create an entry for themselves, over a range of dates | BACKLOG | TEA-01 |
-| 3 | CAL-02 | Edit or delete their own entry | BACKLOG | CAL-01 |
-| 4 | CAL-03 | Edit or delete another member's entry, as an admin | BACKLOG | CAL-02 |
-| 5 | CAL-04 | Month view — a day grid showing who is away and which days are overloaded | BACKLOG | CAL-01, TEA-03 |
-| 6 | CAL-05 | Week view — per-person detail for one week, with half-days, notes and who approved | BACKLOG | CAL-04 |
-| 7 | CAL-06 | Year view — one row per member across 365 days | BACKLOG | CAL-04, TEA-03 |
-| 8 | ADM-01 | Set the overload threshold | BACKLOG | TEA-01 |
-| 9 | CAL-07 | Overload warning shown while choosing dates, before the entry is saved | BACKLOG | CAL-01, CAL-04 |
-| 10 | ADM-02 | The national holiday calendar, seeded and readable | BACKLOG | TEA-01, ADM-01 |
-| 11 | ADM-03 | Add, edit or delete a holiday or swap day | BACKLOG | ADM-02 |
-| 12 | CAL-08 | Holidays and bridge days shown in the calendar views | BACKLOG | ADM-02, CAL-04, CAL-05, CAL-06 |
-| 13 | ADM-04 | The worklist of entries awaiting a decision | BACKLOG | CAL-01, TEA-03, ADM-01 |
-| 14 | ADM-05 | Approve or reject an entry, with a reason on rejection | BACKLOG | ADM-04, CAL-02 |
-| 15 | ADM-06 | Reject several entries at once, with one reason for the batch | BACKLOG | ADM-05 |
+| 1 | CAL-01 | Create an entry for themselves, over a range of dates | BACKLOG | TEA-01 |
+| 2 | CAL-02 | Edit or delete their own entry | BACKLOG | CAL-01 |
+| 3 | CAL-03 | Edit or delete another member's entry, as an admin | BACKLOG | CAL-02 |
+| 4 | CAL-04 | Month view — a day grid showing who is away and which days are overloaded | BACKLOG | CAL-01, TEA-03 |
+| 5 | CAL-05 | Week view — per-person detail for one week, with half-days, notes and who approved | BACKLOG | CAL-04 |
+| 6 | CAL-06 | Year view — one row per member across 365 days | BACKLOG | CAL-04, TEA-03 |
+| 7 | ADM-01 | Set the overload threshold | BACKLOG | TEA-01 |
+| 8 | CAL-07 | Overload warning shown while choosing dates, before the entry is saved | BACKLOG | CAL-01, CAL-04 |
+| 9 | ADM-02 | The national holiday calendar, seeded and readable | BACKLOG | TEA-01, ADM-01 |
+| 10 | ADM-03 | Add, edit or delete a holiday or swap day | BACKLOG | ADM-02 |
+| 11 | CAL-08 | Holidays and bridge days shown in the calendar views | BACKLOG | ADM-02, CAL-04, CAL-05, CAL-06 |
+| 12 | ADM-04 | The worklist of entries awaiting a decision | BACKLOG | CAL-01, TEA-03, ADM-01 |
+| 13 | ADM-05 | Approve or reject an entry, with a reason on rejection | BACKLOG | ADM-04, CAL-02 |
+| 14 | ADM-06 | Reject several entries at once, with one reason for the batch | BACKLOG | ADM-05 |
+
+**Renumbered again to 1–14 by `orchestrator` at /ship on 2026-09-03**, when TEA-05 left this table
+for `## ARCHIVE`. Bookkeeping, not a reordering. **CAL-01 is now row 1**, and it is there because
+every row a human placed above it has shipped — not because anyone moved it.
 
 **The rows above were renumbered to 1–15 by `orchestrator` at /ship on 2026-09-03**, when BUG-001
 left this table for `## ARCHIVE`. **Bookkeeping, not a reordering** — no row moved relative to
@@ -121,6 +124,25 @@ Tickets that cannot proceed until a human decides something. Name the decision, 
 | 3 | TEA-03 | Team member list | 2026-09-01 | [#17](https://github.com/didi-code0980/calechip/pull/17) |
 | 4 | TEA-04 | Remove a member, and promote a member to admin | 2026-09-01 | [#20](https://github.com/didi-code0980/calechip/pull/20) |
 | 5 | BUG-001 | The end-to-end suite does not pin which seam it drives | 2026-09-03 | [#27](https://github.com/didi-code0980/calechip/pull/27); board files in [#28](https://github.com/didi-code0980/calechip/pull/28) |
+| 6 | TEA-05 | Sign in, sign out, and the member-less landing state | 2026-09-03 | [#29](https://github.com/didi-code0980/calechip/pull/29); board and registry in [#30](https://github.com/didi-code0980/calechip/pull/30) |
+
+**TEA-05 completes TEA-01, and both feature rows go to `DONE` together.** TEA-01 delivered sign-up
+only; the sign-in half was carved out at DESIGN on 2026-08-31 and reached a ticket a day later
+(MD-017). `.ai/board/tickets/TEA-01/01-story.md:212` says the feature is delivered only when both
+halves are DONE, so `/ship` step 3's singular *"this feature's `Status`"* is read as plural here —
+the instruction predates any ticket carrying two `feature_ids`.
+
+**TEA-05 carries a `qa` gate reading `FAIL`, and it is not a waiver.** `06-test-report.md` failed on
+2026-09-01 because the end-to-end suite was unpinned and ran against the live Supabase project —
+that is BUG-001, archived directly above, which shipped the same day this did. ADR-022 then removed
+the QA stage, so nothing produces that gate any more. Cycle 2 re-ran all four commands on 2026-09-03
+at exit 0, including `pnpm exec playwright test` with 21 tests. **One rework cycle**, and
+`rework_count` was corrected from 0 to 1 at ship; nothing had incremented it.
+
+**AC-3 and AC-8 have never been observed against a real Supabase project**, which `01-plan.md`
+section 8.1 declares as the plan's own limit rather than a gap the implementation opened. MD-014 is
+the standing proof that the difference is not theoretical: seeded accounts could not sign in at all,
+and no test noticed for a day.
 
 **TEA-01 shipped with its QA gate passed by operator waiver.** Ten of twelve acceptance criteria
 have no test; `tests/permission-model.test.ts` does not exist because no database was provisioned.
