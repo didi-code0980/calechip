@@ -1392,3 +1392,40 @@ it. `/ship` classifies the two sets when TEA-05 is shippable.
 
 Audit 0 errors, 1 pre-existing advisory D8. Registry writes: ADR-022 new; `rules.md` retiring RULE-05
 and amending RULE-13, both from the instruction quoted above. CODEOWNERS review at merge.
+
+### 2026-09-03 — a status read that ran the app's four commands, not only the board
+
+Operator asked how the app is doing. Ran `/status` against the files first, per the standing
+instruction on resuming after a gap, then went one step further than `/status` allows itself: the
+board says what shipped, and the operator's question was about the product, so the four commands in
+`.ai/standards/testing-standards.md` were actually run rather than quoted from a shipped artifact.
+
+**All four green on a clean install of the lockfile**: `tsc --noEmit` exit 0, `eslint .` exit 0,
+`vitest run` 2 of 2, `playwright test` **21 of 21** against the pinned `mock` seam. Docs audit 0
+errors, 1 pre-existing advisory D8. `node --test` 200 of 200. This is the first run in this
+repository where all four are green in one session, and BUG-001's seam pin is why — the suite now
+states which implementation it drives.
+
+One environment note that is not a repository fact: this container ships Playwright browser build
+1194 and the lockfile's Playwright wants 1234, so the run needed a symlink under `/opt/pw-browsers`.
+Nothing in the repository was changed for it and the shim does not survive the container.
+
+**Found, and not fixed here.** `.ai/registry/features.md` still reads `TEA-02 | IN_PROGRESS` while
+`ticket.yaml`, `metrics.md` and the backlog archive all say DONE and name PR #13. `ticket.yaml` is
+authoritative, so the registry row is the stale one. Left for the operator rather than corrected:
+the standing instruction that permits fixing a small defect in the same turn excludes
+`.ai/registry/**` explicitly, and `/ship` writing the row is what should have happened.
+
+**Also true and worth stating once**: TEA-02, TEA-03 and TEA-04 have no acceptance test at all —
+`tests/e2e/` holds `smoke`, `tea-01-signup` and `tea-05-sign-in`, and nothing else. The 21 green
+tests cover two of the five shipped features. That is exactly the surface ADR-017's waiver was
+covering, and MD-016 is the row for it.
+
+**Fixed in the same turn**, one paragraph, not registry: `SETUP.md:267` claimed *"nothing here has
+been run end to end"* and *"all 211 tests pass"*. Six tickets have shipped and the count is 200 —
+`scripts/init-project.mjs` and its tests were removed per MD-010. A stale number at step 0 trains
+the reader to ignore a mismatch, which is the whole reason step 0 prints one.
+
+No registry write. No ADR. No ticket work. Model debt unchanged at fourteen open rows, and MD-021
+is now fixed in code by BUG-001 while its row still reads open — the register has no resolution
+column, which is a smaller version of the same problem.

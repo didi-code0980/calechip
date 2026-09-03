@@ -264,6 +264,8 @@ reversed. Their own tests still pass, so restoring them is one edit to `.claude/
 one list change in `.claude/hooks/tests/settings-integrity.test.mjs`. Read ADR-004 before deciding
 either way — it names what the removal bought and what it cost.
 
-**Nothing here has been run end to end in this repository.** The audit passes, all 211 tests pass,
-and no ticket has ever moved through this copy of the loop. The first `/plan` through `/ship` is what
-turns that from a claim into evidence.
+**The loop has been run end to end in this repository.** The audit passes, all 200 hook and script
+tests pass, and six tickets — TEA-01 through TEA-05 and BUG-001 — have moved from `/plan` to `/ship`
+and are merged. The count changed because `scripts/init-project.mjs` and its tests were removed once
+the project was stood up (MD-010); re-check it with `pnpm hooks:test` rather than trusting this
+sentence, since a stale number here trains you to ignore a mismatch at step 0.
