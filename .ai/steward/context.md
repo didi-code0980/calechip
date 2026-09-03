@@ -1350,3 +1350,45 @@ RULE-03 is inactive here. `.claude/commands/implement.md:52-53` already states e
 something two files already say.
 
 No registry write. No ADR. No ticket work. Tree was clean at the start of the run.
+### 2026-09-01 — ADR-022: the QA stage is removed
+
+Operator instruction: *"tôi muốn bỏ hẳn QA."* Disagreed in one sentence — REVIEW becomes the only
+gate and the three tickets shipped untested will never be retired — then executed it in full. This is
+a removal, not a waiver, so it is the dozen coordinated edits I said this morning were the right price
+for a permanent decision and the wrong one for a temporary switch. ADR-017 was a switch because the
+operator said *tạm thời*; nothing about this one is.
+
+**The strongest fact against the decision arrived after it was made, and it is in the ADR rather than
+in chat.** QA ran exactly once unimpeded, on TEA-05, and returned `gate: FAIL` — thirteen Playwright
+failures, the unpinned e2e seam, BUG-001. The stage being removed found a real defect on its only real
+run. The operator was told before confirming; recorded in ADR-022's Context so it does not scroll away.
+
+What went, beyond the stage: RULE-05 **retired** at v3, its number never reused, seventeen of eighteen
+rules now in force. RULE-13 to v2, wording only. Plan section 8 gone, nine sections to eight. Check R7
+gone, R8 and R9 renumbered. Definition of Done six items to five. Two gates in `ticket.yaml`, not
+three.
+
+**Item 3 of the Definition of Done stays, and that was a judgement call worth recording.** Consistency
+argued for removing it — with nobody writing tests, requiring the suites to pass is requiring someone
+else's tests to keep passing. It stays because those suites are the only remaining evidence anything
+works. And the consequence is named honestly in the ADR: `/ship` step 1 already carries the operator's
+own annotation *"Tạm ignore bước này"*, so that annotation is now the difference between the four
+commands being run and not being run at all.
+
+**Kept `guard-read-scope.mjs` wired and tested rather than deleting it.** Both roles it restricts are
+retired — `ba` by ADR-019, `qa` by this ADR — so it is inert. Changed the header to say so. Deleting a
+guard is the one direction that fails silently, and the extra-care table in `/thuki` names hooks for
+that reason: ran `node --test` in the same turn, **200 of 200 pass**.
+
+Nothing deleted anywhere: `/qa`, the `qa` agent and the two test templates carry retirement banners,
+because four tickets were produced against them and a repository that cannot read a shipped artifact
+against its own template has lost the ability to audit itself.
+
+**Left uncommitted, deliberately.** The tree holds TEA-05's source alongside twenty-four model files,
+and TEA-05 is at REWORK on a QA verdict that the stage removal does not clear — `/ship` item 3 still
+requires the suites to exit 0, and the e2e suite is red until BUG-001 lands. Switching branches to
+split them while a ticket sits mid-REWORK is the risk ADR-006 exists to prevent, and nobody asked for
+it. `/ship` classifies the two sets when TEA-05 is shippable.
+
+Audit 0 errors, 1 pre-existing advisory D8. Registry writes: ADR-022 new; `rules.md` retiring RULE-05
+and amending RULE-13, both from the instruction quoted above. CODEOWNERS review at merge.

@@ -13,7 +13,7 @@ Then report, in this order:
 
 1. **Escalations.** Any ticket in `ESCALATED`, with its `blocking_reason`. These come first because
    they halt rather than queue.
-2. **WIP** against the limit, counting states PLAN through QA.
+2. **WIP** against the limit, counting states PLAN through REVIEW.
 3. **Drift.** Any disagreement between `backlog.md` and a `ticket.yaml`. `ticket.yaml` is
    authoritative; name what would be repaired, but do not repair it here.
 4. **Budget pressure.** Any `chat_budget` pair at or near its maximum — a pair that always exhausts

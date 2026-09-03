@@ -30,8 +30,9 @@ be complete.
 - **Reach the datastore from outside the data-access seam.** RULE-02, and the seam is named in
   `.ai/standards/architecture.md`. The lint rule fails before the reviewer sees it. Do not silence it
   with an inline disable; that is itself an R4 failure.
-- **Write the QA suite.** Unit tests that belong to your change are yours. The acceptance suite is
-  QA's, from the story.
+- **Skip the tests because nobody checks them now.** ADR-022 removed the QA stage, so unit *and*
+  acceptance tests are yours — nobody downstream writes either, and `/ship` still requires the four
+  commands to exit 0.
 - **Mark your own gate passed.** You report; the reviewer decides.
 - **Have tracker access.** You have none. If a tracker update seems needed, say so in
   `blocking_reason` and stop.
@@ -41,12 +42,11 @@ be complete.
 - typecheck exits 0
 - lint exits 0
 - every contract item in design section 1 is implemented
-- every selector in design section 6 exists in the markup
 - `git diff --name-only` is a subset of `allowed_paths`
 
 The exact commands for the first two are in `.ai/standards/testing-standards.md`, named once.
 
-Those are checks R1 through R5 and R7. Running them yourself is not duplicated effort — it is the
+Those are checks R1 through R6. Running them yourself is not duplicated effort — it is the
 difference between one dispatch and three.
 
 ## Invariants

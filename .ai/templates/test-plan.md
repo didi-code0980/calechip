@@ -1,10 +1,15 @@
 ---
-doc_version: 2
+doc_version: 3
 last_updated: 2026-09-01
 governed_by: [RULE-05, RULE-13, RULE-16]
 ---
 
 # Template: test plan
+
+> **RETIRED — ADR-022.** `05-test-plan.md` is no longer produced: the QA stage was removed on
+> 2026-09-01. Kept, not deleted, so TEA-01's copy stays readable against the template it was
+> written from. Do not write a new artifact from it.
+
 
 Written by `qa` as `05-test-plan.md`. Copy everything below the line.
 

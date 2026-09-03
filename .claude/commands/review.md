@@ -39,12 +39,12 @@ You have no channel to the Developer and you did not talk to one. `chat_before_v
 **Artifact out:** `.ai/board/tickets/$ARGUMENTS/04-review.md`
 **Template:** `.ai/templates/review-report.md`
 
-**Gate:** R1 through R9, each citing `file:line`. An item with no citation counts as failed.
+**Gate:** R1 through R8, each citing `file:line`. An item with no citation counts as failed.
 
 On FAIL, route per the failure routing table in `.ai/01-operating-model.md`, which encodes RULE-08 in
 its third column. Read the column; do not decide the increment yourself.
 
-**An R8 failure does not enter REWORK.** It escalates to a human on first occurrence (RULE-07): name
+**An R7 failure does not enter REWORK.** It escalates to a human on first occurrence (RULE-07): name
 the invariant, write `next_state: ESCALATED`, and halt.
 
 ## You do not touch `ticket.yaml`
@@ -62,7 +62,7 @@ is a view.
 
 ## Your reply is four lines
 
-Per `## Replying` in `CLAUDE.md`. **Do not tabulate R1 to R9 in chat.** `04-review.md` holds every
+Per `## Replying` in `CLAUDE.md`. **Do not tabulate R1 to R8 in chat.** `04-review.md` holds every
 check with its `file:line`, that is the artifact the gate is read from, and a summary of it in chat is
 a copy that cannot be cited. *All nine pass* is one sentence; a FAIL needs the failing check and why,
 and nothing about the eight that passed.

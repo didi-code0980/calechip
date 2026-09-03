@@ -6,16 +6,16 @@ argument-hint: <TICKET-ID>
 Run in the **orchestrator session** (`.ai/standards/session-model.md`). Nothing is dispatched.
 
 Since ADR-006 this is **the only command in the loop that commits.** Every stage before it left the
-tree dirty, so the whole ticket — plan, source, tests, all five artifacts — is sitting
+tree dirty, so the whole ticket — plan, source, tests, all three artifacts — is sitting
 uncommitted when you arrive.
 
-**Preconditions — all three gates `passed: true` with timestamps:** `plan`, `review`, `qa`. Verify
-against `ticket.yaml`, not against a summary.
+**Preconditions — both gates `passed: true` with timestamps:** `plan` and `review`. Verify against
+`ticket.yaml`, not against a summary.
 
-*ADR-019 merged the `spec` and `design` gates into `plan`, so a ticket shipped before 2026-09-01
-carries four. ADR-017 waived the `qa` gate for one afternoon and **ADR-021 reverted that**: a `qa`
-gate reading `waived: true` rather than `passed: true` belongs to TEA-02, TEA-03 or TEA-04, and to no
-ticket after them. You do not write a waiver here, ever.*
+*The gate set has changed twice. ADR-019 merged `spec` and `design` into `plan`; **ADR-022 removed
+the QA stage and its gate.** A ticket shipped before 2026-09-01 carries four gates and one of TEA-02,
+TEA-03 or TEA-04 carries a `qa` gate reading `waived: true`. Do not require either from a ticket
+planned after that date, and never write a gate that no stage produces.*
 
 Steps:
 
@@ -32,8 +32,9 @@ Steps:
 
 1. Run the project's verify command — typecheck, lint, unit, build — named in
    `.ai/standards/testing-standards.md`. Any non-zero exit stops here. Tạm ignore bước này 
-2. Confirm the full Definition of Done in `.ai/01-operating-model.md`, item by item — all six. Items
-   3 and 4 were suspended under ADR-017 and ADR-021 restored them.
+2. Confirm the full Definition of Done in `.ai/01-operating-model.md`, item by item — all five.
+   **Item 3 is yours alone since ADR-022**: with no QA stage, `/ship` is the only place the four
+   commands are required to exit 0, and step 1 is where you run them.
 3. Set `state: DONE`, move the row to `## ARCHIVE` in `backlog.md`, append to `metrics.md`, **and set
    this feature's `Status` to `DONE` in `.ai/registry/features.md`.**
 
@@ -72,7 +73,7 @@ Steps:
    the fix is to move that file to the second set, never to widen the list.
 
 7. **Open the pull request against `main`**, body linking `.ai/board/tickets/$ARGUMENTS/` and listing
-   the three gate timestamps.
+   both gate timestamps.
 
    `gh pr create` when `gh auth status` reports a logged-in host. **When it does not, the fallback is
    not an improvisation — it is this, and it counts as step 7 completed:** print a

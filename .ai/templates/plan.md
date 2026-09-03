@@ -1,7 +1,7 @@
 ---
 doc_version: 2
 last_updated: 2026-09-01
-governed_by: [RULE-02, RULE-03, RULE-04, RULE-05, RULE-09, RULE-14, RULE-16, RULE-17]
+governed_by: [RULE-02, RULE-03, RULE-04, RULE-09, RULE-14, RULE-16, RULE-17]
 ---
 
 # Template: plan
@@ -9,13 +9,14 @@ governed_by: [RULE-02, RULE-03, RULE-04, RULE-05, RULE-09, RULE-14, RULE-16, RUL
 Written by `tech-lead-design` as `01-plan.md` in the ticket folder. Copy everything below the line.
 
 **This template replaces `story.md` and `tech-design.md`** — ADR-019 merged SPEC and DESIGN into one
-stage with one artifact and one gate. Those two files are kept, marked retired, so a ticket shipped
+stage with one artifact and one gate. **It had nine sections until ADR-022 removed the QA stage**; the
+testability contract went with it, since QA was its only reader. Those two files are kept, marked retired, so a ticket shipped
 before 2026-09-01 can still be read against the template it was written from.
 
-**Gate:** all nine sections complete; ACs in Given/When/Then each with an ID; `invariants_touched`,
+**Gate:** all eight sections complete; ACs in Given/When/Then each with an ID; `invariants_touched`,
 `size_estimate`, `size` and `allowed_paths` written back to `ticket.yaml`; Out-of-scope non-empty.
 
-All nine are required. A section answered "none" is complete; a section left out is not, and the two
+All eight are required. A section answered "none" is complete; a section left out is not, and the two
 are different because "none" is a decision and an omission is a gap nobody noticed.
 
 **Sources:** `.ai/registry/features.md`, `.ai/registry/invariants.md`, `.ai/standards/`,
@@ -144,30 +145,15 @@ Enumerate. A glob broad enough to be convenient is a glob broad enough to make R
 disagreed and why; the disagreement is information even when both were written by the same agent
 minutes apart.
 
-## 8. Testability contract
-
-Every test selector, with the element it identifies. The attribute is named once in
-`.ai/standards/testing-standards.md`.
-
-RULE-05 makes this the only channel through which selectors reach QA. A control missing from this
-table does not exist as far as QA is concerned, and check R7 verifies the reverse: every selector
-here exists in the markup.
-
-This section had no reader between 2026-09-01 and ADR-021, while ADR-017 waived QA, and was required
-to be written anyway. Its reader is back.
-
-| selector | Element | Used by |
-|---|---|---|
-|  |  | AC-n |
-
-## 9. Rejected alternatives
+## 8. Rejected alternatives
 
 At least one, with the reason it was rejected. Not a strawman — an approach that was genuinely
 plausible.
 
 This section is what makes the plan reviewable. A plan with one option presented is a plan whose
-reasoning cannot be checked, only agreed with. It carries more weight than it did as design section 7:
-with SPEC gone, this is the only place a reader sees that the author considered a different shape.
+reasoning cannot be checked, only agreed with. **With SPEC gone and QA gone, this is the only place a
+reader sees that the author considered a different shape**, and it is the last section standing that
+exists purely to be argued with.
 
 ## Changelog
 

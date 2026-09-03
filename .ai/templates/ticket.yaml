@@ -1,6 +1,6 @@
 # Template: ticket.yaml. Copy to .ai/board/tickets/<ID>/ticket.yaml.
 # ticket.yaml is authoritative; backlog.md is a view (see .ai/01-operating-model.md).
-# state enum: TRIAGE BACKLOG PLAN READY IN_PROGRESS REVIEW QA REWORK ESCALATED DONE
+# state enum: TRIAGE BACKLOG PLAN READY IN_PROGRESS REVIEW REWORK ESCALATED DONE
 id: EXA-01
 title: ""
 feature_ids: []
@@ -20,15 +20,14 @@ chat_budget:
   # ADR-019 retired `ba` from the loop, so the two `->ba` edges are gone. They are not listed as
   # zeroes: an edge nobody can walk is not a budget, it is a row that invites someone to try.
   developer->tech-lead-design: { used: 0, max: 6 }
-  qa->tech-lead-design:        { used: 0, max: 6 }
+  # ADR-022 removed the QA stage, and the `qa->tech-lead-design` edge with it.
 tracker: { provider: "", external_id: "", sync_enabled: false }
 gates:
   plan:   { passed: false, at: null }   # ADR-019 merged the `spec` and `design` gates into one
   review: { passed: false, at: null }
-  qa:     { passed: false, at: null }
-  # ADR-017 waived this gate on 2026-09-01; ADR-021 reverted the waiver the same afternoon. Three
-  # tickets shipped carrying `waived: true` in place of `passed: true` — TEA-02, TEA-03, TEA-04 —
-  # and no ticket after them may. `/ship` requires all three gates `passed: true`.
+  # There is no `qa` gate. ADR-017 waived it on 2026-09-01, ADR-021 reverted that the same
+  # afternoon, and ADR-022 removed the stage outright. Tickets planned before that date carry a
+  # `qa` key; three of them carry `waived: true`. `/ship` requires `plan` and `review`.
 
 # The state enum line above is machine-read. Checks D10 and D13 in scripts/check-docs.mjs both parse
 # it: D10 holds it and the stage ownership table to the same membership, D13 reads it as the
