@@ -7,12 +7,20 @@
 // pass against a broken trigger, which is the one failure a mock seam can cause and not catch.
 import type {
   AddAllowedEmailInput,
+  CreateEntryInput,
   DataSeam,
   SignInInput,
   SignUpInput,
   SignUpOutcome,
 } from "./index";
-import type { AllowedEmail, Member, Result, Session } from "../domain/types";
+import type {
+  AllowedEmail,
+  Entry,
+  EntryPortion,
+  Member,
+  Result,
+  Session,
+} from "../domain/types";
 // TEA-03. A RUNTIME import, not a type one - 02-design.md section 1.1.
 import { ROSTER_LIMIT } from "../domain/types";
 import {
@@ -227,6 +235,48 @@ const refused = (
   ok: false,
   error: { code, message },
 });
+
+// ---------------------------------------------------------------------------
+// CAL-01. 01-plan.md section 5.
+// ---------------------------------------------------------------------------
+
+// The mock's entry table. It starts EMPTY, in both implementations: supabase/seed.sql seeds no
+// entry either, so a test that needs one creates it the way a person does. Seeding one here would
+// be a fixture with no seed row behind it, which is the drift the shared-fixture rule exists to
+// prevent.
+//
+// In memory only, and unlike the session this is NOT persisted across a page load. The seam banner
+// in App.tsx already tells every reader, on every screen, that the data lives in browser memory and
+// is lost on reload - a mock that quietly contradicted its own banner would be a worse lie than the
+// one it fixed. Nothing in plan section 2 requires an entry to survive a navigation.
+const entries: Entry[] = [];
+
+let nextEntryId = 0;
+const newEntryId = (): string => `ee000000-0000-4000-8000-${String(++nextEntryId).padStart(12, "0")}`;
+
+// INV-01, reproduced. THIS IS A SECOND IMPLEMENTATION OF AN INVARIANT and it is acceptable only
+// because the mock is not a datastore anybody's data lives in - the real mechanism is the exclusion
+// constraint `entry_no_overlapping_portion` (ADR-011 section 3), and this exists so AC-7 and AC-8
+// are observable end-to-end without a provisioned project.
+//
+// The slot semantics are ADR-011's table, not a paraphrase of it: `full` covers both halves of the
+// day, `am` the first, `pm` the second. Two entries conflict when the same member's date ranges
+// intersect AND their slot sets intersect - which is why `full` conflicts with everything while `am`
+// and `pm` do not conflict with each other. A test for equal `portion` would accept `full` beside
+// `am`, which is the exact failure ADR-011 exists to record.
+const PORTION_SLOTS: Record<EntryPortion, readonly number[]> = {
+  full: [0, 1],
+  am: [0],
+  pm: [1],
+};
+
+// Inclusive on both ends, as `end_date` is (data-model.md). String comparison is correct for
+// `yyyy-MM-dd` and no Date is constructed - plan section 4.5.
+const datesIntersect = (a: Entry, b: CreateEntryInput): boolean =>
+  a.startDate <= b.endDate && b.startDate <= a.endDate;
+
+const slotsIntersect = (a: EntryPortion, b: EntryPortion): boolean =>
+  PORTION_SLOTS[a].some((slot) => PORTION_SLOTS[b].includes(slot));
 
 export const seam: DataSeam = {
   async ready() {
@@ -552,5 +602,102 @@ export const seam: DataSeam = {
   async signOut(): Promise<Result<void>> {
     setSession(null);
     return { ok: true, value: undefined };
+  },
+
+  // -------------------------------------------------------------------------
+  // CAL-01. 01-plan.md section 5.
+  // -------------------------------------------------------------------------
+
+  // CAL-01 AC-1 ... AC-11.
+  //
+  // The refusals below reproduce the DATASTORE, not the screen: the policy's `with check`, the
+  // withheld column grant, and INV-01's exclusion constraint. A mock that accepted an overlap would
+  // make every component test pass against a missing constraint, which is the one failure a mock
+  // seam can cause and not catch.
+  //
+  // AC-10 and AC-11 need no branch here and that is the point. `CreateEntryInput` carries neither a
+  // `memberId` nor any decision column, so there is no value a caller could pass that this function
+  // would have to refuse - the type is the affordance and the policy plus the grant are the control.
+  // `memberId` comes from the current session and `status` is written as `pending` below.
+  async createEntry(input: CreateEntryInput): Promise<Result<Entry>> {
+    // AC-9, refused before anything else, exactly as the real seam refuses it before the round trip.
+    if (input.endDate < input.startDate) {
+      return {
+        ok: false,
+        error: {
+          code: "invalid_date_range",
+          message: "Ngày kết thúc phải bằng hoặc sau ngày bắt đầu.",
+        },
+      };
+    }
+
+    // The insert policy, reproduced: an entry belongs to a member row, and a caller with no session
+    // or no member row has none. INV-07 is the not-null reference behind that.
+    const me = members.find((m) => m.id === currentMemberId && m.removedAt === null) ?? null;
+    if (!me) {
+      return {
+        ok: false,
+        error: { code: "entry_not_permitted", message: "Không thể tạo đăng ký này." },
+      };
+    }
+
+    // AC-7 and AC-8, and the pair is the test: AC-7 asserts the refusal and AC-8 asserts it is not
+    // over-broad.
+    const clash = entries.some(
+      (e) =>
+        e.memberId === me.id && datesIntersect(e, input) && slotsIntersect(e.portion, input.portion),
+    );
+    if (clash) {
+      return {
+        ok: false,
+        error: {
+          code: "overlapping_entry",
+          message:
+            "Bạn đã có một đăng ký trùng với khoảng ngày và buổi này. " +
+            "Hãy sửa đăng ký cũ hoặc chọn khoảng khác.",
+        },
+      };
+    }
+
+    const now = new Date().toISOString();
+    const row: Entry = {
+      id: newEntryId(),
+      memberId: me.id,
+      type: input.type,
+      portion: input.portion,
+      startDate: input.startDate,
+      endDate: input.endDate, // AC-2 and AC-3: ONE row spanning the range, end inclusive
+      tentative: input.tentative,
+      // AC-6 and AC-11. `status` is the column default and never the caller's, and `tentative` does
+      // not touch it - glossary.md keeps the two axes apart deliberately.
+      status: "pending",
+      rejectionReason: null,
+      note: input.note,
+      approvedBy: null,
+      approvedAt: null,
+      createdAt: now,
+      updatedAt: now,
+    };
+    entries.push(row);
+    return { ok: true, value: { ...row } };
+  },
+
+  // CAL-01 AC-1, AC-2, AC-3, AC-5, AC-6, AC-8. Newest start date first, then id ascending - the same
+  // two-key ordering the real implementation asks PostgreSQL for, so the two cannot disagree about
+  // row order when two entries share a start date.
+  //
+  // An empty array is a normal answer: it is what a caller with no session gets, and it is what a
+  // member with no entries gets.
+  async listOwnEntries(): Promise<Entry[]> {
+    if (!currentMemberId) return [];
+    return entries
+      .filter((e) => e.memberId === currentMemberId)
+      .slice()
+      .sort((a, b) =>
+        a.startDate === b.startDate
+          ? a.id.localeCompare(b.id)
+          : b.startDate.localeCompare(a.startDate),
+      )
+      .map((e) => ({ ...e }));
   },
 };

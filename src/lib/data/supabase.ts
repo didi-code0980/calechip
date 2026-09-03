@@ -11,15 +11,28 @@ import {
 import type { PostgrestError } from "@supabase/supabase-js";
 import type {
   AddAllowedEmailInput,
+  CreateEntryInput,
   DataSeam,
   SignInInput,
   SignUpInput,
   SignUpOutcome,
 } from "./index";
-import type { AllowedEmail, Failure, Member, MemberRole, Result, Session } from "../domain/types";
-// TEA-03. A RUNTIME import, not a type one: AC-8 needs the value at the call. It comes from
-// ../domain/types and not from ./index, which imports this file back - 02-design.md section 1.1.
-import { ROSTER_LIMIT } from "../domain/types";
+import type {
+  AllowedEmail,
+  Entry,
+  EntryPortion,
+  EntryStatus,
+  EntryType,
+  Failure,
+  Member,
+  MemberRole,
+  Result,
+  Session,
+} from "../domain/types";
+// TEA-03, and CAL-01 for the second constant. RUNTIME imports, not type ones: both are needed as
+// values at the call. They come from ../domain/types and not from ./index, which imports this file
+// back - 02-design.md section 1.1.
+import { OWN_ENTRY_LIMIT, ROSTER_LIMIT } from "../domain/types";
 
 // Vite exposes only variables prefixed VITE_. The anon key is public by design and ships in the
 // bundle; the service role key must never appear here. See "Secrets" in
@@ -86,6 +99,57 @@ function toAllowedEmail(row: AllowedEmailRow): AllowedEmail {
     addedBy: row.added_by,
     addedAt: row.added_at,
     consumedAt: row.consumed_at,
+  };
+}
+
+// CAL-01. The `entry` row as PostgREST returns it.
+//
+// `date_range` and `portion_slots` are NOT selected and not declared here. ADR-011 creates them as
+// stored generated columns for the exclusion constraint and for CAL-04's `date_range=ov.…` filter;
+// this ticket has no read that filters on them, and selecting a column nobody consumes would put a
+// PostgreSQL range literal one destructuring away from a component.
+interface EntryRow {
+  id: string;
+  member_id: string;
+  type: EntryType;
+  portion: EntryPortion;
+  start_date: string;
+  end_date: string;
+  tentative: boolean;
+  status: EntryStatus;
+  rejection_reason: string | null;
+  note: string | null;
+  approved_by: string | null;
+  approved_at: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+const ENTRY_COLUMNS =
+  "id, member_id, type, portion, start_date, end_date, tentative, status, rejection_reason, note, " +
+  "approved_by, approved_at, created_at, updated_at";
+
+// AC-3 lives here. `end_date` is read from the PLAIN COLUMN and never derived from `date_range`'s
+// upper bound: PostgreSQL canonicalises a stored discrete range to `[)`, so an entry ending on the
+// 9th is stored as `['2026-10-05','2026-10-10')` and the upper bound is the day AFTER the entry ends
+// (ADR-011 section 1). Deriving it would be silently off by one, on every entry, in the direction
+// nobody checks.
+function toEntry(row: EntryRow): Entry {
+  return {
+    id: row.id,
+    memberId: row.member_id,
+    type: row.type,
+    portion: row.portion,
+    startDate: row.start_date,
+    endDate: row.end_date,
+    tentative: row.tentative,
+    status: row.status,
+    rejectionReason: row.rejection_reason,
+    note: row.note,
+    approvedBy: row.approved_by,
+    approvedAt: row.approved_at,
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
   };
 }
 
@@ -169,6 +233,43 @@ function toPostgrestFailure(error: PostgrestError): Failure {
     case "42501":
     case "PGRST301": // JWT missing or expired: the request reaches the policy as nobody
       return { code: "not_permitted", message: "Bạn không có quyền thực hiện việc này." };
+    default:
+      return { code: "unknown", message: "Có lỗi không rõ. Thử lại giúp mình nhé." };
+  }
+}
+
+// CAL-01. 01-plan.md section 4.3, and it is a SEPARATE mapper from `toPostgrestFailure` above
+// rather than three more cases inside it. The two tables answer the same SQLSTATE with different
+// sentences - `42501` on `allowed_email` means "you are not an admin", and on `entry` it means "this
+// is not your entry or you named a column you may not write" - and one function returning both would
+// be the wrong message on one of the two screens.
+//
+// MATCHED ON THE SQLSTATE, NEVER ON THE CONSTRAINT NAME OR THE MESSAGE TEXT. A name match breaks
+// silently the day `entry_no_overlapping_portion` is renamed, and PostgREST's message wording is not
+// a contract.
+function toEntryFailure(error: PostgrestError): Failure {
+  switch (error.code) {
+    // INV-01's exclusion constraint. AC-7.
+    case "23P01":
+      return {
+        code: "overlapping_entry",
+        message:
+          "Bạn đã có một đăng ký trùng với khoảng ngày và buổi này. " +
+          "Hãy sửa đăng ký cũ hoặc chọn khoảng khác.",
+      };
+    // The `entry_end_after_start` check. AC-9's SECOND lock - the seam refuses an inverted range
+    // before the request is sent, so reaching this case means a caller that is not this application.
+    case "23514":
+      return {
+        code: "invalid_date_range",
+        message: "Ngày kết thúc phải bằng hoặc sau ngày bắt đầu.",
+      };
+    // AC-10 and AC-11. The insert policy filtered the row, or a withheld column privilege refused
+    // the statement before any policy ran. The two are deliberately one message: a caller who
+    // learned WHICH of the two refused them would be learning the shape of the grant.
+    case "42501":
+    case "PGRST301": // JWT missing or expired: the request reaches the policy as nobody
+      return { code: "entry_not_permitted", message: "Không thể tạo đăng ký này." };
     default:
       return { code: "unknown", message: "Có lỗi không rõ. Thử lại giúp mình nhé." };
   }
@@ -494,5 +595,114 @@ export const seam: DataSeam = {
     const { error } = await client().auth.signOut();
     if (error) return { ok: false, error: toFailure(error) };
     return { ok: true, value: undefined };
+  },
+
+  // -------------------------------------------------------------------------
+  // CAL-01. 01-plan.md sections 4.2, 4.3 and 6.
+  // -------------------------------------------------------------------------
+
+  // CAL-01 AC-1 ... AC-11.
+  //
+  // The INSERT names six columns and no more. `status`, `rejection_reason`, `approved_by` and
+  // `approved_at` are absent from the insert grant (migration step 10), so naming any of them is
+  // refused with `42501 permission denied for column` before a policy runs - AC-11 is held there and
+  // not here. `member_id` is absent for the opposite reason: it is REQUIRED by the row and is
+  // supplied from the caller's own identity, never from a parameter, so AC-10 has no path through
+  // this interface at all and the policy's `with check (member_id = auth.uid())` is the control.
+  //
+  // AC-9 IS REFUSED BEFORE THE REQUEST IS SENT, and this is the one validation in this file. ADR-011
+  // section Consequences records that an inverted pair fails INSIDE the generated column with "range
+  // lower bound must be less than or equal to range upper bound" - a database error text where a
+  // sentence about dates belongs, and it never reaches the check constraint that would have said so
+  // legibly. String comparison is correct for `yyyy-MM-dd` (plan section 4.5) and no Date is
+  // constructed anywhere on this path.
+  //
+  // ZERO ROWS BACK IS A REFUSAL. Under row-level security a refused INSERT that the policy filters
+  // returns no representation and PostgREST does not error, so `!error` is not success - the same
+  // trap TEA-04's `removeMember` records. `.select()` is what makes the difference visible.
+  async createEntry(input: CreateEntryInput): Promise<Result<Entry>> {
+    if (input.endDate < input.startDate) {
+      return {
+        ok: false,
+        error: {
+          code: "invalid_date_range",
+          message: "Ngày kết thúc phải bằng hoặc sau ngày bắt đầu.",
+        },
+      };
+    }
+
+    const me = await readCurrentMember();
+    if (!me) {
+      return {
+        ok: false,
+        error: { code: "entry_not_permitted", message: "Không thể tạo đăng ký này." },
+      };
+    }
+
+    const { data, error } = await client()
+      .from("entry")
+      .insert({
+        member_id: me.id, // INV-07, and the policy re-derives it from auth.uid() and refuses a mismatch
+        type: input.type,
+        portion: input.portion,
+        start_date: input.startDate,
+        end_date: input.endDate,
+        tentative: input.tentative,
+        note: input.note,
+      })
+      .select(ENTRY_COLUMNS)
+      .returns<EntryRow[]>();
+
+    if (error) return { ok: false, error: toEntryFailure(error) };
+
+    const row = (data ?? [])[0];
+    if (!row) {
+      return {
+        ok: false,
+        error: { code: "entry_not_permitted", message: "Không thể tạo đăng ký này." },
+      };
+    }
+
+    return { ok: true, value: toEntry(row) };
+  },
+
+  // CAL-01 AC-1, AC-2, AC-3, AC-5, AC-6, AC-8.
+  //
+  // The `eq` on `member_id` is an AFFORDANCE and not a control. `entry_select_team` admits the whole
+  // team's rows; this narrows to the caller's because that is what the screen shows, and the policy
+  // is what stops anybody reading another team's. Deliberately no date filter and no member
+  // parameter - the team-wide, range-shaped read is CAL-04's (plan section 4.2).
+  //
+  // Two `order` calls, not one: two entries can share a `start_date`, so `start_date` alone leaves
+  // their order undefined in PostgreSQL and the two implementations would disagree about row order
+  // while failing nothing - the flake TEA-03 recorded on the roster read.
+  async listOwnEntries(): Promise<Entry[]> {
+    const { data: userData, error: userError } = await client().auth.getUser();
+    if (userError || !userData.user) return [];
+
+    const { data, error } = await client()
+      .from("entry")
+      .select(ENTRY_COLUMNS)
+      .eq("member_id", userData.user.id)
+      .order("start_date", { ascending: false })
+      .order("id", { ascending: true })
+      .limit(OWN_ENTRY_LIMIT)
+      .returns<EntryRow[]>();
+
+    if (error) throw new Error(`listOwnEntries failed: ${error.message}`);
+
+    const rows = data ?? [];
+
+    // The same assertion as `listMembers`, for the same reason: PostgREST caps rows server-side, so
+    // a capped read returns a believable short answer with no error anywhere. Here the loss is a
+    // member being told an entry they created does not exist, which is worse than an error.
+    if (rows.length >= OWN_ENTRY_LIMIT) {
+      throw new Error(
+        `listOwnEntries returned ${rows.length} rows at the ${OWN_ENTRY_LIMIT} limit: the list may ` +
+          `be truncated and must not be consumed`,
+      );
+    }
+
+    return rows.map(toEntry);
   },
 };

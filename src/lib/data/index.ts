@@ -7,7 +7,15 @@
 // Two implementations exist and must stay in parity: `supabase.ts` and `mock.ts`. The seam-parity
 // test in tests/ asserts identical exported names and equal arity, which is what makes swapping them
 // a configuration change rather than a rewrite.
-import type { AllowedEmail, Member, Result, Session } from "../domain/types";
+import type {
+  AllowedEmail,
+  Entry,
+  EntryPortion,
+  EntryType,
+  Member,
+  Result,
+  Session,
+} from "../domain/types";
 import { seam as mockSeam } from "./mock";
 import { seam as supabaseSeam } from "./supabase";
 
@@ -27,6 +35,25 @@ export interface AddAllowedEmailInput {
 export interface SignInInput {
   email: string;
   password: string;
+}
+
+/** CAL-01, 01-plan.md section 4.2.
+ *
+ *  NO `status`, `approvedBy`, `approvedAt` or `rejectionReason`. Not an oversight and not a
+ *  convenience: those columns are withheld from the insert grant (plan section 3), so a field here
+ *  would be a field the datastore refuses — a DTO that accepts a value the database rejects invites
+ *  the write that AC-11 exists to refuse.
+ *
+ *  NO `memberId` EITHER. The policy's `with check` supplies it from `auth.uid()`; a parameter would
+ *  imply a caller could pass somebody else's and be answered. Same reasoning that kept `teamId` off
+ *  `addAllowedEmail`. */
+export interface CreateEntryInput {
+  type: EntryType;
+  portion: EntryPortion;
+  startDate: string; // yyyy-MM-dd
+  endDate: string; // yyyy-MM-dd, inclusive; equal to startDate for a single day
+  tentative: boolean;
+  note: string | null;
 }
 
 export interface SignUpOutcome {
@@ -199,6 +226,48 @@ export interface DataSeam {
    * is the failure this function exists to prevent.
    */
   signOut(): Promise<Result<void>>;
+
+  // -------------------------------------------------------------------------
+  // CAL-01 — create an entry. 01-plan.md section 4.2.
+  // -------------------------------------------------------------------------
+
+  /**
+   * CAL-01 AC-1 … AC-11. Creates ONE entry for the CALLER, over one date or a run of consecutive
+   * dates. A contiguous range declared in one action is one entry and never one per day (AC-2) —
+   * .ai/registry/invariants.md records that as considered and rejected as an invariant precisely so
+   * it would land as an acceptance criterion.
+   *
+   * Expected failures are RETURNED, not thrown (.ai/standards/coding-standards.md). Three codes
+   * reach a sentence on screen and each maps to a specific database refusal (plan section 4.3):
+   *   `overlapping_entry`   — INV-01's exclusion constraint, SQLSTATE 23P01, arriving as a 409
+   *   `invalid_date_range`  — end before start, refused in the seam BEFORE the round trip (AC-9)
+   *   `entry_not_permitted` — the insert policy or a withheld column privilege, 42501 / 403
+   *
+   * Returns the created row. The `.select()` is not a convenience: under row-level security a
+   * refused INSERT that the policy filters returns no representation, and treating `!error` as
+   * success would report a refusal as done — the same trap TEA-04's `removeMember` records.
+   */
+  createEntry(input: CreateEntryInput): Promise<Result<Entry>>;
+
+  /**
+   * CAL-01 AC-1, AC-2, AC-3, AC-5, AC-6, AC-8. The CALLER'S OWN entries, newest start date first.
+   *
+   * Deliberately narrow, and this is the boundary with CAL-04. It takes NO date range and NO member
+   * parameter, so it cannot become the team-wide, range-shaped read that CAL-04 owns — that read
+   * filters `date_range=ov.…` and feeds INV-04's counting function, and building it here would put
+   * a second entry read in the seam before the one that matters exists.
+   *
+   * It exists because every criterion in plan section 2 has to be observable from outside the system
+   * and a confirmation message proves only that the form ran. `entry_select_team` admits the whole
+   * team's rows; this function narrows to the caller's in the query, which is an affordance and not
+   * a control — the policy is what stops anybody reading another team's.
+   *
+   * THROWS on a transport failure and on a possibly-truncated answer, the shape `listMembers` uses:
+   * there is no caller-visible failure to carry, `[]` for a broken connection would report "you have
+   * no entries", and a short list for a capped read is the failure OWN_ENTRY_LIMIT exists to
+   * prevent.
+   */
+  listOwnEntries(): Promise<Entry[]>;
 }
 
 export type { DataSeam as Seam };
