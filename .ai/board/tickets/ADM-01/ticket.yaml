@@ -8,13 +8,88 @@ group: ADM
 state: BACKLOG
 owner: ""
 branch: ""
-size_estimate: ""     # S|M - set by ba at SPEC; gates DoR
-size: ""              # S|M|L|XL - set by tech-lead-design at DESIGN; decides splitting
-depends_on: [TEA-01]
-invariants_touched: []
-allowed_paths: []
-schema_delta: none
-requires_adr: false
+size_estimate: M      # 01-plan.md section 1. Written by tech-lead-design at PLAN under ADR-019,
+                      # which moved this field here from the retired SPEC stage.
+size: M               # 01-plan.md section 7, counted from the ten allowed_paths below. AGREES with
+                      # size_estimate, so ADR-012 is not engaged and nothing splits.
+
+# AMENDED AT PLAN, from `[TEA-01]`. 01-plan.md section 6 and ADR-023 Decision point 3.
+#
+# CAL-04 owns the `public.team` select policy and the `grant select` beside it — features.md says so
+# on both rows, and ADR-014's Correction of 2026-08-31 exists because an earlier line got that
+# ownership wrong. ADM-01 consumes them and does not create them, so it cannot read the value an
+# admin is editing until CAL-04 has shipped. The write needs the read too: PostgreSQL requires
+# SELECT on any column named in RETURNING, and zero-rows-returned is how a policy refusal is
+# detected under RLS.
+#
+# The triage note below reasoned that reading and writing the threshold is independent of any view.
+# That is true of the SCREENS and false of the PRIVILEGES — and the same note, two paragraphs later,
+# is what found the privilege problem it did not then follow through to this field.
+#
+# CONSEQUENCE, stated rather than left to be discovered: Definition of Ready item 3 FAILS until
+# CAL-04 is DONE. The orchestrator grades that; this plan does not assert it.
+depends_on: [TEA-01, CAL-04]
+
+invariants_touched: []   # 01-plan.md section 2. AGREES with the ADM-01 row in features.md.
+                         # Explicit, not absent: setting the threshold changes what is CALLED
+                         # overloaded and touches no entry and no count. invariants.md records
+                         # "The threshold is 50%" under `Considered and rejected as an invariant`
+                         # — configurable, therefore not an invariant — so the one field this
+                         # ticket makes writable is the field the register already declined to
+                         # constrain. INV-04 is deliberately absent: a change that alters what a
+                         # comparison yields, while computing no comparison, cannot produce a
+                         # second definition of anything.
+
+# allowed_paths — 01-plan.md section 7. Ten globs, ten files, three of them new.
+#
+# NO INLINE COMMENTS ON THE ITEMS. `readYamlList` in scripts/check-allowed-paths.mjs and in
+# .claude/hooks/guard-allowed-paths.mjs strips only a LEADING and a TRAILING quote, so a trailing
+# `# ...` is swallowed into the pattern and the glob then matches nothing.
+#
+# DELIBERATELY ABSENT, with the reason for each in 01-plan.md section 7:
+# tests/seam-parity.test.ts (must pass unedited once the two seam functions exist);
+# src/lib/fixtures.ts and supabase/seed.sql (FIXTURE_TEAM already carries overloadThreshold at
+# fixtures.ts:12); playwright.config.ts (BUG-001 pinned the e2e seam); src/hooks/useSession.ts (the
+# screen reads its own member through the seam, as AllowList.tsx and MemberList.tsx already do);
+# .ai/registry/** (nothing the IMPLEMENTATION writes touches the registry — ADR-023 is written at
+# PLAN and is not the Developer's to edit).
+allowed_paths:
+  - "supabase/migrations/20260903000000_adm01_team_threshold.sql"
+  - "src/lib/domain/types.ts"
+  - "src/lib/data/index.ts"
+  - "src/lib/data/supabase.ts"
+  - "src/lib/data/mock.ts"
+  - "src/routes/Threshold.tsx"
+  - "src/routes/Home.tsx"
+  - "src/App.tsx"
+  - "tests/e2e/adm-01-threshold.spec.ts"
+  - "tests/permission-model.test.ts"
+
+schema_delta: >-
+  NOT none — ADR-014, no carve-out. CORRECTED from `none` by tech-lead-design at PLAN, on the same
+  grounds the BA used at TEA-02 (.ai/board/tickets/TEA-02/ticket.yaml:28). The ADM-01 row in
+  features.md says `schema_delta` none because `team` and `overload_threshold` are created by
+  TEA-01's migration; that is true of the COLUMN and does not settle the PRIVILEGES, which the same
+  row requires two paragraphs earlier. Approved ADR linked:
+  .ai/registry/decisions/ADR-023-the-admin-write-path-on-team.md — `ACCEPTED by tech-lead-design`
+  under ADR-008, deciding a question nothing had decided and superseding nothing.
+  ONE new migration, supabase/migrations/20260903000000_adm01_team_threshold.sql, altering no table
+  and adding no column: `grant update (overload_threshold) on public.team to authenticated`, which
+  is what withholds `name` and every other column from everybody — an RLS UPDATE policy is
+  row-level and would otherwise turn `set the threshold` into `edit the team row`, and no
+  permission row for renaming the team exists anywhere; plus the policy `team_update_admin`, scoped
+  to an admin of the caller's own team. TEA-01 revoked all on public.team from anon and
+  authenticated at supabase/migrations/20260831150024_tea01_membership.sql:145, so neither is
+  inherited. NO trigger, unlike TEA-04 — there is one writable column and nothing here needs a
+  sentence that `with check` structurally cannot express. NO select policy and NO select grant: they
+  are CAL-04's and stay there, which is the decision rather than an omission (ADR-023 point 3).
+  Applying the migration is human, RULE-09. Full statements in 01-plan.md section 6.
+
+requires_adr: true   # CORRECTED from `false` by tech-lead-design at PLAN. Unlike TEA-04, the ADR
+                     # exists AT the gate rather than after it: ADR-023, accepted under ADR-008
+                     # because it decides an undecided question inside the envelope ADR-005 and
+                     # ADR-020 already set. Definition of Ready item 4 is satisfied.
+
 rework_count: 0
 chat_budget:
   developer->tech-lead-design: { used: 0, max: 6 }
@@ -23,10 +98,15 @@ chat_budget:
   qa->tech-lead-design:        { used: 0, max: 6 }
 tracker: { provider: "", external_id: "", sync_enabled: false }
 gates:
-  spec:   { passed: false, at: null }
-  design: { passed: false, at: null }
+  # ADR-019 Decision point 4 merged the `spec` and `design` gates into one `plan` gate, and ADR-022
+  # removed the `qa` stage and its gate. This shell predates both and was migrated here by
+  # tech-lead-design at PLAN, the same migration TEA-04 and TEA-05 made at their own PLAN. The
+  # remaining unstarted shells still carry the old set.
+  #
+  # `plan` is left false: the orchestrator records this flag by quoting 01-plan.md's front-matter,
+  # and writing it here would be this stage grading itself. 01-plan.md carries `gate: PASS`.
+  plan:   { passed: false, at: null }
   review: { passed: false, at: null }
-  qa:     { passed: false, at: null }
 
 # Created by `product` at /triage on 2026-08-31, promoting
 # .ai/board/ideas/2026-08-31-a-crowded-day-is-discovered-too-late.md.
@@ -44,10 +124,13 @@ gates:
 # does not wait on promotion existing. Not CAL-04 or CAL-07 — reading and writing the threshold is
 # independent of any view, and the column has a default, so the setting is useful before the
 # warning exists and the warning works before the setting does.
+#   [PLAN, 2026-09-03: the last clause is where this went wrong, and it is left standing rather than
+#   rewritten. The screens are independent; the PRIVILEGES are not. See the depends_on note above.]
 #
 # Item 4: `schema_delta: none`. `team.overload_threshold` already exists — TEA-01's migration
 # creates it, confirmed in .ai/board/tickets/TEA-01/02-design.md. What this row adds is an RLS
 # update policy and a column privilege, not a column.
+#   [PLAN, 2026-09-03: corrected to not-none under ADR-014, with ADR-023 linked. See schema_delta.]
 #
 # The column privilege is the part that is easy to lose. An RLS UPDATE policy is row-level and
 # permits updating every column of the row it admits, including `name` — and no permission row
@@ -58,3 +141,4 @@ gates:
 # Whether a policy-only migration counts as a `schema_delta` is written down nowhere, and this
 # ticket makes the fourth to depend on the answer after CAL-02, CAL-03 and CAL-04. Recorded for
 # the steward in the triage verdict; not settled here.
+#   [PLAN, 2026-09-03: it is written down — ADR-014, accepted 2026-08-31, no carve-out for select.]
