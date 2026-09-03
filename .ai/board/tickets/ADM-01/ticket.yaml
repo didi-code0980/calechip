@@ -8,13 +8,74 @@ group: ADM
 state: BACKLOG
 owner: ""
 branch: ""
-size_estimate: ""     # S|M - set by ba at SPEC; gates DoR
-size: ""              # S|M|L|XL - set by tech-lead-design at DESIGN; decides splitting
+size_estimate: M      # 01-plan.md section 1. Written by tech-lead-design at PLAN under ADR-019,
+                      # which moved this field here from the retired SPEC stage.
+size: M               # 01-plan.md section 7, counted from the ten allowed_paths below. AGREES
+                      # with size_estimate; ADR-012 is not engaged and nothing splits.
 depends_on: [TEA-01]
-invariants_touched: []
-allowed_paths: []
-schema_delta: none
-requires_adr: false
+invariants_touched: []   # 01-plan.md section 2. AGREES with the ADM-01 row in features.md.
+                         # Explicit, not absent: setting the threshold changes what is CALLED
+                         # overloaded and touches no entry and no count. invariants.md:178
+                         # records "The threshold is 50%" under `Considered and rejected as an
+                         # invariant` — configurable, therefore not an invariant — so the field
+                         # this ticket makes writable is the one the register already declined
+                         # to constrain. INV-04 is deliberately absent: a row that changes what
+                         # a comparison yields, while computing no comparison, cannot produce a
+                         # second definition of anything.
+# allowed_paths — 01-plan.md section 7. Ten globs, ten files, two of them new.
+#
+# NO INLINE COMMENTS ON THE ITEMS. `readYamlList` in scripts/check-allowed-paths.mjs and in
+# .claude/hooks/guard-allowed-paths.mjs strips only a LEADING and a TRAILING quote, so a
+# trailing `# ...` is swallowed into the pattern and the glob then matches nothing.
+#
+# DELIBERATELY ABSENT, with the reason for each in 01-plan.md section 7:
+# tests/seam-parity.test.ts (must pass unedited with the two seam functions added);
+# src/lib/fixtures.ts (FIXTURE_TEAM already carries overloadThreshold at fixtures.ts:12);
+# playwright.config.ts (BUG-001 pinned the seam and this ticket has no reason to touch it);
+# .ai/registry/** (nothing here writes the registry — the one amendment this work implies is
+# a human's under RULE-01 and is named in 01-plan.md `blocking_reason`).
+allowed_paths:
+  - "supabase/migrations/20260903000000_adm01_team_threshold.sql"
+  - "src/lib/domain/types.ts"
+  - "src/lib/data/index.ts"
+  - "src/lib/data/supabase.ts"
+  - "src/lib/data/mock.ts"
+  - "src/routes/Threshold.tsx"
+  - "src/routes/Home.tsx"
+  - "src/App.tsx"
+  - "tests/e2e/adm-01-threshold.spec.ts"
+  - "tests/permission-model.test.ts"
+schema_delta: >-
+  NOT none — ADR-014, no carve-out. CORRECTED from `none` by tech-lead-design at PLAN, on the
+  same grounds the BA used at TEA-02 (.ai/board/tickets/TEA-02/ticket.yaml:28). The ADM-01 row
+  in features.md says `schema_delta` none because `team` and `overload_threshold` are created
+  by TEA-01's migration; that is true of the COLUMN and does not settle the PRIVILEGES, which
+  the same row requires two sentences earlier. One new migration,
+  `supabase/migrations/20260903000000_adm01_team_threshold.sql`, altering no table and adding
+  no column: a COLUMN-LEVEL grant `update (overload_threshold) on public.team` to
+  `authenticated`, which is what withholds `name` and every other column from everybody — an
+  RLS UPDATE policy is row-level and would otherwise turn `set the threshold` into `edit the
+  team row`, and no permission row for renaming the team exists anywhere; and the policy
+  `team_update_admin`, scoped to an admin of the caller's own team. TEA-01 revoked all on
+  `public.team` from `anon` and `authenticated` at
+  supabase/migrations/20260831150024_tea01_membership.sql:145, so neither is inherited. No
+  trigger, unlike TEA-04 — there is one writable column and nothing here needs a sentence that
+  `with check` structurally cannot express. The migration ALSO carries `grant select on
+  public.team` and `team_select_own`, and those two statements are the subject of the BLOCKING
+  open question: features.md assigns the select policy and grant to CAL-04, the operator
+  reordered ADM-01 above CAL-04 on 2026-09-03, and moving that ownership is a registry edit
+  under RULE-01. Applying the migration is human, RULE-09. Full statements in 01-plan.md
+  section 6.
+requires_adr: true   # CORRECTED from `false` by tech-lead-design at PLAN. The ADR owed is `the
+                     # admin write path on team`, the same shape as
+                     # .ai/registry/decisions/ADR-020-the-admin-write-path-on-member.md. It is
+                     # NOT written by this plan and is owed to the OPERATOR rather than to an
+                     # agent under ADR-008, because it would settle the blocking open question,
+                     # which is a features.md ownership change and therefore RULE-01 human-only.
+                     # The precedent for passing PLAN with the ADR still absent is TEA-04, whose
+                     # DoR item 4 failed at the orchestrator gate until ADR-020 was accepted
+                     # (.ai/board/tickets/TEA-04/ticket.yaml:93). This ticket does not reach that
+                     # gate either way — 01-plan.md carries `gate: BLOCKED`.
 rework_count: 0
 chat_budget:
   developer->tech-lead-design: { used: 0, max: 6 }
@@ -23,10 +84,16 @@ chat_budget:
   qa->tech-lead-design:        { used: 0, max: 6 }
 tracker: { provider: "", external_id: "", sync_enabled: false }
 gates:
-  spec:   { passed: false, at: null }
-  design: { passed: false, at: null }
+  # ADR-019 Decision point 4 merged the `spec` and `design` gates into one `plan` gate, and
+  # ADR-022 removed the `qa` stage and its gate. This shell predates both and was migrated here
+  # by tech-lead-design at PLAN, the same migration TEA-04 and TEA-05 made at their own PLAN.
+  # The remaining unstarted shells still carry the old set.
+  #
+  # `plan` is left `passed: false` and stays that way: 01-plan.md's front-matter carries
+  # `gate: BLOCKED`, not PASS. The orchestrator records this flag by quoting an artifact rather
+  # than re-judging it, and there is no PASS to quote.
+  plan:   { passed: false, at: null }
   review: { passed: false, at: null }
-  qa:     { passed: false, at: null }
 
 # Created by `product` at /triage on 2026-08-31, promoting
 # .ai/board/ideas/2026-08-31-a-crowded-day-is-discovered-too-late.md.
