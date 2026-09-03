@@ -192,3 +192,24 @@ export interface Entry {
  * one number.
  */
 export const OWN_ENTRY_LIMIT = 500;
+
+// ---------------------------------------------------------------------------
+// CAL-03. 01-plan.md section 4.1.
+// ---------------------------------------------------------------------------
+
+/**
+ * The explicit row limit `listTeamEntries` asks for, and the count at which it refuses to answer.
+ *
+ * SEPARATE from OWN_ENTRY_LIMIT rather than shared with it, for the same reason ROSTER_LIMIT is its
+ * own constant: a team's entries outnumber one member's, and the two numbers move for different
+ * reasons. One constant serving both would be raised for whichever pressed first and would silently
+ * move the other.
+ *
+ * It must sit BELOW the datastore's own `max-rows` cap or the assertion never fires and the server's
+ * silent truncation happens first. A short list here hides entries from the one person able to
+ * correct them, which is worse than an error and is what this limit exists to turn into one.
+ *
+ * TODO(verify): the datastore's default `max-rows`. The same unknown is carried by CAL-04, ADM-02,
+ * ADM-04 and OWN_ENTRY_LIMIT above. If it is lower than this, the fix is this one number.
+ */
+export const TEAM_ENTRY_LIMIT = 2000;

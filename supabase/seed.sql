@@ -497,3 +497,46 @@ values (
   '2026-09-01T01:00:00+00:00'
 )
 on conflict (id) do nothing;
+
+-- ---------------------------------------------------------------------------
+-- CAL-03. 01-plan.md section 7. ONE row, and it is AC-8's.
+--
+-- An entry owned by the OTHER team's member, who has had an `auth.users` row and a `public.member`
+-- row since TEA-03 and no entry until now. AC-8 asserts that an admin of FIXTURE_TEAM can neither
+-- edit nor delete it, and without this row that criterion has nothing to be refused against — a
+-- policy written `using (public.is_admin(auth.uid()))` with no team predicate would pass every test
+-- in this repository. ADR-018's revert condition names this same one-team limitation for TEA-03's
+-- read; this is it arriving on the write side.
+--
+-- No new account and no new member: `chi@other.example.com` and
+-- `66666666-6666-4666-8666-666666666666` are already seeded above, and reusing them is the point.
+--
+-- `status` is `pending` with no approver, which is the plain case — a refusal observed against this
+-- row is then the TEAM boundary refusing, and not INV-02's trigger doing something else. This
+-- statement is still a HUMAN's (RULE-09), but unlike the approved entry above it names nothing the
+-- product could not reach: that team's own member could have created it.
+--
+-- The same literals are FIXTURE_OTHER_TEAM_ENTRY in src/lib/fixtures.ts. Change one, change both.
+-- ---------------------------------------------------------------------------
+
+insert into public.entry (
+  id, member_id, type, portion, start_date, end_date, tentative,
+  status, rejection_reason, note, approved_by, approved_at, created_at, updated_at
+)
+values (
+  'dd000000-0000-4000-8000-000000000002',
+  '66666666-6666-4666-8666-666666666666',
+  'pto',
+  'full',
+  '2026-09-21',
+  '2026-09-22',
+  false,
+  'pending',
+  null,
+  'Nghỉ của nhóm khác',
+  null,
+  null,
+  '2026-09-01T01:00:00+00:00',
+  '2026-09-01T01:00:00+00:00'
+)
+on conflict (id) do nothing;

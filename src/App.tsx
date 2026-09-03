@@ -12,6 +12,7 @@ import Home from "./routes/Home";
 import MemberList from "./routes/MemberList";
 import EditEntry from "./routes/EditEntry";
 import NewEntry from "./routes/NewEntry";
+import TeamEntries from "./routes/TeamEntries";
 import NotOnATeam from "./routes/NotOnATeam";
 import SignIn from "./routes/SignIn";
 import SignUp from "./routes/SignUp";
@@ -131,6 +132,21 @@ export default function App() {
             <Route
               path="/entries/:id/edit"
               element={membership.state === "member" ? <EditEntry /> : <Navigate to="/" replace />}
+            />
+
+            {/* CAL-03. Guarded exactly as /entries/new and /entries/:id/edit are, and for the same
+                reason: this screen lists and writes ENTRIES, and an entry belongs to a member row
+                (INV-07), so a caller with no member row has nothing here to reach.
+
+                THE GUARD IS `member` AND NOT `admin`, deliberately. A member who types this address
+                must reach the component and be refused BY IT (`team-entries-refused`, AC-10) rather
+                than be bounced to `/` — the refusal is what says why, and a redirect would leave
+                somebody who mistyped nothing to read. The guard is an affordance either way:
+                `entry_update_admin` and `entry_delete_admin` are the controls and they refuse the
+                write whoever reaches them. */}
+            <Route
+              path="/entries/team"
+              element={membership.state === "member" ? <TeamEntries /> : <Navigate to="/" replace />}
             />
 
             {/* AC-9. Every address the application does not route lands on `/`, which then resolves

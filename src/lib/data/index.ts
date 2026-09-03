@@ -337,6 +337,41 @@ export interface DataSeam {
    * obvious return value to inspect.
    */
   deleteEntry(entryId: string): Promise<Result<void>>;
+
+  // -------------------------------------------------------------------------
+  // CAL-03 — edit or delete another member's entry, as an admin. 01-plan.md section 4.1.
+  //
+  // ONE READ IS ADDED AND NO WRITE IS. `updateEntry` and `deleteEntry` above were written at CAL-02
+  // as POLICY-DRIVEN operations: they take an entry id, issue the statement, and read the affected
+  // row count to tell success from a filtered refusal. Neither mentions ownership, because ownership
+  // was never theirs to decide. `entry_update_admin` and `entry_delete_admin` widen what those same
+  // two functions may reach, with no change to either signature or body — which is what ADR-005
+  // predicts when authorization lives entirely in the datastore, and is the cleanest available
+  // evidence that CAL-02 put the check in the right place.
+  // -------------------------------------------------------------------------
+
+  /**
+   * CAL-03 AC-1, AC-2, AC-3, AC-4, AC-9, AC-10, AC-12. Every entry of the caller's team, newest
+   * start date first — the caller's own included.
+   *
+   * DELIBERATELY FLAT, and this is the boundary with CAL-04. It takes NO date range, returns no
+   * count, and is not the read the month grid issues: CAL-04's is range-shaped (`date_range=ov.…`),
+   * feeds INV-04's `absenceCountsFor`, and is given the roster. This one answers "which entries
+   * exist for this team" so an admin can reach a row, and it must not grow a range parameter — the
+   * moment it does there are two team-entry reads and one of them will be the one nobody updated.
+   * The same reasoning that kept `listOwnEntries` narrow at CAL-01.
+   *
+   * NO ROLE PARAMETER AND NO `is_admin` CHECK INSIDE IT. `entry_select_team` admits the team's rows
+   * to every member, because `Read any entry in the team` is checked for BOTH roles in
+   * .ai/standards/rbac-and-security.md — so this read is not where the admin capability lives. What
+   * an admin may do with a row it returns is decided by `entry_update_admin`, in the datastore.
+   *
+   * THROWS on a transport failure and on a possibly-truncated answer, the shape `listMembers` and
+   * `listOwnEntries` use. There is no caller-visible failure to carry; `[]` for a broken connection
+   * would report "this team has no entries", and a short list would hide entries from the one person
+   * able to correct them — which is the failure TEAM_ENTRY_LIMIT exists to turn into an error.
+   */
+  listTeamEntries(): Promise<Entry[]>;
 }
 
 export type { DataSeam as Seam };
