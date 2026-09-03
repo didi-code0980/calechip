@@ -34,10 +34,9 @@ copy-pasteable. Every field name that will appear in the code appears here first
 Developer may not invent one (RULE-04), and a name invented at implementation time propagates into
 the DTO, the mock, the datastore mapping, and the selectors before anyone reviews it.
 
-**Section 6, the testability contract.** Every selector, with the element it identifies. QA never
-reads the implementation source (RULE-05), so this table is the only channel through which selectors
-reach QA. A control missing from it is a control QA cannot exercise, and the failure will surface at
-the QA gate looking like a Developer problem.
+**The testability contract is gone** — ADR-022 removed the QA stage and plan section 8 with it.
+Selectors still belong in the markup and `data-testid` is still the attribute, but no section
+enumerates them and no check verifies them.
 
 **Section 5, allowed_paths.** Enumerate. A glob broad enough to be convenient is a glob broad enough
 to make check R1 meaningless. Until you write this, `allowed_paths` is `[]` and the guard blocks

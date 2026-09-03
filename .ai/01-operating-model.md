@@ -1,5 +1,5 @@
 ---
-doc_version: 5
+doc_version: 6
 last_updated: 2026-09-01
 governed_by: [RULE-01, RULE-03, RULE-04, RULE-05, RULE-06, RULE-07, RULE-08, RULE-09, RULE-10, RULE-11, RULE-12, RULE-13, RULE-14, RULE-15, RULE-16, RULE-17]
 ---
@@ -33,9 +33,9 @@ important enough to count.
 
 ```
 TRIAGE -> [PROMOTE writes the feature row and the ticket shell] -> BACKLOG
-  -> PLAN -> [DoR] -> READY -> IN_PROGRESS -> REVIEW -> QA -> DONE
-                                   ^            |       |
-                                   +-- REWORK <-+-------+
+  -> PLAN -> [DoR] -> READY -> IN_PROGRESS -> REVIEW -> DONE
+                                   ^            |
+                                   +-- REWORK <-+
                                           |  (rework_count >= 2, RULE-06)
                                           v
                                     ESCALATED -> human
@@ -67,9 +67,9 @@ or in the registry, not in an implementation.
 
 ## State enum
 
-`TRIAGE` `BACKLOG` `PLAN` `READY` `IN_PROGRESS` `REVIEW` `QA` `REWORK` `ESCALATED` `DONE`
+`TRIAGE` `BACKLOG` `PLAN` `READY` `IN_PROGRESS` `REVIEW` `REWORK` `ESCALATED` `DONE`
 
-These ten values are the complete enum for `ticket.yaml`'s `state` field. Check D10 verifies that
+These nine values are the complete enum for `ticket.yaml`'s `state` field. Check D10 verifies that
 this list and the stage ownership table below stay in agreement in both directions.
 
 ## Stage ownership
@@ -81,20 +81,22 @@ this list and the stage ownership table below stay in agreement in both directio
 | PLAN | `tech-lead-design` | registry, standards, `ticket.yaml`, the source tree | `01-plan.md`, `ticket.yaml` | Sections 1-9 complete; ACs in Given/When/Then each with an ID; `invariants_touched` populated; `size_estimate` and `size` set; `allowed_paths` enumerated; Out-of-scope non-empty |
 | READY | `orchestrator` | `ticket.yaml`, `01-plan.md`, `features.md` | `ticket.yaml`, `backlog.md` | Full DoR, below |
 | IN_PROGRESS | `developer` | the plan first, then the source tree within `allowed_paths` | code, `03-impl-log.md` | typecheck + lint exit 0; every contract item implemented |
-| REVIEW | `tech-lead-review` | plan, impl-log, `git diff` | `04-review.md` | R1-R9, each citing `file:line` |
-| QA | `qa` | plan sections 1, 2 and 8, test plan | the test tree, `05-`, `06-` | Every `AC-n` maps to at least one named test; the test suites exit 0 |
+| REVIEW | `tech-lead-review` | plan, impl-log, `git diff` | `04-review.md` | R1-R8, each citing `file:line` |
 | REWORK | routed agent | the failing verdict plus its own prior artifact | its own artifact, code | The specific failed checks now pass |
 | ESCALATED | human | everything | anything | A human decides; the ticket does not self-resume |
 | DONE | `orchestrator` | all | `ticket.yaml`, `backlog.md`, `metrics.md` | Full DoD; opens PR (human merges, RULE-09) |
 
-The four rows from PLAN through QA are the implementation loop. The other six exist so that every
+The three rows from PLAN through REVIEW are the implementation loop. The other six exist so that every
 value in the state enum has a declared owner — a state nobody owns is a state where a ticket stops
 silently.
 
-## `01-plan.md` sections — all nine required
+## `01-plan.md` sections — all eight required
 
-Sections 1 and 2 are what `01-story.md` used to carry; 3 through 9 are what `02-design.md` used to
+Sections 1 and 2 are what `01-story.md` used to carry; 3 through 8 are what `02-design.md` used to
 carry. One artifact, one author, one gate — ADR-019.
+
+**There were nine until ADR-022 removed the QA stage.** The testability contract sat at 8 and its only
+reader was QA; *Rejected alternatives* moved up into its number.
 
 1. **Problem and scope** — what this ticket does, and an explicit **Out-of-scope** that is never empty
 2. **Acceptance criteria** — Given/When/Then, each with an `AC-n` ID
@@ -103,14 +105,11 @@ carry. One artifact, one author, one gate — ADR-019.
 5. **Seam impact** — which functions in the data-access seam change, or "none"
 6. **Schema delta** — `none`, or a description plus an ADR link
 7. **allowed_paths** — explicit glob list
-8. **Testability contract** — every test selector, with the element it identifies (RULE-05)
-9. **Rejected alternatives** — at least one, with the reason
+8. **Rejected alternatives** — at least one, with the reason
 
-Section 8 is the load-bearing one. QA never reads the implementation source (RULE-05), so a selector
-that is not in section 8 does not exist as far as QA is concerned. A plan that omits it produces a
-test suite that cannot address the interface, and the failure surfaces at the QA gate as something
-that looks like a Developer problem and is not. It was dormant from 2026-09-01 while ADR-017 waived
-QA and was required to be written anyway; ADR-021 put its reader back.
+Section 8 is what makes the plan reviewable, and it carries more weight than it did as one section of
+nine. With SPEC gone and QA gone, it is the only place a reader sees that the author considered a
+different shape.
 
 Section 7 is what `.claude/hooks/guard-allowed-paths.mjs` reads. Until PLAN writes it,
 `allowed_paths` is `[]` and the hook blocks every write outside the ticket folder. That emptiness is
@@ -131,9 +130,8 @@ ADR-019 records this as the cost it is, not as a safeguard.
 | R4 | Nothing outside the data-access seam reaches the datastore directly (RULE-02) |
 | R5 | Every contract item in plan section 4 is implemented (RULE-04) |
 | R6 | Permission gating matches plan section 3 |
-| R7 | Every test selector in plan section 8 exists in the markup |
-| R8 | No invariant violated — reason through each ID in `invariants_touched` (RULE-07) |
-| R9 | No dependency added without an ADR |
+| R7 | No invariant violated — reason through each ID in `invariants_touched` (RULE-07) |
+| R8 | No dependency added without an ADR |
 
 **An item with no `file:line` citation counts as failed.** Not "counts as unverified" — failed. A
 reviewer that cannot point at a line has not checked anything, and a checklist that accepts assertion
@@ -143,11 +141,10 @@ in place of citation is a checklist that always passes.
 
 | Failing check | Route to | Increments `rework_count` |
 |---|---|---|
-| R1, R2, R3, R4, R5 implementable, R9 | `developer` | Yes |
-| R5 impossible as specified, R7 | `tech-lead-design` | No |
-| R6, QA: AC ambiguous or untestable | `tech-lead-design` | No |
-| QA: behaviour wrong | `developer` | Yes |
-| **R8** | **human, immediately** | ESCALATE (RULE-07) |
+| R1, R2, R3, R4, R5 implementable, R8 | `developer` | Yes |
+| R5 impossible as specified | `tech-lead-design` | No |
+| R6 | `tech-lead-design` | No |
+| **R7** | **human, immediately** | ESCALATE (RULE-07) |
 | DoR item unsatisfied at the READY gate | `tech-lead-design` if the item is produced at PLAN, otherwise a human | No |
 
 Per RULE-08, upstream defects must not burn the downstream agent's rework budget. A Developer who
@@ -203,7 +200,7 @@ answer to live — it cannot be spoken and forgotten, because speaking it means 
 
 ### Session lifecycle
 
-RULE-13's requirement is that REVIEW and QA see files only, with no message channel and no inherited
+RULE-13's requirement is that REVIEW sees files only, with no message channel and no inherited
 context. That is delivered by session lifetime, not by tearing down a shared team session.
 
 | Agent | Session | Closes when |
@@ -224,7 +221,7 @@ cold.
 
 A reviewer is the opposite. A `tech-lead-review` session that remembers checking R4 last time will
 not really check it again — but the code changed between passes, which is the entire reason there is
-a second pass. Its memory is a liability, so it dies after each verdict. Same for QA.
+a second pass. Its memory is a liability, so it dies after each verdict.
 
 The Developer sits between: ephemeral, but it **survives REWORK**. Rework is a continuation of the
 same work with new information, and making the Developer re-derive the design from scratch on every
@@ -281,13 +278,13 @@ EXA-01 is in BACKLOG. Run /plan EXA-01 in the tech-lead-design session.
 loop:
   tickets = read all .ai/board/tickets/*/ticket.yaml
   if any state == ESCALATED:            notify human; halt that ticket
-  if count(state in PLAN..QA) >= WIP:   wait
+  if count(state in PLAN..REVIEW) >= WIP:  wait
   t = first ordered ticket in backlog.md whose state != DONE
   if t.state == BACKLOG:                PRINT "/plan <id> in the tech-lead-design session"; continue
   if t.state == PLAN and gate passed:   evaluate DoR
                                           pass -> t.state = READY
                                           fail -> demote to BACKLOG; name the failing item; continue
-  if t.state == REVIEW or QA:           require a FRESH session (RULE-13); never reuse a prior one
+  if t.state == REVIEW:                 require a FRESH session (RULE-13); never reuse a prior one
   PRINT the next command and the session it belongs in     <-- does not dispatch
   read result front-matter
   PASS -> t.state = next_state ; FAIL -> REWORK, route per table
@@ -295,15 +292,14 @@ loop:
 ```
 
 `ARTIFACTS_FOR[state]`, never the whole ticket folder. Feeding an agent every artifact defeats the
-isolation the model depends on, especially for QA: a QA agent that can see `04-review.md` is testing
-the reviewer's conclusions rather than the story.
+isolation the model depends on: a reviewer given the whole folder reads the author's reasoning for
+why the code is right, which is the one thing a review must not be handed.
 
 | State | ARTIFACTS_FOR |
 |---|---|
 | PLAN | `ticket.yaml`, registry, standards, the source tree |
 | IN_PROGRESS | `ticket.yaml`, `01-plan.md`, standards |
 | REVIEW | `01-plan.md`, `03-impl-log.md`, `git diff`, registry |
-| QA | sections 1, 2 and 8 of `01-plan.md`, `05-test-plan.md` |
 
 ## Backlog
 
@@ -350,17 +346,20 @@ than the gate.
 
 ## Definition of Done
 
-1. four gates `passed: true` with timestamps
+1. both gates `passed: true` with timestamps — `plan` and `review`
 2. diff is a subset of `allowed_paths`
 3. typecheck, lint, unit tests and end-to-end tests exit 0
-4. every AC maps to a named test
-5. zero invariant violations
-6. `03-impl-log.md` lists every file touched with a one-line reason
+4. zero invariant violations
+5. `03-impl-log.md` lists every file touched with a one-line reason
 
-All six are required again. **Items 3 and 4 were suspended from 2026-09-01 while ADR-017 waived the
-QA stage, and are restored by ADR-021** — three tickets shipped under that waiver, and all four
-commands in `.ai/standards/testing-standards.md` now run. The numbering is kept because the
-suspension named these two by number and the record has to stay legible.
+All five are required. **There were six until ADR-022 removed the QA stage**; the one that went was
+*every AC maps to a named test*, which had no producer once QA did. Item 3 stays and is now `/ship`'s
+alone: the four commands in `.ai/standards/testing-standards.md` must exit 0, whoever last touched
+the tests.
+
+*Items 3 and 4 were also suspended from 2026-09-01 while ADR-017 waived QA, and restored by ADR-021
+that afternoon. Recorded because two of this list's five items changed meaning three times in one
+day.*
 
 **TODO(project): name the four commands.** Typecheck, lint, unit and end-to-end are roles, not
 command names. Write the exact invocations into `.ai/standards/testing-standards.md` once, and let
@@ -382,9 +381,9 @@ whether existing callers must change, not whether the seam was touched at all. A
 read "touches the seam", under which every feature ticket escalated and the table meant nothing.
 
 Split by operation first (read path, then write path), then by surface, then by role. **Never split
-backend from frontend alone.** That produces a ticket that cannot be exercised end to end, which
-means the QA gate has nothing to run, which means the ticket reaches DONE with a gate that was
-skipped rather than passed.
+backend from frontend alone.** That produces a ticket that cannot be exercised end to end — which
+mattered most when a QA gate had to run against it, and still matters now that none does: a half
+ticket reaches DONE having demonstrated nothing.
 
 Two fields, one owner now. `size_estimate` is read from plan section 1 and its Out-of-scope, and it
 gates DoR. `size` is read from the enumerated `allowed_paths` in section 7, and it decides whether the

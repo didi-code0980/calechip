@@ -1,5 +1,5 @@
 ---
-doc_version: 2
+doc_version: 3
 last_updated: 2026-09-01
 governed_by: [RULE-05, RULE-07, RULE-08]
 ---
@@ -50,20 +50,23 @@ version in two files, and the copy is always the one that goes stale.
 
 ## The selector contract
 
-RULE-05 governs this section, and `.claude/hooks/guard-read-scope.mjs` enforces it.
+**RULE-05 is retired and there is no QA stage — ADR-022.** What this section described is kept
+because the reasoning survives its enforcement, and because whoever writes a test now has to supply
+by hand what the model used to supply by structure.
 
-This is not a restriction on QA's curiosity. It is what makes the QA gate mean something. A QA agent
-that reads the implementation writes tests that pass against the implementation, including against
-the parts of it that are wrong. A QA agent that can only see the story and the selector contract
-writes tests against the specified behaviour, and the difference between the two is exactly the
-defect the gate exists to catch.
+It read: RULE-05 governs the selector contract and `guard-read-scope.mjs` enforces it. It was never a
+restriction on QA's curiosity — it was what made the QA gate mean something. *An agent that reads the
+implementation writes tests that pass against the implementation, including against the parts of it
+that are wrong. An agent that can only see the story and the selector contract writes tests against
+the specified behaviour, and the difference between the two is exactly the defect the gate existed to
+catch.*
 
-The consequence is that a selector missing from design section 6 does not exist. QA cannot address
-it, cannot test it, and must not go looking for it. Check R7 verifies the reverse direction: every
-selector in section 6 exists in the markup.
+**That difference does not go away when the gate does.** Nobody is now prevented from writing a test
+derived from the code it judges, and nothing reports one that is. The plan's testability contract is
+gone with plan section 8, and check R7 with it.
 
-**The selector attribute is `data-testid`.** Said once, here. Design section 6 and check R7 both
-refer to it, and no other attribute, class or DOM path is an acceptable substitute.
+**The selector attribute is `data-testid`.** Said once, here, and it still holds: the tests that
+already exist address it, and it is what Playwright addresses by default.
 
 It is also what Playwright addresses by default through `getByTestId`, so the contract and the
 end-to-end runner agree without configuration.
@@ -149,8 +152,9 @@ assert it fires; if it is meant to stay quiet, assert that against the file as i
 Simplified fixtures are still worth having — they isolate the case and they name the intent. They are
 not sufficient on their own, because the thing they cannot test is whether you understood the input.
 
-**This is the same reasoning as RULE-05.** QA does not read the implementation; it works from design
-section 6, so the test is not derived from the implementation it judges. A fixture hand-written by the
+**This was the same reasoning as RULE-05**, which is retired. QA did not read the implementation; it
+worked from the plan's testability contract, so the test was not derived from the implementation it
+judged. A fixture hand-written by the
 author of the check is derived from the check, in the same way and with the same failure: it agrees
 with the code about what the world looks like. The real file is the independent source, and it is the
 only one available for a check that reads a specific file.
