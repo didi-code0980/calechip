@@ -16,6 +16,7 @@ import type {
   SignInInput,
   SignUpInput,
   SignUpOutcome,
+  UpdateEntryInput,
 } from "./index";
 import type {
   AllowedEmail,
@@ -247,7 +248,14 @@ function toPostgrestFailure(error: PostgrestError): Failure {
 // MATCHED ON THE SQLSTATE, NEVER ON THE CONSTRAINT NAME OR THE MESSAGE TEXT. A name match breaks
 // silently the day `entry_no_overlapping_portion` is renamed, and PostgREST's message wording is not
 // a contract.
-function toEntryFailure(error: PostgrestError): Failure {
+//
+// CAL-02 TAKES THE `entry_not_permitted` SENTENCE AS A PARAMETER, and the codes are unchanged. The
+// three SQLSTATE mappings are 01-plan.md section 4.2's, identical to CAL-01's; what could not stay
+// identical is the one sentence that names a verb. "Không thể tạo đăng ký này." on a screen where a
+// member just pressed save on an EDIT is the wrong message, which is the exact failure the paragraph
+// above records for `toPostgrestFailure` — one function answering two screens with one sentence.
+// Callers branch on the CODE and it is the same code, so nothing downstream changes.
+function toEntryFailure(error: PostgrestError, refusal: string): Failure {
   switch (error.code) {
     // INV-01's exclusion constraint. AC-7.
     case "23P01":
@@ -269,11 +277,28 @@ function toEntryFailure(error: PostgrestError): Failure {
     // learned WHICH of the two refused them would be learning the shape of the grant.
     case "42501":
     case "PGRST301": // JWT missing or expired: the request reaches the policy as nobody
-      return { code: "entry_not_permitted", message: "Không thể tạo đăng ký này." };
+      return { code: "entry_not_permitted", message: refusal };
     default:
       return { code: "unknown", message: "Có lỗi không rõ. Thử lại giúp mình nhé." };
   }
 }
+
+// The three refusal sentences, one per verb, held here so the two implementations of the seam can
+// carry the same words — mock.ts repeats these literals for the same reason src/lib/fixtures.ts and
+// supabase/seed.sql repeat theirs.
+const CREATE_REFUSED = "Không thể tạo đăng ký này.";
+const UPDATE_REFUSED = "Không sửa được đăng ký này.";
+const DELETE_REFUSED = "Không xoá được đăng ký này.";
+
+// CAL-01 AC-9 and CAL-02 AC-11, refused BEFORE the request is sent and in both write paths. ADR-011
+// Consequences records that an inverted pair fails INSIDE the generated column with "range lower
+// bound must be less than or equal to range upper bound" - a database error text where a sentence
+// about dates belongs, and it never reaches the check constraint that would have said so legibly.
+// String comparison is correct for `yyyy-MM-dd` (CAL-01 plan section 4.5) and no Date is constructed.
+const invertedRange = (startDate: string, endDate: string): Failure | null =>
+  endDate < startDate
+    ? { code: "invalid_date_range", message: "Ngày kết thúc phải bằng hoặc sau ngày bắt đầu." }
+    : null;
 
 export const seam: DataSeam = {
   async ready() {
@@ -621,22 +646,12 @@ export const seam: DataSeam = {
   // returns no representation and PostgREST does not error, so `!error` is not success - the same
   // trap TEA-04's `removeMember` records. `.select()` is what makes the difference visible.
   async createEntry(input: CreateEntryInput): Promise<Result<Entry>> {
-    if (input.endDate < input.startDate) {
-      return {
-        ok: false,
-        error: {
-          code: "invalid_date_range",
-          message: "Ngày kết thúc phải bằng hoặc sau ngày bắt đầu.",
-        },
-      };
-    }
+    const inverted = invertedRange(input.startDate, input.endDate);
+    if (inverted) return { ok: false, error: inverted };
 
     const me = await readCurrentMember();
     if (!me) {
-      return {
-        ok: false,
-        error: { code: "entry_not_permitted", message: "Không thể tạo đăng ký này." },
-      };
+      return { ok: false, error: { code: "entry_not_permitted", message: CREATE_REFUSED } };
     }
 
     const { data, error } = await client()
@@ -653,14 +668,11 @@ export const seam: DataSeam = {
       .select(ENTRY_COLUMNS)
       .returns<EntryRow[]>();
 
-    if (error) return { ok: false, error: toEntryFailure(error) };
+    if (error) return { ok: false, error: toEntryFailure(error, CREATE_REFUSED) };
 
     const row = (data ?? [])[0];
     if (!row) {
-      return {
-        ok: false,
-        error: { code: "entry_not_permitted", message: "Không thể tạo đăng ký này." },
-      };
+      return { ok: false, error: { code: "entry_not_permitted", message: CREATE_REFUSED } };
     }
 
     return { ok: true, value: toEntry(row) };
@@ -704,5 +716,83 @@ export const seam: DataSeam = {
     }
 
     return rows.map(toEntry);
+  },
+
+  // -------------------------------------------------------------------------
+  // CAL-02. 01-plan.md sections 4.1, 4.2 and 6.
+  // -------------------------------------------------------------------------
+
+  // CAL-02 AC-1, AC-2, AC-5, AC-6, AC-7, AC-8, AC-9, AC-10, AC-11, AC-12.
+  //
+  // Six columns and no more, exactly the six the update grant carries (migration step 1).
+  // `member_id`, `status` and `rejection_reason` are absent from that grant, so a statement naming
+  // one is refused with `42501 permission denied for column` BEFORE any policy runs - AC-8 and AC-10
+  // are held there, and `UpdateEntryInput` carrying none of the three is the affordance.
+  //
+  // NO `eq` ON `member_id` AND NO OWNER CHECK. `entry_update_own` IS the owner boundary, and a
+  // filter here would be a second, weaker copy of it - the shape `removeMember` already uses. What
+  // this file does is issue the statement and read the answer honestly.
+  //
+  // ZERO ROWS BACK IS A REFUSAL (AC-9). Under row-level security a refused UPDATE is FILTERED rather
+  // than errored: it matches no row and PostgREST answers 200 with an empty body (ADR-016 section 4,
+  // behaviour 2), so `!error` is not success. The `.select()` is what makes the difference visible,
+  // and it is also what returns the row the TRIGGER rewrote - AC-5's reset and AC-12's `updated_at`
+  // are read back from the datastore rather than assumed here.
+  //
+  // NOTHING BELOW IMPLEMENTS INV-02. `entry_enforce_decision()` decides whether an edit is
+  // substantive by comparing OLD against NEW, and it is the only judge of that (01-plan.md section
+  // 8). A note-only edit sends the same six columns as any other and the trigger is what makes AC-6
+  // differ from AC-5.
+  async updateEntry(entryId: string, input: UpdateEntryInput): Promise<Result<Entry>> {
+    const inverted = invertedRange(input.startDate, input.endDate);
+    if (inverted) return { ok: false, error: inverted };
+
+    const { data, error } = await client()
+      .from("entry")
+      .update({
+        type: input.type,
+        portion: input.portion,
+        start_date: input.startDate,
+        end_date: input.endDate,
+        tentative: input.tentative,
+        note: input.note,
+      })
+      .eq("id", entryId)
+      .select(ENTRY_COLUMNS)
+      .returns<EntryRow[]>();
+
+    if (error) return { ok: false, error: toEntryFailure(error, UPDATE_REFUSED) };
+
+    const row = (data ?? [])[0];
+    if (!row) {
+      return { ok: false, error: { code: "entry_not_permitted", message: UPDATE_REFUSED } };
+    }
+
+    return { ok: true, value: toEntry(row) };
+  },
+
+  // CAL-02 AC-3, AC-4, AC-9. A HARD delete: `entry` carries no soft-delete column, so the row and
+  // its `approved_by` disappear together, and INV-01's constraint releases the slots the row held -
+  // which is AC-4 and is the half a test written only from the happy path would miss.
+  //
+  // THE `.select()` IS THE WHOLE CORRECTNESS OF THIS FUNCTION. A DELETE the policy filters answers
+  // 200 with an empty body exactly as an UPDATE does, and a delete has no obvious return value to
+  // inspect - so without asking for the deleted representation and counting it, every refusal would
+  // be reported as a completed delete. Zero rows is `entry_not_permitted` (AC-9).
+  async deleteEntry(entryId: string): Promise<Result<void>> {
+    const { data, error } = await client()
+      .from("entry")
+      .delete()
+      .eq("id", entryId)
+      .select(ENTRY_COLUMNS)
+      .returns<EntryRow[]>();
+
+    if (error) return { ok: false, error: toEntryFailure(error, DELETE_REFUSED) };
+
+    if (!(data ?? [])[0]) {
+      return { ok: false, error: { code: "entry_not_permitted", message: DELETE_REFUSED } };
+    }
+
+    return { ok: true, value: undefined };
   },
 };

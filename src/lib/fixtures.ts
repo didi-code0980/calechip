@@ -7,7 +7,7 @@
 // change it there in the same commit.
 //
 // The uuids are fixed literals and never generated, for the same reason.
-import type { AuthUser, Member } from "./domain/types";
+import type { AuthUser, Entry, Member } from "./domain/types";
 
 export const FIXTURE_TEAM: { id: string; name: string; overloadThreshold: number } = {
   id: "11111111-1111-4111-8111-111111111111",
@@ -274,3 +274,79 @@ export const FIXTURE_CREDENTIALS: readonly FixtureCredential[] = [
     membership: "member-less",
   },
 ];
+
+// ---------------------------------------------------------------------------
+// CAL-02. 01-plan.md section 7.
+//
+// AC-5 and AC-6 need an entry that is ALREADY APPROVED, and nothing in the product can create one:
+// the insert grant excludes `status`, this ticket's update grant excludes it too, and ADM-05 does
+// not exist. So the only way an approved entry can exist for a test to edit is for a human to seed
+// it — which is what section 7 puts this file and supabase/seed.sql in `allowed_paths` for.
+// ---------------------------------------------------------------------------
+
+/**
+ * A THIRD member-role account on FIXTURE_TEAM, and it exists so the approved entry below has an
+ * owner who is nobody else's fixture.
+ *
+ * DEVIATION from 01-plan.md section 7, which names the entry and not a member to own it. Declared in
+ * 03-impl-log.md. FIXTURE_MEMBER cannot own it: tests/e2e/cal-01-create-entry.spec.ts asserts
+ * `own-entries-empty` on that account's first screen and exact row counts afterwards, and section 4.3
+ * requires that suite to pass UNEDITED — seeding an entry for `thanh@example.com` breaks it. The same
+ * is true of FIXTURE_ADMIN, whose list CAL-01 AC-10 and AC-11 count. Reusing FIXTURE_SECOND_ADMIN
+ * would have avoided a new row but would have observed AC-5 and AC-6 as an ADMIN editing their own
+ * approved entry, which 01-plan.md Open questions item 3 keeps as a separate case on purpose.
+ *
+ * Role `member`, because that is who AC-5 and AC-6 are written about.
+ */
+export const FIXTURE_APPROVED_MEMBER: Member = {
+  id: "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb",
+  teamId: FIXTURE_TEAM.id,
+  displayName: "Đã duyệt",
+  avatar: "🐨",
+  role: "member",
+  removedAt: null,
+  createdAt: "2026-08-31T00:00:00+00:00",
+};
+
+/**
+ * The approved entry AC-5 and AC-6 edit. `approvedBy` is FIXTURE_ADMIN and `approvedAt` is set,
+ * because INV-02's whole subject is a decision that must not survive a substantive edit — an entry
+ * seeded `approved` with no approver would let AC-5 pass against a trigger that clears nothing.
+ *
+ * `status` is `approved`, so `rejectionReason` is null: INV-03's check is a BICONDITIONAL and a
+ * reason on a non-rejected row is refused by the datastore.
+ *
+ * The dates sit clear of every date CAL-01's and this ticket's other criteria use, so a test that
+ * creates an entry for this member cannot collide with it under INV-01 by accident.
+ */
+export const FIXTURE_APPROVED_ENTRY: Entry = {
+  id: "dd000000-0000-4000-8000-000000000001",
+  memberId: FIXTURE_APPROVED_MEMBER.id,
+  type: "pto",
+  portion: "full",
+  startDate: "2026-09-14",
+  endDate: "2026-09-16",
+  tentative: false,
+  status: "approved",
+  rejectionReason: null,
+  note: "Nghỉ đã được duyệt",
+  approvedBy: FIXTURE_ADMIN.id,
+  approvedAt: "2026-09-01T02:00:00+00:00",
+  createdAt: "2026-09-01T01:00:00+00:00",
+  // Equal to `createdAt`, which is what the datastore stores for a row that has never been updated
+  // (`updated_at` defaults to `now()` at insert and never moves again on its own). AC-12 is
+  // observable against this row precisely because the two start equal.
+  updatedAt: "2026-09-01T01:00:00+00:00",
+};
+
+/** The credential for FIXTURE_APPROVED_MEMBER. Its seed row is in supabase/seed.sql, as every row of
+ *  FIXTURE_CREDENTIALS above has one — a fixture with no seed row behind it is the drift this module
+ *  exists to prevent. It is a separate constant rather than an eighth element of the array above so
+ *  that a reader of TEA-05's list sees TEA-05's accounts. */
+export const FIXTURE_APPROVED_MEMBER_CREDENTIAL: FixtureCredential = {
+  email: "linh@example.com",
+  password: FIXTURE_PASSWORD,
+  userId: FIXTURE_APPROVED_MEMBER.id,
+  emailConfirmed: true,
+  membership: "member",
+};

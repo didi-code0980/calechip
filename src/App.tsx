@@ -10,6 +10,7 @@ import { useSession } from "./hooks/useSession";
 import AllowList from "./routes/AllowList";
 import Home from "./routes/Home";
 import MemberList from "./routes/MemberList";
+import EditEntry from "./routes/EditEntry";
 import NewEntry from "./routes/NewEntry";
 import NotOnATeam from "./routes/NotOnATeam";
 import SignIn from "./routes/SignIn";
@@ -116,6 +117,20 @@ export default function App() {
             <Route
               path="/entries/new"
               element={membership.state === "member" ? <NewEntry /> : <Navigate to="/" replace />}
+            />
+
+            {/* CAL-02. Guarded exactly as /entries/new is, and for the same reason: an entry belongs
+                to a member row (INV-07), so a caller with no member row has nothing this screen
+                could edit. The guard is an affordance either way — `entry_update_own` is the control
+                and it refuses the write whoever reaches it, and the screen itself answers
+                `edit-entry-not-found` for an entry that is not the caller's.
+
+                No route for a DELETE. There is no screen to delete from: the control lives on the
+                own-entry list beside the row it removes, where the row's dates are on screen at the
+                moment the confirmation is pressed. */}
+            <Route
+              path="/entries/:id/edit"
+              element={membership.state === "member" ? <EditEntry /> : <Navigate to="/" replace />}
             />
 
             {/* AC-9. Every address the application does not route lands on `/`, which then resolves
