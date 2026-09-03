@@ -405,3 +405,95 @@ values (
   '', '', '', ''
 )
 on conflict (id) do nothing;
+
+-- ---------------------------------------------------------------------------
+-- CAL-02. 01-plan.md section 7.
+--
+-- One account and one entry, and the entry is the reason for both: AC-5 and AC-6 edit an entry that
+-- is ALREADY APPROVED, and nothing in the product can create one. `entry_insert_own`'s grant
+-- excludes `status`, CAL-02's own update grant excludes it too, and ADM-05 does not exist — so an
+-- approved entry exists only if a human seeds it, which is what this block is.
+--
+-- The owner is a THIRD member-role account rather than FIXTURE_MEMBER, and that is forced rather
+-- than chosen: tests/e2e/cal-01-create-entry.spec.ts asserts `own-entries-empty` for
+-- thanh@example.com and exact row counts for quan@example.com, and CAL-02 01-plan.md section 4.3
+-- requires that suite to pass UNEDITED. Seeding an entry under either address breaks it.
+--
+-- Both literals also appear in src/lib/fixtures.ts, as FIXTURE_APPROVED_MEMBER,
+-- FIXTURE_APPROVED_MEMBER_CREDENTIAL and FIXTURE_APPROVED_ENTRY. Insert order is forced by the
+-- foreign keys: auth user -> member -> entry. The four token columns are set to '' for the reason
+-- MD-014 records and every seeded account above repeats.
+--
+-- `email_confirmed_at` is set, so `admit_allow_listed_member` fires on this insert. It finds no
+-- allow-list entry for this address — there is none, and there must not be one — and returns having
+-- created nothing. The member row below is this seed's write, as it is for every seeded account.
+-- ---------------------------------------------------------------------------
+
+insert into auth.users (
+  instance_id, id, aud, role, email, encrypted_password, email_confirmed_at,
+  raw_app_meta_data, raw_user_meta_data, created_at, updated_at,
+  confirmation_token, recovery_token, email_change_token_new, email_change
+)
+values (
+  '00000000-0000-0000-0000-000000000000',
+  'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb',
+  'authenticated',
+  'authenticated',
+  'linh@example.com',
+  extensions.crypt('password123', extensions.gen_salt('bf')),
+  '2026-09-01T00:00:00+00:00',
+  '{"provider":"email","providers":["email"]}'::jsonb,
+  '{"display_name":"Đã duyệt","avatar":"🐨"}'::jsonb,
+  '2026-09-01T00:00:00+00:00',
+  '2026-09-01T00:00:00+00:00',
+  '', '', '', ''
+)
+on conflict (id) do nothing;
+
+insert into public.member (id, team_id, display_name, avatar, role, removed_at, created_at)
+values (
+  'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb',
+  '11111111-1111-4111-8111-111111111111',
+  'Đã duyệt',
+  '🐨',
+  'member',
+  null,
+  '2026-08-31T00:00:00+00:00'
+)
+on conflict (id) do nothing;
+
+-- The approved entry itself. `approved_by` and `approved_at` are BOTH set: INV-02's subject is a
+-- decision that must not survive a substantive edit, and an entry seeded `approved` with no approver
+-- would let AC-5 pass against a trigger that clears nothing.
+--
+-- `rejection_reason` stays null because `status` is `approved` — `entry_rejection_reason_iff_rejected`
+-- is a biconditional and refuses any other combination.
+--
+-- `updated_at` EQUALS `created_at`, which is what the datastore stores for a row that has never been
+-- updated. AC-12 asserts that an edit moves it, and it is observable only because the two start
+-- equal. This insert names both columns explicitly rather than taking the defaults, so the seed is
+-- reproducible on any day it is applied.
+--
+-- This statement is a HUMAN's (RULE-09), and it names columns no policy grants `authenticated` —
+-- which is the point: a seed runs as the owner, and the product cannot reach this state.
+insert into public.entry (
+  id, member_id, type, portion, start_date, end_date, tentative,
+  status, rejection_reason, note, approved_by, approved_at, created_at, updated_at
+)
+values (
+  'dd000000-0000-4000-8000-000000000001',
+  'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb',
+  'pto',
+  'full',
+  '2026-09-14',
+  '2026-09-16',
+  false,
+  'approved',
+  null,
+  'Nghỉ đã được duyệt',
+  '22222222-2222-4222-8222-222222222222',
+  '2026-09-01T02:00:00+00:00',
+  '2026-09-01T01:00:00+00:00',
+  '2026-09-01T01:00:00+00:00'
+)
+on conflict (id) do nothing;

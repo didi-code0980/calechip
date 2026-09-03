@@ -12,6 +12,7 @@ import type {
   SignInInput,
   SignUpInput,
   SignUpOutcome,
+  UpdateEntryInput,
 } from "./index";
 import type {
   AllowedEmail,
@@ -26,6 +27,9 @@ import { ROSTER_LIMIT } from "../domain/types";
 import {
   FIXTURE_ADMIN,
   FIXTURE_ALLOWED_EMAIL,
+  FIXTURE_APPROVED_ENTRY,
+  FIXTURE_APPROVED_MEMBER,
+  FIXTURE_APPROVED_MEMBER_CREDENTIAL,
   FIXTURE_CONSUMED_EMAIL,
   FIXTURE_CREDENTIALS,
   FIXTURE_MEMBER,
@@ -66,12 +70,18 @@ const SEEDED_AT = FIXTURE_ADMIN.createdAt;
 // are shared module-level objects that every test and both implementations import. Holding the
 // references here would let one mock write change what `FIXTURE_MEMBER` means everywhere for the
 // rest of the process.
+//
+// CAL-02 adds FIXTURE_APPROVED_MEMBER, and it is the entry below rather than the roster that needs
+// it: AC-5 and AC-6 edit an APPROVED entry, nothing in the product can create one, and neither
+// FIXTURE_MEMBER nor FIXTURE_ADMIN can own it without breaking CAL-01's suite, which must pass
+// unedited (01-plan.md section 4.3).
 const members: Member[] = [
   { ...FIXTURE_ADMIN },
   { ...FIXTURE_MEMBER },
   { ...FIXTURE_SECOND_ADMIN },
   { ...FIXTURE_OTHER_TEAM_MEMBER },
   { ...FIXTURE_REMOVED_MEMBER },
+  { ...FIXTURE_APPROVED_MEMBER },
 ];
 
 // TEA-03, 02-design.md section 1.4. `createdAt` ascending, then `id` ascending. The id tiebreaker is
@@ -240,16 +250,21 @@ const refused = (
 // CAL-01. 01-plan.md section 5.
 // ---------------------------------------------------------------------------
 
-// The mock's entry table. It starts EMPTY, in both implementations: supabase/seed.sql seeds no
-// entry either, so a test that needs one creates it the way a person does. Seeding one here would
-// be a fixture with no seed row behind it, which is the drift the shared-fixture rule exists to
-// prevent.
+// The mock's entry table. CAL-01 left it EMPTY and said so: an entry a test needs, a test creates,
+// the way a person does.
+//
+// CAL-02 SEEDS EXACTLY ONE ROW, and it is the one no person can create. AC-5 and AC-6 edit an entry
+// that is already APPROVED, and `status` is withheld from both grants and from ADM-05, which does
+// not exist - so this row is a human's seed statement in supabase/seed.sql and the same literals
+// here, which is what the shared-fixture rule asks for rather than the drift it forbids. Every other
+// entry in every test is still created through the form.
 //
 // In memory only, and unlike the session this is NOT persisted across a page load. The seam banner
 // in App.tsx already tells every reader, on every screen, that the data lives in browser memory and
 // is lost on reload - a mock that quietly contradicted its own banner would be a worse lie than the
-// one it fixed. Nothing in plan section 2 requires an entry to survive a navigation.
-const entries: Entry[] = [];
+// one it fixed. Nothing in plan section 2 requires an entry to survive a navigation, and a reload
+// restores this row exactly as re-running the seed would.
+const entries: Entry[] = [{ ...FIXTURE_APPROVED_ENTRY }];
 
 let nextEntryId = 0;
 const newEntryId = (): string => `ee000000-0000-4000-8000-${String(++nextEntryId).padStart(12, "0")}`;
@@ -272,7 +287,9 @@ const PORTION_SLOTS: Record<EntryPortion, readonly number[]> = {
 
 // Inclusive on both ends, as `end_date` is (data-model.md). String comparison is correct for
 // `yyyy-MM-dd` and no Date is constructed - plan section 4.5.
-const datesIntersect = (a: Entry, b: CreateEntryInput): boolean =>
+// CAL-02 widens the second parameter from `CreateEntryInput` to the two fields it actually reads,
+// so `updateEntry` uses the same comparison rather than a second one that could drift from it.
+const datesIntersect = (a: Entry, b: { startDate: string; endDate: string }): boolean =>
   a.startDate <= b.endDate && b.startDate <= a.endDate;
 
 const slotsIntersect = (a: EntryPortion, b: EntryPortion): boolean =>
@@ -565,9 +582,15 @@ export const seam: DataSeam = {
   // It writes NOTHING (AC-11). `members` is not touched on any path through this function, on
   // success or on either refusal, which is the mock reproducing the fact that `public.member` has
   // no insert policy and that the admission trigger fires on confirmation rather than on sign-in.
+  //
+  // CAL-02 adds one account to the list it searches, and adds it here rather than to
+  // FIXTURE_CREDENTIALS itself so that a reader of TEA-05's array sees TEA-05's accounts. It has a
+  // seed row like every other row in it.
   async signIn(input: SignInInput): Promise<Result<Session>> {
     const email = fold(input.email);
-    const account = FIXTURE_CREDENTIALS.find((c) => fold(c.email) === email);
+    const account = [...FIXTURE_CREDENTIALS, FIXTURE_APPROVED_MEMBER_CREDENTIAL].find(
+      (c) => fold(c.email) === email,
+    );
 
     if (!account || account.password !== input.password) {
       return {
@@ -699,5 +722,140 @@ export const seam: DataSeam = {
           : b.startDate.localeCompare(a.startDate),
       )
       .map((e) => ({ ...e }));
+  },
+
+  // -------------------------------------------------------------------------
+  // CAL-02. 01-plan.md sections 4.1 and 5.
+  // -------------------------------------------------------------------------
+
+  // CAL-02 AC-1, AC-2, AC-5, AC-6, AC-7, AC-8, AC-9, AC-10, AC-11, AC-12.
+  //
+  // The refusals below reproduce the DATASTORE, not the screen: `entry_update_own`'s `using` clause,
+  // the update grant's column list, INV-01's exclusion constraint and INV-02's trigger. Three of the
+  // four are a SECOND IMPLEMENTATION of a mechanism that lives in PostgreSQL, and that is acceptable
+  // only because the mock is not a datastore anybody's data lives in - BUG-001 pinned the acceptance
+  // suite to this implementation, so this is what AC-5 to AC-9 are observed against.
+  //
+  // THE OWNER COMPARISON IS THE ONE THAT MATTERS. A mock that edited any id it was handed would pass
+  // seam parity, pass every happy path, and leave AC-9 untestable - 01-plan.md section 5 names this
+  // as the subtle shape of this ticket. The real mechanism is the policy; this is its stand-in.
+  //
+  // AC-8 and AC-10 need no branch here, exactly as CAL-01's `createEntry` needs none:
+  // `UpdateEntryInput` carries no `memberId`, no `status` and no `rejectionReason`, so there is no
+  // value a caller could pass that this function would have to refuse. The type is the affordance;
+  // the withheld column privileges are the control.
+  async updateEntry(entryId: string, input: UpdateEntryInput): Promise<Result<Entry>> {
+    // AC-11, refused before anything else, exactly as the real seam refuses it before the round trip.
+    if (input.endDate < input.startDate) {
+      return {
+        ok: false,
+        error: {
+          code: "invalid_date_range",
+          message: "Ngày kết thúc phải bằng hoặc sau ngày bắt đầu.",
+        },
+      };
+    }
+
+    const me = members.find((m) => m.id === currentMemberId && m.removedAt === null) ?? null;
+    if (!me) {
+      return {
+        ok: false,
+        error: { code: "entry_not_permitted", message: "Không sửa được đăng ký này." },
+      };
+    }
+
+    // AC-9, and the two cases are DELIBERATELY ONE ANSWER: "this entry is not yours" and "no such
+    // entry" are indistinguishable under the policy and must stay so here, or the mock becomes an
+    // oracle for which entry ids exist in the team while the real seam is not one.
+    const row = entries.find((e) => e.id === entryId && e.memberId === me.id) ?? null;
+    if (!row) {
+      return {
+        ok: false,
+        error: { code: "entry_not_permitted", message: "Không sửa được đăng ký này." },
+      };
+    }
+
+    // AC-7. INV-01 reached on UPDATE, which is what a constraint over (member_id, date_range,
+    // portion_slots) does without being told: the row being edited is EXCLUDED from the comparison,
+    // because an entry cannot clash with itself.
+    const clash = entries.some(
+      (e) =>
+        e.id !== row.id &&
+        e.memberId === me.id &&
+        datesIntersect(e, input) &&
+        slotsIntersect(e.portion, input.portion),
+    );
+    if (clash) {
+      return {
+        ok: false,
+        error: {
+          code: "overlapping_entry",
+          message:
+            "Bạn đã có một đăng ký trùng với khoảng ngày và buổi này. " +
+            "Hãy sửa đăng ký cũ hoặc chọn khoảng khác.",
+        },
+      };
+    }
+
+    // INV-02, reproduced. THIS IS A SECOND IMPLEMENTATION OF AN INVARIANT: the real mechanism is
+    // `public.entry_enforce_decision()` (ADR-016 clause (c), shipped by CAL-01), and the four lines
+    // it writes are the four written below.
+    //
+    // The comparison is against the row as it stands, which is the trigger's OLD, and the carve-out
+    // is data-model.md's: dates, type, portion and tentative are substantive, `note` alone is not
+    // (AC-6). It is ACTOR-BLIND, as the trigger is - an admin editing their own approved entry loses
+    // the approval exactly as a member does (01-plan.md Open questions item 3).
+    const substantive =
+      input.startDate !== row.startDate ||
+      input.endDate !== row.endDate ||
+      input.type !== row.type ||
+      input.portion !== row.portion ||
+      input.tentative !== row.tentative;
+
+    if (substantive && row.status !== "pending") {
+      row.status = "pending";
+      row.approvedBy = null;
+      row.approvedAt = null;
+      // Forced rather than chosen: `entry_rejection_reason_iff_rejected` refuses any transition off
+      // `rejected` that leaves the reason standing (INV-03).
+      row.rejectionReason = null;
+    }
+
+    row.type = input.type;
+    row.portion = input.portion;
+    row.startDate = input.startDate;
+    row.endDate = input.endDate;
+    row.tentative = input.tentative;
+    row.note = input.note;
+    // AC-12. In the real datastore this line is the trigger's `new.updated_at := now()`, added to
+    // `entry_enforce_decision()` by this ticket's migration - never the client's clock. Here there
+    // is no clock but this one, and the value is the mock's stand-in for the datastore's.
+    row.updatedAt = new Date().toISOString();
+
+    return { ok: true, value: { ...row } };
+  },
+
+  // CAL-02 AC-3, AC-4, AC-9. A HARD delete: the row leaves the array and its `approvedBy` leaves
+  // with it, and the dates it held are free for INV-01's next comparison (AC-4) because nothing
+  // remains to intersect.
+  //
+  // The owner comparison is the policy's `using (member_id = auth.uid())`, and zero rows removed is
+  // `entry_not_permitted` and not success - the shape the real implementation reads off the deleted
+  // representation it asks for.
+  async deleteEntry(entryId: string): Promise<Result<void>> {
+    const me = members.find((m) => m.id === currentMemberId && m.removedAt === null) ?? null;
+    const index = me
+      ? entries.findIndex((e) => e.id === entryId && e.memberId === me.id)
+      : -1;
+
+    if (index === -1) {
+      return {
+        ok: false,
+        error: { code: "entry_not_permitted", message: "Không xoá được đăng ký này." },
+      };
+    }
+
+    entries.splice(index, 1);
+    return { ok: true, value: undefined };
   },
 };

@@ -56,6 +56,30 @@ export interface CreateEntryInput {
   note: string | null;
 }
 
+/** CAL-02, 01-plan.md section 4.1.
+ *
+ *  The same six fields as `CreateEntryInput`, and a SEPARATE interface rather than an alias. Two
+ *  reasons: the two diverge the moment ADM-05 adds a decision path that updates `status` and creates
+ *  nothing, and an alias would make `createEntry` and `updateEntry` look interchangeable to a caller
+ *  who never reads the seam.
+ *
+ *  NO `memberId`, NO `status`, NO `rejectionReason`, NO `approvedBy`, NO `approvedAt`. Each is
+ *  withheld from the update grant (plan section 6), so a field here would be a field the datastore
+ *  refuses — and `memberId`'s absence is INV-07's control, not a convenience.
+ *
+ *  THIS IS A FULL REPLACEMENT OF THE SIX FIELDS, not a patch of the changed ones. A partial shape
+ *  would make "the caller did not send `note`" and "the caller cleared `note`" the same request,
+ *  and it would create a second place where "is this edit substantive" is answered — INV-02's
+ *  trigger compares OLD against NEW and is the only judge of that (plan section 8). */
+export interface UpdateEntryInput {
+  type: EntryType;
+  portion: EntryPortion;
+  startDate: string; // yyyy-MM-dd
+  endDate: string; // yyyy-MM-dd, inclusive
+  tentative: boolean;
+  note: string | null;
+}
+
 export interface SignUpOutcome {
   /** True when the project has Confirm email on and the address is not yet confirmed. */
   needsEmailConfirmation: boolean;
@@ -268,6 +292,51 @@ export interface DataSeam {
    * prevent.
    */
   listOwnEntries(): Promise<Entry[]>;
+
+  // -------------------------------------------------------------------------
+  // CAL-02 — edit or delete their own entry. 01-plan.md section 4.1.
+  // -------------------------------------------------------------------------
+
+  /**
+   * CAL-02 AC-1, AC-2, AC-5, AC-6, AC-7, AC-8, AC-10, AC-11, AC-12. Replaces the six substantive
+   * fields of ONE entry belonging to the caller.
+   *
+   * `entryId` is an ADDRESS and not a permission surface — the shape `removeMember(memberId)` uses.
+   * It names a row that `entry_update_own` then filters by owner.
+   *
+   * Expected failures are RETURNED, not thrown. Three codes, all three already in `FailureCode`
+   * from CAL-01 — this ticket adds none:
+   *   `overlapping_entry`   — INV-01's exclusion constraint, SQLSTATE 23P01, arriving as a 409
+   *   `invalid_date_range`  — end before start, refused in the seam BEFORE the round trip (AC-11)
+   *   `entry_not_permitted` — the policy filtered the row, or a withheld column privilege refused
+   *                           the statement (42501 / 403)
+   *
+   * RETURNS THE UPDATED ROW, AND ZERO ROWS IS A REFUSAL. Under row-level security a refused UPDATE
+   * is FILTERED rather than errored: it matches nothing and PostgREST answers 200 with an empty
+   * body (ADR-016 section 4, behaviour 2). An `!error` check would report AC-9's refusal as success.
+   *
+   * `entry_not_permitted` deliberately covers BOTH "this entry is not yours" and "no such entry".
+   * Under the policy the two are indistinguishable and must stay so — a distinct `not_found` would
+   * turn this function into an oracle for which entry ids exist in the team.
+   *
+   * INV-02 IS NOT IMPLEMENTED HERE AND MUST NOT BE. The reset of `status`, `approved_by`,
+   * `approved_at` and `rejection_reason` on a substantive edit is `entry_enforce_decision()`'s,
+   * shipped by CAL-01; this function observes it in the row it reads back.
+   */
+  updateEntry(entryId: string, input: UpdateEntryInput): Promise<Result<Entry>>;
+
+  /**
+   * CAL-02 AC-3, AC-4, AC-9. Hard-deletes ONE entry belonging to the caller. There is no soft
+   * delete: `entry` carries no such column and the feature row settles that the row and its
+   * `approved_by` disappear together.
+   *
+   * Returns `Result<void>`. **The real implementation must ask for the deleted representation and
+   * count it** — a DELETE the policy filters answers 200 with an empty body exactly as an UPDATE
+   * does, so zero rows deleted is `entry_not_permitted` and not success. This is AC-9's delete half
+   * and it is the one an implementation is most likely to get wrong, because a delete has no
+   * obvious return value to inspect.
+   */
+  deleteEntry(entryId: string): Promise<Result<void>>;
 }
 
 export type { DataSeam as Seam };
