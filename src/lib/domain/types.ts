@@ -30,6 +30,20 @@ export interface Session {
   accessToken: string;
 }
 
+/**
+ * TEA-05, 01-plan.md section 4.1. The three states a caller can be in, and they are three rather
+ * than two on purpose: "signed in" and "on a team" are different facts, and ADR-009 creates people
+ * who are the first without being the second.
+ *
+ * TEA-01's design reserved this union for the sign-in half rather than defining it with no consumer
+ * (02-design.md:160-163). This is that consumer: `useSession` resolves to exactly one of these and
+ * `App.tsx` routes on it.
+ */
+export type Membership =
+  | { state: "signed-out" }
+  | { state: "member-less"; user: AuthUser }
+  | { state: "member"; user: AuthUser; member: Member };
+
 /** Expected failures are returned, not thrown (.ai/standards/coding-standards.md, Error handling). */
 export type FailureCode =
   | "invalid_credentials"
@@ -41,6 +55,11 @@ export type FailureCode =
   | "already_allow_listed" // AC-5: the address is on the list, disregarding case
   | "already_consumed" // AC-7: the entry has admitted somebody and cannot be removed
   | "not_permitted" // AC-4, AC-8: the policy refused the write
+  // TEA-05, 01-plan.md section 4.1. AC-3: an account that exists and has not confirmed its address.
+  // Kept out of `invalid_credentials` deliberately — folding the two would send somebody to reset a
+  // password that is correct. Verified on disk: the code is in
+  // @supabase/auth-js@2.112.4/dist/module/lib/error-codes.d.ts.
+  | "email_not_confirmed"
   | "unknown";
 
 export interface Failure {

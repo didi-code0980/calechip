@@ -22,6 +22,7 @@ planned, sized, and safe to build** — the next stage for a row here is IN_PROG
 
 | # | Ticket | Title | Size | Depends on |
 |---|--------|-------|------|------------|
+| 1 | TEA-05 | Sign in, sign out, and the member-less landing state | M | TEA-01 |
 
 ## BACKLOG
 
@@ -33,21 +34,20 @@ Under the current gate placement a ticket sits here until it has been planned �
 | # | Ticket | Title | State | Blocked on |
 |---|--------|-------|-------|------------|
 | 1 | BUG-001 | The end-to-end suite does not pin which seam it drives | BACKLOG | — |
-| 2 | TEA-05 | Sign in, sign out, and the member-less landing state | BACKLOG | TEA-01 |
-| 3 | CAL-01 | Create an entry for themselves, over a range of dates | BACKLOG | TEA-01 |
-| 4 | CAL-02 | Edit or delete their own entry | BACKLOG | CAL-01 |
-| 5 | CAL-03 | Edit or delete another member's entry, as an admin | BACKLOG | CAL-02 |
-| 6 | CAL-04 | Month view — a day grid showing who is away and which days are overloaded | BACKLOG | CAL-01, TEA-03 |
-| 7 | CAL-05 | Week view — per-person detail for one week, with half-days, notes and who approved | BACKLOG | CAL-04 |
-| 8 | CAL-06 | Year view — one row per member across 365 days | BACKLOG | CAL-04, TEA-03 |
-| 9 | ADM-01 | Set the overload threshold | BACKLOG | TEA-01 |
-| 10 | CAL-07 | Overload warning shown while choosing dates, before the entry is saved | BACKLOG | CAL-01, CAL-04 |
-| 11 | ADM-02 | The national holiday calendar, seeded and readable | BACKLOG | TEA-01, ADM-01 |
-| 12 | ADM-03 | Add, edit or delete a holiday or swap day | BACKLOG | ADM-02 |
-| 13 | CAL-08 | Holidays and bridge days shown in the calendar views | BACKLOG | ADM-02, CAL-04, CAL-05, CAL-06 |
-| 14 | ADM-04 | The worklist of entries awaiting a decision | BACKLOG | CAL-01, TEA-03, ADM-01 |
-| 15 | ADM-05 | Approve or reject an entry, with a reason on rejection | BACKLOG | ADM-04, CAL-02 |
-| 16 | ADM-06 | Reject several entries at once, with one reason for the batch | BACKLOG | ADM-05 |
+| 2 | CAL-01 | Create an entry for themselves, over a range of dates | BACKLOG | TEA-01 |
+| 3 | CAL-02 | Edit or delete their own entry | BACKLOG | CAL-01 |
+| 4 | CAL-03 | Edit or delete another member's entry, as an admin | BACKLOG | CAL-02 |
+| 5 | CAL-04 | Month view — a day grid showing who is away and which days are overloaded | BACKLOG | CAL-01, TEA-03 |
+| 6 | CAL-05 | Week view — per-person detail for one week, with half-days, notes and who approved | BACKLOG | CAL-04 |
+| 7 | CAL-06 | Year view — one row per member across 365 days | BACKLOG | CAL-04, TEA-03 |
+| 8 | ADM-01 | Set the overload threshold | BACKLOG | TEA-01 |
+| 9 | CAL-07 | Overload warning shown while choosing dates, before the entry is saved | BACKLOG | CAL-01, CAL-04 |
+| 10 | ADM-02 | The national holiday calendar, seeded and readable | BACKLOG | TEA-01, ADM-01 |
+| 11 | ADM-03 | Add, edit or delete a holiday or swap day | BACKLOG | ADM-02 |
+| 12 | CAL-08 | Holidays and bridge days shown in the calendar views | BACKLOG | ADM-02, CAL-04, CAL-05, CAL-06 |
+| 13 | ADM-04 | The worklist of entries awaiting a decision | BACKLOG | CAL-01, TEA-03, ADM-01 |
+| 14 | ADM-05 | Approve or reject an entry, with a reason on rejection | BACKLOG | ADM-04, CAL-02 |
+| 15 | ADM-06 | Reject several entries at once, with one reason for the batch | BACKLOG | ADM-05 |
 
 **The operator placed TEA-05 at row 1 on 2026-09-01**, and the fourteen rows below it moved down one.
 That is a reordering, not the bookkeeping renumbering described below — a human moved a row relative
@@ -60,11 +60,13 @@ renumbered sixteen rows a human placed. `product` asserts nothing about its posi
 `depends_on` is `[TEA-01]`, which is `DONE`, so nothing blocks it; and no row above it names TEA-05
 in `Blocked on`, although each of them describes something a signed-in person does.
 
-**The rows above have been renumbered twice by `orchestrator` on 2026-09-01** — to 1–16 when
-TEA-03 left this table for `## READY`, and to 1–15 when TEA-04 did. `product`'s paragraph is left as
-written; read its *17* and *sixteen rows* as the positions at the time it was written. TEA-05 is now
-row 1, placed there by the operator on 2026-09-01. **The renumbering is
-bookkeeping and never a reordering** — no row has moved relative to another since a human placed it.
+**The rows above have been renumbered three times by `orchestrator` on 2026-09-01** — to 1–16 when
+TEA-03 left this table for `## READY`, to 1–15 when TEA-04 did, and to 1–15 again when TEA-05 did.
+`product`'s paragraph is left as written; read its *17* and *sixteen rows* as the positions at the
+time it was written. **TEA-05 is no longer in this table at all** — it passed the full Definition of
+Ready on 2026-09-01 and sits in `## READY`; the operator's paragraph two above records where they
+had placed it while it was still here. **The renumbering is bookkeeping and never a reordering** —
+no row has moved relative to another since a human placed it.
 
 **BUG-001 was appended at row 16 by `product` on 2026-09-01, and `product` asserts nothing about its
 position.** Same stance as the TEA-05 paragraph above: this file's header says a human reorders, so
@@ -90,6 +92,14 @@ file's own header reserves reordering to a human, and those two are only reconci
 (`git-conventions.md:44-49`) and that this ticket edits shipped test files. `branch` is set in
 `.ai/board/tickets/BUG-001/ticket.yaml`; the guard consequence is recorded there in §4 so that
 whoever runs `/implement` reads it rather than rediscovering it.
+
+**TEA-05 left this table for `## READY` on 2026-09-01, and BUG-001 is now row 1 of `## BACKLOG` by
+arithmetic rather than by anyone's decision.** The operator was asked which of the two to take first
+and chose TEA-05, knowing what the paragraph above says: until BUG-001 lands, no ticket can pass the
+QA gate. **TEA-05 will therefore reach QA and stop there** — `01-plan.md` §7 *Prerequisites this
+ticket does not own* says so in its own words, and `playwright.config.ts` is deliberately outside its
+`allowed_paths` so that the fix stays BUG-001's. That is the expected shape under ADR-021, which
+holds that tickets proceed and stop at the gate rather than being blocked ahead of it.
 
 ## BLOCKED
 

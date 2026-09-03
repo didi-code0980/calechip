@@ -294,3 +294,114 @@ values (
   '2026-08-31T00:00:00+00:00'
 )
 on conflict (id) do nothing;
+
+-- ---------------------------------------------------------------------------
+-- TEA-05. 01-plan.md section 5.1.
+--
+-- Three accounts, and the first of them is a REPAIR rather than an addition.
+--
+-- `FIXTURE_MEMBER` (55555555-…) is in src/lib/fixtures.ts and in the mock's seeded roster and has
+-- had NO ROW HERE since TEA-02 added it. So the only member-role account in the product was
+-- unseeded, and against a real project AC-10's *"and when their role is member, no such link is
+-- shown"* had nobody to be. The shared-fixture rule in .ai/standards/testing-standards.md exists for
+-- exactly this: a fixture that lives in one file drifts from the seed and produces failures that
+-- reproduce in CI and not locally.
+--
+-- `FIXTURE_MEMBER_LESS` (99999999-…) is AC-4's account: confirmed, and on no team. It is what
+-- sign-up produces for an address that was not on the allow-list — the trigger fires on
+-- `email_confirmed_at`, finds no entry for the address, and creates nothing. There is deliberately
+-- NO allow_email row for it and there must not be one, or the trigger would admit them and destroy
+-- the criterion. No `member` insert follows it, for the same reason.
+--
+-- `FIXTURE_UNCONFIRMED` (aaaaaaaa-…) is AC-3's account, and it is the one row here with
+-- `email_confirmed_at` NULL. `admit_allow_listed_member` returns early on a null value, so this
+-- account has no member row either; GoTrue refuses its sign-in with `email_not_confirmed` before
+-- membership is ever consulted. It is the state TEA-01's AC-7 creates on purpose — confirmation is
+-- on — so a person reaches it by following the instructions, and AC-3 is the product answering them
+-- honestly instead of telling them their password is wrong.
+--
+-- Every literal below also appears in src/lib/fixtures.ts, in FIXTURE_CREDENTIALS. Insert order is
+-- forced by the foreign keys: auth user -> member. The four token columns are set to '' for the
+-- reason MD-014 records and every seeded account above repeats — left NULL, GoTrue scans them into
+-- non-nullable Go strings and EVERY sign-in for the row fails with `500 Database error querying
+-- schema`. This is the ticket where that defect bites hardest, because sign-in is the whole subject.
+-- ---------------------------------------------------------------------------
+
+-- FIXTURE_MEMBER. The member-role half of AC-10, and the drift repaired.
+insert into auth.users (
+  instance_id, id, aud, role, email, encrypted_password, email_confirmed_at,
+  raw_app_meta_data, raw_user_meta_data, created_at, updated_at,
+  confirmation_token, recovery_token, email_change_token_new, email_change
+)
+values (
+  '00000000-0000-0000-0000-000000000000',
+  '55555555-5555-4555-8555-555555555555',
+  'authenticated',
+  'authenticated',
+  'thanh@example.com',
+  extensions.crypt('password123', extensions.gen_salt('bf')),
+  '2026-08-31T00:00:00+00:00',
+  '{"provider":"email","providers":["email"]}'::jsonb,
+  '{"display_name":"Thành viên","avatar":"🐱"}'::jsonb,
+  '2026-08-31T00:00:00+00:00',
+  '2026-08-31T00:00:00+00:00',
+  '', '', '', ''
+)
+on conflict (id) do nothing;
+
+insert into public.member (id, team_id, display_name, avatar, role, removed_at, created_at)
+values (
+  '55555555-5555-4555-8555-555555555555',
+  '11111111-1111-4111-8111-111111111111',
+  'Thành viên',
+  '🐱',
+  'member',
+  null,
+  '2026-08-31T00:00:00+00:00'
+)
+on conflict (id) do nothing;
+
+-- FIXTURE_MEMBER_LESS. AC-4. Confirmed, and NO member row follows on purpose.
+insert into auth.users (
+  instance_id, id, aud, role, email, encrypted_password, email_confirmed_at,
+  raw_app_meta_data, raw_user_meta_data, created_at, updated_at,
+  confirmation_token, recovery_token, email_change_token_new, email_change
+)
+values (
+  '00000000-0000-0000-0000-000000000000',
+  '99999999-9999-4999-8999-999999999999',
+  'authenticated',
+  'authenticated',
+  'hoa@example.com',
+  extensions.crypt('password123', extensions.gen_salt('bf')),
+  '2026-09-01T00:00:00+00:00',
+  '{"provider":"email","providers":["email"]}'::jsonb,
+  '{"display_name":"Chưa vào nhóm","avatar":"🐧"}'::jsonb,
+  '2026-09-01T00:00:00+00:00',
+  '2026-09-01T00:00:00+00:00',
+  '', '', '', ''
+)
+on conflict (id) do nothing;
+
+-- FIXTURE_UNCONFIRMED. AC-3. `email_confirmed_at` is NULL, so the trigger returns early and this
+-- account has no member row either. No member insert follows.
+insert into auth.users (
+  instance_id, id, aud, role, email, encrypted_password, email_confirmed_at,
+  raw_app_meta_data, raw_user_meta_data, created_at, updated_at,
+  confirmation_token, recovery_token, email_change_token_new, email_change
+)
+values (
+  '00000000-0000-0000-0000-000000000000',
+  'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
+  'authenticated',
+  'authenticated',
+  'khanh@example.com',
+  extensions.crypt('password123', extensions.gen_salt('bf')),
+  null,
+  '{"provider":"email","providers":["email"]}'::jsonb,
+  '{"display_name":"Chưa xác nhận","avatar":"🐸"}'::jsonb,
+  '2026-09-01T00:00:00+00:00',
+  '2026-09-01T00:00:00+00:00',
+  '', '', '', ''
+)
+on conflict (id) do nothing;

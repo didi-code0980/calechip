@@ -9,7 +9,13 @@ import {
   type User,
 } from "@supabase/supabase-js";
 import type { PostgrestError } from "@supabase/supabase-js";
-import type { AddAllowedEmailInput, DataSeam, SignUpInput, SignUpOutcome } from "./index";
+import type {
+  AddAllowedEmailInput,
+  DataSeam,
+  SignInInput,
+  SignUpInput,
+  SignUpOutcome,
+} from "./index";
 import type { AllowedEmail, Failure, Member, MemberRole, Result, Session } from "../domain/types";
 // TEA-03. A RUNTIME import, not a type one: AC-8 needs the value at the call. It comes from
 // ../domain/types and not from ./index, which imports this file back - 02-design.md section 1.1.
@@ -135,6 +141,15 @@ function toFailure(error: AuthError): Failure {
       return { code: "rate_limited", message: "Thử hơi nhiều lần rồi. Chờ một chút rồi thử lại." };
     case "invalid_credentials":
       return { code: "invalid_credentials", message: "Email hoặc mật khẩu không đúng." };
+    // TEA-05 AC-3. Deliberately NOT folded into the line above. GoTrue returns this code whatever
+    // this file renders, so the account-existence signal is already at the API and hiding it here
+    // would buy nothing while sending somebody to reset a password that is correct. What ADR-009
+    // protects — whether an address is on the ALLOW-LIST — stays hidden in both branches.
+    case "email_not_confirmed":
+      return {
+        code: "email_not_confirmed",
+        message: "Bạn cần mở liên kết xác nhận trong email trước khi đăng nhập.",
+      };
     default:
       return { code: "unknown", message: "Có lỗi không rõ. Thử lại giúp mình nhé." };
   }
@@ -416,5 +431,68 @@ export const seam: DataSeam = {
     }
 
     return { ok: true, value: toMember(row) };
+  },
+
+  // -------------------------------------------------------------------------
+  // TEA-05. 01-plan.md section 4.2.
+  // -------------------------------------------------------------------------
+
+  // TEA-05 AC-7, AC-8, AC-9. Null is a normal answer.
+  //
+  // An error is folded into the same null, the way `readCurrentMember` folds `auth.getUser()`'s
+  // AuthSessionMissingError: every error this call can produce means the stored session is unusable,
+  // and an unusable session is one nobody is holding. Reporting it as a session would render a
+  // signed-in screen to somebody the datastore will refuse on the next request (AC-8).
+  async getSession(): Promise<Session | null> {
+    const { data, error } = await client().auth.getSession();
+    if (error || !data.session) return null;
+    return toSession(data.session);
+  },
+
+  // TEA-05 AC-6, AC-7, AC-8.
+  //
+  // `persistSession` and `autoRefreshToken` are the client's DEFAULTS (verified on disk in
+  // @supabase/auth-js@2.112.4 GoTrueClient.js), so AC-7 and AC-8 are behaviour this subscribes to
+  // rather than behaviour it builds: the client persists the session across a reload, refreshes the
+  // token on its own, and emits with a null session when a refresh finally fails. A timer of our own
+  // here would be a SECOND source of truth about whether somebody is signed in.
+  //
+  // The event is dropped on purpose. It is a Supabase type and would be a datastore vocabulary above
+  // the seam; nothing above branches on it, only on whether a session came with it. 01-plan.md
+  // section 9 records what to do the day that stops being true.
+  onAuthStateChange(listener: (session: Session | null) => void): () => void {
+    const { data } = client().auth.onAuthStateChange((_event, session) => {
+      listener(session ? toSession(session) : null);
+    });
+    return () => data.subscription.unsubscribe();
+  },
+
+  // TEA-05 AC-1, AC-2, AC-3.
+  //
+  // ONE message for an unknown address and for a wrong password, and it is one message because
+  // GoTrue returns the single code `invalid_credentials` for both — `toFailure` maps it to a
+  // sentence that names neither field. Nothing here looks the address up first, so this function
+  // cannot become an address-enumeration oracle even by accident (AC-2).
+  //
+  // No write of any kind, here or anywhere in this ticket: `public.member` has no insert policy and
+  // its only writer is the `admit_allow_listed_member` trigger on auth.users, which fires on
+  // `email_confirmed_at` and not on sign-in (AC-11).
+  async signIn(input: SignInInput): Promise<Result<Session>> {
+    const { data, error } = await client().auth.signInWithPassword({
+      email: input.email,
+      password: input.password,
+    });
+
+    if (error) return { ok: false, error: toFailure(error) };
+    return { ok: true, value: toSession(data.session) };
+  },
+
+  // TEA-05 AC-6. A failure is RETURNED rather than thrown: on a shared machine a sign-out that
+  // silently did nothing is the failure this function exists to prevent, so the caller has to be
+  // able to see it.
+  async signOut(): Promise<Result<void>> {
+    const { error } = await client().auth.signOut();
+    if (error) return { ok: false, error: toFailure(error) };
+    return { ok: true, value: undefined };
   },
 };
