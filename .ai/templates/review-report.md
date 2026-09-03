@@ -1,5 +1,5 @@
 ---
-doc_version: 1
+doc_version: 2
 last_updated: 2026-09-01
 governed_by: [RULE-02, RULE-03, RULE-04, RULE-07, RULE-08, RULE-12, RULE-13, RULE-16]
 ---
@@ -39,11 +39,10 @@ next_state: QA
 | R2 | typecheck exit 0 | PASS / FAIL | command output |
 | R3 | lint exit 0 | PASS / FAIL | command output |
 | R4 | Nothing outside the data-access seam reaches the datastore directly (RULE-02) | PASS / FAIL | `file:line` |
-| R5 | Every contract item in design section 1 is implemented (RULE-04) | PASS / FAIL | `file:line` |
-| R6 | Permission gating matches design section 2 | PASS / FAIL | `file:line` |
-| R7 | Every selector in design section 6 exists in the markup | PASS / FAIL | `file:line` |
-| R8 | No invariant violated (RULE-07) | PASS / FAIL | `file:line` |
-| R9 | No dependency added without an ADR | PASS / FAIL | `file:line` |
+| R5 | Every contract item in plan section 4 is implemented (RULE-04) | PASS / FAIL | `file:line` |
+| R6 | Permission gating matches plan section 3 | PASS / FAIL | `file:line` |
+| R7 | No invariant violated (RULE-07) | PASS / FAIL | `file:line` |
+| R8 | No dependency added without an ADR | PASS / FAIL | `file:line` |
 
 ## R5 detail
 

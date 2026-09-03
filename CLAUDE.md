@@ -19,7 +19,7 @@ ordered checklist is in [SETUP.md](SETUP.md).
 |------|------------|
 | [.ai/00-charter.md](.ai/00-charter.md) | What this system is for and what it refuses to do |
 | [.ai/01-operating-model.md](.ai/01-operating-model.md) | Lifecycle, stage ownership, gates, chat topology, dispatch loop |
-| [.ai/registry/rules.md](.ai/registry/rules.md) | All 18 process rules, each stated exactly once |
+| [.ai/registry/rules.md](.ai/registry/rules.md) | All 18 process rules, each stated exactly once. 17 are in force — RULE-05 was retired with the QA stage (ADR-022) and its number is never reused |
 | [.ai/registry/invariants.md](.ai/registry/invariants.md) | The domain invariants |
 | [.ai/registry/features.md](.ai/registry/features.md) | The only valid source of feature IDs |
 | [.ai/standards/](.ai/standards/) | Tech stack, architecture, coding, data model, RBAC, testing, UI, git, sessions, integrations |

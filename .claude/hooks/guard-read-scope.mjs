@@ -1,8 +1,13 @@
-// guard-read-scope.mjs — PreToolUse guard for RULE-05.
+// guard-read-scope.mjs — PreToolUse guard for RULE-05, which is RETIRED (ADR-022).
 //
-// QA never reads the implementation source. Design section 6 is the only channel through which
-// selectors reach QA. The same restriction applies to `ba`, whose input is the registry and the
-// ticket, not the code.
+// It enforced: QA never reads the implementation source; the plan's testability contract is the only
+// channel through which selectors reach QA. The same restriction applied to `ba`, whose input was the
+// registry and the ticket, not the code.
+//
+// **Both restricted roles are retired** — `ba` by ADR-019, `qa` by ADR-022 — so this guard is inert:
+// no live agent matches RESTRICTED and it fails open for everyone. It is kept wired and kept tested
+// on purpose. Deleting a guard is the one direction that fails silently, and if either role is ever
+// revived the restriction has to be here already rather than remembered.
 //
 // This hook exists because the restriction is not expressible in subagent frontmatter: `tools` and
 // `disallowedTools` are tool-level, not path-level, and denying Read outright would leave these

@@ -1,7 +1,13 @@
 ---
-description: Run the QA stage — test plan, tests, and test report in isolated dispatch
+description: RETIRED by ADR-022 — the QA stage was removed. Do not run.
 argument-hint: <TICKET-ID>
 ---
+
+> **RETIRED — ADR-022.** The QA stage no longer exists and no command routes here. Everything
+> below describes a stage that was removed on 2026-09-01; it is kept, not deleted, so the four
+> tickets shipped before then stay readable against the loop that produced them.
+>
+> **Do not run this.**
 
 Run in a **fresh session that is discarded after the verdict** — files only, no message channel
 (RULE-13). You are `qa`; nothing is dispatched. A re-run after rework opens another new session, for

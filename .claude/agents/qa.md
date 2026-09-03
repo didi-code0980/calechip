@@ -1,6 +1,6 @@
 ---
 name: qa
-description: Use at QA to write 05-test-plan.md, 06-test-report.md and the tests — every AC mapped to a named test, run with the commands named in testing-standards.md. Use for /qa. Dispatch it in isolation with the story and design section 6 only; never give it the implementation or the review.
+description: RETIRED by ADR-022 — the QA stage was removed and this role left the loop. Do not dispatch. Kept so tickets shipped before 2026-09-01 stay readable.
 model: sonnet
 permissionMode: acceptEdits
 tools: Read, Grep, Glob, Bash, PowerShell, Edit, Write, TodoWrite, SendMessage
@@ -13,6 +13,11 @@ hooks:
         - type: command
           command: node "$CLAUDE_PROJECT_DIR/.claude/hooks/guard-read-scope.mjs"
 ---
+
+> **RETIRED — ADR-022.** The QA stage was removed on 2026-09-01 and this role left the loop with
+> it. `guard-read-scope.mjs` no longer restricts it, because there is nothing to restrict.
+>
+> **Do not dispatch this agent.**
 
 You test the specification, not the implementation.
 

@@ -1308,3 +1308,87 @@ Those follow ADR-019 and the established convention is that the Tech Lead migrat
 PLAN, one ticket at a time. The waiver comment was different because it was permissive.
 
 Audit 0 errors, 1 pre-existing advisory D8. No registry write.
+
+### 2026-09-01 — the operator wants to start CAL-01
+
+Instruction: *"tôi muốn bắt đầu làm CAL-01."* Read the board rather than answered from the previous
+run's picture. Routed it and did not run it — `/plan` is `tech-lead-design`'s, and a plan written by
+the steward has a provenance nobody can audit (`.claude/commands/thuki.md` §*Not this command's job*).
+
+**CAL-01 is plannable. All four Definition of Ready items produced at BACKLOG pass**, checked
+individually rather than assumed:
+
+- Item 1 — `feature_ids: [CAL-01]` resolves to `.ai/registry/features.md:87`.
+- Item 3 — `depends_on: [TEA-01]`, and `.ai/board/tickets/TEA-01/ticket.yaml` is `DONE`. **The
+  features row for TEA-01 says `IN_PROGRESS` and that is not a contradiction**: item 3 constrains
+  tickets, the row tracks the feature, and the feature stays `IN_PROGRESS` until TEA-05 ships as its
+  other half. Worth writing down because the two words disagree on the same screen.
+- Item 4 — `schema_delta` links ADR-005 (`ACCEPTED by the operator`) and ADR-011 (`ACCEPTED by
+  tech-lead-design`). Both read, both accepted.
+- Item 6 — one group, `CAL`.
+
+Items 2 and 5 belong to PLAN and are correctly empty.
+
+**Disagreed once on the ordering, then gave the command asked for.** ADR-021 §Consequences:99 says a
+ticket to fix the seam pinning goes ahead of CAL-01, and *"until it lands, no ticket can pass the QA
+gate, because Definition of Done item 3 requires the suites to exit 0."* Six of ten end-to-end tests
+fail on `main` (MD-021). So CAL-01 can be planned and implemented and will then stop at QA — which is
+the loop working, not failing, but it is a stall the operator should choose deliberately. They placed
+BUG-001 at backlog row 1 themselves yesterday, above TEA-05 and CAL-01.
+
+**Named the one decision owed before PLAN, rather than deciding it.** `features.md:87` carries
+`TODO(project)`: whether a member may create or edit an entry for a date in the past. Both answers
+are defensible, nothing in the brief, the charter or the registry says, and it changes the interface —
+one acceptance criterion once answered. Unanswered, the Tech Lead writes a placeholder and an
+`OPEN QUESTIONS` entry, and the hole lands in the acceptance criteria, which is the worst place for
+it. This is a product decision and recording one the operator did not make is forgery, not initiative.
+
+**Checked one hazard and found the model already covers it, so no debt row.** This session sits on
+`claude/serene-archimedes-2bhcf1`; `guard-allowed-paths.mjs:164` exits 0 on any non-`feat/` branch, so
+RULE-03 is inactive here. `.claude/commands/implement.md:52-53` already states exactly that, and
+`/plan` step 0 switches to `feat/CAL-01` from `origin/main` on a clean tree. Almost filed MD-022 for
+something two files already say.
+
+No registry write. No ADR. No ticket work. Tree was clean at the start of the run.
+### 2026-09-01 — ADR-022: the QA stage is removed
+
+Operator instruction: *"tôi muốn bỏ hẳn QA."* Disagreed in one sentence — REVIEW becomes the only
+gate and the three tickets shipped untested will never be retired — then executed it in full. This is
+a removal, not a waiver, so it is the dozen coordinated edits I said this morning were the right price
+for a permanent decision and the wrong one for a temporary switch. ADR-017 was a switch because the
+operator said *tạm thời*; nothing about this one is.
+
+**The strongest fact against the decision arrived after it was made, and it is in the ADR rather than
+in chat.** QA ran exactly once unimpeded, on TEA-05, and returned `gate: FAIL` — thirteen Playwright
+failures, the unpinned e2e seam, BUG-001. The stage being removed found a real defect on its only real
+run. The operator was told before confirming; recorded in ADR-022's Context so it does not scroll away.
+
+What went, beyond the stage: RULE-05 **retired** at v3, its number never reused, seventeen of eighteen
+rules now in force. RULE-13 to v2, wording only. Plan section 8 gone, nine sections to eight. Check R7
+gone, R8 and R9 renumbered. Definition of Done six items to five. Two gates in `ticket.yaml`, not
+three.
+
+**Item 3 of the Definition of Done stays, and that was a judgement call worth recording.** Consistency
+argued for removing it — with nobody writing tests, requiring the suites to pass is requiring someone
+else's tests to keep passing. It stays because those suites are the only remaining evidence anything
+works. And the consequence is named honestly in the ADR: `/ship` step 1 already carries the operator's
+own annotation *"Tạm ignore bước này"*, so that annotation is now the difference between the four
+commands being run and not being run at all.
+
+**Kept `guard-read-scope.mjs` wired and tested rather than deleting it.** Both roles it restricts are
+retired — `ba` by ADR-019, `qa` by this ADR — so it is inert. Changed the header to say so. Deleting a
+guard is the one direction that fails silently, and the extra-care table in `/thuki` names hooks for
+that reason: ran `node --test` in the same turn, **200 of 200 pass**.
+
+Nothing deleted anywhere: `/qa`, the `qa` agent and the two test templates carry retirement banners,
+because four tickets were produced against them and a repository that cannot read a shipped artifact
+against its own template has lost the ability to audit itself.
+
+**Left uncommitted, deliberately.** The tree holds TEA-05's source alongside twenty-four model files,
+and TEA-05 is at REWORK on a QA verdict that the stage removal does not clear — `/ship` item 3 still
+requires the suites to exit 0, and the e2e suite is red until BUG-001 lands. Switching branches to
+split them while a ticket sits mid-REWORK is the risk ADR-006 exists to prevent, and nobody asked for
+it. `/ship` classifies the two sets when TEA-05 is shippable.
+
+Audit 0 errors, 1 pre-existing advisory D8. Registry writes: ADR-022 new; `rules.md` retiring RULE-05
+and amending RULE-13, both from the instruction quoted above. CODEOWNERS review at merge.

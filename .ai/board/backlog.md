@@ -1,6 +1,6 @@
 ---
 doc_version: 1
-last_updated: 2026-09-01
+last_updated: 2026-09-03
 governed_by: [RULE-06, RULE-10]
 ---
 
@@ -22,7 +22,6 @@ planned, sized, and safe to build** — the next stage for a row here is IN_PROG
 
 | # | Ticket | Title | Size | Depends on |
 |---|--------|-------|------|------------|
-| 1 | TEA-05 | Sign in, sign out, and the member-less landing state | M | TEA-01 |
 
 ## BACKLOG
 
@@ -33,7 +32,7 @@ Under the current gate placement a ticket sits here until it has been planned �
 
 | # | Ticket | Title | State | Blocked on |
 |---|--------|-------|-------|------------|
-| 1 | BUG-001 | The end-to-end suite does not pin which seam it drives | BACKLOG | — |
+| 1 | TEA-05 | Sign in, sign out, and the member-less landing state | BACKLOG | TEA-01 |
 | 2 | CAL-01 | Create an entry for themselves, over a range of dates | BACKLOG | TEA-01 |
 | 3 | CAL-02 | Edit or delete their own entry | BACKLOG | CAL-01 |
 | 4 | CAL-03 | Edit or delete another member's entry, as an admin | BACKLOG | CAL-02 |
@@ -49,6 +48,10 @@ Under the current gate placement a ticket sits here until it has been planned �
 | 14 | ADM-05 | Approve or reject an entry, with a reason on rejection | BACKLOG | ADM-04, CAL-02 |
 | 15 | ADM-06 | Reject several entries at once, with one reason for the batch | BACKLOG | ADM-05 |
 
+**The rows above were renumbered to 1–15 by `orchestrator` at /ship on 2026-09-03**, when BUG-001
+left this table for `## ARCHIVE`. **Bookkeeping, not a reordering** — no row moved relative to
+another, and TEA-05 is row 1 again by the same operator placement recorded below, not by a new one.
+
 **The operator placed TEA-05 at row 1 on 2026-09-01**, and the fourteen rows below it moved down one.
 That is a reordering, not the bookkeeping renumbering described below — a human moved a row relative
 to the others, which is the only way that is allowed to happen.
@@ -60,13 +63,11 @@ renumbered sixteen rows a human placed. `product` asserts nothing about its posi
 `depends_on` is `[TEA-01]`, which is `DONE`, so nothing blocks it; and no row above it names TEA-05
 in `Blocked on`, although each of them describes something a signed-in person does.
 
-**The rows above have been renumbered three times by `orchestrator` on 2026-09-01** — to 1–16 when
-TEA-03 left this table for `## READY`, to 1–15 when TEA-04 did, and to 1–15 again when TEA-05 did.
-`product`'s paragraph is left as written; read its *17* and *sixteen rows* as the positions at the
-time it was written. **TEA-05 is no longer in this table at all** — it passed the full Definition of
-Ready on 2026-09-01 and sits in `## READY`; the operator's paragraph two above records where they
-had placed it while it was still here. **The renumbering is bookkeeping and never a reordering** —
-no row has moved relative to another since a human placed it.
+**The rows above have been renumbered twice by `orchestrator` on 2026-09-01** — to 1–16 when
+TEA-03 left this table for `## READY`, and to 1–15 when TEA-04 did. `product`'s paragraph is left as
+written; read its *17* and *sixteen rows* as the positions at the time it was written. TEA-05 is now
+row 1, placed there by the operator on 2026-09-01. **The renumbering is
+bookkeeping and never a reordering** — no row has moved relative to another since a human placed it.
 
 **BUG-001 was appended at row 16 by `product` on 2026-09-01, and `product` asserts nothing about its
 position.** Same stance as the TEA-05 paragraph above: this file's header says a human reorders, so
@@ -93,13 +94,16 @@ file's own header reserves reordering to a human, and those two are only reconci
 `.ai/board/tickets/BUG-001/ticket.yaml`; the guard consequence is recorded there in §4 so that
 whoever runs `/implement` reads it rather than rediscovering it.
 
-**TEA-05 left this table for `## READY` on 2026-09-01, and BUG-001 is now row 1 of `## BACKLOG` by
-arithmetic rather than by anyone's decision.** The operator was asked which of the two to take first
-and chose TEA-05, knowing what the paragraph above says: until BUG-001 lands, no ticket can pass the
-QA gate. **TEA-05 will therefore reach QA and stop there** — `01-plan.md` §7 *Prerequisites this
-ticket does not own* says so in its own words, and `playwright.config.ts` is deliberately outside its
-`allowed_paths` so that the fix stays BUG-001's. That is the expected shape under ADR-021, which
-holds that tickets proceed and stop at the gate rather than being blocked ahead of it.
+**CORRECTION, `orchestrator` at /ship on 2026-09-03 — the branch is `feat/BUG-001`, and the paragraph
+above is left standing rather than rewritten.** The operator superseded the 2026-09-01 choice on
+2026-09-03, after `tech-lead-design` measured a fact that was not available at triage:
+`scripts/check-allowed-paths.mjs:90` resolves a `feat/` branch to its ticket and finds
+`.ai/board/tickets/BUG-001/ticket.yaml`, so the option triage had presented as *unavailable* is the
+only one under which RULE-03 is enforced in CI — a `bugfix/` branch exits 0 saying "nothing to
+check" (`:85-87`). So the guard consequence the paragraph above warns about **does not apply**:
+`allowed_paths` is checked mechanically on this branch, and `/ship` step 6 is where that check runs
+against the committed diff. The full record, including what the new name costs against
+`git-conventions.md:36`, is the §4 CORRECTION block at the end of that `ticket.yaml`.
 
 ## BLOCKED
 
@@ -116,6 +120,7 @@ Tickets that cannot proceed until a human decides something. Name the decision, 
 | 2 | TEA-02 | Manage the allow-list | 2026-09-01 | [#13](https://github.com/didi-code0980/calechip/pull/13) |
 | 3 | TEA-03 | Team member list | 2026-09-01 | [#17](https://github.com/didi-code0980/calechip/pull/17) |
 | 4 | TEA-04 | Remove a member, and promote a member to admin | 2026-09-01 | [#20](https://github.com/didi-code0980/calechip/pull/20) |
+| 5 | BUG-001 | The end-to-end suite does not pin which seam it drives | 2026-09-03 | [#27](https://github.com/didi-code0980/calechip/pull/27); board files in [#28](https://github.com/didi-code0980/calechip/pull/28) |
 
 **TEA-01 shipped with its QA gate passed by operator waiver.** Ten of twelve acceptance criteria
 have no test; `tests/permission-model.test.ts` does not exist because no database was provisioned.

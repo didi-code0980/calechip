@@ -55,7 +55,7 @@ call is not.
 
 Each line is run in the session named. The orchestrator prints the next line after each gate.
 
-`BACKLOG -> PLAN -> [DoR] -> READY -> IN_PROGRESS -> REVIEW -> QA -> DONE`
+`BACKLOG -> PLAN -> [DoR] -> READY -> IN_PROGRESS -> REVIEW -> DONE`
 
 | # | Command | Session | Produces |
 |---|---|---|---|
