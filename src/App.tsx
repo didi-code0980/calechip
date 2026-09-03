@@ -10,6 +10,7 @@ import { useSession } from "./hooks/useSession";
 import AllowList from "./routes/AllowList";
 import Home from "./routes/Home";
 import MemberList from "./routes/MemberList";
+import NewEntry from "./routes/NewEntry";
 import NotOnATeam from "./routes/NotOnATeam";
 import SignIn from "./routes/SignIn";
 import SignUp from "./routes/SignUp";
@@ -101,6 +102,21 @@ export default function App() {
             {/* TEA-03. Reachable by address only, and not guarded, for the same two reasons: it
                 renders `member-list-not-on-a-team` when getCurrentMember() returns null. */}
             <Route path="/members" element={<MemberList />} />
+
+            {/* CAL-01. GUARDED, unlike the two above, and the difference is not a change of mind:
+                an entry needs a member row to belong to (INV-07, `member_id` not-null against
+                `member(id)`), so a caller with no member row has nothing this screen could create.
+                /allow-list and /members each render a refusal of their own for that case; this one
+                would render a form whose every submission is refused by the policy.
+
+                A caller who is signed out or member-less lands on `/`, which then resolves by
+                membership — the sign-in screen or the member-less screen. The guard is an affordance
+                either way: `entry_insert_own` is the control and it refuses the write whoever
+                reaches it. */}
+            <Route
+              path="/entries/new"
+              element={membership.state === "member" ? <NewEntry /> : <Navigate to="/" replace />}
+            />
 
             {/* AC-9. Every address the application does not route lands on `/`, which then resolves
                 by membership — so a caller with no session reaches the sign-in screen. This replaced

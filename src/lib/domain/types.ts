@@ -60,6 +60,13 @@ export type FailureCode =
   // password that is correct. Verified on disk: the code is in
   // @supabase/auth-js@2.112.4/dist/module/lib/error-codes.d.ts.
   | "email_not_confirmed"
+  // CAL-01, 01-plan.md section 4.1. The three expected failures of creating an entry.
+  | "overlapping_entry" // AC-7: INV-01's exclusion constraint refused the write (SQLSTATE 23P01)
+  | "invalid_date_range" // AC-9: end_date is before start_date
+  // AC-10, AC-11: the insert policy or a withheld column privilege refused the write. NOT
+  // `not_permitted`: that code's message is written about the allow-list, and one code carrying two
+  // sentences is how a wrong message reaches a screen.
+  | "entry_not_permitted"
   | "unknown";
 
 export interface Failure {
@@ -128,3 +135,60 @@ export const AVATAR_CHOICES: readonly string[] = [
  * turns out to be lower, the fix is this one number.
  */
 export const ROSTER_LIMIT = 500;
+
+// ---------------------------------------------------------------------------
+// CAL-01. 01-plan.md section 4.1.
+//
+// Every name below is .ai/standards/data-model.md's or ADR-011's, in the application casing this
+// file already uses. Nothing here is invented (RULE-04).
+// ---------------------------------------------------------------------------
+
+/** `entry_type` in the datastore. A WFH member IS working - glossary.md calls this the single most
+ *  costly confusion in the domain. */
+export type EntryType = "pto" | "wfh";
+
+/** `entry_portion`. One value per entry, applying to every date in the range (INV-06). */
+export type EntryPortion = "full" | "am" | "pm";
+
+/** `entry_status`. Independent of `tentative` - glossary.md keeps the two axes apart deliberately. */
+export type EntryStatus = "pending" | "approved" | "rejected";
+
+/**
+ * A row of `public.entry`, in application casing.
+ *
+ * `date_range` and `portion_slots` are DELIBERATELY ABSENT. ADR-011 creates them as stored generated
+ * columns and says they are never written; they exist for the exclusion constraint and for
+ * PostgREST's `date_range=ov.…` filter, both of which live inside the seam. Surfacing them here
+ * would put a PostgreSQL range literal above the seam, which architecture.md's "Layers" forbids, and
+ * would put a second representation of the same three fields in reach of a component - where
+ * ADR-011's canonicalisation footgun (a one-day entry reads back as `[d, d+1)`) would be read as
+ * "the entry ends the following day". The seam may name them; nothing above it may.
+ */
+export interface Entry {
+  id: string;
+  memberId: string;
+  type: EntryType;
+  portion: EntryPortion;
+  startDate: string; // yyyy-MM-dd. Never a Date - see 01-plan.md section 4.5.
+  endDate: string; // yyyy-MM-dd, INCLUSIVE. Equal to startDate for a single day.
+  tentative: boolean;
+  status: EntryStatus;
+  rejectionReason: string | null;
+  note: string | null;
+  approvedBy: string | null;
+  approvedAt: string | null; // ISO 8601
+  createdAt: string; // ISO 8601
+  updatedAt: string; // ISO 8601
+}
+
+/**
+ * The explicit row limit `listOwnEntries` asks for, and the count at which it refuses to answer.
+ * Same shape and same reasoning as ROSTER_LIMIT (TEA-03): it must sit BELOW the datastore's own
+ * `max-rows` cap so that this assertion fires before the server's silent one does. A truncated read
+ * here is a member being told an entry they created does not exist.
+ *
+ * TODO(verify): the datastore's default `max-rows`. The same unknown is already carried by CAL-04,
+ * ADM-02 and ADM-04 in .ai/registry/features.md. If it turns out lower than this, the fix is this
+ * one number.
+ */
+export const OWN_ENTRY_LIMIT = 500;

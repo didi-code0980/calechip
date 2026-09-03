@@ -75,6 +75,20 @@ export default function Home({ member, signOut }: HomeProps) {
         </p>
       ) : null}
 
+      {/* CAL-01. The second link on this screen, and it is shown to BOTH roles because the
+          permission is the same for both: `Create an entry for themselves` is checked for a member
+          and for an admin in .ai/standards/rbac-and-security.md, and `entry_insert_own` carries no
+          role predicate at all. An admin has no more power here than a member.
+
+          TEA-05's comment above said "the next item added here inherits that criterion in full", and
+          this is that item. It is one link, for one capability the caller certainly has, and it is
+          still not a navigation menu — TEA-02's AC-9 in its real form is TEA-02's to write. */}
+      <p className="mt-2">
+        <Link data-testid="home-new-entry-link" to="/entries/new" className="text-sm underline">
+          Đăng ký nghỉ hoặc làm ở nhà
+        </Link>
+      </p>
+
       <button
         data-testid="home-sign-out"
         type="button"
