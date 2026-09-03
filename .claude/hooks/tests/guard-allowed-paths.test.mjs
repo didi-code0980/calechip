@@ -99,3 +99,41 @@ test("fails closed on unparseable stdin", () => {
   const root = makeProject({ [TICKET_FILE]: TICKET() }, "feat/TST-01");
   assert.equal(runHookRaw(HOOK, root, "{oops").code, 2);
 });
+
+// --- the ship-owned set, ADR-023 -----------------------------------------------------------------
+//
+// These mirror the CI tests in scripts/tests/check-allowed-paths.test.mjs. The two mechanisms carry
+// separate copies of the same three names — they share no library on purpose — so they need separate
+// proof that the copies still agree, and separate proof that neither has widened into a prefix.
+
+test("the ship-owned set is writable on a ticket branch", () => {
+  const root = makeProject(
+    { [TICKET_FILE]: TICKET({ allowed_paths: '["src/app/orders/**"]' }) },
+    "feat/TST-01"
+  );
+  for (const p of [".ai/board/backlog.md", ".ai/board/metrics.md", ".ai/registry/features.md"]) {
+    assert.equal(runHook(HOOK, root, write(p)).code, 0, `${p} is ship-owned (ADR-023)`);
+  }
+});
+
+test("the ship-owned set is writable even while allowed_paths is empty", () => {
+  const root = makeProject({ [TICKET_FILE]: TICKET() }, "feat/TST-01");
+  assert.equal(runHook(HOOK, root, write(".ai/board/metrics.md")).code, 0);
+});
+
+test("the exemption is three names, not the .ai/board/ prefix", () => {
+  const root = makeProject({ [TICKET_FILE]: TICKET({ allowed_paths: '["src/**"]' }) }, "feat/TST-01");
+  const r = runHook(HOOK, root, write(".ai/board/model-debt.md"));
+  assert.equal(r.code, 2);
+  assert.match(r.stderr, /RULE-03/);
+});
+
+test("the exemption is three names, not the .ai/registry/ prefix", () => {
+  const root = makeProject({ [TICKET_FILE]: TICKET({ allowed_paths: '["src/**"]' }) }, "feat/TST-01");
+  assert.equal(runHook(HOOK, root, write(".ai/registry/rules.md")).code, 2);
+});
+
+test("a ship-owned basename nested somewhere else is still blocked", () => {
+  const root = makeProject({ [TICKET_FILE]: TICKET({ allowed_paths: '["src/**"]' }) }, "feat/TST-01");
+  assert.equal(runHook(HOOK, root, write("docs/.ai/board/metrics.md")).code, 2);
+});

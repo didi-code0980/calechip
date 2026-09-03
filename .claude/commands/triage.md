@@ -77,8 +77,8 @@ is never the role that granted the ID it writes against. That separation survive
 last one in the front half of the loop, which is why it is stated rather than assumed.
 
 The operator approves at merge, under CODEOWNERS — which is where RULE-01 says enforcement lives.
-Nothing here is committed; the row travels with the ticket and lands on the `ops/` branch at
-`/ship`.
+Nothing here is committed; the row travels with the ticket and lands on the ticket branch at
+`/ship`, in the same pull request as the ship — ADR-023.
 
 Policy lives in `.ai/01-operating-model.md`.
 

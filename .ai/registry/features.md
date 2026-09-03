@@ -41,8 +41,9 @@ planned it.
 `Status` — `PLANNED`, `IN_PROGRESS`, `DONE`, or `DEFERRED`. **`DONE` means merged into `main`, not
 gated.** A feature whose four gates have all passed but whose pull request is still open is
 `IN_PROGRESS`; the registry records what the product contains, and an unmerged branch is not in the
-product. Written by `orchestrator` at `/ship` step 3, on the `ops/` branch of that ship — never on the
-ticket branch, which `scripts/check-allowed-paths.mjs` would fail.
+product. Written by `orchestrator` at `/ship` step 3, on the ticket branch — ADR-023 made this file one of the
+three ship-owned paths that `scripts/check-allowed-paths.mjs` exempts by name, so the row and the
+ship it records land in one pull request. *Before ADR-023 it went on a separate `ops/` branch.*
 `Invariants touched` — IDs from `.ai/registry/invariants.md`, or `[]`.
 `Notes` — free text. A marker here means the feature is known-incomplete and needs a human decision
 before it can reach READY.

@@ -126,22 +126,39 @@ document does not constrain it.
 
 ### What it does not decide
 
-**The branch boundary, because CI is branch-scoped and not commit-scoped.**
+**What may go on the branch at all, because CI is branch-scoped and not commit-scoped.**
 `scripts/check-allowed-paths.mjs` computes its diff as `origin/main...HEAD` — the whole branch.
-Splitting mixed work into separate *commits* on `feat/<TICKET-ID>` therefore buys nothing: the
+Splitting out-of-scope work into separate *commits* on `feat/<TICKET-ID>` therefore buys nothing: the
 `allowed-paths` check still sees every file on the branch, fails, and branch protection then blocks
-the very merge a human is meant to perform. The split has to be by branch.
+the very merge a human is meant to perform.
+
+**A ship is one branch and one pull request** —
+[ADR-023](../registry/decisions/ADR-023-one-pull-request-per-ship.md).
 
 | Set | Contents | Branch | Result |
 |---|---|---|---|
-| Ticket | paths matching `allowed_paths`, plus `.ai/board/tickets/<TICKET-ID>/**` | `feat/<TICKET-ID>` | the ticket's pull request |
-| Everything else | model, registry, standards, hooks, scripts, tooling | `ops/<slug>` cut from `main` | a second pull request, reviewed on its own |
+| Ship | paths matching `allowed_paths`, plus `.ai/board/tickets/<TICKET-ID>/**`, plus the ship-owned set | `feat/<TICKET-ID>` | the ticket's pull request — the only one |
+| Everything else | model, standards, hooks, scripts, tooling, any registry path but `features.md` | not committed by `/ship`; left dirty | the session that wrote it lands it on `ops/<slug>` |
 
-The `ops/` branch is not a lesser pull request, and committing a CODEOWNERS path is not a rule being
-bent. `.github/CODEOWNERS` requires human review on the registry, the standards, `.claude/`,
-`.github/` and `.mcp.json`. That is what makes recording such a change safe to automate: the
-orchestrator records it, a human still approves it. **Recording is not authoring.** RULE-01 governs
-who *writes* the registry, and that is untouched by this exception.
+**The ship-owned set is exactly three files** — `.ai/board/backlog.md`, `.ai/board/metrics.md`,
+`.ai/registry/features.md`. They are what `/ship` step 3 writes, they sit outside every ticket's
+`allowed_paths`, and `scripts/check-allowed-paths.mjs` exempts them **by name** so they can ride on
+the ticket branch. It is three names and not a category: `.ai/board/` is not exempt and
+`.ai/registry/` is not exempt, and a fourth name is an edit to that array plus an ADR.
+
+*Before ADR-023 those three went to a second `ops/` branch and a second pull request. The cost was
+demonstrated rather than argued: PR #27 and PR #28 had to be merged together, or the board claimed a
+ship that `main` did not carry.*
+
+Committing `features.md` on the ticket branch is not a rule being bent. `.github/CODEOWNERS` requires
+human review on the registry, the standards, `.claude/`, `.github/` and `.mcp.json`. That is what
+makes recording such a change safe to automate: the orchestrator records it, a human still approves
+it. **Recording is not authoring.** RULE-01 governs who *writes* the registry, and that is untouched
+by this exception.
+
+**`ops/<slug>` is unchanged as a branch name, and it is no longer `/ship`'s to cut.** Model, hook,
+standards and tooling work goes there in the session that produced it — `/thuki` for the model — and
+is never folded into a ticket's ship.
 
 Two limits are not the orchestrator's to weigh:
 
@@ -182,10 +199,12 @@ Design contract items 1-4. Files listed in 03-impl-log.md.
 The loop's terminal output is an **open pull request**, never a merge. Per RULE-09, merges are
 permanently human.
 
-`/ship` runs the build, marks the ticket DONE, and opens the PR with `gh pr create`. `gh pr merge` is
-in the settings deny list, so an agent that tries to merge is blocked rather than trusted not to.
+`/ship` runs the build, marks the ticket DONE, and opens **one** PR with `gh pr create` — ADR-023.
+`gh pr merge` is in the settings deny list, so an agent that tries to merge is blocked rather than
+trusted not to.
 
-The PR body links the ticket folder and lists the four gate timestamps.
+The PR body links the ticket folder, lists the gate timestamps, and names `.ai/registry/features.md`
+as a CODEOWNERS path the branch carries.
 
 ## Protected operations
 

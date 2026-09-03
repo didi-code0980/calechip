@@ -56,7 +56,7 @@ real, so that a rule with no mechanism is visible as such rather than assumed to
 |------|-----------|
 | RULE-01 | `.github/CODEOWNERS` review on the pull request. **The hook is unwired** — see ADR-004. Feature and glossary rows are written by agents and reviewed at merge — ADR-007 |
 | RULE-02 | `no-restricted-imports` in `eslint.config.js`, scoped to `src/**` and exempting `src/lib/data/`, run by the `lint` command. Plus review check R4 and the `supabase-client-in-seam` boundary read by D12. **Verified firing**: a probe importing the client from outside the seam is reported as an error |
-| RULE-03 | Review check R1, plus `scripts/check-allowed-paths.mjs` in CI. **The hook is unwired** — see ADR-004 |
+| RULE-03 | Review check R1, plus `scripts/check-allowed-paths.mjs` in CI. **The hook is unwired** — see ADR-004. The CI check exempts the ticket folder and the three ship-owned paths — ADR-023; R1 has no exemptions |
 | RULE-04 | Review check R5 |
 | RULE-05 | **Retired — ADR-022.** `guard-read-scope.mjs` no longer restricts any live role; the two it named, `ba` and `qa`, are both retired |
 | RULE-06 | Orchestrator dispatch loop; `rework_count` in `ticket.yaml` |
