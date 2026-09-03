@@ -73,6 +73,31 @@ next font change breaks the real names of real people and every test still passe
 The line is by role, not by file: **what the product says is English; what a user typed is whatever
 they typed.**
 
+### What enforces this
+
+**A lint rule, in `eslint.config.js`, beside the one that carries RULE-02.** Same reasoning: the
+paragraphs above are unenforceable as prose, and a convention nobody checks is a coincidence that
+holds until the first person who has not read this file. `no-restricted-syntax` reports a Vietnamese
+diacritic in a string literal, a template literal or JSX text anywhere under `src/`. It needs no
+plugin and no dependency, so R8 is untouched. It reaches every stage through machinery that already
+exists — `pnpm lint` is R3 in the review checklist and Definition of Done item 3 at `/ship`.
+
+**The seam is not exempt, unlike RULE-02's rule.** The `message` half of every `{ code, message }` it
+returns is rendered to a user, so it is interface copy wherever it lives — as § Language says above.
+
+**It is a ratchet.** The twelve files that predate this section are listed by name in `COPY_DEBT` and
+exempted; OPS-001 and OPS-002 empty that list, each removing the files it translates. The rule is
+therefore in force for new work from the day the section landed, rather than from the day the sweep
+finishes — which is the difference between protecting the twelve features still unbuilt and not
+protecting them. **The list only ever shrinks.** Adding a file to it is how a ratchet turns into a
+suppression list.
+
+**The exception above is protected by a test, not by the rule.** `tests/ui-language.test.ts` asserts
+that `src/lib/fixtures.ts` and `supabase/seed.sql` **do** contain diacritics. A lint rule reports what
+is present and is silent about what is missing, so nothing in the rule would notice the
+find-and-replace this section predicts two paragraphs above. The same test fails when a file in
+`COPY_DEBT` no longer has copy to translate, so the list cannot claim a debt that is already paid.
+
 ## Selectors
 
 The selector attribute agreed in `.ai/standards/testing-standards.md` is not a testing detail — it is
