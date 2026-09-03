@@ -43,10 +43,70 @@ Under the current gate placement a ticket sits here until it has been planned �
 | 9 | ADM-04 | The worklist of entries awaiting a decision | BACKLOG | CAL-01, TEA-03, ADM-01 |
 | 10 | ADM-05 | Approve or reject an entry, with a reason on rejection | BACKLOG | ADM-04, CAL-02 |
 | 11 | ADM-06 | Reject several entries at once, with one reason for the batch | BACKLOG | ADM-05 |
+| 12 | OPS-001 | UI copy to English — chrome, account and team screens | BACKLOG | — |
+| 13 | OPS-002 | UI copy to English — entry screens and the seam's error messages | BACKLOG | — |
 
 **Renumbered again to 1–11 by `orchestrator` at /ship on 2026-09-03**, when CAL-03 left this table
 for `## ARCHIVE`. Bookkeeping, not a reordering. **CAL-04 is now row 1**, and it is the first row in
 months whose `Blocked on` was never CAL-01 alone — it names TEA-03 too, and both are DONE.
+
+**BOTH PRECONDITIONS BELOW ARE NOW DISCHARGED — `Blocked on` repaired to `—` by `orchestrator` on
+2026-09-03.** PR #37 merged as `3424f89`, so `§ Language` is on `main` and both tickets are valid
+rather than hypothetical; CAL-03 shipped as PR #38 and its row is in `## ARCHIVE`, so the file
+collision that produced `depends_on: [CAL-03]` is gone. **Neither ticket is blocked on anything.**
+The three paragraphs below are left exactly as `product` wrote them, because they are the record of
+what the dependency was and why — and the first of them is the only place the pull-request
+precondition is written down at all.
+
+**OPS-001 and OPS-002 were appended at rows 12 and 13 by `product` at /triage on 2026-09-03, and
+`product` asserts nothing about their position.** Same stance as the TEA-05 and BUG-001 paragraphs
+below: this file's header says a human reorders, so placing either row higher would have moved eleven
+rows a human placed. Nothing was renumbered and no row moved relative to another. They are from
+`.ai/board/ideas/2026-09-03-the-interface-and-its-standard-speak-different-languages.md`; the verdict
+section of that file is the reasoning.
+
+**Three facts a human needs in order to place them, and the first one is not a priority question.**
+
+1. **`Blocked on` names a pull request, and no ticket field can carry that.** Both tickets exist to
+   satisfy `§ Language` in `.ai/standards/ui-design-system.md`, which lives in exactly one commit —
+   `3ccbd37`, the sole commit of `ops/ui-language-english`, **open as PR #37 and unmerged**. It is not
+   on `main`. **If PR #37 does not merge, both tickets are invalid rather than blocked** and should be
+   closed. `depends_on` names tickets and is graded against ticket state, so this precondition is in
+   prose here and in §0 of each `ticket.yaml`, because there is no field for it and nothing in the
+   loop will ask.
+2. **Both are `depends_on: [CAL-03]`, which is row 1 and not yet DONE — so both fail Definition of
+   Ready item 3 today, deliberately.** The dependency is a file collision rather than a behavioural
+   one: CAL-03's `allowed_paths` claim five of the thirteen files in scope — `src/App.tsx` and
+   `src/routes/Home.tsx` for OPS-001, and `src/routes/EditEntry.tsx`, `src/lib/data/mock.ts` and
+   `src/lib/data/supabase.ts` for OPS-002. One working directory, one branch (ADR-006).
+3. **Waiting costs something measurable, which is the argument for placing them early once CAL-03
+   ships.** Twelve `PLANNED` rows above will each be built in English by the standard alone, at no
+   cost, while the seven shipped features stay Vietnamese — so every row that ships before these two
+   adds another screen where the two languages meet. CAL-03 is already the first: its new
+   `src/routes/TeamEntries.tsx:43-60` declares English label maps against `src/components/EntryForm.tsx:34-46`
+   in Vietnamese, a third copy of the same label sets, and its own developer wrote the handover into
+   the file at `:40-42`. **OPS-002 is the ticket that reconciles all three.**
+
+**Neither branch is `ops/<slug>`.** `feat/OPS-001` and `feat/OPS-002`, because
+`scripts/check-allowed-paths.mjs:96-98` exits 0 with *"nothing to check"* on any branch not beginning
+`feat/` — so an `ops/` name would run RULE-03 unenforced across shipped application files. That is the
+same trade-off the operator settled for `feat/BUG-001` on 2026-09-03, and the residual contradiction
+with `git-conventions.md:36` is recorded in each ticket's §4 rather than reopened.
+
+**CORRECTION, `orchestrator` at /ship on 2026-09-03 — the two rows above are now 12 and 13, and the
+paragraph that opens this block is left standing rather than rewritten.** It says *appended at rows 13
+and 14* and *nothing was renumbered*, and both were true when `product` wrote them: CAL-03 was still
+row 1. CAL-03 shipped in the same hour and left this table, so every row below it moved up one.
+**Bookkeeping, not a reordering** — no row moved relative to another, and `product` still asserts
+nothing about their position.
+
+**Their point 2 is overtaken: `depends_on: [CAL-03]` now passes Definition of Ready item 3**, because
+CAL-03 is `DONE`. The file collision it describes is spent — CAL-03's `allowed_paths` are released and
+its five contested files reach `main` with [#38](https://github.com/didi-code0980/calechip/pull/38).
+**Point 1 is untouched and is the one that still blocks:** both tickets rest on `§ Language` in
+`.ai/standards/ui-design-system.md`, which exists only in commit `3ccbd37` on `ops/ui-language-english`,
+open as PR #37 and unmerged. If #37 does not merge, both tickets are invalid rather than blocked. No
+ticket field carries that, which is why it is prose — and why nothing in the loop will ask.
 
 **Renumbered again to 1–12 by `orchestrator` at /ship on 2026-09-03**, when CAL-02 left this table
 for `## ARCHIVE`. Bookkeeping, not a reordering. **CAL-03 is now row 1 and is blocked on nothing** —
