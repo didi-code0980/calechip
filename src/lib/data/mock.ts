@@ -5,14 +5,21 @@
 // allow-listed address gets a member row and consumes the entry, an unlisted or already-consumed one
 // succeeds and creates nothing. A mock that always created a member would make every component test
 // pass against a broken trigger, which is the one failure a mock seam can cause and not catch.
-import type { AddAllowedEmailInput, DataSeam, SignUpInput, SignUpOutcome } from "./index";
-import type { AllowedEmail, Member, Result } from "../domain/types";
+import type {
+  AddAllowedEmailInput,
+  DataSeam,
+  SignInInput,
+  SignUpInput,
+  SignUpOutcome,
+} from "./index";
+import type { AllowedEmail, Member, Result, Session } from "../domain/types";
 // TEA-03. A RUNTIME import, not a type one - 02-design.md section 1.1.
 import { ROSTER_LIMIT } from "../domain/types";
 import {
   FIXTURE_ADMIN,
   FIXTURE_ALLOWED_EMAIL,
   FIXTURE_CONSUMED_EMAIL,
+  FIXTURE_CREDENTIALS,
   FIXTURE_MEMBER,
   FIXTURE_OTHER_TEAM_MEMBER,
   FIXTURE_REMOVED_MEMBER,
@@ -87,15 +94,121 @@ const allowedEmails: AllowedEmailRow[] = [
 let nextUserId = 0;
 const newUserId = (): string => `00000000-0000-4000-8000-${String(++nextUserId).padStart(12, "0")}`;
 
-// TEA-02. Who `getCurrentMember` answers as. The sign-in half of TEA-01 does not exist, so there is
-// no session to read this from; in the real seam it comes from `auth.getUser()` and in this one it
-// is set by the test hook below.
-let currentMemberId: string | null = FIXTURE_ADMIN.id;
+// TEA-05. The mock's session, and the mock now HAS one.
+//
+// Until this ticket there was no sign-in anywhere, so `currentMemberId` below was seeded to
+// FIXTURE_ADMIN and moved only by the test hook - the mock fabricated an identity because nothing
+// could establish one. It no longer fabricates: `signIn` sets both of these together and `signOut`
+// clears both, which is what the real seam does by way of `auth.getUser()` reading the stored
+// session. With nobody signed in, `getCurrentMember()` answers null in BOTH implementations, and
+// /allow-list and /members fail safe against the mock exactly as they already do against Supabase.
+//
+// AMENDED on the second cycle. This paragraph read "Starting at null is the consequence, and it is
+// the correct one" - and null was the wrong start, because the real seam does not start at null
+// after a reload. See the block immediately below; the amendment is that sentence and nothing else.
+// TEA-05 AC-7. Where the mock's session survives a page load.
+//
+// The real seam does not IMPLEMENT AC-7 either, it inherits it: `persistSession` is a
+// @supabase/auth-js default, so the client writes the session to `localStorage` and restores it on
+// the next load (supabase.ts:454). A mock holding the session only in module state answers null
+// after a reload while the real one answers the session - parity in the seam's KEYS and not in its
+// behaviour, and AC-7 is the criterion that difference shows up in. 01-plan.md section 5 puts
+// `getSession` after `signIn` and before `signOut` opposite AC-7, and a reload sits inside that
+// window. So the mock stores it too, under its own key, which the real client never reads.
+const SESSION_STORAGE_KEY = "calechip.mock.session";
+
+// `localStorage` is absent under the vitest `node` environment (vite.config.ts:17), which imports
+// this module at the top of tests/seam-parity.test.ts, and a browser can refuse it outright in a
+// private context. Both are read as "no stored session" rather than as an error: persistence is what
+// AC-7 needs and nothing else in the mock depends on it.
+function sessionStore(): Storage | null {
+  try {
+    return typeof localStorage === "undefined" ? null : localStorage;
+  } catch {
+    return null;
+  }
+}
+
+// Shape-checked rather than cast. The value comes back from a store a person can edit by hand, and a
+// malformed one has to land on the sign-in screen rather than render a signed-in screen for a user
+// with no id.
+function readStoredSession(): Session | null {
+  const store = sessionStore();
+  if (!store) return null;
+
+  try {
+    const raw = store.getItem(SESSION_STORAGE_KEY);
+    if (!raw) return null;
+
+    const parsed: unknown = JSON.parse(raw);
+    if (typeof parsed !== "object" || parsed === null) return null;
+
+    const { user, accessToken } = parsed as { user?: unknown; accessToken?: unknown };
+    if (typeof accessToken !== "string") return null;
+    if (typeof user !== "object" || user === null) return null;
+
+    const { id, email, emailConfirmed } = user as {
+      id?: unknown;
+      email?: unknown;
+      emailConfirmed?: unknown;
+    };
+    if (typeof id !== "string" || typeof email !== "string") return null;
+    if (typeof emailConfirmed !== "boolean") return null;
+
+    return { user: { id, email, emailConfirmed }, accessToken };
+  } catch {
+    return null;
+  }
+}
+
+function writeStoredSession(session: Session | null): void {
+  const store = sessionStore();
+  if (!store) return;
+
+  try {
+    if (session) store.setItem(SESSION_STORAGE_KEY, JSON.stringify(session));
+    else store.removeItem(SESSION_STORAGE_KEY);
+  } catch {
+    // A full quota or a blocked store costs persistence, not the sign-in: the in-memory session
+    // stands and this load behaves exactly as the mock did before AC-7 was reproduced.
+  }
+}
+
+// Restored on module load, which is the reload path: nothing above the seam re-establishes a session
+// after a navigation, and `useSession` reads this through `getSession()` on its first effect.
+let currentSession: Session | null = readStoredSession();
+
+// TEA-02. Who `getCurrentMember` answers as. Since TEA-05 it follows `currentSession` and is never
+// set independently except by the test hook below - including across a reload, where it is derived
+// from the restored session rather than persisted a second time.
+let currentMemberId: string | null = currentSession ? currentSession.user.id : null;
 
 /** Test-only. Sets which seeded member `getCurrentMember` answers as. Not part of the seam - it is a
- *  named export beside `seam`, so seam parity, which compares the keys of `seam`, is untouched. */
+ *  named export beside `seam`, so seam parity, which compares the keys of `seam`, is untouched.
+ *
+ *  TEA-05 leaves this in place and it is now REDUNDANT rather than load-bearing: nothing in the
+ *  repository calls it, and after this ticket a test signs in rather than asserting its way into a
+ *  session. Removing it is a tidy-up with no criterion behind it; the next ticket to touch this file
+ *  can delete it. Note that it moves the member and NOT the session, so a caller that uses it is
+ *  choosing a state the application cannot reach. */
 export function __setCurrentMember(id: string | null): void {
   currentMemberId = id;
+}
+
+// TEA-05 AC-6, AC-7, AC-8. The subscribers of `onAuthStateChange`, and a real unsubscribe rather
+// than a no-op: a listener this mock kept forever would survive a hot reload and re-resolve against
+// a stale closure, which is the leak the seam's own contract warns about.
+const sessionListeners = new Set<(session: Session | null) => void>();
+
+function setSession(session: Session | null): void {
+  currentSession = session;
+  currentMemberId = session ? session.user.id : null;
+  // AC-7 on the way in, AC-6 on the way out: `signOut` passes null here, so the stored copy is
+  // removed in the same call that clears the in-memory one. A sign-out that ended the session for
+  // this page and left it in the store would be the shared-machine gap AC-6 exists to close.
+  writeStoredSession(session);
+  // A copy per listener, so one subscriber cannot hand a mutated session to the next.
+  for (const listener of sessionListeners) listener(session ? { ...session } : null);
 }
 
 // AC-4, AC-8. The refusals below reproduce the POLICY, not the screen (02-design.md section 3): a
@@ -362,5 +475,82 @@ export const seam: DataSeam = {
 
     target.role = "admin";
     return { ok: true, value: { ...target } };
+  },
+
+  // -------------------------------------------------------------------------
+  // TEA-05. 01-plan.md section 5, "What the mock must reproduce".
+  // -------------------------------------------------------------------------
+
+  // TEA-05 AC-7. The session as it stands, or null.
+  async getSession(): Promise<Session | null> {
+    return currentSession ? { ...currentSession } : null;
+  },
+
+  // TEA-05 AC-6, AC-7, AC-8.
+  //
+  // EXPIRY IS NOT MODELLED, deliberately (01-plan.md section 5). AC-8 is the real client refreshing
+  // a token and finally emitting with a null session; this mock has no clock and no token, and a
+  // fake expiry would be a SECOND definition of when a session ends - one that drifts in the
+  // direction that matters, where the mock says expired and the real client has quietly refreshed.
+  // AC-8 is a real-project criterion and section 8.1 records it as one.
+  onAuthStateChange(listener: (session: Session | null) => void): () => void {
+    sessionListeners.add(listener);
+    return () => {
+      sessionListeners.delete(listener);
+    };
+  },
+
+  // TEA-05 AC-1, AC-2, AC-3, AC-4.
+  //
+  // This answers from FIXTURE_CREDENTIALS and from nothing else, so the mock's refusals are the
+  // SEED's refusals rather than a second story about who can sign in. Reproducing the service, not
+  // the screen: a mock that accepted any password would make every component test pass against a
+  // sign-in that refuses nobody.
+  //
+  // The two refusals are in the order GoTrue answers them. An unknown address and a wrong password
+  // are ONE answer with one message (AC-2) - anything else here would be an address-enumeration
+  // oracle against the team roster. An unconfirmed address is a different answer (AC-3), because
+  // folding it into the first would send somebody to reset a password that is correct.
+  //
+  // It writes NOTHING (AC-11). `members` is not touched on any path through this function, on
+  // success or on either refusal, which is the mock reproducing the fact that `public.member` has
+  // no insert policy and that the admission trigger fires on confirmation rather than on sign-in.
+  async signIn(input: SignInInput): Promise<Result<Session>> {
+    const email = fold(input.email);
+    const account = FIXTURE_CREDENTIALS.find((c) => fold(c.email) === email);
+
+    if (!account || account.password !== input.password) {
+      return {
+        ok: false,
+        error: { code: "invalid_credentials", message: "Email hoặc mật khẩu không đúng." },
+      };
+    }
+
+    if (!account.emailConfirmed) {
+      return {
+        ok: false,
+        error: {
+          code: "email_not_confirmed",
+          message: "Bạn cần mở liên kết xác nhận trong email trước khi đăng nhập.",
+        },
+      };
+    }
+
+    // AC-4's whole mechanism, and it needs no branch here: the session is established for the auth
+    // user, and whether that user has a `member` row is `getCurrentMember`'s answer a moment later.
+    // A mock that decided membership at sign-in would be deciding it in the wrong place.
+    const session: Session = {
+      user: { id: account.userId, email: account.email, emailConfirmed: true },
+      accessToken: `mock-access-token-${account.userId}`,
+    };
+    setSession(session);
+    return { ok: true, value: { ...session } };
+  },
+
+  // TEA-05 AC-6. Clears the session and notifies, which is what the listener in useSession re-
+  // resolves against. It cannot fail here; the `Result` exists because it can fail in the real one.
+  async signOut(): Promise<Result<void>> {
+    setSession(null);
+    return { ok: true, value: undefined };
   },
 };

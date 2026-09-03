@@ -23,6 +23,12 @@ export interface AddAllowedEmailInput {
   email: string;
 }
 
+/** TEA-05, 01-plan.md section 4.2. Email and password only — it is what TEA-01's sign-up creates. */
+export interface SignInInput {
+  email: string;
+  password: string;
+}
+
 export interface SignUpOutcome {
   /** True when the project has Confirm email on and the address is not yet confirmed. */
   needsEmailConfirmation: boolean;
@@ -146,6 +152,53 @@ export interface DataSeam {
    * Returns the updated row, and treats zero rows as a refusal, for the same reason as above.
    */
   promoteMember(memberId: string): Promise<Result<Member>>;
+
+  // -------------------------------------------------------------------------
+  // TEA-05 - sign in, sign out, and the session. 01-plan.md section 4.2.
+  // -------------------------------------------------------------------------
+
+  /**
+   * TEA-05 AC-7, AC-8, AC-9. The session as it stands right now, or null. Null is a normal answer
+   * and not an error: nobody being signed in is the ordinary state of the application.
+   *
+   * It READS persisted state and prompts for nothing. AC-7 is the client persisting the session
+   * across a reload, which is library behaviour rather than behaviour this seam builds.
+   */
+  getSession(): Promise<Session | null>;
+
+  /**
+   * TEA-05 AC-6, AC-7, AC-8. Calls `listener` whenever the session appears, changes or goes away.
+   * Returns the unsubscribe function; the caller MUST call it on unmount, because a leaked
+   * subscription survives a hot reload and then re-resolves against a stale closure.
+   *
+   * The listener takes `Session | null` and NOT the underlying client's event union. That union is
+   * a datastore type, and .ai/standards/architecture.md ("Layers") says code above the seam works
+   * in domain types and never in a client's vocabulary - passing it through would put a Supabase
+   * type in a hook and make RULE-02 a matter of which import you happened to write.
+   *
+   * It is lossless for every criterion here: each event the hook reacts to carries the session or
+   * null, and nothing above the seam branches on which one arrived. The day a screen needs to tell
+   * a deliberate sign-out from a failed refresh, the seam can carry a domain enum of its own
+   * (01-plan.md section 9).
+   */
+  onAuthStateChange(listener: (session: Session | null) => void): () => void;
+
+  /**
+   * TEA-05 AC-1, AC-2, AC-3. Email and password only.
+   *
+   * Expected failures are RETURNED, not thrown (.ai/standards/coding-standards.md). Two codes reach
+   * a sentence on screen: `invalid_credentials` for AC-2, which must stay ONE message for both an
+   * unknown address and a wrong password - two messages would let anybody test whether a colleague
+   * has an account here - and `email_not_confirmed` for AC-3.
+   */
+  signIn(input: SignInInput): Promise<Result<Session>>;
+
+  /**
+   * TEA-05 AC-6. Ends the session. Returns `Result<void>`; a failure here is rare and is still
+   * returned rather than thrown, because a sign-out that silently did nothing on a shared machine
+   * is the failure this function exists to prevent.
+   */
+  signOut(): Promise<Result<void>>;
 }
 
 export type { DataSeam as Seam };

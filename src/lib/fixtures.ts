@@ -7,7 +7,7 @@
 // change it there in the same commit.
 //
 // The uuids are fixed literals and never generated, for the same reason.
-import type { Member } from "./domain/types";
+import type { AuthUser, Member } from "./domain/types";
 
 export const FIXTURE_TEAM: { id: string; name: string; overloadThreshold: number } = {
   id: "11111111-1111-4111-8111-111111111111",
@@ -137,3 +137,140 @@ export const FIXTURE_SECOND_ADMIN: Member = {
   removedAt: null,
   createdAt: "2026-08-31T00:00:00+00:00",
 };
+
+// ---------------------------------------------------------------------------
+// TEA-05. 01-plan.md section 5.1.
+// ---------------------------------------------------------------------------
+
+/**
+ * An auth user with NO `member` row. AC-4 needs one and none exists: every seeded account has a
+ * member row, so the state ADR-009 §Consequences says "must be handled in the interface, not left
+ * to look like a bug" has nobody to be.
+ *
+ * This is the state sign-up produces for an address that was not on the allow-list — the trigger
+ * fires, finds no entry, and creates nothing. The seed reproduces it the same way: an `auth.users`
+ * row with `email_confirmed_at` set and no allow-list entry for the address.
+ *
+ * It is an `AuthUser` and not a `Member` on purpose. The two are separate types precisely so that
+ * "signed in" and "on a team" cannot be confused, which is the whole of `Membership`.
+ */
+export const FIXTURE_MEMBER_LESS: AuthUser = {
+  id: "99999999-9999-4999-8999-999999999999",
+  email: "hoa@example.com",
+  emailConfirmed: true,
+};
+
+/**
+ * An auth user who has signed up and NOT confirmed their address. AC-3.
+ *
+ * NOT NAMED IN 01-plan.md, and declared as a deviation in 03-impl-log.md. Section 5's mock table
+ * requires "an address flagged unconfirmed in the fixture" and section 5.1 scopes
+ * `FIXTURE_CREDENTIALS` to SEEDED addresses, so an unconfirmed address has to be both — a fixture
+ * flag with no seed row behind it is the drift section 5.1 exists to repair, one file over.
+ *
+ * `emailConfirmed: false` is the whole of it: `admit_allow_listed_member` returns early on a null
+ * `email_confirmed_at`, so this account has no member row either, and GoTrue refuses the sign-in
+ * before membership is ever consulted.
+ */
+export const FIXTURE_UNCONFIRMED: AuthUser = {
+  id: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+  email: "khanh@example.com",
+  emailConfirmed: false,
+};
+
+/**
+ * The password every seeded fixture account carries. One literal, in one place, matching the
+ * `extensions.crypt(...)` argument in supabase/seed.sql for each of these rows.
+ *
+ * The operator's own account in the seed is deliberately absent from this module: it was added by
+ * hand on 2026-09-01, it is not a fixture, and mirroring its credential here would put a
+ * development password in a file the tests import.
+ */
+export const FIXTURE_PASSWORD: string = "password123";
+
+/** What a fixture account is expected to resolve to once it is signed in. */
+export type FixtureMembership = "member" | "member-less";
+
+/**
+ * A seeded account, as a sign-in sees it. AC-1, AC-2, AC-3, AC-4, AC-10.
+ *
+ * `userId` is the `auth.users` id, which is `member.id` when a member row exists (data-model.md).
+ * `emailConfirmed` is false for exactly one row, and that row is what makes AC-3 observable.
+ * `membership` is the state a successful sign-in resolves to, so a test can name an account by the
+ * criterion it serves rather than by remembering which uuid is which.
+ */
+export interface FixtureCredential {
+  email: string;
+  password: string;
+  userId: string;
+  emailConfirmed: boolean;
+  membership: FixtureMembership;
+}
+
+/**
+ * Every seeded address, with its password and its expected membership. The mock's `signIn` answers
+ * from this list and from nothing else, which is what makes the mock's refusals the seed's refusals
+ * rather than a second story about who can sign in.
+ *
+ * EVERY ROW HERE HAS A ROW IN supabase/seed.sql, and that is the point — the standard's own reason
+ * is that a fixture existing in one place drifts from the seed and produces failures that reproduce
+ * in CI and not locally. Two of these rows are new in TEA-05 (`FIXTURE_MEMBER`'s, whose seed row was
+ * missing entirely, and `FIXTURE_MEMBER_LESS`'s); one more is `FIXTURE_UNCONFIRMED`'s.
+ */
+export const FIXTURE_CREDENTIALS: readonly FixtureCredential[] = [
+  {
+    email: "quan@example.com",
+    password: FIXTURE_PASSWORD,
+    userId: FIXTURE_ADMIN.id,
+    emailConfirmed: true,
+    membership: "member",
+  },
+  // AC-10's other half. Until TEA-05 this account had no seed row at all, so the only member-role
+  // person in the product was unseeded and "no allow-list link for a member" had nobody to be.
+  {
+    email: "thanh@example.com",
+    password: FIXTURE_PASSWORD,
+    userId: FIXTURE_MEMBER.id,
+    emailConfirmed: true,
+    membership: "member",
+  },
+  {
+    email: "dung@example.com",
+    password: FIXTURE_PASSWORD,
+    userId: FIXTURE_SECOND_ADMIN.id,
+    emailConfirmed: true,
+    membership: "member",
+  },
+  {
+    email: "chi@other.example.com",
+    password: FIXTURE_PASSWORD,
+    userId: FIXTURE_OTHER_TEAM_MEMBER.id,
+    emailConfirmed: true,
+    membership: "member",
+  },
+  {
+    email: "cu@example.com",
+    password: FIXTURE_PASSWORD,
+    userId: FIXTURE_REMOVED_MEMBER.id,
+    emailConfirmed: true,
+    membership: "member",
+  },
+  // AC-4. Signed in, and on no team.
+  {
+    email: FIXTURE_MEMBER_LESS.email,
+    password: FIXTURE_PASSWORD,
+    userId: FIXTURE_MEMBER_LESS.id,
+    emailConfirmed: true,
+    membership: "member-less",
+  },
+  // AC-3. The one unconfirmed row. Its `membership` is `member-less` because that is what it is —
+  // the trigger never ran for it — but no sign-in ever reaches that state, because the refusal
+  // happens first.
+  {
+    email: FIXTURE_UNCONFIRMED.email,
+    password: FIXTURE_PASSWORD,
+    userId: FIXTURE_UNCONFIRMED.id,
+    emailConfirmed: false,
+    membership: "member-less",
+  },
+];
