@@ -278,6 +278,52 @@ export function absentEntriesFor(
 }
 
 /**
+ * CAL-06. For each member of `roster`, the set of dates in `range` on which they are away — derived
+ * from the SAME `walk` that produces `absenceCountsFor`, `absentMembersFor` and `absentEntriesFor`.
+ *
+ * **This is the fourth derivation and not a second definition.** INV-04's rules — rejected excluded,
+ * tentative never consulted, a member counting only while `removedAt` is null or strictly after the
+ * date, an entry clamped to the requested range — are applied exactly once, inside `walk`, and all
+ * four exported functions read that one pass. A filled cell that disagreed with a day's total would
+ * require `walk` itself to be wrong, which is the only failure mode INV-04 leaves open (CAL-06 AC-9,
+ * AC-10). The alternative — transposing `absentEntriesFor` in the component, or filtering `entries`
+ * there — is CAL-06 01-plan.md section 8, rejected alternative 3.
+ *
+ * **EVERY MEMBER OF `roster` IS A KEY, carrying an empty set where they are away on no date.** That
+ * is CAL-06 AC-3, and it is the property that makes the year view the only screen enumerating
+ * members with no entries: a map built from the entries alone would silently omit them, and the
+ * omission would look like a member who is never away rather than a member the grid forgot. It is
+ * the same contract the other three derivations keep along the date axis, turned the other way
+ * round.
+ *
+ * **A member holding an `am` and a `pm` entry on one date yields that date ONCE.** The set answers
+ * "is this member away on this day", the day's total is still 1.0, and the two are the same fact
+ * told twice — which is what INV-04 requires rather than forbids.
+ *
+ * @param entries every entry overlapping `range`, REJECTED ONES INCLUDED — `walk` excludes them, and
+ *                it is the only thing that may.
+ * @param range   inclusive at both ends.
+ * @param roster  the team's members, INCLUDING removed ones, exactly as the other three take them:
+ *                ADR-013 needs `removedAt` per member to decide each date (CAL-06 AC-8).
+ */
+export function absentDatesByMember(
+  entries: readonly Entry[],
+  range: DateRange,
+  roster: readonly Member[],
+): ReadonlyMap<string, ReadonlySet<string>> {
+  // Keyed on the ROSTER and not on the entries, which is the whole of AC-3.
+  const away = new Map<string, Set<string>>(roster.map((member) => [member.id, new Set<string>()]));
+
+  // `walk` only ever visits a member it found in `roster` (`countsOn` refuses an undefined one), so
+  // every key it reaches was created above and no fallback is needed here.
+  walk(entries, range, roster, (date, _entry, member) => {
+    away.get(member.id)?.add(date);
+  });
+
+  return away;
+}
+
+/**
  * AC-7, AC-8. `count / currentMembers > threshold`, STRICTLY greater.
  *
  * Strict is not a detail: a team of six at a threshold of 0.5 with three people away is EXACTLY the

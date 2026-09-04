@@ -20,6 +20,7 @@
 import { describe, expect, it } from "vitest";
 import {
   absenceCountsFor,
+  absentDatesByMember,
   absentEntriesFor,
   absentMembersFor,
   addDays,
@@ -558,5 +559,258 @@ describe("CAL-05 section 4.1: the order within a date is fixed here, not left to
 
     const ordered = rowsOn(absentEntriesFor([pm, first, am], WEEK, ROSTER), "2026-10-07");
     expect(ordered.map((row) => row.entry.id)).toEqual([am.id, first.id, pm.id]);
+  });
+});
+
+// ===========================================================================
+// CAL-06 — the fourth derivation, `absentDatesByMember`. The year view asks the question the other
+// way round: not "who is away on this date" but "which dates is this member away on".
+//
+// The division of labour with tests/e2e/cal-06-year-view.spec.ts is the standard's.
+// `.ai/standards/testing-standards.md` puts pure logic here and "a full acceptance criterion through
+// the interface" there — so AC-4's, AC-6's, AC-7's, AC-8's, AC-9's and AC-10's DERIVATION is
+// asserted below against the function directly, and what a person SEES is asserted there. AC-7 and
+// AC-8 are asserted HERE OR NOWHERE, for the reason CAL-05 recorded about its own AC-10 and AC-11:
+// nothing in the product can set `status` to `rejected` (no grant, no control, ADM-05 does not
+// exist), and nothing can remove a member partway through a displayed year (TEA-04 writes
+// `removed_at` as `now()`).
+//
+// Every member below is imported. The one place this file constructs a member rather than importing
+// one is the 30 x 365 assertion, and 03-impl-log.md § Deviations declares it.
+// ===========================================================================
+
+/** The year 01-plan.md section 2 writes AC-1 and AC-4 against. */
+const YEAR: DateRange = { start: "2026-01-01", end: "2026-12-31" };
+
+const datesFor = (
+  away: ReadonlyMap<string, ReadonlySet<string>>,
+  memberId: string,
+): readonly string[] => [...(away.get(memberId) ?? [])].sort();
+
+describe("CAL-06 AC-1 and AC-2: a year is 365 days, and a leap year is 366", () => {
+  it("walks every day of an ordinary year and of a leap year", () => {
+    // The year view's column count is `eachDateInRange` over January 1st to December 31st, so this
+    // is the derivation half of AC-1 and AC-2. No calendar table is consulted: the walk is over UTC
+    // instants, which is what makes February 29th arrive without a rule about it.
+    expect(eachDateInRange(YEAR)).toHaveLength(365);
+    expect(eachDateInRange({ start: "2028-01-01", end: "2028-12-31" })).toHaveLength(366);
+    expect(eachDateInRange({ start: "2028-01-01", end: "2028-12-31" })).toContain("2028-02-29");
+  });
+});
+
+describe("CAL-06 AC-3: every member of the roster is a key, including one who declared nothing", () => {
+  it("carries an empty set for a member with no entries at all", () => {
+    // THE CRITERION THIS WHOLE DERIVATION EXISTS FOR. A map built from the entries alone would omit
+    // this member, and the omission would look like somebody who is never away rather than somebody
+    // the grid forgot — which is the year view's one distinguishing property (01-plan.md section 1).
+    const rows = [
+      entry({ memberId: FIXTURE_MEMBER.id, startDate: "2026-03-02", endDate: "2026-03-06" }),
+    ];
+    const away = absentDatesByMember(rows, YEAR, ROSTER);
+
+    expect(away.size).toBe(ROSTER.length);
+    for (const member of ROSTER) expect(away.has(member.id)).toBe(true);
+    expect(datesFor(away, FIXTURE_ADMIN.id)).toEqual([]);
+  });
+
+  it("keeps every key when there are no entries whatsoever", () => {
+    const away = absentDatesByMember([], YEAR, ROSTER);
+    expect([...away.keys()].sort()).toEqual(ROSTER.map((m) => m.id).sort());
+    for (const member of ROSTER) expect(datesFor(away, member.id)).toEqual([]);
+  });
+});
+
+describe("CAL-06 AC-4: a member is away on exactly the dates their entry covers", () => {
+  it("fills the five days of a five-day entry and no others", () => {
+    const rows = [
+      entry({ memberId: FIXTURE_MEMBER.id, startDate: "2026-03-02", endDate: "2026-03-06" }),
+    ];
+    expect(datesFor(absentDatesByMember(rows, YEAR, ROSTER), FIXTURE_MEMBER.id)).toEqual([
+      "2026-03-02",
+      "2026-03-03",
+      "2026-03-04",
+      "2026-03-05",
+      "2026-03-06",
+    ]);
+  });
+
+  it("clamps an entry that starts before the year and ends inside it", () => {
+    // The clamp is `walk`'s and not this derivation's, which is the point: a key outside the
+    // requested range can never appear, so the grid cannot draw a column it has no header for.
+    const rows = [
+      entry({ memberId: FIXTURE_MEMBER.id, startDate: "2025-12-30", endDate: "2026-01-02" }),
+    ];
+    expect(datesFor(absentDatesByMember(rows, YEAR, ROSTER), FIXTURE_MEMBER.id)).toEqual([
+      "2026-01-01",
+      "2026-01-02",
+    ]);
+  });
+
+  it("yields one date once when a member holds a morning and an afternoon on it", () => {
+    // A SET, not a list. The day's total is still 1.0 and the month grid still draws one avatar —
+    // the same fact told three ways, which is what INV-04 requires rather than forbids.
+    const rows = [
+      entry({ memberId: FIXTURE_MEMBER.id, portion: "am", startDate: "2026-05-04", endDate: "2026-05-04" }),
+      entry({ memberId: FIXTURE_MEMBER.id, portion: "pm", startDate: "2026-05-04", endDate: "2026-05-04" }),
+    ];
+    const away = absentDatesByMember(rows, YEAR, ROSTER);
+
+    expect(datesFor(away, FIXTURE_MEMBER.id)).toEqual(["2026-05-04"]);
+    expect(on(absenceCountsFor(rows, YEAR, ROSTER), "2026-05-04")).toBe(1);
+  });
+});
+
+describe("CAL-06 AC-6 and INV-05: a tentative entry fills its cells on the same terms", () => {
+  it("fills exactly as a settled entry does", () => {
+    const settled = [
+      entry({ memberId: FIXTURE_MEMBER.id, startDate: "2026-06-01", endDate: "2026-06-03" }),
+    ];
+    const provisional = [
+      entry({ memberId: FIXTURE_MEMBER.id, tentative: true, startDate: "2026-06-01", endDate: "2026-06-03" }),
+    ];
+
+    // `walk` reads `status` and never `tentative` — glossary.md keeps the two apart as two axes —
+    // so the two answers below are identical and the tentative MARKING is the view's, not this
+    // function's.
+    expect(datesFor(absentDatesByMember(provisional, YEAR, ROSTER), FIXTURE_MEMBER.id)).toEqual(
+      datesFor(absentDatesByMember(settled, YEAR, ROSTER), FIXTURE_MEMBER.id),
+    );
+  });
+});
+
+describe("CAL-06 AC-7: a rejected entry fills nothing", () => {
+  it("fills no date, exactly as the count sums nothing for it", () => {
+    const rows = [
+      entry({ memberId: FIXTURE_MEMBER.id, status: "rejected", rejectionReason: "no", startDate: "2026-07-06", endDate: "2026-07-10" }),
+    ];
+    const away = absentDatesByMember(rows, YEAR, ROSTER);
+
+    // The member still HAS a row — AC-3 — and it is empty, which is the whole difference between
+    // "the grid draws exactly what the count sums" and "the member disappeared".
+    expect(away.has(FIXTURE_MEMBER.id)).toBe(true);
+    expect(datesFor(away, FIXTURE_MEMBER.id)).toEqual([]);
+    expect(on(absenceCountsFor(rows, YEAR, ROSTER), "2026-07-06")).toBe(0);
+  });
+});
+
+describe("CAL-06 AC-8 and ADR-013: a removed member keeps a row, empty after the removal", () => {
+  // FIXTURE_REMOVED_MEMBER carries `removedAt` 2026-08-31T12:00:00+00:00. The criterion is written
+  // about a removal INSIDE the displayed year with an entry SPANNING it, so this is the same entity
+  // with the one field the rule turns on set to the date under test.
+  const removedMidYear: Member = { ...FIXTURE_REMOVED_MEMBER, removedAt: "2026-04-15T00:00:00+00:00" };
+  const roster = [...ROSTER.filter((m) => m.id !== FIXTURE_REMOVED_MEMBER.id), removedMidYear];
+  const rows = [
+    entry({ memberId: removedMidYear.id, startDate: "2026-04-13", endDate: "2026-04-17" }),
+  ];
+
+  it("keeps the row and fills only the days before the removal", () => {
+    // Strictly after, not on or after: somebody removed at midnight on the 15th is gone ON the 15th.
+    const away = absentDatesByMember(rows, YEAR, roster);
+    expect(away.has(removedMidYear.id)).toBe(true);
+    expect(datesFor(away, removedMidYear.id)).toEqual(["2026-04-13", "2026-04-14"]);
+  });
+
+  it("fills nothing for an entry whose member is not on the roster at all", () => {
+    // The two reads are scoped to the same team, so this means they disagree — and a filled cell in
+    // a row the grid cannot draw is a cell contributing to a total nobody can account for.
+    const orphan = [
+      entry({ memberId: "00000000-0000-4000-8000-000000000000", startDate: "2026-04-14", endDate: "2026-04-14" }),
+    ];
+    const away = absentDatesByMember(orphan, YEAR, ROSTER);
+    expect([...away.values()].every((set) => set.size === 0)).toBe(true);
+  });
+});
+
+describe("CAL-06 AC-9 and AC-10: the grid and the totals cannot disagree about who is away", () => {
+  // The criterion that matters, because a divergence between the filled cells and the totals strip
+  // is invisible on either half of the screen alone. Every shape INV-04 distinguishes is in this one
+  // set, inside one week of the year so the assertions below are readable.
+  const rows = [
+    entry({ memberId: FIXTURE_MEMBER.id, portion: "am", startDate: "2026-10-07", endDate: "2026-10-07" }),
+    entry({ memberId: FIXTURE_MEMBER.id, portion: "pm", startDate: "2026-10-07", endDate: "2026-10-07" }),
+    entry({ memberId: FIXTURE_ADMIN.id, portion: "full", startDate: "2026-10-05", endDate: "2026-10-09" }),
+    entry({ memberId: FIXTURE_SECOND_ADMIN.id, portion: "am", tentative: true, startDate: "2026-10-07", endDate: "2026-10-08" }),
+    entry({ memberId: FIXTURE_APPROVED_MEMBER.id, status: "rejected", rejectionReason: "no", startDate: "2026-10-07", endDate: "2026-10-07" }),
+    entry({ memberId: FIXTURE_REMOVED_MEMBER.id, startDate: "2026-10-05", endDate: "2026-10-11" }),
+  ];
+
+  const away = absentDatesByMember(rows, YEAR, ROSTER);
+  const members = absentMembersFor(rows, YEAR, ROSTER);
+  const counts = absenceCountsFor(rows, YEAR, ROSTER);
+
+  it("fills a cell for exactly the members the month grid draws, on every day of the year", () => {
+    // AC-10 in full, over all 365 columns rather than over a sample: the column of filled cells and
+    // the avatars on the month grid are the same set of people, or one of the two screens is lying.
+    for (const date of eachDateInRange(YEAR)) {
+      const filled = ROSTER.filter((m) => away.get(m.id)?.has(date)).map((m) => m.id);
+      expect(filled.sort()).toEqual([...avatarsOn(members, date)].sort());
+    }
+  });
+
+  it("puts a total above every column that has a filled cell, and a zero above every column that has none", () => {
+    // AC-9's own failure mode, and the reason `data-count` exists on the strip: a filled cell over a
+    // zero, or a total over an empty column, is the divergence INV-04 forbids.
+    for (const date of eachDateInRange(YEAR)) {
+      const filled = ROSTER.filter((m) => away.get(m.id)?.has(date)).length;
+      const total = on(counts, date) ?? 0;
+
+      expect(total > 0).toBe(filled > 0);
+      // Every filled cell is worth 0.5 or 1, so the total is bounded by the number of filled cells
+      // at both ends. This is what makes "four names against 3.5" a passing state rather than the
+      // contradiction it would be on a screen that showed one number per person.
+      expect(total).toBeGreaterThanOrEqual(filled * 0.5);
+      expect(total).toBeLessThanOrEqual(filled);
+    }
+  });
+
+  it("is not vacuous: the year under test actually holds people", () => {
+    // Two agreeing empty maps agree perfectly, so the pair above would pass against a function that
+    // filled nothing. This is the line that stops that. THREE PEOPLE ON THE 7TH AND 2.5 — the
+    // feature row's own example standing up.
+    expect(ROSTER.filter((m) => away.get(m.id)?.has("2026-10-07"))).toHaveLength(3);
+    expect(on(counts, "2026-10-07")).toBe(2.5);
+    expect(datesFor(away, FIXTURE_APPROVED_MEMBER.id)).toEqual([]);
+  });
+});
+
+describe("CAL-06 section 4.3: the derivation stands up at the shape the brief names", () => {
+  it("answers for thirty members across 365 days", () => {
+    // 01-plan.md Open questions item 1. The brief's target — *thirty members and 365 columns, still
+    // scrolling smoothly* — is asserted in two halves, and only the STRUCTURAL half is assertable
+    // here: `vite.config.ts` sets `test.environment: "node"`, so there is no DOM and no
+    // component-render level in this repository, and the seeded roster is five members so no
+    // end-to-end run can reach thirty either. NO THRESHOLD IS INVENTED and nothing below is timed.
+    //
+    // The thirty members are CONSTRUCTED rather than imported, which is the one place in this file
+    // that happens and is declared in 03-impl-log.md § Deviations: a thirty-member fixture is its
+    // own decision (a seed row per person), and this is a scale property of a pure function rather
+    // than an assertion about any entity.
+    const roster: Member[] = Array.from({ length: 30 }, (_, index) => ({
+      ...FIXTURE_MEMBER,
+      id: `ac000000-0000-4000-8000-${String(index).padStart(12, "0")}`,
+      displayName: `Member ${String(index).padStart(2, "0")}`,
+    }));
+
+    // One entry each, a fortnight long, walking across the year — so every member has a row with
+    // something in it and no two rows are the same.
+    const rows = roster.map((member, index) =>
+      entry({
+        memberId: member.id,
+        startDate: addDays("2026-01-01", index * 12),
+        endDate: addDays("2026-01-01", index * 12 + 13),
+      }),
+    );
+
+    const away = absentDatesByMember(rows, YEAR, roster);
+
+    expect(away.size).toBe(30);
+    for (const member of roster) expect(away.get(member.id)?.size).toBe(14);
+
+    // And the totals over the same 365 columns still agree with the filled cells, at this size too.
+    const counts = absenceCountsFor(rows, YEAR, roster);
+    for (const date of eachDateInRange(YEAR)) {
+      const filled = roster.filter((m) => away.get(m.id)?.has(date)).length;
+      expect(on(counts, date)).toBe(filled);
+    }
   });
 });

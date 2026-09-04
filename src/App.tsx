@@ -12,6 +12,7 @@ import Home from "./routes/Home";
 import MemberList from "./routes/MemberList";
 import MonthView from "./routes/MonthView";
 import WeekView from "./routes/WeekView";
+import YearView from "./routes/YearView";
 import EditEntry from "./routes/EditEntry";
 import NewEntry from "./routes/NewEntry";
 import TeamEntries from "./routes/TeamEntries";
@@ -181,6 +182,20 @@ export default function App() {
                 adds no policy — every read it makes was already permitted. */}
             <Route path="/week" element={<WeekView />} />
             <Route path="/week/:day" element={<WeekView />} />
+
+            {/* CAL-06. The year view, and the anchor is the URL exactly as the month's and the
+                week's are — `/year/2026` typed directly produces the same screen as pressing "next"
+                from 2025 (AC-1, AC-11). `/year` with no anchor redirects to the current year, and so
+                does a malformed one, and the component does that rather than a second route here —
+                "which year is it" is a fact about the caller's clock and this file holds no clock.
+
+                NOT GUARDED, for the reason /month and /week already record: this screen READS, it
+                renders `year-not-on-a-team` for a caller with no member row, and that refusal is
+                what says why. A redirect would leave somebody who followed a shared year link with
+                nothing to read. `entry_select_team` and `member_select_team` are the controls, and
+                this ticket adds no policy — every read it makes was already permitted. */}
+            <Route path="/year" element={<YearView />} />
+            <Route path="/year/:year" element={<YearView />} />
 
             {/* AC-9. Every address the application does not route lands on `/`, which then resolves
                 by membership — so a caller with no session reaches the sign-in screen. This replaced
