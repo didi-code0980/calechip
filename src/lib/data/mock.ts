@@ -16,14 +16,16 @@ import type {
 } from "./index";
 import type {
   AllowedEmail,
+  DateRange,
   Entry,
   EntryPortion,
   Member,
   Result,
   Session,
+  Team,
 } from "../domain/types";
-// TEA-03. A RUNTIME import, not a type one - 02-design.md section 1.1.
-import { ROSTER_LIMIT, TEAM_ENTRY_LIMIT } from "../domain/types";
+// TEA-03, and CAL-04 for the third. RUNTIME imports, not type ones - 02-design.md section 1.1.
+import { MONTH_ENTRY_LIMIT, ROSTER_LIMIT, TEAM_ENTRY_LIMIT } from "../domain/types";
 import {
   FIXTURE_ADMIN,
   FIXTURE_ALLOWED_EMAIL,
@@ -33,6 +35,7 @@ import {
   FIXTURE_CONSUMED_EMAIL,
   FIXTURE_CREDENTIALS,
   FIXTURE_MEMBER,
+  FIXTURE_OTHER_TEAM,
   FIXTURE_OTHER_TEAM_ENTRY,
   FIXTURE_OTHER_TEAM_MEMBER,
   FIXTURE_REMOVED_MEMBER,
@@ -92,6 +95,19 @@ const members: Member[] = [
 // flaky test.
 const byCreatedAtThenId = (a: Member, b: Member): number =>
   a.createdAt === b.createdAt ? a.id.localeCompare(b.id) : a.createdAt.localeCompare(b.createdAt);
+
+// CAL-04. The mock's `team` table, and it is the first read of it anywhere.
+//
+// Both rows are COPIED rather than referenced, for the reason `members` records: the fixtures are
+// shared module-level objects that every test imports, and nothing should be able to mutate one
+// through this array. Nothing writes `team` today - `Set the overload threshold` is ADM-01's and
+// this ticket's migration grants `select` and nothing else - so the copy is a precaution against the
+// ticket that adds the update, not against anything here.
+//
+// TWO rows and not one, and the second is the whole of AC-12 on this table: `team_select_own` scopes
+// the read to `id = member_team_id(auth.uid())`, and a one-team fixture passes whether that
+// predicate is in the policy or absent from it. ADR-018's revert condition, one table over.
+const teams: Team[] = [{ ...FIXTURE_TEAM }, { ...FIXTURE_OTHER_TEAM }];
 
 const allowedEmails: AllowedEmailRow[] = [
   {
@@ -975,6 +991,72 @@ export const seam: DataSeam = {
       throw new Error(
         `listTeamEntries returned ${rows.length} rows at the ${TEAM_ENTRY_LIMIT} limit: the list ` +
           `may be truncated and must not be consumed`,
+      );
+    }
+
+    return rows.map((e) => ({ ...e }));
+  },
+
+  // -------------------------------------------------------------------------
+  // CAL-04. 01-plan.md sections 4 and 5.
+  //
+  // NEITHER FUNCTION COUNTS ANYTHING. `absenceCountsFor` in ./absence.ts is INV-04's single
+  // implementation and this file does not import it: with zero copies of the arithmetic in the seam
+  // there is nothing for tests/seam-parity.test.ts to miss (01-plan.md section 5).
+  // -------------------------------------------------------------------------
+
+  // CAL-04 AC-7, AC-14. `team_select_own`, reproduced: `id = member_team_id(auth.uid())`.
+  //
+  // `memberTeamId` is null for a caller with no member row AND for a removed one, and `id = null` is
+  // never true in SQL - so both read no team at all, which is the policy's answer and not a choice
+  // this function makes. Null is a normal answer here for the same reason it is on
+  // `getCurrentMember`: it is the NotOnATeam state and it already has a screen.
+  //
+  // THE OTHER TEAM'S ROW IS IN `teams` AND MUST NEVER COME BACK. A mock that returned the only row
+  // it holds would pass every test a one-team fixture can carry while hiding a missing team
+  // predicate - the failure ADR-018's revert condition names on `member`.
+  async getTeam(): Promise<Team | null> {
+    const mine = memberTeamId(currentMemberId);
+    if (mine === null) return null;
+    const row = teams.find((t) => t.id === mine);
+    return row ? { ...row } : null;
+  },
+
+  // CAL-04 AC-1 to AC-6, AC-11, AC-12.
+  //
+  // OVERLAP, NOT CONTAINMENT, and the comparison is the same predicate PostgreSQL evaluates for
+  // `date_range=ov.[start,end]`: an entry running 2026-03-28 to 2026-04-02 comes back for April
+  // because AC-2 draws its avatar on 1 and 2 April. Written as two string comparisons rather than
+  // through a Date, exactly as `datesIntersect` above is - `yyyy-MM-dd` sorts lexicographically and
+  // no Date is constructed anywhere in this file.
+  //
+  // REJECTED ROWS COME BACK. Filtering `status` here would put a second copy of INV-04's rule
+  // outside `absenceCountsFor`, which is what INV-04 exists to prevent (AC-4).
+  //
+  // `sameTeam` and not `===`, for the reason `listTeamEntries` records: `member_team_id` is null for
+  // a removed member and `null = null` is NULL in SQL rather than true, so a removed member's
+  // entries are invisible here exactly as they are there.
+  async listTeamEntriesOverlapping(range: DateRange): Promise<Entry[]> {
+    const mine = memberTeamId(currentMemberId);
+
+    const rows = entries
+      .filter((e) => sameTeam(memberTeamId(e.memberId), mine))
+      .filter((e) => e.startDate <= range.end && e.endDate >= range.start)
+      .slice()
+      .sort((a, b) =>
+        a.startDate === b.startDate
+          ? a.id.localeCompare(b.id)
+          : a.startDate.localeCompare(b.startDate),
+      )
+      .slice(0, MONTH_ENTRY_LIMIT);
+
+    // AC-11. The same limit and the same raise as supabase.ts, and the same reason as `listMembers`
+    // and `listTeamEntries`: this array is bounded by the fixtures so it never fires, and it is here
+    // so the two implementations tell one story rather than because the mock can truncate.
+    if (rows.length >= MONTH_ENTRY_LIMIT) {
+      throw new Error(
+        `listTeamEntriesOverlapping returned ${rows.length} rows at the ${MONTH_ENTRY_LIMIT} ` +
+          `limit: the month may be truncated and must not be counted (CAL-04 AC-11)`,
       );
     }
 

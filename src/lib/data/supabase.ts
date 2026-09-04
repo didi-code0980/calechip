@@ -20,6 +20,7 @@ import type {
 } from "./index";
 import type {
   AllowedEmail,
+  DateRange,
   Entry,
   EntryPortion,
   EntryStatus,
@@ -29,11 +30,17 @@ import type {
   MemberRole,
   Result,
   Session,
+  Team,
 } from "../domain/types";
-// TEA-03, and CAL-01 for the second constant. RUNTIME imports, not type ones: both are needed as
-// values at the call. They come from ../domain/types and not from ./index, which imports this file
-// back - 02-design.md section 1.1.
-import { OWN_ENTRY_LIMIT, ROSTER_LIMIT, TEAM_ENTRY_LIMIT } from "../domain/types";
+// TEA-03, CAL-01 for the second constant, CAL-04 for the fourth. RUNTIME imports, not type ones:
+// each is needed as a value at the call. They come from ../domain/types and not from ./index, which
+// imports this file back - 02-design.md section 1.1.
+import {
+  MONTH_ENTRY_LIMIT,
+  OWN_ENTRY_LIMIT,
+  ROSTER_LIMIT,
+  TEAM_ENTRY_LIMIT,
+} from "../domain/types";
 
 // Vite exposes only variables prefixed VITE_. The anon key is public by design and ships in the
 // bundle; the service role key must never appear here. See "Secrets" in
@@ -151,6 +158,27 @@ function toEntry(row: EntryRow): Entry {
     approvedAt: row.approved_at,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
+  };
+}
+
+// CAL-04. The `team` row as PostgREST returns it. `overload_threshold` is `numeric` in PostgreSQL
+// and PostgREST renders it as a JSON number, so it arrives as a `number` and needs no parse — a
+// column that ever grows past double precision would need one, and 0 to 1 never will.
+interface TeamRow {
+  id: string;
+  name: string;
+  overload_threshold: number;
+  created_at: string;
+}
+
+const TEAM_COLUMNS = "id, name, overload_threshold, created_at";
+
+function toTeam(row: TeamRow): Team {
+  return {
+    id: row.id,
+    name: row.name,
+    overloadThreshold: row.overload_threshold,
+    createdAt: row.created_at,
   };
 }
 
@@ -842,6 +870,94 @@ export const seam: DataSeam = {
       throw new Error(
         `listTeamEntries returned ${rows.length} rows at the ${TEAM_ENTRY_LIMIT} limit: the list ` +
           `may be truncated and must not be consumed`,
+      );
+    }
+
+    return rows.map(toEntry);
+  },
+
+  // -------------------------------------------------------------------------
+  // CAL-04. 01-plan.md sections 4, 5 and 6.
+  //
+  // NEITHER FUNCTION COUNTS ANYTHING. `absenceCountsFor` in ./absence.ts is INV-04's single
+  // implementation and this file does not import it: with zero copies of the arithmetic in the seam
+  // there is nothing for tests/seam-parity.test.ts to miss. 01-plan.md section 8 rejects computing
+  // the count as a view or an RPC for a reason that is not style — CAL-07 must count a day a DRAFT
+  // would produce, an unsaved entry has no row, and a datastore-side aggregate could therefore never
+  // be the only implementation.
+  // -------------------------------------------------------------------------
+
+  // CAL-04 AC-7, AC-14.
+  //
+  // NO `.eq()` AND NO TEAM PARAMETER. `team_select_own` — shipped by this ticket's migration — is
+  // what narrows the table to `id = member_team_id(auth.uid())`, and a filter written here would be
+  // a second, weaker copy of the policy. Before that migration is applied this read answers zero
+  // rows to everybody, because `public.team` carries no grant and no policy at all (db.sql 9.1).
+  //
+  // `maybeSingle` and not `single`: zero rows is the answer for a caller with no member row, for a
+  // removed one, and for a build where the migration has not been applied. All three are the
+  // NotOnATeam shape rather than an error, which is what `getCurrentMember` already returns null
+  // for. More than one row would be a broken policy and `maybeSingle` reports it as an error rather
+  // than silently picking one, which is the behaviour worth having.
+  async getTeam(): Promise<Team | null> {
+    const { data, error } = await client()
+      .from("team")
+      .select(TEAM_COLUMNS)
+      .maybeSingle<TeamRow>();
+
+    if (error) throw new Error(`getTeam failed: ${error.message}`);
+    return data ? toTeam(data) : null;
+  },
+
+  // CAL-04 AC-1 to AC-6, AC-11, AC-12.
+  //
+  // `date_range=ov.[start,end]` IS THE WHOLE READ, and the column it filters is the one ADR-011
+  // created for exactly this. `ov` is PostgREST's range-overlap operator, so an entry running
+  // 2026-03-28 to 2026-04-02 comes back for April — OVERLAP, not containment, which AC-2 needs
+  // because it draws that member's avatar on 1 and 2 April.
+  //
+  // THE LITERAL IS `[start,end]`, INCLUSIVE AT BOTH ENDS, matching `Entry.endDate` and ADR-011's own
+  // `'[]'` constructor. A `[start,end)` here would drop every entry that only touches the last day
+  // of the month, on every month, in the direction nobody checks. `date_range` itself is stored
+  // canonicalised to `[)` and that is invisible to this filter: PostgreSQL canonicalises both sides
+  // before comparing, so the two agree.
+  //
+  // `date_range` IS STILL NOT SELECTED and still absent from `EntryRow`. It is a filter here and
+  // nothing more — surfacing it would put a PostgreSQL range literal one destructuring away from a
+  // component, where ADR-011's canonicalisation footgun reads as "the entry ends the following day".
+  //
+  // NO `status` FILTER. Rejected rows come back and `absenceCountsFor` excludes them (AC-4); a
+  // filter here would be a second copy of INV-04's rule outside the one function that owns it.
+  //
+  // Two `order` calls for the reason every other list read here records: across a whole team, two
+  // entries sharing a `start_date` is the normal case rather than the edge one, and `start_date`
+  // alone leaves their order undefined in PostgreSQL. ASCENDING, unlike the three reads above: this
+  // one feeds a grid that reads left to right through the month rather than a list that shows the
+  // newest first.
+  async listTeamEntriesOverlapping(range: DateRange): Promise<Entry[]> {
+    const { data, error } = await client()
+      .from("entry")
+      .select(ENTRY_COLUMNS)
+      .filter("date_range", "ov", `[${range.start},${range.end}]`)
+      .order("start_date", { ascending: true })
+      .order("id", { ascending: true })
+      .limit(MONTH_ENTRY_LIMIT)
+      .returns<EntryRow[]>();
+
+    if (error) throw new Error(`listTeamEntriesOverlapping failed: ${error.message}`);
+
+    const rows = data ?? [];
+
+    // AC-11, and it is the sharpest instance of an assertion this file already makes three times.
+    // PostgREST caps rows server-side and answers a believable short list with no error anywhere;
+    // every other read that happens to loses a row from a list, where the gap is at least visible.
+    // This one gets SUMMED, so a truncated read produces a lower count, a day that was overloaded
+    // renders normal, and nothing anywhere says so. A wrong count on this screen is worse than no
+    // screen, because the count is the product.
+    if (rows.length >= MONTH_ENTRY_LIMIT) {
+      throw new Error(
+        `listTeamEntriesOverlapping returned ${rows.length} rows at the ${MONTH_ENTRY_LIMIT} ` +
+          `limit: the month may be truncated and must not be counted (CAL-04 AC-11)`,
       );
     }
 

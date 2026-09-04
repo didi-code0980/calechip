@@ -8,9 +8,18 @@
 // shapes, and a mock returning a field the real implementation cannot produce passes this and breaks
 // at runtime. Where a shape is subtle, assert it separately.
 
-import { describe, expect, it } from "vitest";
-import { seam as mock } from "@/lib/data/mock";
+import { afterEach, describe, expect, it } from "vitest";
+import { seam as mock, __setCurrentMember } from "@/lib/data/mock";
 import { seam as real } from "@/lib/data/supabase";
+import {
+  FIXTURE_APPROVED_ENTRY,
+  FIXTURE_APPROVED_MEMBER,
+  FIXTURE_MEMBER,
+  FIXTURE_OTHER_TEAM,
+  FIXTURE_OTHER_TEAM_ENTRY,
+  FIXTURE_OTHER_TEAM_MEMBER,
+  FIXTURE_TEAM,
+} from "@/lib/fixtures";
 
 type AnySeam = Record<string, unknown>;
 
@@ -45,5 +54,90 @@ describe("data-access seam parity", () => {
         expect((b as (...args: unknown[]) => unknown).length, `${name}.${key} arity`).toBe(a.length);
       }
     }
+  });
+});
+
+// ---------------------------------------------------------------------------
+// CAL-04. The shapes parity cannot see.
+//
+// The header above says it: matching names and arity does not prove matching return shapes, and
+// "where a shape is subtle, assert it". Two of this ticket's are, and both are subtle in the
+// direction that PASSES every other test in the repository while being wrong.
+//
+// These drive the MOCK, through `__setCurrentMember` — the test-only hook mock.ts already exports
+// beside `seam`, which parity does not see because parity compares the keys of `seam`. It moves the
+// member and not the session, so it reaches a state the application itself cannot; that is exactly
+// what is wanted here, because the subject is the seam's answer and not a journey. The real
+// implementation's equivalents are `team_select_own` and `date_range=ov.…`, exercised by no test
+// until a project is provisioned — 01-plan.md Open questions.
+// ---------------------------------------------------------------------------
+
+describe("CAL-04 getTeam", () => {
+  afterEach(() => __setCurrentMember(null));
+
+  it("AC-7: answers the caller's own team, carrying the threshold", async () => {
+    __setCurrentMember(FIXTURE_MEMBER.id);
+    const team = await mock.getTeam();
+    expect(team).toEqual(FIXTURE_TEAM);
+  });
+
+  it("AC-12: never answers another team's row, even though the mock holds one", async () => {
+    // The assertion the one-team fixture cannot make on its own. A mock that returned the only row
+    // it held would pass every other test here while hiding a missing team predicate — ADR-018's
+    // revert condition, one table over.
+    __setCurrentMember(FIXTURE_OTHER_TEAM_MEMBER.id);
+    expect(await mock.getTeam()).toEqual(FIXTURE_OTHER_TEAM);
+
+    __setCurrentMember(FIXTURE_MEMBER.id);
+    expect((await mock.getTeam())?.id).not.toBe(FIXTURE_OTHER_TEAM.id);
+  });
+
+  it("answers null for a caller with no member row", async () => {
+    __setCurrentMember(null);
+    expect(await mock.getTeam()).toBeNull();
+  });
+});
+
+describe("CAL-04 listTeamEntriesOverlapping", () => {
+  afterEach(() => __setCurrentMember(null));
+
+  const covering = { start: "2026-09-01", end: "2026-09-30" };
+
+  it("returns an entry that OVERLAPS the range rather than only ones contained by it", async () => {
+    __setCurrentMember(FIXTURE_APPROVED_MEMBER.id);
+    // FIXTURE_APPROVED_ENTRY runs 2026-09-14 to 2026-09-16. A range covering only its last day must
+    // still return it, because the grid draws that member's avatar on that day.
+    const rows = await mock.listTeamEntriesOverlapping({ start: "2026-09-16", end: "2026-09-20" });
+    expect(rows.map((e) => e.id)).toContain(FIXTURE_APPROVED_ENTRY.id);
+
+    const before = await mock.listTeamEntriesOverlapping({ start: "2026-09-01", end: "2026-09-13" });
+    expect(before.map((e) => e.id)).not.toContain(FIXTURE_APPROVED_ENTRY.id);
+  });
+
+  it("AC-4: does NOT filter status — excluding rejected rows is absenceCountsFor's alone", async () => {
+    // There is no rejected row in the fixtures to assert against directly, so this asserts the shape
+    // that makes the rule possible: the read returns the whole row including `status`, and the seam
+    // carries no status filter to drift from INV-04's one implementation.
+    __setCurrentMember(FIXTURE_APPROVED_MEMBER.id);
+    const rows = await mock.listTeamEntriesOverlapping(covering);
+    const row = rows.find((e) => e.id === FIXTURE_APPROVED_ENTRY.id);
+    expect(row?.status).toBe("approved");
+  });
+
+  it("AC-12: never returns another team's entry", async () => {
+    __setCurrentMember(FIXTURE_MEMBER.id);
+    const rows = await mock.listTeamEntriesOverlapping(covering);
+    expect(rows.map((e) => e.id)).not.toContain(FIXTURE_OTHER_TEAM_ENTRY.id);
+
+    // And the other way round, so the assertion above cannot pass because the row is simply absent:
+    // that member DOES see their own team's entry, on the same range.
+    __setCurrentMember(FIXTURE_OTHER_TEAM_MEMBER.id);
+    const theirs = await mock.listTeamEntriesOverlapping(covering);
+    expect(theirs.map((e) => e.id)).toEqual([FIXTURE_OTHER_TEAM_ENTRY.id]);
+  });
+
+  it("answers an empty list for a caller with no member row", async () => {
+    __setCurrentMember(null);
+    expect(await mock.listTeamEntriesOverlapping(covering)).toEqual([]);
   });
 });

@@ -10,6 +10,7 @@ import { useSession } from "./hooks/useSession";
 import AllowList from "./routes/AllowList";
 import Home from "./routes/Home";
 import MemberList from "./routes/MemberList";
+import MonthView from "./routes/MonthView";
 import EditEntry from "./routes/EditEntry";
 import NewEntry from "./routes/NewEntry";
 import TeamEntries from "./routes/TeamEntries";
@@ -148,6 +149,21 @@ export default function App() {
               path="/entries/team"
               element={membership.state === "member" ? <TeamEntries /> : <Navigate to="/" replace />}
             />
+
+            {/* CAL-04. The month grid, and the anchor is the URL — `/month/2026-04` typed directly
+                produces the same screen as pressing "next" from March (AC-10). `/month` with no
+                anchor redirects to the current month, and so does a malformed one; the component
+                does that itself rather than a second route doing it here, because "which month is
+                it" is a fact about the caller's clock and this file holds no clock.
+
+                NOT GUARDED, unlike /entries/new and /entries/team, and the difference is the same
+                one /allow-list and /members already record: this screen READS, it renders
+                `month-not-on-a-team` for a caller with no member row, and that refusal is what says
+                why. A redirect would leave somebody who followed a shared month link with nothing to
+                read. The guard would be an affordance either way — `entry_select_team`,
+                `member_select_team` and `team_select_own` are the controls. */}
+            <Route path="/month" element={<MonthView />} />
+            <Route path="/month/:month" element={<MonthView />} />
 
             {/* AC-9. Every address the application does not route lands on `/`, which then resolves
                 by membership — so a caller with no session reaches the sign-in screen. This replaced

@@ -1,0 +1,230 @@
+// CAL-04 — INV-04's ONE definition of the absence count. 01-plan.md sections 4 and 5.
+//
+// It is in src/lib/data/ because .ai/registry/features.md:91 puts it there by name: "a pure function
+// in one shared module inside `src/lib/data/`, imported by both seam implementations and
+// reimplemented in neither". 01-plan.md section 8 records the disagreement — this is a domain
+// computation and src/lib/domain/ is arguably its home — and resolves it in the registry's favour,
+// because RULE-04 makes the registry row the source. Moving it costs one `git mv` and one import.
+//
+// **NEITHER SEAM IMPLEMENTATION CALLS IT, AND THAT IS THE DECISION (01-plan.md section 5).** The
+// registry's fear is two arithmetics that tests/seam-parity.test.ts cannot see: same names, same
+// arity, different maths. With zero copies inside the seam there is nothing for the parity test to
+// miss — mock.ts and supabase.ts return ROWS and count nothing, and the month view imports this
+// module directly.
+//
+// **IT FETCHES NOTHING.** Every input is passed in. That is what makes it usable by CAL-07, which
+// must compute the count a day WILL have if the draft in the form is saved — an unsaved entry has no
+// row, so a datastore-side aggregate could not be the only implementation and INV-04 would need a
+// second one in TypeScript. That is the whole reason a PostgreSQL view was rejected (section 8).
+//
+// This file imports nothing from ./index and nothing from either implementation. It may be imported
+// from any layer; it names no column and constructs no client.
+import type { AbsenceCounts, DateRange, Entry, EntryPortion, Member } from "../domain/types";
+
+// ---------------------------------------------------------------------------
+// The date vocabulary. `yyyy-MM-dd` strings throughout, and every arithmetic goes through UTC.
+//
+// `new Date('2026-04-30')` parses as UTC midnight and a day-of-month read west of UTC yields the
+// previous day — CAL-01 01-plan.md section 4.5 records that trap, and `Entry.startDate` is a string
+// because of it. So the two helpers below convert to a UTC instant and back, and no local-timezone
+// accessor (`getDate`, `getMonth`, `getFullYear`) appears anywhere in this file or in its callers.
+// The round trip is exact for every date the product can hold.
+// ---------------------------------------------------------------------------
+
+const DAY_MS = 86_400_000;
+
+/** `yyyy-MM-dd` to the UTC midnight instant it names. */
+const toInstant = (date: string): number => Date.parse(`${date}T00:00:00Z`);
+
+/** The inverse. `toISOString` is UTC by definition, so this cannot drift with the machine. */
+const toDate = (instant: number): string => new Date(instant).toISOString().slice(0, 10);
+
+/** `date` moved by `days`, which may be negative. Exported: the month grid needs the same one. */
+export const addDays = (date: string, days: number): string =>
+  toDate(toInstant(date) + days * DAY_MS);
+
+/**
+ * Every date in `range`, inclusive at both ends, ascending. Empty when `end` is before `start`.
+ *
+ * Exported because the month grid walks the same vocabulary, and two walkers would be two places
+ * where "inclusive" is decided.
+ */
+export function eachDateInRange(range: DateRange): string[] {
+  const dates: string[] = [];
+  const last = toInstant(range.end);
+  for (let at = toInstant(range.start); at <= last; at += DAY_MS) dates.push(toDate(at));
+  return dates;
+}
+
+/**
+ * The predicate `listTeamEntriesOverlapping` asks the datastore for, written once here so a caller
+ * that already holds rows narrows them the same way the read did. OVERLAP, not containment: an entry
+ * running 2026-03-28 to 2026-04-02 overlaps April.
+ */
+export const overlapsRange = (entry: Entry, range: DateRange): boolean =>
+  entry.startDate <= range.end && entry.endDate >= range.start;
+
+// ---------------------------------------------------------------------------
+// INV-04.
+// ---------------------------------------------------------------------------
+
+/**
+ * AC-3. `full` is one whole person-day, `am` and `pm` are half of one each.
+ *
+ * `type` IS NEVER CONSULTED: a PTO day and a WFH day weigh the same, because the count answers "how
+ * much of the team is not in the office" and a WFH member is not in the office. A WFH member IS
+ * working — glossary.md calls that the single most costly confusion in the domain — and that fact
+ * changes what the screen SAYS about a person, never what the day costs the room.
+ */
+const WEIGHT: Record<EntryPortion, number> = {
+  full: 1,
+  am: 0.5,
+  pm: 0.5,
+};
+
+/**
+ * The one place INV-04's membership clause is written: an entry counts on a date only when its
+ * member has `removedAt` null, or `removedAt` STRICTLY AFTER that date.
+ *
+ * AC-6 and ADR-013. A member removed at 2026-04-15T00:00:00Z counts on 14 April and not on 15 April,
+ * which is why the comparison is against the removal instant's DATE and is strict. `removedAt` is an
+ * ISO 8601 timestamp and `date` is `yyyy-MM-dd`, so the first ten characters are the comparable part
+ * and the lexicographic comparison is the chronological one.
+ *
+ * An entry whose member is not in `roster` counts for NOBODY. That is not defensive coding: the
+ * roster and the entries come from the same team-scoped reads, so a member-less entry means the two
+ * disagree, and counting a person the screen cannot draw would break INV-04's own clause that a view
+ * shows a member's avatar exactly when that member's entry is counted.
+ */
+const countsOn = (member: Member | undefined, date: string): member is Member =>
+  member !== undefined && (member.removedAt === null || member.removedAt.slice(0, 10) > date);
+
+/** `roster` as a lookup. Built once per call rather than once per entry per date. */
+const byId = (roster: readonly Member[]): Map<string, Member> =>
+  new Map(roster.map((member) => [member.id, member]));
+
+/**
+ * Which entries touch which date, with the membership and status rules already applied. ONE pass,
+ * and it is the reason `absenceCountsFor` and `absentMembersFor` cannot disagree: both read this.
+ *
+ * `status: "rejected"` contributes nothing (AC-4). `tentative` is never consulted, so a tentative
+ * entry counts on the same terms as any other (AC-5, INV-05) — glossary.md keeps `tentative` and
+ * `status` apart as two axes, and this function reads exactly one of them.
+ */
+function walk(
+  entries: readonly Entry[],
+  range: DateRange,
+  roster: readonly Member[],
+  visit: (date: string, entry: Entry, member: Member) => void,
+): void {
+  const members = byId(roster);
+
+  for (const entry of entries) {
+    // AC-4. The ONLY status test in the product, and the reason `listTeamEntriesOverlapping` returns
+    // rejected rows rather than filtering them: a second copy of this line inside the seam is
+    // exactly what INV-04 exists to prevent.
+    if (entry.status === "rejected") continue;
+
+    const member = members.get(entry.memberId);
+
+    // The dates this entry contributes to, clamped to the range. An entry may start before it and
+    // end after it — that is what OVERLAP means — and the clamp is what keeps a key outside the
+    // requested range from ever appearing in the answer.
+    const from = entry.startDate > range.start ? entry.startDate : range.start;
+    const to = entry.endDate < range.end ? entry.endDate : range.end;
+
+    for (const date of eachDateInRange({ start: from, end: to })) {
+      if (!countsOn(member, date)) continue; // AC-6, ADR-013
+      visit(date, entry, member);
+    }
+  }
+}
+
+/** Every date in `range` at zero. AC-9 and the contract on `AbsenceCounts`: a caller never has to
+ *  distinguish an absent key from a zero, because there are no absent keys. */
+const zeroed = (range: DateRange): Map<string, number> =>
+  new Map(eachDateInRange(range).map((date) => [date, 0]));
+
+/**
+ * THE one definition of the absence count (INV-04). Pure, takes rows, fetches nothing.
+ *
+ * @param entries every entry overlapping `range`, REJECTED ONES INCLUDED — this function excludes
+ *                them, and it is the only thing that may.
+ * @param range   inclusive at both ends.
+ * @param roster  the team's members, INCLUDING removed ones: ADR-013 needs `removedAt` per member to
+ *                decide each date, so a pre-filtered roster cannot answer AC-6. `listMembers`
+ *                returns the roster in exactly that shape, and 02-design.md section 3 records that
+ *                a seam which filtered it would make INV-04 uncomputable for every past date.
+ *
+ * Rules, each one an acceptance criterion: 1 for `full` and 0.5 for `am` or `pm` (AC-3); `type` is
+ * never consulted, so PTO and WFH weigh the same (AC-3); `status: "rejected"` contributes nothing
+ * (AC-4); `tentative` is never consulted, so a tentative entry counts (AC-5); an entry counts on a
+ * date only when its member has `removedAt` null or `removedAt` strictly after that date (AC-6).
+ *
+ * INV-01 makes the sum safe from double-counting a person: two entries of the same member cannot
+ * overlap on the same slot, so `am` plus `pm` on one date is 1.0 and never 1.5.
+ */
+export function absenceCountsFor(
+  entries: readonly Entry[],
+  range: DateRange,
+  roster: readonly Member[],
+): AbsenceCounts {
+  const counts = zeroed(range);
+  walk(entries, range, roster, (date, entry) => {
+    counts.set(date, (counts.get(date) ?? 0) + WEIGHT[entry.portion]);
+  });
+  return counts;
+}
+
+/**
+ * The members whose avatar is drawn on each date. Derived from the SAME pass as the counts, not from
+ * a second filter — INV-04 says a view shows a member's avatar exactly when that member's entry is
+ * counted, and two passes are two chances to disagree (AC-2, AC-4, AC-6).
+ *
+ * A member holding two entries on one date (`am` and `pm`) appears ONCE. The count is 1.0 and the
+ * grid draws one person, which is the same fact told two ways.
+ *
+ * Every date in `range` is present, carrying an empty array where nobody is away — the same contract
+ * `absenceCountsFor` keeps, so a caller iterating one map can index the other without a fallback.
+ */
+export function absentMembersFor(
+  entries: readonly Entry[],
+  range: DateRange,
+  roster: readonly Member[],
+): ReadonlyMap<string, readonly Member[]> {
+  const seen = new Map<string, Map<string, Member>>();
+  for (const date of eachDateInRange(range)) seen.set(date, new Map());
+
+  walk(entries, range, roster, (date, _entry, member) => {
+    seen.get(date)?.set(member.id, member);
+  });
+
+  return new Map(
+    [...seen].map(([date, members]) => [date, [...members.values()]] as [string, readonly Member[]]),
+  );
+}
+
+/**
+ * AC-7, AC-8. `count / currentMembers > threshold`, STRICTLY greater.
+ *
+ * Strict is not a detail: a team of six at a threshold of 0.5 with three people away is EXACTLY the
+ * threshold and is NOT overloaded, and `>=` would light up that day. INV-04 fixes the comparison and
+ * .ai/registry/features.md:91 restates it.
+ *
+ * `currentMembers` is the roster with `removedAt === null` counted AT READ TIME — the current count,
+ * not the membership as it stood on the date being judged. A past date is therefore re-evaluated
+ * against today's team and may change between overloaded and normal when somebody joins (AC-8).
+ * INV-04 records that consequence as accepted; it is not a bug to be fixed here.
+ *
+ * Returns false when `currentMembers` is 0 rather than dividing. A team with no active members has
+ * nobody to be short of, and `0/0` is NaN, which compares false against everything and would hide
+ * the case rather than decide it.
+ */
+export function isOverloaded(count: number, currentMembers: number, threshold: number): boolean {
+  if (currentMembers <= 0) return false;
+  return count / currentMembers > threshold;
+}
+
+/** INV-04's denominator, in one place: the team's members with `removedAt === null`. */
+export const currentMemberCount = (roster: readonly Member[]): number =>
+  roster.filter((member) => member.removedAt === null).length;

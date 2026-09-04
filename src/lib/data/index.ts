@@ -9,12 +9,14 @@
 // a configuration change rather than a rewrite.
 import type {
   AllowedEmail,
+  DateRange,
   Entry,
   EntryPortion,
   EntryType,
   Member,
   Result,
   Session,
+  Team,
 } from "../domain/types";
 import { seam as mockSeam } from "./mock";
 import { seam as supabaseSeam } from "./supabase";
@@ -372,6 +374,55 @@ export interface DataSeam {
    * able to correct them — which is the failure TEAM_ENTRY_LIMIT exists to turn into an error.
    */
   listTeamEntries(): Promise<Entry[]>;
+
+  // -------------------------------------------------------------------------
+  // CAL-04 — the month grid. 01-plan.md section 4.
+  //
+  // TWO READS AND NO WRITE. Neither function computes a count: `absenceCountsFor` in
+  // ./absence.ts is INV-04's single implementation and it is deliberately NOT a seam method
+  // (01-plan.md section 5). With zero copies of the arithmetic in the seam there is nothing for
+  // tests/seam-parity.test.ts to miss — the seam only ever returns rows.
+  // -------------------------------------------------------------------------
+
+  /**
+   * CAL-04 AC-7, AC-14. The caller's own team row, or null when the caller has no member row.
+   *
+   * NO PARAMETER. The team is resolved by `team_select_own` from `auth.uid()`; a `teamId` argument
+   * would be a value the caller SUPPLIES, which is the shape `addAllowedEmail` deliberately refused.
+   *
+   * `null` rather than a throw for the member-less caller, matching `getCurrentMember` — it is the
+   * NotOnATeam state, which is a normal answer and already has a screen.
+   *
+   * IT CARRIES NO WRITE HALF AND MUST NOT GROW ONE. `Set the overload threshold` is ADM-01's and
+   * `rbac-and-security.md:48` grants it to `admin` alone; the migration this ticket ships grants
+   * `select` and nothing else, so an `updateTeam` here would be a function every call refuses.
+   */
+  getTeam(): Promise<Team | null>;
+
+  /**
+   * CAL-04 AC-1 to AC-6, AC-12. Every entry of the caller's team whose date range OVERLAPS `range`.
+   *
+   * THIS IS THE RANGE-SHAPED READ `listTeamEntries` refuses to become. That boundary is recorded on
+   * `listTeamEntries` above and at CAL-01 on `listOwnEntries`: the flat read answers "which entries
+   * exist for this team", and the moment it grows a range parameter there are two team-entry reads
+   * and one of them is the one nobody updated. This is the second read, declared separately on
+   * purpose.
+   *
+   * OVERLAP, NOT CONTAINMENT: an entry running 2026-03-28 to 2026-04-02 MUST be returned for April,
+   * because AC-2 draws its avatar on 1 and 2 April. The real implementation filters on the generated
+   * `date_range` column ADR-011 created for exactly this; the mock compares
+   * `startDate <= range.end && endDate >= range.start`, which is the same predicate.
+   *
+   * RETURNS REJECTED ROWS TOO. Filtering `status` here would put a second copy of INV-04's rule
+   * outside `absenceCountsFor`, which is what INV-04 exists to prevent. The one implementation of
+   * the rule excludes them (AC-4).
+   *
+   * THROWS on a transport failure and on a possibly-truncated answer, the shape `listTeamEntries`,
+   * `listOwnEntries` and `listMembers` all use. AC-11 is that throw: a capped read SUMS what it was
+   * given and produces a believable wrong answer with no error anywhere, and on this screen the
+   * count is the product.
+   */
+  listTeamEntriesOverlapping(range: DateRange): Promise<Entry[]>;
 }
 
 export type { DataSeam as Seam };
