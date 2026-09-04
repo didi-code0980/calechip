@@ -323,6 +323,18 @@ export default function MonthView() {
           Week
         </Link>
 
+        {/* CAL-06 AC-12. The one link CAL-06 adds to this file, and the whole of its edit here
+            (CAL-06 01-plan.md section 7). Switching views KEEPS THE DATE, so it points at the year
+            containing the displayed month rather than at the current one — a member reading April
+            2027 who follows this reaches 2027.
+
+            IN THE HEADER AND NOT ON A CELL, for the reason CAL-05 already recorded here: a cell
+            carries the mouse-down that starts AC-13's drag, and a second click target there would
+            put this ticket's routing on top of CAL-04's shipped acceptance criteria. */}
+        <Link data-testid="month-year" to={`/year/${anchorMonth.slice(0, 4)}`} className="underline">
+          Year
+        </Link>
+
         {/* AC-14. The threshold is READ and shown, and there is no control that changes it — for
             either role. It is displayed rather than hidden because an overloaded day is otherwise a
             colour with no explanation, and the two numbers behind it are the whole of INV-04. */}

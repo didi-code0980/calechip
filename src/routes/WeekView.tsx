@@ -276,6 +276,14 @@ export default function WeekView() {
         >
           Month
         </Link>
+
+        {/* CAL-06 AC-12. The one link CAL-06 adds to this file, and the whole of its edit here
+            (CAL-06 01-plan.md section 7). It keeps the DATE the same way `week-month` above does:
+            the year of the day in the URL, not of the Monday — for a week spanning 31 December those
+            are different years, and the anchor is the date the caller actually arrived with. */}
+        <Link data-testid="week-year" to={`/year/${anchorDay.slice(0, 4)}`} className="underline">
+          Year
+        </Link>
       </header>
 
       {/* AC-13. Seven sections, always. A week that hid its quiet days would make "nobody is away on

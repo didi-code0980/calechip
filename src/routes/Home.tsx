@@ -129,6 +129,21 @@ export default function Home({ member, signOut }: HomeProps) {
         </Link>
       </p>
 
+      {/* CAL-06. The one link CAL-06 adds to this file, and the whole of its edit here (CAL-06
+          01-plan.md section 7). Shown to BOTH roles for the same reason the week link above is: the
+          year view is read-only and `Read any entry in the team` and `Read the member list` are
+          checked for a member and for an admin in .ai/standards/rbac-and-security.md, with no role
+          predicate on either policy behind them.
+
+          It points at `/year` with NO anchor, so the component resolves the current year from the
+          caller's clock. A year computed here would be a second clock in a second file, and this
+          screen holds none. */}
+      <p className="mt-2">
+        <Link data-testid="home-year-link" to="/year" className="text-sm underline">
+          The team across the year
+        </Link>
+      </p>
+
       <button
         data-testid="home-sign-out"
         type="button"
