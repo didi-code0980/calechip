@@ -92,6 +92,31 @@ is not, because check R8 has nothing to reason through when the field is missing
 **Open questions.** Anything that would change the ACs. A question here blocks; an assumption here
 ships.
 
+### 2b. Visual reference
+
+**One of two lines. Write exactly one, never both, never neither.**
+
+```
+Visual reference: design/<file> — attached at <TRIAGE | PLAN> by the operator.
+```
+```
+Visual reference: none. The layout below is the Tech Lead's own and was never specified.
+```
+
+`.ai/standards/ui-design-system.md` § *Visual specification* governs this. Two things it says that
+decide what you write here:
+
+**A picture binds nothing on its own.** No stage downstream reopens it — the reviewer judges R1–R9
+against the ACs above, and there is no visual check anywhere in the loop. So an attached image is not
+a deliverable, it is an input you must spend: list, as ACs, every decision the image makes that the
+prose would otherwise drop — element order, what is on screen at rest versus after interaction, the
+empty state, and what the image deliberately does not show.
+
+**With no image, the design is yours to originate, and saying so is the whole obligation.** The
+second line is not an apology. It is the one thing that tells a reviewer, and the operator at merge,
+that this layout was invented here rather than asked for — which is what makes it cheap to argue
+with. An invented layout presented as a requirement is the failure this line exists to prevent.
+
 ## 3. Permission model
 
 Which role gate applies to each action and each control, against

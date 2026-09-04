@@ -80,6 +80,10 @@ view. Details, and the Vui/Gọn density toggle, are in
   and stay `.mjs` either way.
 - **No invention.** No invented feature IDs, acceptance criteria, database fields, or invariants.
   Missing information becomes a placeholder plus an entry under `OPEN QUESTIONS`.
+  **One carve-out, added 2026-09-04: the visual arrangement of a screen.** With no image attached at
+  `/triage` or `/plan`, `tech-lead-design` originates the layout rather than stopping, and marks it
+  as its own in `01-plan.md` § 2b. Behaviour, permissions and invariants are not covered by this and
+  are still never invented — `.ai/standards/ui-design-system.md` § *Visual specification*.
 - **Additive only.** Do not delete or rewrite a file you did not create in the current run.
 - **Humans merge. Agents commit at `/ship` only.** Every stage leaves the tree dirty, from `/plan`
   all the way to the end. `/ship` classifies the tree, commits the ticket and the three ship-owned

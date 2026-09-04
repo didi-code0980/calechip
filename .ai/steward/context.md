@@ -1445,3 +1445,49 @@ unwired while the guard is wired is invisible to `check-docs.mjs`, which reads `
 **Verified in the same turn:** `node scripts/check-docs.mjs` — 0 errors, 1 advisory D8 warning
 (pre-existing, on ADR-008). `node --test .claude/hooks/tests/*.test.mjs scripts/tests/*.test.mjs` —
 **209 pass, 0 fail.**
+
+### 2026-09-04 — a screenshot can specify a UI, at exactly one stage
+
+Operator instruction: *"tôi muốn đính ảnh vào lúc /plan hoặc lúc /triage chỉ 1 trong 2, còn nếu tôi
+không đính ảnh thì agent sẽ tự nghĩ ra design"*. Asked after noticing the product looks nothing like
+the `_figma/` prototype — which it does not, because CAL-04/05/06 draw the calendar and all three are
+still BACKLOG. That answer is in this session's transcript, not a repository change.
+
+**Two decisions, both recorded in `.ai/standards/ui-design-system.md` § Visual specification.**
+
+1. **An image is attached at exactly one stage, `/triage` or `/plan`, never both.** One canonical
+   home, `.ai/board/tickets/<ID>/design/`, chosen because both path resolvers exempt
+   `.ai/board/tickets/<ID>/**` unconditionally — anywhere else has to be enumerated in
+   `allowed_paths` at PLAN, and it will be forgotten. A triage-time image is moved there by `product`
+   on PROMOTE; on REJECT or NEEDS-ADR it stays with the idea and specifies nothing, because there is
+   no ticket to specify. Two images is two specifications and nothing in the loop reconciles them, so
+   `/plan` stops if it finds a second.
+
+2. **With no image, `tech-lead-design` originates the layout and marks it as its own.** The grant is
+   narrow and the marking is the whole obligation: § 2b carries one of two lines, and the second says
+   the layout was never specified. That is what lets a reviewer argue with it cheaply instead of
+   mistaking it for a requirement.
+
+**The part that needed care was the collision with `CLAUDE.md` § Working agreements, *No invention*,
+which names acceptance criteria explicitly.** An invented layout necessarily produces ACs, so the two
+documents would have contradicted each other silently. Resolved by writing the carve-out into that
+bullet and bounding it: **the visual arrangement and the ACs describing it, and nothing else.**
+Feature IDs, domain acceptance criteria — behaviour, permissions, invariants — database fields and
+invariants are unchanged.
+
+**§ 2b, not a tenth section.** `grep -c "section [3-9]"` returns **172** citations across
+`features.md`, shipped ticket artifacts and the commands. Renumbering sections 3–9 to make room would
+have broken every one of them, so the visual reference sits inside § 2 — beside the ACs it exists to
+produce, which is where it belongs anyway.
+
+**No ADR**, on the § Language precedent from 2026-09-03: a standard filling in its own
+`TODO(project)` stub is not a registry amendment. `rules.md` is untouched. CODEOWNERS still forces
+review of `.ai/standards/` and `.claude/` at merge.
+
+**Also:** `.gitattributes` gained `-text` for `png/jpg/jpeg/gif/webp/pdf`. `git ls-files` finds zero
+image files in this repository — the `* text=auto eol=lf` line has never met a binary, and the first
+design reference committed should not be the experiment.
+
+**Changed:** `.ai/standards/ui-design-system.md`, `.ai/templates/plan.md`, `.ai/templates/idea.md`,
+`.claude/commands/plan.md`, `.claude/commands/triage.md`, `CLAUDE.md`, `.gitattributes`.
+**Verified:** `check-docs` 0 errors, 2 advisory D8 (both pre-existing). 214 pass, 0 fail.

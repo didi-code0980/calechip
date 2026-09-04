@@ -48,8 +48,29 @@ because no session ever checks it out.
 `size_estimate`, `size` and `allowed_paths` written back into `ticket.yaml`
 **Template:** `.ai/templates/plan.md`
 
-**Gate:** all nine sections complete; ACs in Given/When/Then each with an ID; `invariants_touched`
-populated; `size_estimate` and `size` set; `allowed_paths` enumerated; Out-of-scope non-empty.
+**Gate:** all nine sections complete; ACs in Given/When/Then each with an ID; **§ 2b carrying
+exactly one of its two lines**; `invariants_touched` populated; `size_estimate` and `size` set;
+`allowed_paths` enumerated; Out-of-scope non-empty.
+
+## The visual reference — § 2b
+
+`.ai/standards/ui-design-system.md` § *Visual specification* governs this. **An image is attached at
+exactly one stage, `/triage` or `/plan`, never both.** Look for one before you write § 2b:
+`.ai/board/tickets/$ARGUMENTS/design/`, and the idea file cited in this feature's `Notes` row.
+
+| What you find | What you do |
+|---|---|
+| An image | Cite it in § 2b. **Spend it in § 2**: every decision it makes becomes an AC — element order, screen at rest versus after interaction, the empty state — and what it deliberately omits goes to Out-of-scope |
+| Two images, one from each stage | **Stop.** Two specifications, and nothing reconciles them. Ask which one stands |
+| Nothing | **Design it yourself, and say so in § 2b.** Do not stop and do not ask |
+
+**With no image the layout is yours to originate** — a feature shipped with no stated interface is
+the worse outcome, and this is the one place in the loop that can prevent it. The obligation is the
+marking, not the asking: § 2b's second line says the layout was never specified, which is what lets a
+reviewer argue with it cheaply instead of mistaking it for a requirement.
+
+**The grant is the visual arrangement and nothing else.** Feature IDs, domain acceptance criteria,
+database fields and invariants are still never invented — `CLAUDE.md` § *Working agreements*.
 
 ## What you inherited from the BA, and what nobody inherited
 
