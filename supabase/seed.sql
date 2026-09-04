@@ -13,6 +13,41 @@
 -- Insert order is forced by the foreign keys, none of which cascade: team -> auth user -> member
 -- -> allowed_email (`added_by` references `member`, whose id references `auth.users`).
 
+-- ---------------------------------------------------------------------------------------------
+-- GUARD — this file must not be applied to a hosted project, and until now nothing stopped it.
+--
+-- `.ai/standards/data-model.md:193` says this seed "runs under `supabase db reset` and never reaches
+-- the hosted project". That sentence states an intent, not a mechanism. There is no
+-- `supabase/config.toml` in this repository, so there is no local stack and no `db reset` flow: this
+-- seed has only ever been applied by hand, and it was applied by hand to the hosted project. Every
+-- account below then existed there carrying a password published in this file.
+--
+-- IT ASKS FOR AN ACKNOWLEDGEMENT RATHER THAN DETECTING THE SERVER, deliberately. A local Supabase
+-- stack is built to be indistinguishable from a hosted one, so every discriminator worth trying —
+-- `inet_server_addr()`, the listening port, the role set — is either wrong on docker's bridge
+-- network or wrong on a managed host. A detector that guesses would fail open, and failing open is
+-- precisely the defect being fixed. This fails closed: unset means refuse.
+--
+-- It is PLAIN SQL with no psql meta-commands, so it still fires if some future `supabase db reset`
+-- applies this file through the CLI's own driver instead of through psql.
+--
+-- THIS IS NOT THE DRIFT DETECTOR ADR-024 DECLINED. That one would read `auth.users` to compare the
+-- project against this file, which the anon key cannot do (tea01_membership.sql:145). This reads no
+-- data and compares nothing — it refuses to start until a human says where it is pointed.
+do $$
+begin
+  if coalesce(current_setting('calechip.seed_target', true), '') <> 'local' then
+    raise exception
+      'seed.sql refused to run: calechip.seed_target is not set to ''local'''
+      using hint =
+        'Every account in this file has a password published in the repository, so it may only be '
+        || 'applied to a database you can throw away. Confirm the target is disposable by setting the '
+        || 'flag at connection time: PGOPTIONS="-c calechip.seed_target=local" psql "$LOCAL_DB_URL" '
+        || '-v ON_ERROR_STOP=1 --single-transaction -f supabase/seed.sql';
+  end if;
+end
+$$;
+
 insert into public.team (id, name, overload_threshold, created_at)
 values (
   '11111111-1111-4111-8111-111111111111',
