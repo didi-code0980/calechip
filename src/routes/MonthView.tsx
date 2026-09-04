@@ -311,6 +311,18 @@ export default function MonthView() {
           Next
         </Link>
 
+        {/* CAL-05 AC-14. The one link CAL-05 adds to this file, and the whole of its edit here
+            (CAL-05 01-plan.md section 7). Switching views KEEPS THE DATE, which CAL-04's own row
+            calls "a mechanism, not a preference" and which could not be built until a second view
+            existed — so it points at the FIRST of this month rather than at a fixed week.
+
+            IN THE HEADER AND NOT ON A CELL, deliberately: a cell already carries the mouse-down that
+            starts AC-13's drag, and a second click target there would put CAL-05's routing on top of
+            this ticket's shipped acceptance criteria. */}
+        <Link data-testid="month-week" to={`/week/${first}`} className="underline">
+          Week
+        </Link>
+
         {/* AC-14. The threshold is READ and shown, and there is no control that changes it — for
             either role. It is displayed rather than hidden because an overloaded day is otherwise a
             colour with no explanation, and the two numbers behind it are the whole of INV-04. */}

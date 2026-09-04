@@ -110,6 +110,25 @@ export default function Home({ member, signOut }: HomeProps) {
         </Link>
       </p>
 
+      {/* CAL-05. The one link CAL-05 adds to this file, and the whole of its edit here (CAL-05
+          01-plan.md section 7). Shown to BOTH roles, because the week view is read-only and the
+          permission behind it is the same for both: `Read any entry in the team` is checked for a
+          member and for an admin in .ai/standards/rbac-and-security.md, and `entry_select_team`
+          carries no role predicate. An admin has no more power there than a member (AC-8).
+
+          It points at `/week` with NO anchor, so the component resolves the current week from the
+          caller's clock. A date computed here would be a second clock in a second file, and this
+          screen holds none.
+
+          It is also the first navigation on this screen to a READ-ONLY view, so it is not an
+          affordance over a policy the way the two admin links above are — there is nothing here it
+          could be hiding, because nothing is refused. */}
+      <p className="mt-2">
+        <Link data-testid="home-week-link" to="/week" className="text-sm underline">
+          Who is away this week
+        </Link>
+      </p>
+
       <button
         data-testid="home-sign-out"
         type="button"

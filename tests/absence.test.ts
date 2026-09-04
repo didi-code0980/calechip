@@ -20,6 +20,7 @@
 import { describe, expect, it } from "vitest";
 import {
   absenceCountsFor,
+  absentEntriesFor,
   absentMembersFor,
   addDays,
   currentMemberCount,
@@ -36,7 +37,7 @@ import {
   FIXTURE_SECOND_ADMIN,
   FIXTURE_TEAM,
 } from "@/lib/fixtures";
-import type { DateRange, Entry, Member } from "@/lib/domain/types";
+import type { AbsenceDetail, DateRange, Entry, Member } from "@/lib/domain/types";
 
 /** April 2026, the month 01-plan.md section 2 writes every criterion against. */
 const APRIL: DateRange = { start: "2026-04-01", end: "2026-04-30" };
@@ -277,5 +278,285 @@ describe("AC-9: an empty month is empty, not absent", () => {
       expect(counts.get(date)).toBe(0);
       expect(members.get(date)).toEqual([]);
     }
+  });
+});
+
+// ===========================================================================
+// CAL-05 — `absentEntriesFor`, the THIRD derivation from the same `walk`.
+//
+// **The AC ids below are CAL-05's and the ones above are CAL-04's, so every describe from here down
+// is prefixed with the ticket.** `.ai/standards/testing-standards.md` § Test naming requires the AC
+// id in the test name; it does not anticipate one file serving two tickets, which this one now does
+// because the function under test lives in the module CAL-04 shipped and splitting the file would
+// put two halves of INV-04's coverage in two places.
+//
+// The division of labour with tests/e2e/cal-05-week-view.spec.ts is the standard's: pure logic here,
+// "a full acceptance criterion through the interface" there. AC-10 and AC-11 are asserted HERE ONLY
+// and that is declared in 03-impl-log.md — nothing in the product can create a rejected entry
+// (`entry_update_admin` excludes `status`, and ADM-05 does not exist) and nothing can remove a member
+// partway through a displayed week, so neither has an interface to be observed through.
+//
+// Entries are constructed with the same `entry()` helper and the same declared deviation from
+// § Fixtures recorded at the top of this file. Nothing new is invented: every member is imported.
+// ===========================================================================
+
+/** The week 01-plan.md section 2 writes AC-1 and AC-14 against: Monday to Sunday, inclusive. */
+const WEEK: DateRange = { start: "2026-10-05", end: "2026-10-11" };
+
+const rowsOn = (
+  details: ReadonlyMap<string, readonly AbsenceDetail[]>,
+  date: string,
+): readonly AbsenceDetail[] => details.get(date) ?? [];
+
+const namesOn = (
+  details: ReadonlyMap<string, readonly AbsenceDetail[]>,
+  date: string,
+): readonly string[] => rowsOn(details, date).map((row) => row.member.id);
+
+describe("CAL-05 AC-2 and AC-5: each absent person on each day their entry covers, and no other", () => {
+  it("lists the member on every date of the range and on none outside it", () => {
+    const rows = [
+      entry({ memberId: FIXTURE_MEMBER.id, startDate: "2026-10-06", endDate: "2026-10-08" }),
+    ];
+    const details = absentEntriesFor(rows, WEEK, ROSTER);
+
+    expect(namesOn(details, "2026-10-05")).toEqual([]);
+    expect(namesOn(details, "2026-10-06")).toEqual([FIXTURE_MEMBER.id]);
+    expect(namesOn(details, "2026-10-07")).toEqual([FIXTURE_MEMBER.id]);
+    expect(namesOn(details, "2026-10-08")).toEqual([FIXTURE_MEMBER.id]);
+    expect(namesOn(details, "2026-10-09")).toEqual([]);
+  });
+
+  it("clamps an entry that starts before the week to the days inside it", () => {
+    // AC-5's exact shape: Saturday before the week to its Tuesday, so the answer is Monday and
+    // Tuesday and nothing else. No key outside the requested range ever appears.
+    const rows = [
+      entry({ memberId: FIXTURE_MEMBER.id, startDate: "2026-10-03", endDate: "2026-10-06" }),
+    ];
+    const details = absentEntriesFor(rows, WEEK, ROSTER);
+
+    expect(details.size).toBe(7);
+    expect(details.has("2026-10-03")).toBe(false);
+    expect(namesOn(details, "2026-10-05")).toEqual([FIXTURE_MEMBER.id]);
+    expect(namesOn(details, "2026-10-06")).toEqual([FIXTURE_MEMBER.id]);
+    expect(namesOn(details, "2026-10-07")).toEqual([]);
+  });
+
+  it("carries the entry that puts the person there, not just the person", () => {
+    // The whole reason this derivation exists: `absentMembersFor` answers WHO and drops the row, so
+    // the note, the portion and the approver have nowhere to come from. AC-6 and AC-7 are rendered
+    // from these three fields and the criteria are unobservable without them.
+    const row = entry({
+      memberId: FIXTURE_APPROVED_MEMBER.id,
+      status: "approved",
+      approvedBy: FIXTURE_ADMIN.id,
+      approvedAt: "2026-10-01T02:00:00+00:00",
+      portion: "am",
+      startDate: "2026-10-07",
+      endDate: "2026-10-07",
+    });
+    const listed = rowsOn(absentEntriesFor([row], WEEK, ROSTER), "2026-10-07");
+    expect(listed).toHaveLength(1);
+    const detail = listed[0]!;
+
+    expect(detail.member.id).toBe(FIXTURE_APPROVED_MEMBER.id);
+    expect(detail.entry.id).toBe(row.id);
+    expect(detail.entry.note).toBe(row.note);
+    expect(detail.entry.portion).toBe("am");
+    expect(detail.entry.approvedBy).toBe(FIXTURE_ADMIN.id);
+  });
+});
+
+describe("CAL-05 AC-4 and INV-06: a five-day pm entry is five afternoons", () => {
+  it("puts the same portion on every one of the five days", () => {
+    // The failure the registry row names as visible on this surface and no other: a half-day at ONE
+    // END and whole days in the middle. `portion` is one value for the whole entry, so every row the
+    // week draws reads it off the same field — a rendering that produced anything else would be
+    // contradicting the column shape CAL-01 shipped.
+    const rows = [
+      entry({
+        memberId: FIXTURE_MEMBER.id,
+        portion: "pm",
+        startDate: "2026-10-05",
+        endDate: "2026-10-09",
+      }),
+    ];
+    const details = absentEntriesFor(rows, WEEK, ROSTER);
+
+    for (const date of ["2026-10-05", "2026-10-06", "2026-10-07", "2026-10-08", "2026-10-09"]) {
+      expect(rowsOn(details, date)).toHaveLength(1);
+      expect(rowsOn(details, date)[0]!.entry.portion).toBe("pm");
+    }
+    // And the weekend, which the entry does not reach, stays empty.
+    expect(namesOn(details, "2026-10-10")).toEqual([]);
+    expect(namesOn(details, "2026-10-11")).toEqual([]);
+  });
+});
+
+describe("CAL-05 AC-9 and INV-05: a tentative entry is listed on the same terms as any other", () => {
+  it("is listed exactly as a settled entry is, carrying its own tentative flag", () => {
+    // `tentative` is never consulted by `walk`, so membership of the list cannot turn on it. The
+    // marking is what the view does with the flag it is handed, and that is a rendering decision.
+    const tentative = entry({
+      memberId: FIXTURE_MEMBER.id,
+      tentative: true,
+      startDate: "2026-10-07",
+      endDate: "2026-10-07",
+    });
+    const settled = entry({
+      memberId: FIXTURE_ADMIN.id,
+      tentative: false,
+      startDate: "2026-10-07",
+      endDate: "2026-10-07",
+    });
+    const details = absentEntriesFor([tentative, settled], WEEK, ROSTER);
+
+    expect(namesOn(details, "2026-10-07")).toHaveLength(2);
+    expect(rowsOn(details, "2026-10-07").map((row) => row.entry.tentative).sort()).toEqual([
+      false,
+      true,
+    ]);
+  });
+});
+
+describe("CAL-05 AC-10: a rejected entry is not listed", () => {
+  it("lists nobody for it, exactly as the count sums nobody for it", () => {
+    // Asserted at this level only — nothing in the product can set `status` to `rejected`, so the
+    // criterion has no interface to be observed through (03-impl-log.md).
+    const rows = [
+      entry({
+        memberId: FIXTURE_MEMBER.id,
+        status: "rejected",
+        rejectionReason: "no",
+        startDate: "2026-10-07",
+        endDate: "2026-10-07",
+      }),
+    ];
+    expect(namesOn(absentEntriesFor(rows, WEEK, ROSTER), "2026-10-07")).toEqual([]);
+    // Both halves, because the criterion is about the two AGREEING: a week list showing a rejected
+    // entry beside a month cell that excludes it is the divergence INV-04 forbids.
+    expect(on(absenceCountsFor(rows, WEEK, ROSTER), "2026-10-07")).toBe(0);
+  });
+});
+
+describe("CAL-05 AC-11 and ADR-013: a removed member's entries stop on the day they were removed", () => {
+  // FIXTURE_REMOVED_MEMBER carries `removedAt` 2026-08-31, outside this week. The criterion is
+  // written about a removal INSIDE the displayed week, so this moves the one field the rule turns on
+  // — the same shape CAL-04's AC-6 block above already uses on the same fixture.
+  const removedMidWeek: Member = {
+    ...FIXTURE_REMOVED_MEMBER,
+    removedAt: "2026-10-07T00:00:00+00:00",
+  };
+  const roster = [...ROSTER.filter((m) => m.id !== FIXTURE_REMOVED_MEMBER.id), removedMidWeek];
+  const rows = [
+    entry({ memberId: removedMidWeek.id, startDate: "2026-10-05", endDate: "2026-10-09" }),
+  ];
+
+  it("lists them on the days before the removal", () => {
+    const details = absentEntriesFor(rows, WEEK, roster);
+    expect(namesOn(details, "2026-10-05")).toEqual([removedMidWeek.id]);
+    expect(namesOn(details, "2026-10-06")).toEqual([removedMidWeek.id]);
+  });
+
+  it("lists them on no day from the removal onwards", () => {
+    // Strictly after, not on or after: somebody removed at midnight on the 7th is gone ON the 7th.
+    const details = absentEntriesFor(rows, WEEK, roster);
+    expect(namesOn(details, "2026-10-07")).toEqual([]);
+    expect(namesOn(details, "2026-10-09")).toEqual([]);
+  });
+});
+
+describe("CAL-05 AC-12 and INV-04: the week and the month agree about who is away", () => {
+  // The criterion that matters, because the failure the feature row names — four names against 3.5 —
+  // is invisible on either screen alone. Every shape INV-04 distinguishes is in this one set.
+  const rows = [
+    entry({ memberId: FIXTURE_MEMBER.id, portion: "am", startDate: "2026-10-07", endDate: "2026-10-07" }),
+    entry({ memberId: FIXTURE_MEMBER.id, portion: "pm", startDate: "2026-10-07", endDate: "2026-10-07" }),
+    entry({ memberId: FIXTURE_ADMIN.id, portion: "full", startDate: "2026-10-05", endDate: "2026-10-09" }),
+    entry({ memberId: FIXTURE_SECOND_ADMIN.id, portion: "am", tentative: true, startDate: "2026-10-07", endDate: "2026-10-08" }),
+    entry({ memberId: FIXTURE_APPROVED_MEMBER.id, status: "rejected", rejectionReason: "no", startDate: "2026-10-07", endDate: "2026-10-07" }),
+    entry({ memberId: FIXTURE_REMOVED_MEMBER.id, startDate: "2026-10-05", endDate: "2026-10-11" }),
+    entry({ memberId: "00000000-0000-4000-8000-000000000000", startDate: "2026-10-06", endDate: "2026-10-06" }),
+  ];
+
+  const details = absentEntriesFor(rows, WEEK, ROSTER);
+  const members = absentMembersFor(rows, WEEK, ROSTER);
+  const counts = absenceCountsFor(rows, WEEK, ROSTER);
+
+  it("names the same set of members the month grid draws, on every date", () => {
+    for (const date of eachDateInRange(WEEK)) {
+      // DISTINCT, because one member holding an `am` and a `pm` is two rows here and one avatar
+      // there — the same fact told two ways, which is what INV-04 requires rather than forbids.
+      const distinct = [...new Set(namesOn(details, date))].sort();
+      expect(distinct).toEqual([...avatarsOn(members, date)].sort());
+    }
+  });
+
+  it("re-derives the month's count from the week's rows, on every date", () => {
+    // The weights are written out HERE rather than imported, deliberately: importing `WEIGHT` would
+    // make this test agree with the implementation by construction, and what it is checking is that
+    // the two derivations describe the same day. This is the assertion that fires on "four names
+    // against 3.5".
+    const weight = { full: 1, am: 0.5, pm: 0.5 } as const;
+    for (const date of eachDateInRange(WEEK)) {
+      const summed = rowsOn(details, date).reduce((total, row) => total + weight[row.entry.portion], 0);
+      expect(summed).toBe(on(counts, date));
+    }
+  });
+
+  it("is not vacuous: the week under test actually holds people", () => {
+    // Two agreeing empty maps agree perfectly, so the pair above would pass against a function that
+    // returned nothing. This is the line that stops that.
+    //
+    // FOUR ROWS, THREE PEOPLE, 2.5 — which is the feature row's own example standing up: a reader
+    // counting names on the week gets a number the month cell does not show, and both screens are
+    // right. It is the reason this view renders no count of its own.
+    expect(rowsOn(details, "2026-10-07")).toHaveLength(4);
+    expect(new Set(namesOn(details, "2026-10-07")).size).toBe(3);
+    expect(avatarsOn(members, "2026-10-07")).toHaveLength(3);
+    expect(on(counts, "2026-10-07")).toBe(2.5);
+  });
+});
+
+describe("CAL-05 AC-13: every date of the week is present, carrying an empty list", () => {
+  it("keeps the same contract the other two derivations keep", () => {
+    const details = absentEntriesFor([], WEEK, ROSTER);
+
+    expect(details.size).toBe(7);
+    // A caller iterating one map indexes the others without a fallback, which is what stops "nobody
+    // is away on Sunday" and "Sunday is missing" being the same answer.
+    for (const date of eachDateInRange(WEEK)) expect(details.get(date)).toEqual([]);
+  });
+});
+
+describe("CAL-05 section 4.1: the order within a date is fixed here, not left to the datastore", () => {
+  it("orders by display name, then portion, then entry id", () => {
+    // Vietnamese collation: `Đ` sorts after `D`, not after `T`, so the two `Đã…` names come first.
+    // The comparison names the locale explicitly — the host default would order these rows one way
+    // in CI and another on a laptop, which is the divergence tests/seam-parity.test.ts cannot see.
+    const rows = [
+      entry({ id: "aa000000-0000-4000-8000-000000000002", memberId: FIXTURE_MEMBER.id, portion: "pm", startDate: "2026-10-07", endDate: "2026-10-07" }),
+      entry({ id: "aa000000-0000-4000-8000-000000000001", memberId: FIXTURE_MEMBER.id, portion: "am", startDate: "2026-10-07", endDate: "2026-10-07" }),
+      entry({ id: "aa000000-0000-4000-8000-000000000003", memberId: FIXTURE_ADMIN.id, portion: "full", startDate: "2026-10-07", endDate: "2026-10-07" }),
+      entry({ id: "aa000000-0000-4000-8000-000000000004", memberId: FIXTURE_APPROVED_MEMBER.id, portion: "full", startDate: "2026-10-07", endDate: "2026-10-07" }),
+    ];
+
+    expect(rowsOn(absentEntriesFor(rows, WEEK, ROSTER), "2026-10-07").map((row) => row.member.displayName)).toEqual([
+      FIXTURE_APPROVED_MEMBER.displayName,
+      FIXTURE_ADMIN.displayName,
+      FIXTURE_MEMBER.displayName,
+      FIXTURE_MEMBER.displayName,
+    ]);
+  });
+
+  it("breaks the remaining tie on entry id, so one member's am and pm are deterministic", () => {
+    // The only case where the first two comparisons both tie, and the reason the third exists: the
+    // input order below is reversed relative to the answer.
+    const pm = entry({ id: "ab000000-0000-4000-8000-000000000002", memberId: FIXTURE_MEMBER.id, portion: "pm", startDate: "2026-10-07", endDate: "2026-10-07" });
+    const am = entry({ id: "ab000000-0000-4000-8000-000000000001", memberId: FIXTURE_MEMBER.id, portion: "am", startDate: "2026-10-07", endDate: "2026-10-07" });
+    const first = entry({ id: "ab000000-0000-4000-8000-000000000003", memberId: FIXTURE_MEMBER.id, portion: "am", startDate: "2026-10-07", endDate: "2026-10-07" });
+
+    const ordered = rowsOn(absentEntriesFor([pm, first, am], WEEK, ROSTER), "2026-10-07");
+    expect(ordered.map((row) => row.entry.id)).toEqual([am.id, first.id, pm.id]);
   });
 });
