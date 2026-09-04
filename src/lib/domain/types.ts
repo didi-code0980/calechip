@@ -269,3 +269,27 @@ export const MONTH_ENTRY_LIMIT = 2000;
  * "zero" would be re-deciding INV-04's arithmetic at the call site.
  */
 export type AbsenceCounts = ReadonlyMap<string, number>;
+
+// ---------------------------------------------------------------------------
+// CAL-05. 01-plan.md section 4.1.
+//
+// One shape, and it is beside `AbsenceCounts` because it is the third answer derived from the same
+// pass: the count, the members, and — here — the members WITH the entry that puts them there.
+// ---------------------------------------------------------------------------
+
+/**
+ * CAL-05. One absent person on one date, and the entry that puts them there.
+ *
+ * It is a domain shape rather than a seam one: `absentEntriesFor` builds it from rows the seam
+ * already returns, and a component holds it without importing the seam
+ * (.ai/standards/architecture.md, "Layers").
+ *
+ * BOTH HALVES, and not an entry carrying a display name. The week view draws the member (avatar,
+ * display name) and the entry (type, portion, note, approver) side by side, and flattening the two
+ * into one record would put a second representation of `Member` in reach of a component — the same
+ * reason `Entry` does not carry `date_range`.
+ */
+export interface AbsenceDetail {
+  entry: Entry;
+  member: Member;
+}

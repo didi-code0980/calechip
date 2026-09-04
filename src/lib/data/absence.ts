@@ -19,7 +19,14 @@
 //
 // This file imports nothing from ./index and nothing from either implementation. It may be imported
 // from any layer; it names no column and constructs no client.
-import type { AbsenceCounts, DateRange, Entry, EntryPortion, Member } from "../domain/types";
+import type {
+  AbsenceCounts,
+  AbsenceDetail,
+  DateRange,
+  Entry,
+  EntryPortion,
+  Member,
+} from "../domain/types";
 
 // ---------------------------------------------------------------------------
 // The date vocabulary. `yyyy-MM-dd` strings throughout, and every arithmetic goes through UTC.
@@ -140,6 +147,29 @@ function walk(
   }
 }
 
+/**
+ * CAL-05. The order rows appear in within one date, fixed HERE rather than left to the datastore.
+ *
+ * Two implementations returning rows in different orders is the divergence
+ * `tests/seam-parity.test.ts` cannot see — it compares names and arity, not row order — so the
+ * screen would be stable on the mock and shuffle on Supabase with nothing reporting it. Sorting
+ * above the seam makes the order a property of this module instead.
+ *
+ * By `displayName` ascending, then by `portion` in the order `full`, `am`, `pm`, then by `entry.id`.
+ * The last is what makes the render deterministic when one member holds an `am` and a `pm` on one
+ * day, which is the only case where the first two both tie.
+ *
+ * The collation is explicitly `vi` rather than the host default. `localeCompare` with no locale
+ * reads the machine's, so the same rows would order differently in CI and on a developer's laptop
+ * — and these are Vietnamese display names, where `Đ` sorts after `D` and not after `T`.
+ */
+const PORTION_ORDER: Record<EntryPortion, number> = { full: 0, am: 1, pm: 2 };
+
+const byDisplayThenPortionThenId = (a: AbsenceDetail, b: AbsenceDetail): number =>
+  a.member.displayName.localeCompare(b.member.displayName, "vi") ||
+  PORTION_ORDER[a.entry.portion] - PORTION_ORDER[b.entry.portion] ||
+  (a.entry.id < b.entry.id ? -1 : a.entry.id > b.entry.id ? 1 : 0);
+
 /** Every date in `range` at zero. AC-9 and the contract on `AbsenceCounts`: a caller never has to
  *  distinguish an absent key from a zero, because there are no absent keys. */
 const zeroed = (range: DateRange): Map<string, number> =>
@@ -202,6 +232,49 @@ export function absentMembersFor(
   return new Map(
     [...seen].map(([date, members]) => [date, [...members.values()]] as [string, readonly Member[]]),
   );
+}
+
+/**
+ * CAL-05. Every absent person on every date in `range`, WITH the entry that puts them there, derived
+ * from the SAME `walk` that produces `absenceCountsFor` and `absentMembersFor`.
+ *
+ * **This is the third derivation and not a second definition.** INV-04's rules — rejected excluded,
+ * tentative never consulted, a member counting only while `removedAt` is null or strictly after the
+ * date, an entry clamped to the requested range — are applied exactly once, inside `walk`, and all
+ * three exported functions read that one pass. A week list that disagreed with a month cell would
+ * require `walk` itself to be wrong, which is the only failure mode INV-04 leaves open. The
+ * alternative — filtering `entries` inside the view — is CAL-05 01-plan.md section 8, rejected
+ * alternative 1, and it is rejected because those four lines ARE these rules written a second time.
+ *
+ * **ONE MEMBER MAY APPEAR TWICE ON ONE DATE, and that is correct here where it is not in
+ * `absentMembersFor`:** an `am` entry and a `pm` entry are two facts about the day, and per-person
+ * detail is this derivation's whole job. The count for that date is still 1.0 and the month grid
+ * still draws one avatar — the same fact told three ways, which is what INV-04 requires.
+ *
+ * Every date in `range` is present, carrying an empty array where nobody is away — the contract the
+ * other two keep, so a caller iterating one map can index the others without a fallback (AC-13).
+ *
+ * @param entries every entry overlapping `range`, REJECTED ONES INCLUDED — `walk` excludes them, and
+ *                it is the only thing that may (AC-10).
+ * @param range   inclusive at both ends.
+ * @param roster  the team's members, INCLUDING removed ones, exactly as `absenceCountsFor` takes
+ *                them: ADR-013 needs `removedAt` per member to decide each date (AC-11).
+ */
+export function absentEntriesFor(
+  entries: readonly Entry[],
+  range: DateRange,
+  roster: readonly Member[],
+): ReadonlyMap<string, readonly AbsenceDetail[]> {
+  const found = new Map<string, AbsenceDetail[]>();
+  for (const date of eachDateInRange(range)) found.set(date, []);
+
+  walk(entries, range, roster, (date, entry, member) => {
+    found.get(date)?.push({ entry, member });
+  });
+
+  for (const details of found.values()) details.sort(byDisplayThenPortionThenId);
+
+  return found;
 }
 
 /**

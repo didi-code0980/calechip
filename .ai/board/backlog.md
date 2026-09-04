@@ -32,17 +32,16 @@ Under the current gate placement a ticket sits here until it has been planned �
 
 | # | Ticket | Title | State | Blocked on |
 |---|--------|-------|-------|------------|
-| 1 | CAL-05 | Week view — per-person detail for one week, with half-days, notes and who approved | BACKLOG | CAL-04 |
-| 2 | CAL-06 | Year view — one row per member across 365 days | BACKLOG | CAL-04, TEA-03 |
-| 3 | ADM-01 | Set the overload threshold | BACKLOG | TEA-01, CAL-04 |
-| 4 | CAL-07 | Overload warning shown while choosing dates, before the entry is saved | BACKLOG | CAL-01, CAL-04 |
-| 5 | ADM-02 | The national holiday calendar, seeded and readable | BACKLOG | TEA-01, ADM-01 |
-| 6 | ADM-03 | Add, edit or delete a holiday or swap day | BACKLOG | ADM-02 |
-| 7 | CAL-08 | Holidays and bridge days shown in the calendar views | BACKLOG | ADM-02, CAL-04, CAL-05, CAL-06 |
-| 8 | ADM-04 | The worklist of entries awaiting a decision | BACKLOG | CAL-01, TEA-03, ADM-01 |
-| 9 | ADM-05 | Approve or reject an entry, with a reason on rejection | BACKLOG | ADM-04, CAL-02 |
-| 10 | ADM-06 | Reject several entries at once, with one reason for the batch | BACKLOG | ADM-05 |
-| 11 | OPS-002 | UI copy to English — entry screens and the seam's error messages | BACKLOG | — |
+| 1 | CAL-06 | Year view — one row per member across 365 days | BACKLOG | CAL-04, TEA-03 |
+| 2 | ADM-01 | Set the overload threshold | BACKLOG | TEA-01, CAL-04 |
+| 3 | CAL-07 | Overload warning shown while choosing dates, before the entry is saved | BACKLOG | CAL-01, CAL-04 |
+| 4 | ADM-02 | The national holiday calendar, seeded and readable | BACKLOG | TEA-01, ADM-01 |
+| 5 | ADM-03 | Add, edit or delete a holiday or swap day | BACKLOG | ADM-02 |
+| 6 | CAL-08 | Holidays and bridge days shown in the calendar views | BACKLOG | ADM-02, CAL-04, CAL-05, CAL-06 |
+| 7 | ADM-04 | The worklist of entries awaiting a decision | BACKLOG | CAL-01, TEA-03, ADM-01 |
+| 8 | ADM-05 | Approve or reject an entry, with a reason on rejection | BACKLOG | ADM-04, CAL-02 |
+| 9 | ADM-06 | Reject several entries at once, with one reason for the batch | BACKLOG | ADM-05 |
+| 10 | OPS-002 | UI copy to English — entry screens and the seam's error messages | BACKLOG | — |
 
 **OPS-001 shipped from row 12 while CAL-04 sat at row 1, and the rows above it did not move.**
 Recorded because this file's header reserves reordering to a human and says the orchestrator takes
@@ -112,6 +111,10 @@ its five contested files reach `main` with [#38](https://github.com/didi-code098
 `.ai/standards/ui-design-system.md`, which exists only in commit `3ccbd37` on `ops/ui-language-english`,
 open as PR #37 and unmerged. If #37 does not merge, both tickets are invalid rather than blocked. No
 ticket field carries that, which is why it is prose — and why nothing in the loop will ask.
+
+**Renumbered to 1–10 by `orchestrator` at /ship on 2026-09-04**, when CAL-05 left this table for
+`## ARCHIVE`. Bookkeeping, not a reordering. **The whole range was renumbered this time, OPS-002
+included** — the correction below explains why that is worth saying.
 
 **CORRECTION, `orchestrator`, 2026-09-04 — OPS-002 is row 11, not 12.** The CAL-04 ship below
 renumbered the rows only as far as ADM-06 and left OPS-002 where it was, so the table read 1–10 and
@@ -214,6 +217,7 @@ Tickets that cannot proceed until a human decides something. Name the decision, 
 | 9 | CAL-03 | Edit or delete another member's entry, as an admin | 2026-09-03 | [#38](https://github.com/didi-code0980/calechip/pull/38) |
 | 10 | OPS-001 | UI copy to English — chrome, account and team screens | 2026-09-03 | [#40](https://github.com/didi-code0980/calechip/pull/40) |
 | 11 | CAL-04 | Month view — a day grid showing who is away and which days are overloaded | 2026-09-04 | [#48](https://github.com/didi-code0980/calechip/pull/48) |
+| 12 | CAL-05 | Week view — per-person detail for one week, with half-days, notes and who approved | 2026-09-04 | PENDING_PR |
 
 **OPS-001 is the first ticket that ships no capability at all** — it translates the copy of seven
 already-shipped screens and changes no behaviour. Its five `feature_ids` are all TEA rows, and four
@@ -241,6 +245,18 @@ that is ADM-05, and this row deliberately stops at edit and delete.
 **Its `gates:` block still carried the four pre-ADR-019 keys — the fourth ticket running.** TEA-05
 was migrated at PLAN, CAL-01 at `/implement`, CAL-02 and CAL-03 at `/ship`: four tickets, three
 roles, none of them instructed to. Every remaining shell created before 2026-09-01 is the same.
+
+**CAL-05 is the first consumer of CAL-04's shared absence function, and it extended it rather than
+copying it.** `src/lib/data/absence.ts` gained 74 lines and lost 1; no second arithmetic was written.
+That is the outcome CAL-04's registry row demanded and the one no test would have caught failing —
+two copies pass the seam-parity check, agree with each other, and diverge only when one is edited.
+
+**`schema_delta` was genuinely `none`, the second ticket running.** CAL-02, CAL-03 and CAL-04 each
+arrived with Definition of Ready item 4 failing and had it discharged at PLAN by linking existing
+ADRs. CAL-05 owed none: the schema it reads was already shipped, and PLAN did not discover otherwise.
+
+**Eight `allowed_paths` and the diff was eight for eight**, with real headroom — unlike CAL-04, which
+sat exactly on the split threshold.
 
 **CAL-04 builds INV-04 rather than merely touching it.** The absence-count function is one pure
 function in one shared module — `src/lib/data/absence.ts` — imported by both seam implementations and

@@ -11,6 +11,7 @@ import AllowList from "./routes/AllowList";
 import Home from "./routes/Home";
 import MemberList from "./routes/MemberList";
 import MonthView from "./routes/MonthView";
+import WeekView from "./routes/WeekView";
 import EditEntry from "./routes/EditEntry";
 import NewEntry from "./routes/NewEntry";
 import TeamEntries from "./routes/TeamEntries";
@@ -164,6 +165,22 @@ export default function App() {
                 `member_select_team` and `team_select_own` are the controls. */}
             <Route path="/month" element={<MonthView />} />
             <Route path="/month/:month" element={<MonthView />} />
+
+            {/* CAL-05. The week view, and the anchor is the URL exactly as the month's is —
+                `/week/2026-10-07` typed directly produces the same screen as pressing "next" from
+                the week before (AC-1, AC-14). ANY day of a week produces the same seven sections,
+                which is what makes a link from any date work; the component resolves the Monday
+                itself. `/week` with no anchor redirects to the current week, and so does a malformed
+                one, and the component does that rather than a second route here — "what day is it"
+                is a fact about the caller's clock and this file holds no clock.
+
+                NOT GUARDED, for the reason /month already records: this screen READS, it renders
+                `week-not-on-a-team` for a caller with no member row, and that refusal is what says
+                why. A redirect would leave somebody who followed a shared week link with nothing to
+                read. `entry_select_team` and `member_select_team` are the controls, and this ticket
+                adds no policy — every read it makes was already permitted. */}
+            <Route path="/week" element={<WeekView />} />
+            <Route path="/week/:day" element={<WeekView />} />
 
             {/* AC-9. Every address the application does not route lands on `/`, which then resolves
                 by membership — so a caller with no session reaches the sign-in screen. This replaced
