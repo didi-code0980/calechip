@@ -7,12 +7,23 @@
 // change it there in the same commit.
 //
 // The uuids are fixed literals and never generated, for the same reason.
-import type { AuthUser, Entry, Member } from "./domain/types";
+import type { AuthUser, Entry, Member, Team } from "./domain/types";
 
-export const FIXTURE_TEAM: { id: string; name: string; overloadThreshold: number } = {
+/**
+ * CAL-04 gives this row a TYPE and a `createdAt`. The inline object literal that stood here predated
+ * `Team`, which 01-plan.md section 4 promotes to a domain type because `getTeam()` returns it — the
+ * same promotion 02-design.md made for `AllowedEmail`. The literal is unchanged in every field it
+ * already had, and `createdAt` is transcribed from the row supabase/seed.sql already inserts
+ * (seed.sql:51), so nothing here claims a value the seed does not hold.
+ *
+ * `overloadThreshold` is a SHARE, not a count (glossary.md, Threshold), and INV-04 compares it with
+ * `>` and never `>=`. At 0.5 a team of four is overloaded at 2.5 and not at 2.0.
+ */
+export const FIXTURE_TEAM: Team = {
   id: "11111111-1111-4111-8111-111111111111",
   name: "CaleChip",
   overloadThreshold: 0.5,
+  createdAt: "2026-08-31T00:00:00+00:00",
 };
 
 /**
@@ -80,10 +91,14 @@ export const FIXTURE_OTHER_TEAM_ID: string = "44444444-4444-4444-8444-4444444444
  * against seeded data instead — ADR-018's revert condition names this data specifically. A one-team
  * fixture passes whether the team scope is in the policy predicate or absent from it.
  */
-export const FIXTURE_OTHER_TEAM: { id: string; name: string; overloadThreshold: number } = {
+export const FIXTURE_OTHER_TEAM: Team = {
   id: FIXTURE_OTHER_TEAM_ID,
   name: "Nhóm khác",
   overloadThreshold: 0.5,
+  // CAL-04, and the same transcription as FIXTURE_TEAM above: supabase/seed.sql:196 already inserts
+  // this literal. `team_select_own` means no caller on FIXTURE_TEAM can ever read this row, which is
+  // CAL-04 AC-12 on the team table.
+  createdAt: "2026-08-31T00:00:00+00:00",
 };
 
 /** A member of the OTHER team. AC-2: no read by anybody on FIXTURE_TEAM may ever return this row. */

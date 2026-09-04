@@ -213,3 +213,59 @@ export const OWN_ENTRY_LIMIT = 500;
  * ADM-04 and OWN_ENTRY_LIMIT above. If it is lower than this, the fix is this one number.
  */
 export const TEAM_ENTRY_LIMIT = 2000;
+
+// ---------------------------------------------------------------------------
+// CAL-04. 01-plan.md section 4.
+//
+// Every name below is .ai/standards/data-model.md's or the plan's contract, in the application
+// casing this file already uses. Nothing here is invented (RULE-04).
+// ---------------------------------------------------------------------------
+
+/** The caller's own team. One row in v1; `data-model.md` section team. */
+export interface Team {
+  id: string;
+  name: string;
+  /** The Threshold. A SHARE, not a count. Compared with `>`, never `>=` — INV-04, AC-7. */
+  overloadThreshold: number;
+  createdAt: string; // ISO 8601
+}
+
+/**
+ * Both ends INCLUSIVE, matching `Entry.endDate` and ADR-011's `'[]'` constructor.
+ *
+ * It is two `yyyy-MM-dd` strings and never two `Date`s, for the reason `Entry` already records:
+ * `new Date('2026-04-30')` parses as UTC midnight and a day-of-month read west of UTC yields the
+ * previous day.
+ */
+export interface DateRange {
+  start: string; // yyyy-MM-dd
+  end: string; // yyyy-MM-dd
+}
+
+/**
+ * The explicit row limit `listTeamEntriesOverlapping` asks for, and the count at which it refuses to
+ * answer.
+ *
+ * Same shape and same reasoning as TEAM_ENTRY_LIMIT: it must sit BELOW the datastore's own
+ * `max-rows` cap so a truncated read is detectable here rather than invisible. A month of one team
+ * cannot approach it; the number exists so AC-11 has something to assert against, and AC-11 matters
+ * more here than on any earlier read — a capped read SUMS what it was given and produces a
+ * believable wrong count with no error anywhere, and on this screen the count is the product.
+ *
+ * SEPARATE from TEAM_ENTRY_LIMIT rather than shared with it, for the reason ROSTER_LIMIT is its own
+ * constant: the two reads are bounded by different things — a whole team's entries against one
+ * month's — and one constant serving both would be raised for whichever pressed first and would
+ * silently move the other.
+ *
+ * TODO(verify): the datastore's default `max-rows`. The same unknown is carried by ROSTER_LIMIT,
+ * OWN_ENTRY_LIMIT and TEAM_ENTRY_LIMIT above, and by CAL-04, ADM-02 and ADM-04 in
+ * .ai/registry/features.md. If it turns out to be lower, the fix is this one number.
+ */
+export const MONTH_ENTRY_LIMIT = 2000;
+
+/**
+ * The absence count for each date in a range. Keys are `yyyy-MM-dd`; EVERY date in the range is
+ * present, including those with a count of 0 — a caller that had to distinguish "absent key" from
+ * "zero" would be re-deciding INV-04's arithmetic at the call site.
+ */
+export type AbsenceCounts = ReadonlyMap<string, number>;

@@ -5,16 +5,31 @@ id: CAL-04
 title: "Month view — a day grid showing who is away and which days are overloaded"
 feature_ids: [CAL-04]
 group: CAL
-state: BACKLOG
+state: DONE      # orchestrator at /ship, 2026-09-04, on 04-review.md `gate: PASS` /
+                 # `next_state: DONE`. ADR-022 removed the QA stage, so REVIEW -> DONE is the whole
+                 # remaining transition (.ai/01-operating-model.md:36)
 owner: ""
-branch: ""
-size_estimate: ""     # S|M - set by ba at SPEC; gates DoR
-size: ""              # S|M|L|XL - set by tech-lead-design at DESIGN; decides splitting
+branch: "feat/CAL-04"
+size_estimate: M      # 01-plan.md section 1. Set by tech-lead-design at PLAN (ADR-019 retired the BA).
+size: M               # Counted from allowed_paths below: 12 paths, exactly on the split threshold.
+                      # 01-plan.md section 7 carries the ADR-012 line: estimate and verdict AGREE.
 depends_on: [CAL-01, TEA-03]
-invariants_touched: []
-allowed_paths: []
-schema_delta: adds the `team` select policy and its grant — **not `none`** per ADR-014; no ADR is linked yet
-requires_adr: false
+invariants_touched: [INV-04, INV-05, INV-07]   # 01-plan.md section 2. INV-04 is BUILT here.
+allowed_paths:
+  - "supabase/migrations/20260904100000_cal04_team_select.sql"
+  - "src/lib/domain/types.ts"
+  - "src/lib/data/index.ts"
+  - "src/lib/data/supabase.ts"
+  - "src/lib/data/mock.ts"
+  - "src/lib/data/absence.ts"
+  - "src/lib/fixtures.ts"
+  - "src/routes/MonthView.tsx"
+  - "src/App.tsx"
+  - "tests/seam-parity.test.ts"
+  - "tests/absence.test.ts"
+  - "tests/e2e/cal-04-month-view.spec.ts"
+schema_delta: "`grant select on public.team to authenticated` and the `team_select_own` policy — NOT `none` per ADR-014, which carves out nothing for reads. ADR-005 and ADR-014 LINKED at PLAN; no new ADR authored, the CAL-03 precedent. 01-plan.md section 6."
+requires_adr: true    # Corrected from false at PLAN. schema_delta is not `none` (ADR-014).
 rework_count: 0
 chat_budget:
   developer->tech-lead-design: { used: 0, max: 6 }
@@ -22,11 +37,32 @@ chat_budget:
   qa->ba:                      { used: 0, max: 6 }
   qa->tech-lead-design:        { used: 0, max: 6 }
 tracker: { provider: "", external_id: "", sync_enabled: false }
+# Migrated from the four pre-ADR-019 keys (spec/design/review/qa) by `tech-lead-design` at PLAN.
+# ADR-019 merged SPEC and DESIGN into one gate; ADR-022 removed QA. Every shell created before
+# 2026-09-01 still carries the old four — the fifth ticket running, and a different role each time.
 gates:
-  spec:   { passed: false, at: null }
-  design: { passed: false, at: null }
-  review: { passed: false, at: null }
-  qa:     { passed: false, at: null }
+  plan:   { passed: true,  at: "2026-09-04T09:52:00+07:00" }
+  review: { passed: true,  at: "2026-09-04T13:34:16+07:00" }
+  #
+  # `review` WRITTEN BY `orchestrator` AT /ship, 2026-09-04, quoted from 04-review.md's front-matter
+  # rather than re-judged: `gate: PASS`, `next_state: DONE`, `produced_at: 2026-09-04T13:34:16+07:00`.
+  # All eight checks PASS, each citing file:line. One implement cycle, no rework.
+  #
+  # NOTE ON `plan` ABOVE, recorded because the order matters and nothing else records it. That flag
+  # arrived already `true`, stamped 2026-09-04T09:52 — twelve minutes after 01-plan.md's own
+  # `produced_at` of 09:40, and BEFORE any orchestrator run had graded the Definition of Ready.
+  # This repository's convention is the opposite: TEA-05's shell states the flag is "left
+  # `passed: false` on purpose ... the orchestrator grades the full Definition of Ready and records
+  # this flag", and at BUG-001 both the developer and the reviewer declined to write it for exactly
+  # that reason. The flag is not wrong — it agrees with the artifact — but it stopped being evidence
+  # that anyone graded DoR, which is the only reason it exists.
+  #
+  # THE GRADE DID HAPPEN, and this is its only record: `orchestrator` graded all six items at
+  # /next-ticket on 2026-09-04, six of six PASS. Item 4 followed the CAL-03 precedent — `schema_delta`
+  # is not `none` (`grant select on public.team` plus the `team_select_own` policy, ADR-014 carving
+  # out nothing for reads) and PLAN linked ADR-005 and ADR-014 rather than authoring a fifth,
+  # correcting `requires_adr` from `false` to `true`. /next-ticket writes no file, so without this
+  # comment the grade leaves no trace in the tree.
 
 # Created by `product` at /triage on 2026-08-31, promoting
 # .ai/board/ideas/2026-08-31-the-team-cannot-see-its-own-shape.md.
@@ -41,6 +77,14 @@ gates:
 # any `member` row at all needs a select policy on `member` under ADR-005, which is TEA-03's.
 # If that policy ships in TEA-01's migration instead, the dependency reduces to [CAL-01].
 #
-# Item 4: `schema_delta: none`. This row reads; it writes nothing and adds no column. The one
+# Item 4, AS WRITTEN AT TRIAGE ON 2026-08-31, and CORRECTED at PLAN on 2026-09-04. It read:
+# "`schema_delta: none`. This row reads; it writes nothing and adds no column. The one
 # schema-adjacent gap is recorded in the registry row instead — no feature yet owns writing the
-# `team` select policy that reading `overload_threshold` needs.
+# `team` select policy that reading `overload_threshold` needs."
+#
+# BOTH HALVES ARE NOW WRONG, and they had already been contradicted by the `schema_delta:` field
+# above before this run touched it. A feature DOES own that policy and it is this one —
+# .ai/registry/features.md:91 assigns it here and :103 gives ADM-01 "the matching update privilege
+# on that table and nothing else". And a policy migration is not `none`: ADR-014 carves out nothing
+# for `select`. The comment is kept rather than deleted because it is the record of what was
+# believed at triage, and the gap it describes is exactly what ADM-01's plan later stopped on.
