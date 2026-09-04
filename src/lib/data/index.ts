@@ -82,6 +82,26 @@ export interface UpdateEntryInput {
   note: string | null;
 }
 
+/** ADM-01, 01-plan.md section 4.1.
+ *
+ *  ONE FIELD, and that is a contract rather than an omission: `setOverloadThreshold` carries no
+ *  `name`, no `id` and no `createdAt`, so there is no shape in which a caller could send another
+ *  column and have it reach the datastore (AC-9). The column-level grant in the migration is what
+ *  makes the same thing true one layer down.
+ *
+ *  NO `teamId`. The policy resolves the row from `auth.uid()`; a team parameter would be a value
+ *  the CALLER supplies, which is the shape `addAllowedEmail`, `listMembers` and `getTeam` all
+ *  refused before it. */
+export interface SetOverloadThresholdInput {
+  /**
+   * A FRACTION in [0, 1] inclusive, never a percentage. `Team.overloadThreshold` is a share
+   * (glossary, *Threshold*) and `src/lib/data/absence.ts` compares against a share; the screen is
+   * the one edge that speaks percent and it converts there. Two representations of one number on
+   * the seam is how a factor of one hundred gets applied twice.
+   */
+  overloadThreshold: number;
+}
+
 export interface SignUpOutcome {
   /** True when the project has Confirm email on and the address is not yet confirmed. */
   needsEmailConfirmation: boolean;
@@ -398,6 +418,33 @@ export interface DataSeam {
    * `select` and nothing else, so an `updateTeam` here would be a function every call refuses.
    */
   getTeam(): Promise<Team | null>;
+
+  /**
+   * ADM-01 AC-2, AC-5, AC-9, AC-12, AC-14. Sets the caller's OWN team's threshold. Admin only; the
+   * policy is the control and this function is the affordance.
+   *
+   * TAKES NO TEAM PARAMETER, for the reason `getTeam()` already records above: `team_update_admin`
+   * resolves the row from `auth.uid()`, and a `teamId` argument would be a value the CALLER
+   * supplies.
+   *
+   * IT IS A SEPARATE FUNCTION AND NOT A WRITE HALF OF `getTeam()`, which the comment above forbids
+   * in terms.
+   *
+   * IT CARRIES NO OTHER COLUMN (AC-9). `SetOverloadThresholdInput` has one field and the column
+   * grant in supabase/migrations/20260905000000_adm01_team_threshold.sql withholds every other.
+   *
+   * Returns the updated row. The `.select()` in the real implementation is NOT a convenience: under
+   * row-level security a refused UPDATE is FILTERED, not errored — it matches nothing and PostgREST
+   * answers 200 with an empty body, which `removeMember` and `promoteMember` already document in
+   * src/lib/data/supabase.ts. Zero rows returned is a refusal and maps to `not_permitted`; treating
+   * `!error` as success would report a refusal as done. This is the one behaviour in this contract a
+   * developer will get wrong in good faith, and AC-5 is the test that catches it.
+   *
+   * NO RANGE CHECK HERE. `[0, 100]` in whole percentage points is a product decision the SCREEN
+   * enforces before it issues anything (AC-7, AC-8, 01-plan.md section 4.3); there is no `check`
+   * constraint behind this and section 6 says why.
+   */
+  setOverloadThreshold(input: SetOverloadThresholdInput): Promise<Result<Team>>;
 
   /**
    * CAL-04 AC-1 to AC-6, AC-12. Every entry of the caller's team whose date range OVERLAPS `range`.

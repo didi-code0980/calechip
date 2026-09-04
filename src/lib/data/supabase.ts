@@ -13,6 +13,7 @@ import type {
   AddAllowedEmailInput,
   CreateEntryInput,
   DataSeam,
+  SetOverloadThresholdInput,
   SignInInput,
   SignUpInput,
   SignUpOutcome,
@@ -907,6 +908,55 @@ export const seam: DataSeam = {
 
     if (error) throw new Error(`getTeam failed: ${error.message}`);
     return data ? toTeam(data) : null;
+  },
+
+  // -------------------------------------------------------------------------
+  // ADM-01. 01-plan.md sections 4.1, 4.2 and 6.
+  // -------------------------------------------------------------------------
+
+  // ADM-01 AC-2, AC-5, AC-9, AC-12, AC-14.
+  //
+  // NO `.eq("id", …)`. `team_update_admin`'s `using` clause resolves the row from the caller, and a
+  // client-supplied id would be the parameter section 4.1 refuses. This matches `getTeam()` above,
+  // which issues no filter either.
+  //
+  // ONE COLUMN IN THE UPDATE, and it is the only one the grant admits. `name`, `id` and
+  // `created_at` are withheld by `grant update (overload_threshold)` in
+  // 20260905000000_adm01_team_threshold.sql, so a field added here would be refused with `42501
+  // permission denied for column` before any policy ran (AC-9).
+  //
+  // ZERO ROWS BACK IS A REFUSAL. Under row-level security a refused UPDATE is FILTERED rather than
+  // errored - it matches no row and PostgREST answers 200 with an empty body - so `!error` is not
+  // success and treating it as such would report a member's refused write as a saved threshold
+  // (AC-5). The same trap `removeMember` and `promoteMember` above record; `.select()` is what makes
+  // the difference visible.
+  //
+  // `.returns<TeamRow[]>()` AND NOT `.maybeSingle()`. On zero rows `maybeSingle()` gives
+  // `data: null` with no error, which is indistinguishable from a successful update of a row that no
+  // longer exists. `promoteMember` uses the array form for exactly this reason and is the shape
+  // copied here.
+  //
+  // NO RANGE CHECK. `[0, 100]` in whole percentage points is the SCREEN's (AC-7, AC-8) and there is
+  // no `check` constraint behind this - 01-plan.md section 6. A second copy here would be a
+  // product rule living in the seam.
+  async setOverloadThreshold(input: SetOverloadThresholdInput): Promise<Result<Team>> {
+    const { data, error } = await client()
+      .from("team")
+      .update({ overload_threshold: input.overloadThreshold })
+      .select(TEAM_COLUMNS)
+      .returns<TeamRow[]>();
+
+    if (error) return { ok: false, error: toPostgrestFailure(error) };
+
+    const row = (data ?? [])[0];
+    if (!row) {
+      return {
+        ok: false,
+        error: { code: "not_permitted", message: "Could not save the threshold." },
+      };
+    }
+
+    return { ok: true, value: toTeam(row) };
   },
 
   // CAL-04 AC-1 to AC-6, AC-11, AC-12.

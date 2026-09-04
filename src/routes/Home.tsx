@@ -144,6 +144,23 @@ export default function Home({ member, signOut }: HomeProps) {
         </Link>
       </p>
 
+      {/* ADM-01. The one link ADM-01 adds to this file, and the whole of its edit here (01-plan.md
+          section 7). The THIRD admin-only link, placed beside the other two rather than beside the
+          read-only views, and under the same condition — the shape section 4.3 asks for.
+
+          An AFFORDANCE and not a control, exactly as `home-allow-list-link` and
+          `home-team-entries-link` are: a member who types /threshold still reaches Threshold.tsx,
+          which still calls getCurrentMember() and still renders `threshold-refused`, and
+          `team_update_admin` still refuses the write. Hiding the link saves a pointless journey and
+          refuses nobody (AC-10). */}
+      {member.role === "admin" ? (
+        <p className="mt-2">
+          <Link data-testid="home-threshold-link" to="/threshold" className="text-sm underline">
+            When a day counts as crowded
+          </Link>
+        </p>
+      ) : null}
+
       <button
         data-testid="home-sign-out"
         type="button"

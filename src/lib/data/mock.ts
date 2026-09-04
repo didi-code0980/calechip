@@ -9,6 +9,7 @@ import type {
   AddAllowedEmailInput,
   CreateEntryInput,
   DataSeam,
+  SetOverloadThresholdInput,
   SignInInput,
   SignUpInput,
   SignUpOutcome,
@@ -1020,6 +1021,44 @@ export const seam: DataSeam = {
     if (mine === null) return null;
     const row = teams.find((t) => t.id === mine);
     return row ? { ...row } : null;
+  },
+
+  // -------------------------------------------------------------------------
+  // ADM-01. 01-plan.md sections 4.1 and 5.
+  // -------------------------------------------------------------------------
+
+  // ADM-01 AC-2, AC-5, AC-9, AC-12, AC-14.
+  //
+  // THIS REPRODUCES THE POLICY AND NOT THE SCREEN, for the reason `currentAdmin` above records: the
+  // acceptance suite drives this seam (BUG-001 pins it, tests/e2e/seam.setup.ts), so a mock that let
+  // a member through would make AC-4, AC-5 and AC-10 pass against nothing.
+  //
+  // `currentAdmin()` IS `team_update_admin`'s two predicates in one call. It already filters
+  // `removedAt === null` and `role === "admin"`, so AC-14 is inherited here exactly as it is
+  // inherited in SQL from `is_admin`'s own body - written once rather than twice.
+  //
+  // THE CALLER'S OWN TEAM ONLY, resolved through `memberTeamId` the way `getTeam` above does.
+  // `FIXTURE_OTHER_TEAM` is in `teams` and must never be the row this writes: a mock that wrote the
+  // only row it held would pass every test a one-team fixture can carry while hiding a missing team
+  // predicate - the failure ADR-018's revert condition names, one table over.
+  //
+  // ONE FIELD IS ASSIGNED (AC-9). `name`, `id` and `createdAt` are untouched, which is the column
+  // grant's effect reproduced: there is no path here that could write them.
+  //
+  // NO RANGE CHECK, matching supabase.ts. `[0, 100]` in whole percentage points is the SCREEN's
+  // (AC-7, AC-8) and there is no `check` constraint behind the real one - 01-plan.md section 6.
+  //
+  // A COPY GOES BACK, never the stored object, so a caller cannot mutate the mock's table through
+  // the value it was handed - the shape `getTeam` above already uses.
+  async setOverloadThreshold(input: SetOverloadThresholdInput): Promise<Result<Team>> {
+    const me = currentAdmin();
+    if (!me) return refused("not_permitted", "Only an admin can change the threshold.");
+
+    const row = teams.find((t) => t.id === memberTeamId(me.id));
+    if (!row) return refused("not_permitted", "Could not save the threshold.");
+
+    row.overloadThreshold = input.overloadThreshold;
+    return { ok: true, value: { ...row } };
   },
 
   // CAL-04 AC-1 to AC-6, AC-11, AC-12.
