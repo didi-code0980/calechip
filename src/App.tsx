@@ -16,6 +16,7 @@ import YearView from "./routes/YearView";
 import EditEntry from "./routes/EditEntry";
 import NewEntry from "./routes/NewEntry";
 import TeamEntries from "./routes/TeamEntries";
+import Threshold from "./routes/Threshold";
 import NotOnATeam from "./routes/NotOnATeam";
 import SignIn from "./routes/SignIn";
 import SignUp from "./routes/SignUp";
@@ -196,6 +197,22 @@ export default function App() {
                 this ticket adds no policy — every read it makes was already permitted. */}
             <Route path="/year" element={<YearView />} />
             <Route path="/year/:year" element={<YearView />} />
+
+            {/* ADM-01. The threshold setting, at its own address (01-plan.md Open question 1: the
+                registry row leaves the surface open and recommends its own screen, so ADM-02,
+                ADM-03 and ADM-04 inherit this answer rather than inventing an admin area here).
+
+                GUARDED ON `member` AND NOT ON `admin`, which is the choice /entries/team already
+                records: a member who types this address must reach the component and be refused BY
+                IT (`threshold-refused`, AC-4) rather than be bounced to `/`, because the refusal is
+                what says why. A caller with no session or no member row lands on `/`, which then
+                resolves by membership. The guard is an affordance either way — `team_update_admin`
+                and `grant update (overload_threshold)` are the controls and they refuse the write
+                whoever reaches them. */}
+            <Route
+              path="/threshold"
+              element={membership.state === "member" ? <Threshold /> : <Navigate to="/" replace />}
+            />
 
             {/* AC-9. Every address the application does not route lands on `/`, which then resolves
                 by membership — so a caller with no session reaches the sign-in screen. This replaced

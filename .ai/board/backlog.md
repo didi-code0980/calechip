@@ -32,15 +32,20 @@ Under the current gate placement a ticket sits here until it has been planned �
 
 | # | Ticket | Title | State | Blocked on |
 |---|--------|-------|-------|------------|
-| 1 | ADM-01 | Set the overload threshold | BACKLOG | TEA-01, CAL-04 |
-| 2 | CAL-07 | Overload warning shown while choosing dates, before the entry is saved | BACKLOG | CAL-01, CAL-04 |
-| 3 | ADM-02 | The national holiday calendar, seeded and readable | BACKLOG | TEA-01, ADM-01 |
-| 4 | ADM-03 | Add, edit or delete a holiday or swap day | BACKLOG | ADM-02 |
-| 5 | CAL-08 | Holidays and bridge days shown in the calendar views | BACKLOG | ADM-02, CAL-04, CAL-05, CAL-06 |
-| 6 | ADM-04 | The worklist of entries awaiting a decision | BACKLOG | CAL-01, TEA-03, ADM-01 |
-| 7 | ADM-05 | Approve or reject an entry, with a reason on rejection | BACKLOG | ADM-04, CAL-02 |
-| 8 | ADM-06 | Reject several entries at once, with one reason for the batch | BACKLOG | ADM-05 |
-| 9 | OPS-002 | UI copy to English — entry screens and the seam's error messages | BACKLOG | — |
+| 1 | CAL-07 | Overload warning shown while choosing dates, before the entry is saved | BACKLOG | CAL-01, CAL-04 |
+| 2 | ADM-02 | The national holiday calendar, seeded and readable | BACKLOG | TEA-01, ADM-01 |
+| 3 | ADM-03 | Add, edit or delete a holiday or swap day | BACKLOG | ADM-02 |
+| 4 | CAL-08 | Holidays and bridge days shown in the calendar views | BACKLOG | ADM-02, CAL-04, CAL-05, CAL-06 |
+| 5 | ADM-04 | The worklist of entries awaiting a decision | BACKLOG | CAL-01, TEA-03, ADM-01 |
+| 6 | ADM-05 | Approve or reject an entry, with a reason on rejection | BACKLOG | ADM-04, CAL-02 |
+| 7 | ADM-06 | Reject several entries at once, with one reason for the batch | BACKLOG | ADM-05 |
+| 8 | OPS-002 | UI copy to English — entry screens and the seam's error messages | BACKLOG | — |
+
+**Renumbered to 1–8 by `orchestrator` at /ship on 2026-09-05**, when ADM-01 left this table for
+`## ARCHIVE`. Bookkeeping, not a reordering. **CAL-07 is now row 1 and is blocked on nothing** — its
+`Blocked on` names CAL-01 and CAL-04, both DONE. **ADM-02 at row 2 is also unblocked for the first
+time**: its `Blocked on` names ADM-01, which is what just shipped, so the holiday calendar is
+reachable — and rows 2, 3 and 4 are a chain that now has its head free.
 
 **OPS-001 shipped from row 12 while CAL-04 sat at row 1, and the rows above it did not move.**
 Recorded because this file's header reserves reordering to a human and says the orchestrator takes
@@ -223,6 +228,7 @@ Tickets that cannot proceed until a human decides something. Name the decision, 
 | 11 | CAL-04 | Month view — a day grid showing who is away and which days are overloaded | 2026-09-04 | [#48](https://github.com/didi-code0980/calechip/pull/48) |
 | 12 | CAL-05 | Week view — per-person detail for one week, with half-days, notes and who approved | 2026-09-04 | [#49](https://github.com/didi-code0980/calechip/pull/49) |
 | 13 | CAL-06 | Year view — one row per member across 365 days | 2026-09-04 | [#51](https://github.com/didi-code0980/calechip/pull/51) |
+| 14 | ADM-01 | Set the overload threshold | 2026-09-05 | PENDING_PR |
 
 **OPS-001 is the first ticket that ships no capability at all** — it translates the copy of seven
 already-shipped screens and changes no behaviour. Its five `feature_ids` are all TEA rows, and four
@@ -238,6 +244,29 @@ corrected to `DONE` here, on the fact of the merge rather than on this ticket's 
 ticket to reach `/ship` that way, because `product` created the shell on 2026-09-03 from the current
 template. The five before it were each created before 2026-09-01 and each had to be migrated by
 whichever role noticed.
+
+**ADM-01 is the first ADM row to ship, and the first ticket whose PLAN gate had to be run twice.**
+The 2026-09-03 pass came back `gate: BLOCKED` — it could not tell whether ADM-01 was allowed to carry
+`grant select on public.team` and `team_select_own`, because `features.md` assigns those to CAL-04
+and moving that ownership is a registry edit under RULE-01. Nothing was decided to unblock it. CAL-04
+shipped the two statements on 2026-09-04, and the question stopped existing: the second pass on
+2026-09-05 dropped the select half, linked ADR-005 and ADR-014 for the update half, and passed. **No
+rework was charged** — RULE-08, the block sat upstream of the plan rather than inside it.
+
+**What ships is two statements and a screen.** A column-level `grant update (overload_threshold) on
+public.team`, which is what withholds `name` from everybody — an RLS policy is row-level and would
+otherwise turn *set the threshold* into *edit the team row*, and no permission row for renaming a
+team exists anywhere — and `team_update_admin`, scoped to an admin of the caller's own team. No
+trigger, unlike TEA-04: one writable column needs no sentence that `with check` cannot express.
+
+**The threshold was unreachable until now.** TEA-01 created `overload_threshold` and revoked every
+privilege on `public.team`, so `0.5` was the only value the product could ever hold — and since
+CAL-04 that default has been shading real days in the month view. This is the row that turns a
+hard-coded 50% into a team's own number.
+
+**Definition of Done item 3 was NOT run at `/ship`**: the operator instructed step 1 to be skipped.
+The exit-0 evidence is REVIEW's, from 00:36 on the same tree with nothing committed since —
+`vitest run` 4 files / 81 tests and `playwright test` 96 tests, both reproducing the impl log exactly.
 
 **CAL-03 completes the write path on `entry`: CAL-02 gave a member their own rows, this gives an
 admin every row on their own team.** Two policies and nothing else — `entry_update_admin` and
