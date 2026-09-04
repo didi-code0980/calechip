@@ -91,10 +91,11 @@ requires_adr: true   # CORRECTED from `false` by tech-lead-design at PLAN. The A
                      # gate either way — 01-plan.md carries `gate: BLOCKED`.
 rework_count: 0
 chat_budget:
+  # Migrated 2026-09-04 by `steward`. This shell had its `gates` block migrated at PLAN and its
+  # `chat_budget` left behind — a half-migration nobody noticed, including the two passes that
+  # inventoried the stale shells on this date and both counted ADM-01 as already done. Check D14
+  # found it, which is the argument for D14 in one line.
   developer->tech-lead-design: { used: 0, max: 6 }
-  developer->ba:               { used: 0, max: 6 }
-  qa->ba:                      { used: 0, max: 6 }
-  qa->tech-lead-design:        { used: 0, max: 6 }
 tracker: { provider: "", external_id: "", sync_enabled: false }
 gates:
   # ADR-019 Decision point 4 merged the `spec` and `design` gates into one `plan` gate, and

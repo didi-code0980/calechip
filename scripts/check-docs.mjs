@@ -816,6 +816,78 @@ if (opModel && dorSection === undefined) {
   }
 }
 
+// --- D14: a live ticket's gate and chat_budget keys match the template -------------------------
+//
+// The first check in this file that reads a real `ticket.yaml` rather than the template. Every other
+// ticket check — D10, D13 — reads `.ai/templates/ticket.yaml` alone, which is exactly why this rot
+// went unseen: the template was corrected when ADR-019 merged `spec` and `design` into `plan`, when
+// ADR-019 retired `ba`, and when ADR-022 removed the QA stage and the `qa->` edges — and no shell
+// created before those dates was ever migrated.
+//
+// The cost was not the wrong keys. It was that six tickets each discovered it separately and patched
+// their own copy at PLAN or at /ship, by whichever role happened to notice, so the board held two
+// shapes at once and neither was authoritative.
+//
+// **DONE tickets are skipped, and that is the whole subtlety.** TEA-01 through TEA-03 genuinely ran
+// under the four-gate model and carry `passed: true` on `spec`, `design` and `qa`; three tickets
+// carry `qa: { waived: true, by: ADR-017 }`. Those are the record of what happened. Rewriting them
+// to match today's template would not be a migration, it would be falsifying history — so the check
+// governs the shells that still have a future and leaves the ones that have a past.
+//
+// The expected key set is READ FROM THE TEMPLATE, never hard-coded here. The next time a stage is
+// added or retired, the template is edited once and this check follows; a literal list would become
+// the ninth copy of the thing that just went stale.
+
+function yamlBlockKeys(text, block) {
+  const lines = text.split(/\r?\n/);
+  const start = lines.findIndex((l) => l.trimEnd() === `${block}:`);
+  if (start === -1) return null;
+  const keys = [];
+  for (let i = start + 1; i < lines.length; i++) {
+    const line = lines[i];
+    if (/^\s*(#|$)/.test(line)) continue;
+    if (!/^\s+\S/.test(line)) break;
+    const m = /^\s+([^:\s#]+):/.exec(line);
+    if (m) keys.push(m[1]);
+  }
+  return keys;
+}
+
+if (ticketTpl) {
+  const ticketsDir = path.join(ROOT, ".ai/board/tickets");
+  const shells = fs.existsSync(ticketsDir)
+    ? fs.readdirSync(ticketsDir).sort().map((d) => path.join(ticketsDir, d, "ticket.yaml")).filter((f) => fs.existsSync(f))
+    : [];
+
+  for (const block of ["gates", "chat_budget"]) {
+    const want = yamlBlockKeys(ticketTpl, block);
+    if (!want) {
+      err("D14", ".ai/templates/ticket.yaml", `has no \`${block}:\` block to check tickets against`);
+      continue;
+    }
+    for (const file of shells) {
+      const text = readIf(file);
+      if (text === null) continue;
+      const r = rel(file);
+      if (/^state:\s*DONE\b/m.test(text)) continue; // history, not a shell — see above
+
+      const got = yamlBlockKeys(text, block);
+      if (got === null) {
+        err("D14", r, `has no \`${block}:\` block`);
+        continue;
+      }
+      const extra = got.filter((k) => !want.includes(k));
+      const missing = want.filter((k) => !got.includes(k));
+      if (extra.length) {
+        err("D14", r, `${block} carries ${extra.map((k) => `\`${k}\``).join(", ")}, which the template retired — migrate the shell, do not re-add the key to the template`);
+      }
+      if (missing.length) {
+        err("D14", r, `${block} is missing ${missing.map((k) => `\`${k}\``).join(", ")}, which the template declares`);
+      }
+    }
+  }
+}
+
 // --- Report ------------------------------------------------------------------------------------
 
 const byCheck = (list) => {

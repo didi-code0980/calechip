@@ -1491,3 +1491,45 @@ design reference committed should not be the experiment.
 **Changed:** `.ai/standards/ui-design-system.md`, `.ai/templates/plan.md`, `.ai/templates/idea.md`,
 `.claude/commands/plan.md`, `.claude/commands/triage.md`, `CLAUDE.md`, `.gitattributes`.
 **Verified:** `check-docs` 0 errors, 2 advisory D8 (both pre-existing). 214 pass, 0 fail.
+
+### 2026-09-04 — stale ticket shells, and the first check that reads one
+
+Routed here by `orchestrator` after CAL-05's ship: *"It wants a /thuki run on an ops/ branch, not
+another ship-time patch."* Correct, and overdue — six tickets had each patched their own copy.
+
+**The rot.** Shells created at `/triage` before 2026-09-01 carry the pre-ADR-019 gate set
+(`spec`/`design`/`review`/`qa`) and a `chat_budget` naming `ba` and `qa`, both roles retired. The
+template was corrected each time; **no shell ever was.** So the board held two shapes at once and
+neither was authoritative, and whichever role noticed first patched the one in front of it.
+
+**Migrated nine tickets:** ADM-01 through ADM-06, CAL-06, CAL-07, CAL-08. Key sets only — every gate
+on an unstarted shell is `passed: false` under either shape, so no value changed.
+
+**DONE tickets were left alone, and this is the load-bearing decision.** TEA-01 through TEA-03 ran
+under the four-gate model and carry `passed: true` on `spec`, `design` and `qa`; three tickets carry
+`qa: { waived: true, by: ADR-017 }`. Migrating those would not be a migration, it would be
+falsifying the record of what happened. The check below is scoped the same way: it governs shells
+with a future and leaves the ones with a past.
+
+**Check D14** — the first check in `scripts/check-docs.mjs` that reads a real `ticket.yaml`. D10 and
+D13 read `.ai/templates/ticket.yaml` alone, which is precisely why this went unseen for six tickets:
+nothing compared a shell to the template. D14 does, for `gates` and `chat_budget`, skipping `DONE`.
+**The expected keys are read from the template, never hard-coded** — a literal list in the checker
+would become the ninth copy of the thing that just went stale, and one test asserts exactly that by
+retiring a key in the template and requiring the shell to fail.
+
+**D14 earned its place before it was committed.** The by-eye inventory — mine, and
+`orchestrator`'s — counted eight stale shells and recorded ADM-01 as already migrated. D14's first
+run found **ADM-01 half-migrated**: `gates` fixed at PLAN, `chat_budget` left behind. Two independent
+manual passes missed it; the check found it in one run. `orchestrator`'s "nine more tickets" turned
+out right, for a reason neither of us had.
+
+**Also corrected in this run:** my own first test for D14 asserted one finding where the check
+correctly reports two — a retired-shape shell is wrong twice, three keys present and `plan` absent.
+The check was right; the assertion was not. Worth logging because the reflex on a red test is to
+adjust the code.
+
+**Changed:** nine `.ai/board/tickets/*/ticket.yaml`, `scripts/check-docs.mjs`,
+`scripts/tests/check-docs.test.mjs`.
+**Verified:** `check-docs` 0 errors, 2 advisory D8 (pre-existing). **222 pass, 0 fail** — up from
+214, eight new D14 tests.

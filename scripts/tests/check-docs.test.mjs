@@ -1169,3 +1169,118 @@ test("this repository passes its own audit with zero errors", () => {
   assert.equal(res.status, 0, `check-docs.mjs exited ${res.status}:\n${res.stdout}\n${res.stderr}`);
   assert.match(res.stdout, /errors: 0/);
 });
+
+// --- D14: a live ticket's gate and chat_budget keys match the template -------------------------
+//
+// The check that reads real ticket.yaml files. Its whole subtlety is the DONE exemption, so that is
+// what most of these fixtures are about: a shipped ticket's retired gate keys are the record of what
+// happened, and a check that "fixed" them would be falsifying history.
+
+const TPL = [
+  "# state enum: BACKLOG READY IN_PROGRESS REVIEW DONE",
+  "id: X",
+  "chat_budget:",
+  "  developer->tech-lead-design: { used: 0, max: 6 }",
+  "gates:",
+  "  plan:   { passed: false, at: null }",
+  "  review: { passed: false, at: null }",
+  "",
+].join("\n");
+
+const shell = (state, gates, budget = ["  developer->tech-lead-design: { used: 0, max: 6 }"]) =>
+  [`id: T-01`, `state: ${state}`, "chat_budget:", ...budget, "gates:", ...gates, ""].join("\n");
+
+const CURRENT = ["  plan:   { passed: false, at: null }", "  review: { passed: false, at: null }"];
+const RETIRED = [
+  "  spec:   { passed: false, at: null }",
+  "  design: { passed: false, at: null }",
+  "  review: { passed: false, at: null }",
+  "  qa:     { passed: false, at: null }",
+];
+
+const ticketProject = (tickets, tpl = TPL) =>
+  project(LEDGER + UNISSUED, "x", {
+    ".ai/templates/ticket.yaml": tpl,
+    ...Object.fromEntries(
+      Object.entries(tickets).map(([id, body]) => [`.ai/board/tickets/${id}/ticket.yaml`, body])
+    ),
+  });
+
+test("a shell whose keys match the template passes D14", () => {
+  const r = run(ticketProject({ "T-01": shell("BACKLOG", CURRENT) }));
+  assert.deepEqual(r.findings("D14"), []);
+});
+
+test("a live shell carrying retired gate keys fails D14, on both counts", () => {
+  // The real pre-ADR-019 shape: spec/design/review/qa. It is wrong twice over — three retired keys
+  // present and `plan` absent — and the check reports both, because a message that named only the
+  // extras would leave a reader deleting three lines and still failing.
+  const r = run(ticketProject({ "T-01": shell("BACKLOG", RETIRED) }));
+  assert.equal(r.code, 1);
+  const f = r.findings("D14").join("\n");
+  assert.equal(r.findings("D14").length, 2);
+  assert.match(f, /gates carries `spec`, `design`, `qa`.*which the template retired/);
+  assert.match(f, /gates is missing `plan`/);
+});
+
+// The exemption, and the reason the check is scoped rather than global. TEA-01..03 in the real
+// repository carry `passed: true` on spec, design and qa.
+test("a DONE ticket keeps its retired gate keys and passes D14", () => {
+  const r = run(ticketProject({ "T-01": shell("DONE", RETIRED) }));
+  assert.deepEqual(r.findings("D14"), [], "a shipped ticket's gates are history, not a shell to migrate");
+});
+
+test("a live shell missing a gate the template declares fails D14", () => {
+  const r = run(ticketProject({ "T-01": shell("BACKLOG", ["  plan:   { passed: false, at: null }"]) }));
+  assert.equal(r.findings("D14").length, 1);
+  assert.match(r.findings("D14")[0], /missing `review`/);
+});
+
+// The half-migration that a by-eye inventory missed on 2026-09-04: gates migrated, chat_budget not.
+test("D14 checks chat_budget as well as gates", () => {
+  const r = run(
+    ticketProject({
+      "T-01": shell("BACKLOG", CURRENT, [
+        "  developer->tech-lead-design: { used: 0, max: 6 }",
+        "  qa->ba:                      { used: 0, max: 6 }",
+      ]),
+    })
+  );
+  assert.equal(r.findings("D14").length, 1);
+  assert.match(r.findings("D14")[0], /chat_budget carries `qa->ba`/);
+});
+
+test("D14 reads the expected keys from the template, never a hard-coded list", () => {
+  // Retire `review` in the template only. The shell that still carries it must now fail — which is
+  // what proves the check follows the template rather than a literal list inside check-docs.mjs.
+  const tpl = TPL.replace("  review: { passed: false, at: null }\n", "");
+  const r = run(ticketProject({ "T-01": shell("BACKLOG", CURRENT) }, tpl));
+  assert.equal(r.findings("D14").length, 1);
+  assert.match(r.findings("D14")[0], /carries `review`/);
+});
+
+test("D14 ignores comments and blank lines inside a block", () => {
+  const r = run(
+    ticketProject({
+      "T-01": [
+        "id: T-01",
+        "state: BACKLOG",
+        "chat_budget:",
+        "  # a comment",
+        "  developer->tech-lead-design: { used: 0, max: 6 }",
+        "gates:",
+        "  # migrated 2026-09-04",
+        "  #",
+        "  plan:   { passed: false, at: null }",
+        "  review: { passed: false, at: null }",
+        "",
+      ].join("\n"),
+    })
+  );
+  assert.deepEqual(r.findings("D14"), []);
+});
+
+test("this repository passes D14", () => {
+  const res = spawnSync(process.execPath, [SCRIPT], { cwd: REPO, encoding: "utf8" });
+  assert.doesNotMatch(res.stdout, /FAIL D14/);
+});
