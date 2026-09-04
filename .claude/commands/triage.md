@@ -61,6 +61,12 @@ without one is indistinguishable from an invented feature.
 backlog row is a decision to build something the board cannot see, and `/next-ticket` will correctly
 report nothing to do.
 
+0. **If the operator attached an image, move it to `.ai/board/tickets/<ID>/design/`** and cite that
+   path from the idea's `Evidence` section. It is now this ticket's visual reference and `/plan` § 2b
+   will find it there — `.ai/standards/ui-design-system.md` § *Visual specification*. **An image is
+   attached at exactly one stage;** having taken it here, `/plan` must not be handed a second one.
+   On REJECT or NEEDS-ADR there is no ticket, the image stays with the idea, and it specifies
+   nothing.
 1. `.ai/board/tickets/<ID>/ticket.yaml`, copied from `.ai/templates/ticket.yaml`, `state: BACKLOG`.
 2. Fill **Definition of Ready items 1, 3, 4 and 6** — all four are produced at BACKLOG:
    `feature_ids`, `depends_on`, `schema_delta` with its ADR linked when it is not `none`, and one

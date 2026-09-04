@@ -1,6 +1,6 @@
 ---
 doc_version: 3
-last_updated: 2026-09-03
+last_updated: 2026-09-04
 governed_by: [RULE-01, RULE-05]
 ---
 
@@ -97,6 +97,62 @@ that `src/lib/fixtures.ts` and `supabase/seed.sql` **do** contain diacritics. A 
 is present and is silent about what is missing, so nothing in the rule would notice the
 find-and-replace this section predicts two paragraphs above. The same test fails when a file in
 `COPY_DEBT` no longer has copy to translate, so the list cannot claim a debt that is already paid.
+
+## Visual specification
+
+**A feature's UI may be specified by an image, and the image is attached at exactly one stage —
+`/triage` or `/plan`, never both.** The operator's instruction, 2026-09-04: *"tôi muốn đính ảnh vào
+lúc /plan hoặc lúc /triage chỉ 1 trong 2, còn nếu tôi không đính ảnh thì agent sẽ tự nghĩ ra
+design"*.
+
+### Where it goes
+
+| Attached at | Lives at | Becomes |
+|---|---|---|
+| `/triage` | the idea's `Evidence` section | on PROMOTE, `product` moves it to `.ai/board/tickets/<ID>/design/`. On REJECT or NEEDS-ADR it stays with the idea and specifies nothing — there is no ticket to specify |
+| `/plan` | `.ai/board/tickets/<ID>/design/` directly | the reference cited by `01-plan.md` § 2b |
+
+**One canonical home, `.ai/board/tickets/<ID>/design/`**, and the path is not arbitrary: both
+`scripts/check-allowed-paths.mjs` and `.claude/hooks/guard-allowed-paths.mjs` exempt
+`.ai/board/tickets/<ID>/**` unconditionally, so an image there is readable and writable whatever
+`allowed_paths` says. Anywhere else has to be enumerated at PLAN, and the enumeration will be
+forgotten.
+
+**Never both stages.** Two images for one ticket is two specifications, and nothing in the loop
+reconciles them — the second reader finds whichever they open first. A revised design replaces the
+file; it does not join it.
+
+### An image binds nothing by itself
+
+**No stage downstream ever reopens it.** The reviewer judges R1–R9 against `01-plan.md`, and there is
+no visual check anywhere in the loop — not at REVIEW, not in CI, and there is no QA stage since
+ADR-022. A ticket whose only statement of intent is a picture ships whatever the developer inferred.
+
+So the image is an **input the Tech Lead spends at PLAN**, not a deliverable. § 2b requires the plan
+to carry, as acceptance criteria, every decision the image makes that prose would otherwise drop:
+element order, what is on screen at rest versus after interaction, the empty state, and what the
+image deliberately does not show — that last one into *Out-of-scope*, which the gate already requires
+to be non-empty.
+
+*"Looks like the screenshot" is not an acceptance criterion.* It cannot be observed from outside the
+system by a reader who cannot ask a question, which is what § 2 requires of every AC.
+
+### With no image, the Tech Lead designs it
+
+**This is a grant, and it is narrow.** With no image attached at either stage, `tech-lead-design`
+originates the layout at PLAN and writes the ACs that describe it. It does not stop, does not ask,
+and does not ship a feature with no stated interface.
+
+**The obligation that comes with the grant is one line in § 2b:** *the layout is the Tech Lead's own
+and was never specified.* That line is what separates an invented layout from a required one for
+every later reader — the reviewer, and the operator at merge. An invented layout presented as a
+requirement is the thing this section exists to prevent, and the marking is cheap where the mistake
+is not.
+
+**What is still never invented:** feature IDs, domain acceptance criteria — behaviour, permissions,
+invariants — database fields, and invariants themselves. Those come from `.ai/registry/**` and the
+idea file, and `CLAUDE.md` § *Working agreements* is unchanged about them. The grant here covers the
+**visual arrangement** and the ACs that describe it, and nothing else.
 
 ## Selectors
 

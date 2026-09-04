@@ -44,6 +44,12 @@ What makes this real rather than imagined. A support request, an observed workar
 registry that has no surface. If there is none, say so — an idea with no evidence can still be worth
 recording, but it should not look like one with evidence.
 
+**A screenshot or mockup goes here, and here only, at this stage.** Record it as
+`Visual reference: <path>` and say in one line what it is meant to settle. On PROMOTE it moves into
+the ticket's `design/` folder and becomes that ticket's reference; on REJECT or NEEDS-ADR it stays
+here as evidence about a problem, which is all it ever was. `.ai/standards/ui-design-system.md`
+§ *Visual specification*.
+
 ## Impact if ignored
 
 What continues to happen. Prefer a concrete consequence over a severity word.
