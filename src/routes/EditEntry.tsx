@@ -145,6 +145,14 @@ export default function EditEntry() {
         }}
         afterSubmit="keep"
         onSubmit={onSave}
+        /* CAL-07, 01-plan.md section 4.5. Two props, and both values are already on this screen.
+
+           `ownerId` is the ENTRY's member and never the caller: an admin editing somebody else's
+           entry counts that member, not themselves (AC-18, INV-07). `excludeEntryId` is AC-17 — the
+           fetched rows contain this entry, and appending the draft beside it would count its owner
+           twice on a day they are already down for. */
+        ownerId={entry.memberId}
+        excludeEntryId={entry.id}
       />
 
       <div className="flex flex-wrap items-center gap-4 rounded-2xl bg-white px-4 py-3 text-sm shadow-sm">
