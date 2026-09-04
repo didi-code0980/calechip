@@ -12,7 +12,20 @@ size_estimate: M      # 01-plan.md section 1. Written by tech-lead-design at PLA
                       # which moved this field here from the retired SPEC stage.
 size: M               # 01-plan.md section 7, counted from the ten allowed_paths below. AGREES
                       # with size_estimate; ADR-012 is not engaged and nothing splits.
-depends_on: [TEA-01]
+depends_on: [TEA-01, CAL-04]
+# CAL-04 ADDED BY `orchestrator` ON 2026-09-04, RESOLVING 01-plan.md's `gate: BLOCKED`.
+# The operator delegated the decision ("tự quyết định đi"). THE ANSWER IS NO: ADM-01 does NOT ship
+# `grant select ... on public.team` or the `team_select_own` policy, and features.md is correct
+# exactly as written — CAL-04 owns the select half, ADM-01 owns the update half and nothing else.
+# The blocking_reason rested on one premise that is now stale: it says the operator reordered the
+# backlog so "ADM-01 is row 1 and CAL-04 is row 7". backlog.md today reads CAL-04 at row 1 and
+# ADM-01 at row 4 — the ordering moved back under it as CAL-01/02/03 shipped and left the table.
+# So the registry's OWN stated reason for the assignment ("the owner should be the first consumer,
+# so the policy is exercisable at its own gate") points at CAL-04 again, which is who it already
+# names. Nothing in features.md is edited, because nothing in it is wrong.
+# This makes the dependency real rather than notional: ADM-01 cannot show an admin the value they
+# are editing until CAL-04's select policy exists. It is not a new constraint — it is the one the
+# plan discovered, now written where Definition of Ready item 3 will actually grade it.
 invariants_touched: []   # 01-plan.md section 2. AGREES with the ADM-01 row in features.md.
                          # Explicit, not absent: setting the threshold changes what is CALLED
                          # overloaded and touches no entry and no count. invariants.md:178

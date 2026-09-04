@@ -35,7 +35,7 @@ Under the current gate placement a ticket sits here until it has been planned �
 | 1 | CAL-04 | Month view — a day grid showing who is away and which days are overloaded | BACKLOG | CAL-01, TEA-03 |
 | 2 | CAL-05 | Week view — per-person detail for one week, with half-days, notes and who approved | BACKLOG | CAL-04 |
 | 3 | CAL-06 | Year view — one row per member across 365 days | BACKLOG | CAL-04, TEA-03 |
-| 4 | ADM-01 | Set the overload threshold | BACKLOG | TEA-01 |
+| 4 | ADM-01 | Set the overload threshold | BACKLOG | TEA-01, CAL-04 |
 | 5 | CAL-07 | Overload warning shown while choosing dates, before the entry is saved | BACKLOG | CAL-01, CAL-04 |
 | 6 | ADM-02 | The national holiday calendar, seeded and readable | BACKLOG | TEA-01, ADM-01 |
 | 7 | ADM-03 | Add, edit or delete a holiday or swap day | BACKLOG | ADM-02 |
@@ -299,3 +299,14 @@ across three tickets. Nothing counts this automatically — MD-016.
 
 **TEA-03 shipped with its QA gate waived per ADR-017.** Acceptance criteria and policy enforcement
 are untested by automated suites because no live test runner is configured.
+
+**`Blocked on` for ADM-01 gained CAL-04 by `orchestrator` on 2026-09-04, and no row moved.**
+Bookkeeping plus one resolved decision, not a reordering. `.ai/board/tickets/ADM-01/01-plan.md`
+carried `gate: BLOCKED` on a single question — whether ADM-01 ships the `team` select policy and
+grant that `.ai/registry/features.md` assigns to CAL-04. **The operator delegated the answer and it
+is no.** The plan's premise had gone stale: it argued from ADM-01 being backlog row 1 and CAL-04 row
+7, and today CAL-04 is row 1 and ADM-01 is row 4, because CAL-01, CAL-02 and CAL-03 shipped and left
+this table. The registry's own reason for the assignment — the owner should be the first consumer, so
+the policy is exercisable at its own gate — therefore points back at CAL-04, which is who it already
+names. **`.ai/registry/features.md` is unedited, because nothing in it is wrong.** ADM-01's plan must
+be re-run to clear its gate; the read half its sections 4, 6 and 7 marked for striking is struck.
