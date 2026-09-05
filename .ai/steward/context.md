@@ -1533,3 +1533,66 @@ adjust the code.
 `scripts/tests/check-docs.test.mjs`.
 **Verified:** `check-docs` 0 errors, 2 advisory D8 (pre-existing). **222 pass, 0 fail** — up from
 214, eight new D14 tests.
+
+### 2026-09-05 — `UIE` becomes a fourth feature group, by operator decision
+
+Operator, verbatim: *"nhưng ticket liên quan UI enhancement tôi đề nghị mở 1 feature group riêng sử
+dụng UIE (UI enhancement)"*. This overrules the chore treatment `/triage` had applied hours earlier,
+which filed the sign-in and sign-up restyle as `OPS-003` with no feature row on the precedent
+`BUG-001` and `OPS-002` set. **The disagreement was already on record in three places and was not
+re-argued** — the standing instruction is disagree once, then comply fully, and it had been spent.
+
+**Registry write, with its provenance.** Two files under `.ai/registry/**`:
+
+- **`.ai/registry/decisions/ADR-028-uie-is-a-fourth-feature-group.md`** (new). Status
+  `ACCEPTED by the operator`, 2026-09-05, with the sentence above quoted verbatim in the Status block
+  and the reason that quote is what makes this a recording rather than an authoring. Two things in it
+  are **inferred rather than quoted, and say so**: the boundary test and the decision not to renumber
+  the issued `OPS` IDs. The operator spoke to neither, and both sit inside the envelope the quote
+  opens (ADR-008).
+- **`.ai/registry/features.md`**, `doc_version` 2 to 3. Structure only, **no rows**: `UIE` added to
+  the `id-prefixes` marker, a row in the prefix table, a `## UIE` section with a bare table header,
+  and a paragraph appended after the 2026-08-31 three-group record. **That paragraph was appended to,
+  not rewritten** — it is the record of what was decided and what was known then, and the cost it
+  names is unchanged by a fourth group.
+
+**No first `UIE` row was written.** ADR-007 gives the row to `product` at triage, and the separation
+between the agent that grants an ID and the agent that writes against it is the part of the removed
+human step that carried weight. Writing it here would have collapsed that in the same turn the
+prefix was created.
+
+**The boundary is four ordered questions, not a definition**, because a definition of "UI work" is
+argued at the gate and a test is applied. Contradicts something written down, so a reader can point
+at it — `BUG-nnn`. Product can do something it could not before, **including the screen that
+capability brings** — `CAL`, `ADM`, `TEA`. Deliverable is how an existing surface looks, more than
+one output would be acceptable, somebody judges the result — `UIE`. Otherwise mechanical, one
+acceptable output — `OPS-nnn`. The usable form: **could two competent people do this and produce
+visibly different results that are both correct?**
+
+**A prediction in the task was wrong, and it is worth recording because it is about the mechanism
+rather than about this change.** I was told the audit would fail D1 the moment the prefix was
+declared and before the row landed. It does not. `scripts/check-docs.mjs:154` builds the group set
+from the marker; `scripts/check-docs.mjs:196` then reports a *citation* of an ID with no row.
+Declaring a prefix with an empty table is the shipping state for a group and reports nothing —
+`scripts/tests/check-docs.test.mjs:161` asserts exactly that property on purpose. So the audit is
+green after this change.
+
+Verified rather than asserted: appending a literal `UIE` ID to the new ADR, running the audit, and reverting
+produces `FAIL D1 (1)` naming that file and reading *references feature <the ID>, absent from features.md*, with `errors: 1`. That is the
+ordering constraint, stated correctly in the ADR: **the first row and every citation of it must land
+in one change**, and what breaks is the citation, not the declaration.
+
+**Nothing was fixed outside scope, because nothing was found.** No test hard-codes the three
+prefixes: the two real-file tests assert shape and cross-check the marker against the `##` section
+headings in both directions, which is why declaring a fourth prefix cost no test edit. That was
+written on 2026-08-31 in anticipation of exactly this change and it paid.
+
+Audit 0 errors, 2 advisory warnings, both pre-existing (D8 on ADR-008 — MD-012 — and on the
+2026-09-03 idea file). 222 of 222 tests pass. Tree left dirty; `/ship` commits.
+
+**This log tripped D1 on its own first save**, by quoting that probe ID literally. `.ai/steward/`
+is not a governed root, so D5, D6 and D9 skip it — but **D1 reads `allDocs`, which is every `.md`
+under `.ai/` and `.claude/` plus `CLAUDE.md`**, and is wider than the governed-document scoping that
+limits the other three. Rewritten to name the ID generically. Recorded rather than quietly fixed:
+this is the second time an audit has caught my own file within a minute of writing it, and a log that
+only ever agrees with the present is worth nothing.
