@@ -16,6 +16,8 @@ import type {
   Holiday,
   HolidayKind,
   Member,
+  PendingEntryPage,
+  PendingEntryQuery,
   Result,
   Session,
   Team,
@@ -597,6 +599,53 @@ export interface DataSeam {
    * would be reported as a completed delete. Zero rows is `not_permitted` (AC-15).
    */
   deleteHoliday(holidayId: string): Promise<Result<void>>;
+
+  // -------------------------------------------------------------------------
+  // ADM-04 — the worklist of entries awaiting a decision. 01-plan.md section 4.2.
+  //
+  // ONE READ AND NO WRITE, and the absence is the ticket's defining constraint rather than an
+  // omission. `product` argued at triage that a read-only worklist is not separable from the action
+  // and lost; the losing argument is kept in .ai/registry/features.md:103 precisely so nobody
+  // re-argues it here. Approving and rejecting are ADM-05's, they consume `entry_update_admin` and
+  // `public.entry_enforce_decision()`, and neither is reachable from this surface (AC-9).
+  // -------------------------------------------------------------------------
+
+  /**
+   * ADM-04 AC-1 to AC-8, AC-11, AC-13. One page of the entries awaiting a decision, with the EXACT
+   * size of the matching set.
+   *
+   * NOT `listTeamEntries` WITH ARGUMENTS. That read is deliberately flat and its own comment above
+   * says it must not grow a parameter — "the moment it does there are two team-entry reads and one
+   * of them will be the one nobody updated". This is a different question over a different set with
+   * a different failure mode, and it answers with a different shape.
+   *
+   * NO ROLE PARAMETER AND NO `is_admin` CHECK INSIDE IT, for the reason `listTeamEntries` already
+   * records: `entry_select_team` admits the team's rows to BOTH roles, so this read is not where the
+   * admin capability lives. There is no admin capability behind this screen at all — the refusal on
+   * it is an affordance, and a member who deleted it would see rows they can already read at
+   * `/entries/team` (01-plan.md section 3).
+   *
+   * THE TEAM PREDICATE IS NOT WRITTEN IN THE QUERY. `entry_select_team` supplies it, and a copy here
+   * would be a second expression of INV-07 above the seam (AC-13).
+   *
+   * ONE RESPONSE CARRIES BOTH HALVES, AND THAT IS THE DECISION. `features.md:103` requires the
+   * outstanding count to derive from an exact count and never from `data.length`, and requires that
+   * the badge and the list not be able to disagree. Two calls — one counting, one listing — CAN
+   * disagree, because a write can land between them; one response cannot. 01-plan.md section 8,
+   * rejected alternative 1.
+   *
+   * IT PAGES RATHER THAN TRUNCATING, which is the one read on this seam that does. A ceiling turns a
+   * long queue into an error, and a queue long enough to trip it is precisely the queue an admin
+   * most needs to work through (01-plan.md section 8, rejected alternative 4).
+   *
+   * THROWS on a transport failure, and on a SHORT PAGE THAT IS NOT THE LAST PAGE — `rows.length <
+   * pageSize` while `page * pageSize + rows.length < total`. That is the datastore capping the read,
+   * and it is the truncation hazard in the direction the feature row names: a queue that comes back
+   * short reads as *the queue is empty*, with no error anywhere and no decision ever made (AC-5). It
+   * does NOT throw on a full page — a full page is normal and is what `total` and `page` exist to
+   * navigate.
+   */
+  listPendingEntries(query: PendingEntryQuery): Promise<PendingEntryPage>;
 }
 
 export type { DataSeam as Seam };

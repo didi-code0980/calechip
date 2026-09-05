@@ -401,3 +401,73 @@ export interface DayStatus {
  * `AbsenceCounts` already keeps, so a caller iterating one map can index the other with no fallback.
  */
 export type DayStatuses = ReadonlyMap<string, DayStatus>;
+
+// ---------------------------------------------------------------------------
+// ADM-04. 01-plan.md section 4.1.
+//
+// Three shapes and one constant, added at the end beside the five row limits above. Nothing existing
+// changes shape, so no existing caller changes and the "changes a shared type module" clause of
+// .ai/01-operating-model.md:375 is not engaged — the CAL-04, ADM-02 and CAL-08 precedent.
+// ---------------------------------------------------------------------------
+
+/**
+ * Which side of `today` the worklist is asking for. 01-plan.md section 2, Open questions item 2:
+ * `upcoming` is the default the screen opens on and `past` is the explicit filter that reaches the
+ * entries nobody ever decided. They stay `pending` in every window — there is no fourth
+ * `entry_status` and none is proposed.
+ */
+export type PendingWindow = "upcoming" | "past" | "all";
+
+/** ADM-04. What the worklist is asking for. */
+export interface PendingEntryQuery {
+  /** `null` means both types. The type filter Open questions item 1's recommendation asks for. */
+  type: EntryType | null;
+  window: PendingWindow;
+  /**
+   * `yyyy-MM-dd`, SUPPLIED BY THE CALLER from its own clock and never read from the datastore's.
+   *
+   * "What day is it for the person looking at the screen" is a fact about their clock — the one
+   * place a local date read is correct, which src/routes/MonthView.tsx already records for
+   * `currentMonth()`. A server-side `current_date` would be evaluated in the datastore's timezone
+   * and would flip the boundary seven hours early for a Vietnamese team. It is a parameter rather
+   * than a module read so the filter is testable without a clock (AC-16).
+   */
+  today: string;
+  /** 0-based. */
+  page: number;
+}
+
+/**
+ * ADM-04. One page of the worklist, AND the exact size of the set it was drawn from.
+ *
+ * ONE SHAPE FROM ONE READ, and that is the decision this type exists to hold. The feature row
+ * requires that the outstanding count derive from an exact count and never from `data.length`, and
+ * that the badge and the list not be able to disagree. Two seam calls — one counting, one listing —
+ * can disagree, because a write can land between them. One response carrying both cannot.
+ */
+export interface PendingEntryPage {
+  /** This page's rows, in the order 01-plan.md section 4.2 fixes. Never more than `pageSize`. */
+  rows: Entry[];
+  /** The EXACT number of entries matching the query, from the datastore. Never `rows.length`. */
+  total: number;
+  /** Echoed back, so a caller rendering a stale page cannot mislabel it. */
+  page: number;
+  pageSize: number;
+}
+
+/**
+ * The worklist's page size, and the number the short-page assertion in both seam implementations is
+ * written against.
+ *
+ * UNLIKE the five limits above it, this is NOT a refuse-above-this ceiling — it is a window, and the
+ * read pages rather than truncating. It must still sit below the datastore's `max-rows`, and for the
+ * first time in this file that number is known rather than deferred: the installed client documents
+ * the platform default as 1000
+ * (@supabase/postgrest-js@2.112.4/dist/index.d.mts:3522). 50 is far below it, and the short-page
+ * assertion in both implementations detects a LOWERED cap without needing to know its value — which
+ * is what the `TODO(verify)` markers on ROSTER_LIMIT, OWN_ENTRY_LIMIT, TEAM_ENTRY_LIMIT,
+ * MONTH_ENTRY_LIMIT and HOLIDAY_LIMIT were waiting for. 01-plan.md section 2, Open questions item 4
+ * records that two of those five sit ABOVE the cap and are therefore not held; fixing them is not
+ * this ticket's, and it wants a BUG row of its own.
+ */
+export const PENDING_PAGE_SIZE = 50;
