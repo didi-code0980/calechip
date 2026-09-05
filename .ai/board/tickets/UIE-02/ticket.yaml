@@ -1,0 +1,362 @@
+# Copied from .ai/templates/ticket.yaml by `product` at /triage, 2026-09-05 (ADR-010).
+# ticket.yaml is authoritative; backlog.md is a view (see .ai/01-operating-model.md).
+# state enum: TRIAGE BACKLOG PLAN READY IN_PROGRESS REVIEW REWORK ESCALATED DONE
+id: UIE-02
+title: "The application shell — a persistent sidebar and top bar"
+feature_ids: [UIE-02]
+group: UIE           # ONE GROUP, ONE FEATURE ID. Definition of Ready item 6 is therefore satisfied
+                     # OUTRIGHT by its FIRST clause and NO SPLIT RATIONALE IS OWED — the same
+                     # situation as UIE-01 two folders away, and NOT the OPS-002 situation, which
+                     # spans two groups and owes a whole §5 to the second clause.
+                     # NO CAL, ADM OR TEA ROW IS IN feature_ids. This ticket restyles the surfaces
+                     # those features shipped; it delivers none of them. See §11.
+state: BACKLOG
+owner: ""
+branch: "feat/UIE-02"   # .ai/standards/git-conventions.md:36 asks for feat/<FEATURE-ID>, and UIE-02
+                        # IS a row in .ai/registry/features.md as of 2026-09-05. The convention
+                        # followed; no trade-off to argue. Same as UIE-01 §5.
+size_estimate: ""     # S|M - set by tech-lead-design at PLAN; gates DoR. LEFT AS THE TEMPLATE SHIPS
+                      # IT. This is Definition of Ready item 5 and it is PLAN's. TRIAGE SIZED
+                      # NOTHING HERE AND THE SPLIT INTO THREE TICKETS IS NOT A SIZE CLAIM — it is a
+                      # scope boundary, which is triage's under ADR-010. See §2.
+size: ""              # S|M|L|XL - set by tech-lead-design at PLAN; decides splitting
+depends_on: [UIE-01]  # ***FAILS DEFINITION OF READY ITEM 3 TODAY, ON PURPOSE.*** See §6.
+invariants_touched: []   # LEFT AS THE TEMPLATE SHIPS IT. This is item 2 and belongs to
+                         # tech-lead-design at PLAN. `[]` here is the template's DEFAULT, NOT a
+                         # considered answer. See §10.
+allowed_paths: []     # LEFT EMPTY DELIBERATELY. guard-allowed-paths.mjs blocks every write outside
+                      # this ticket folder while it is empty. PLAN fills it. The file list in §1 is
+                      # the triage's scope statement and is NOT an allowed_paths list.
+schema_delta: none
+requires_adr: false   # Nothing here reaches a registry, a schema or a dependency. IF PLAN CONCLUDES
+                      # OTHERWISE IT MUST STOP AND ASK RATHER THAN FLIP THE FIELD QUIETLY — same
+                      # clause and same reason as OPS-002 §2's localisation-library question and
+                      # UIE-01 §7's font question. The one candidate is named at §9.
+rework_count: 0
+chat_budget:
+  # ADR-019 retired `ba` from the loop, so the two `->ba` edges are gone. They are not listed as
+  # zeroes: an edge nobody can walk is not a budget, it is a row that invites someone to try.
+  developer->tech-lead-design: { used: 0, max: 6 }
+  # ADR-022 removed the QA stage, and the `qa->tech-lead-design` edge with it.
+tracker: { provider: "", external_id: "", sync_enabled: false }
+gates:
+  plan:   { passed: false, at: null }   # ADR-019 merged the `spec` and `design` gates into one
+  review: { passed: false, at: null }
+  # No `qa` key. ADR-022 removed the stage and this shell is created after that date, so the two
+  # gates that decide anything are `plan` and `review`. /ship requires both.
+
+# Created by `product` at /triage on 2026-09-05, on a PROMOTE verdict, from
+# .ai/board/ideas/2026-09-05-the-product-has-no-shell-and-every-screen-starts-over.md.
+# That file's *Triage verdict* section is the reasoning; this block carries only what binds PLAN.
+#
+# ***THE FIRST OF THREE TICKETS FROM ONE IDEA, AND THE ORDER IS STRICTLY SEQUENTIAL:***
+#   UIE-01 -> UIE-02 -> UIE-03 -> UIE-04.
+# One working directory holds one branch (ADR-006), so exactly one of these is ever in flight. This
+# one builds the shell. UIE-03 removes the chrome the shell makes redundant. UIE-04 rewrites the
+# week grid into seven columns.
+#
+# THE VISUAL REFERENCE IS .ai/board/tickets/UIE-02/design/README.md AND IT IS NOT AN IMAGE. One
+# image was shown in conversation on 2026-09-05 and IT IS NOT ON DISK. That README is a
+# transcription written by `product`, at the canonical path, because there was no file to move —
+# the same situation as UIE-01 and handled the same way. ***IT IS THE CANONICAL COPY FOR ALL THREE
+# TICKETS***; UIE-03 and UIE-04 quote only the part each owns and cite this one for the whole.
+#
+# Definition of Ready items 1, 3, 4 and 6 are filled here — they are produced at BACKLOG (ADR-010).
+# Items 2 and 5 (invariants_touched, size_estimate) are deliberately left as the template ships
+# them: they belong to tech-lead-design at PLAN, and the gate sits after PLAN so that they can.
+#
+# ---------------------------------------------------------------------------------------------
+# 0. FOUR PREMISES CORRECTED AT TRIAGE. CARRY THEM; DO NOT RE-DERIVE THEM.
+#
+# Each was measured in this tree on 2026-09-05 against a claim made earlier the same day.
+#
+# 0.1 IT IS src/App.tsx:35, NOT :33. That file is 260 lines, holds fourteen <Route> elements and
+#     SIX membership conditionals, each carrying a comment explaining why it guards or why it
+#     deliberately does not. §3 is about those six.
+#
+# 0.2 ***UIE-01's TICKET IS `BACKLOG`, NOT `PLANNED`.*** .ai/board/tickets/UIE-01/ticket.yaml:13
+#     carries `state: BACKLOG`; it is the FEATURE ROW in .ai/registry/features.md that reads
+#     `PLANNED`. Two different fields with two different vocabularies, and confusing them makes
+#     §6's dependency look further along than it is.
+#
+# 0.3 ***src/routes/EditEntry.tsx:121 AND :200 ARE NOT BACK-TO-HOME LINKS. LEAVE THEM ALONE.***
+#     `edit-entry-back` points at the new-entry route and `edit-entry-team-back` at the team-entries
+#     route. They return the caller to the list they arrived from, and NO SHELL CONTROL REPLACES
+#     THAT. They are out of scope here and out of scope in UIE-03.
+#
+# 0.4 ***THE MOCKUP'S ROSTER OF EIGHT IS FICTIONAL AND NOTHING MAY BE ASSERTED FROM IT.***
+#     src/lib/fixtures.ts holds FOUR members on the main team who have not been removed — :39, :72,
+#     :149, :319. :108 is another team and :123 carries `removedAt`. `TEAM (8)` and `0/8 vắng`
+#     cannot be reproduced from fixtures. The count in the sidebar's section label must come from
+#     the roster the shell actually reads.
+#
+# ---------------------------------------------------------------------------------------------
+# 1. SCOPE — SEVEN PATHS, AND ***ZERO SPEC FILES***. THAT IS THE WHOLE POINT OF THIS CUT.
+#
+#   src/App.tsx                      The route table becomes a layout route. See §2.
+#   src/components/AppShell.tsx      NEW — the two-pane frame, the layout route's element.
+#   src/components/Sidebar.tsx       NEW — brand lockup, roster, nav, legend card, account footer.
+#   src/components/TopBar.tsx        NEW — period controls, the anchor title, the view switcher.
+#   src/hooks/useRoster.ts           NEW — the sidebar's roster read.
+#   src/index.css                    Shell layout tokens on top of UIE-01's @theme block.
+#   src/routes/Home.tsx              ***DELETED.*** See §4.
+#
+# The four period screens KEEP THEIR OWN HEADERS THROUGH THIS TICKET. Removing them is UIE-03 and
+# it is the ONLY one of the three tickets that edits a spec file. ***SO THE APPLICATION IS
+# KNOWINGLY DOUBLED AT THE END OF THIS TICKET*** — a shell top bar above a screen's own header,
+# two sets of prev/next, two anchors. IT LOOKS WORSE BEFORE IT LOOKS BETTER. That is the price of
+# the cut and it is worth paying: nineteen files in one ticket is L, .ai/01-operating-model.md:374
+# says L MUST SPLIT AT PLAN, and splitting by surface here means PLAN never has to.
+#
+# ***PLAN MUST WRITE THE DOUBLING INTO § Out-of-scope AS AN EXPECTED END STATE, NOT LEAVE IT TO BE
+# FOUND AT REVIEW.*** A reviewer meeting two headers with nothing saying so reads it as a defect.
+#
+# ---------------------------------------------------------------------------------------------
+# 2. THE SHAPE — A LAYOUT ROUTE WITH AN <Outlet/> AND A CONDITIONAL element. NOT A WRAPPER.
+#
+#   <Route element={membership.state === "member"
+#                     ? <AppShell member={…} signOut={signOut} />
+#                     : <BareLayout />}>
+#
+# ***NOT A WRAPPER AROUND <Routes>.*** A wrapper paints the sidebar on the sign-in and sign-up
+# routes too, and the only escape from that is a useLocation() conditional INSIDE the shell — which
+# is a route table re-expressed as an if-statement, in a file that already uses the router for
+# exactly this six times over.
+#
+# `BareLayout` is <Outlet/> inside the centred container that exists today. It is what makes §3
+# possible.
+#
+# ---------------------------------------------------------------------------------------------
+# 3. ***THE CONDITIONAL IS LOAD-BEARING AND IT IS THE TRAP IN THIS TICKET. READ THIS BEFORE §1.***
+#
+# ***SIX ROUTES ARE DELIBERATELY UNGUARDED AND EACH RENDERS ITS OWN REFUSAL INSTEAD OF
+# REDIRECTING.*** In src/App.tsx:
+#
+#   the allow-list route     :103-110    -> `allow-list-refused`
+#   the member-list route    :111-113    -> `member-list-not-on-a-team`
+#   the month route          :142-152
+#   the week route           :154-168    -> `week-not-on-a-team`
+#   the year route           :170-182
+#   the holidays route       :224-243
+#
+# ***A SHELL THAT RENDERS ONLY FOR `membership.state === "member"` AND REDIRECTS OTHERWISE CONVERTS
+# SIX DOCUMENTED REFUSALS INTO REDIRECTS AND DELETES THE COMMENT SAYING WHY EACH ONE EXISTS.***
+# Every one of those six carries a comment in the file explaining the choice. A member-less or
+# signed-out caller must still REACH the refusal — which is what `BareLayout` is for.
+#
+# ***THE FOUR MEMBERSHIP GUARDS DO NOT CHANGE AND MUST NOT.*** They stay as each route's own
+# `element` conditional INSIDE the layout route:
+#
+#   the new-entry route      src/App.tsx:117-121
+#   the edit-entry route     src/App.tsx:130-134
+#   the team-entries route   src/App.tsx:136-140
+#   the threshold route      src/App.tsx:196-200
+#
+# ***WHAT RENDERS OUTSIDE THE SHELL:***
+#   - the sign-up route (src/App.tsx:65-67) — reachable in EVERY membership state per ADR-009, and
+#     UIE-01 is restyling it in the ticket immediately before this one;
+#   - the sign-in route (src/App.tsx:72-81);
+#   - the member-less landing resolution to NotOnATeam (src/App.tsx:93).
+#
+# ***THE `resolving` STATE (src/App.tsx:53-62) ALREADY SITS OUTSIDE <Routes> AND STAYS THERE.*** A
+# sidebar whose roster is unknown is worse than the spinner that is there now.
+#
+# ---------------------------------------------------------------------------------------------
+# 4. src/routes/Home.tsx DOES NOT SURVIVE, AND THE LANDING ROUTE KEEPS ITS THREE-WAY SHAPE
+#
+# For a member the landing route becomes <Navigate to="/week" replace />. Member-less still
+# resolves to NotOnATeam and signed-out still goes to the sign-in route, so src/App.tsx:86-99 keeps
+# its shape and the catch-all at :252 keeps funnelling unknown addresses through it. THE ELEVEN
+# BACK-LINKS THAT POINT AT THE LANDING ROUTE THEREFORE KEEP WORKING — see §5 and UIE-03 §3.
+#
+# ***LANDING ON THE WEEK VIEW RATHER THAN THE MONTH VIEW IS THE MOCKUP'S DECISION, NOT TRIAGE'S:***
+# `Tuần` is the active segment in the transcription.
+#
+#   src/routes/Home.tsx:47-59   avatar, name, role  -> the sidebar's account footer
+#   src/routes/Home.tsx:73-186  the seven links     -> the roster-adjacent nav
+#
+# ---------------------------------------------------------------------------------------------
+# 5. ***THE SELECTOR CONTRACT. ELEVEN IDS RELOCATE, NONE IS RENAMED, AND ZERO SPEC FILES CHANGE.***
+#
+# All eleven `home-*` ids move out of src/routes/Home.tsx and into the sidebar UNRENAMED. Every
+# assertion against them is a visibility, click or text check, and a check like that PASSES WHEREVER
+# THE NODE LIVES. The three `toHaveCount(0)` role assertions — tests/e2e/adm-01-threshold.spec.ts:206,
+# tests/e2e/cal-03-team-entries.spec.ts:302 and :487, tests/e2e/tea-05-sign-in.spec.ts:156 — pass as
+# long as the sidebar keeps the SAME `member.role === "admin"` gating that Home.tsx has today.
+#
+# ***THE FAILURE MODE IS DUPLICATION, NOT RELOCATION, AND IT IS THE ONE WAY THIS TICKET GOES RED.***
+# Render `home-sign-out` — or any of the other ten — in the sidebar AND anywhere else at the same
+# time, and ***ELEVEN SPEC FILES FAIL ON A PLAYWRIGHT STRICT-MODE VIOLATION ACROSS 27 REFERENCES.***
+# Playwright refuses a locator that resolves to more than one node; it does not pick the first.
+# ***PLAN MUST WRITE "EACH home-* ID APPEARS EXACTLY ONCE IN THE RENDERED TREE" AS AN ACCEPTANCE
+# CRITERION.*** It is not implied by "the sidebar has a sign-out button".
+#
+# ***`home-member-role` MUST KEEP THE EXACT STRINGS `Admin` AND `Member`.*** src/routes/Home.tsx:29
+# produces them and tests/e2e/tea-05-sign-in.spec.ts asserts them THREE TIMES. The sidebar footer in
+# the transcription shows an uppercase `ADMIN`; ***THAT IS A CSS TRANSFORM, NOT A DIFFERENT STRING.***
+# Typing `ADMIN` into the JSX breaks three assertions and is the cheapest possible way to fail this
+# ticket.
+#
+# ---------------------------------------------------------------------------------------------
+# 6. `depends_on: [UIE-01]` — ***AND IT FAILS DEFINITION OF READY ITEM 3 TODAY, ON PURPOSE***
+#
+# Item 3 requires every ticket named in `depends_on` to be DONE. UIE-01 is `BACKLOG` (§0.2), so this
+# ticket FAILS item 3 as it stands. That is deliberate and it is stated the way OPS-002 §3 states
+# the same thing: the dependency is real, the gate sits after PLAN, and a shell that hid the
+# dependency to pass a grade would be worse than one that fails it honestly.
+#
+# ***WHY UIE-01 SHIPS FIRST AND IS NOT MERGED INTO THIS TICKET.*** Both want src/index.css (one line
+# today) and src/App.tsx:35. UIE-01 introduces the first `@theme` tokens, the first webfont and the
+# ground colour — PRECISELY WHAT THIS SHELL THEN CONSUMES.
+#   - Shell-first means THIS ticket originates the palette AND the font AND rewrites the router, and
+#     reduces UIE-01 to nothing.
+#   - Merging is worse: UIE-01 is S with ZERO spec files, held there by its own frozen-selector
+#     constraint (.ai/board/tickets/UIE-01/ticket.yaml §2). Merging makes it L and forces a split at
+#     PLAN — the arithmetic that ticket's §2 has already done.
+#
+# ***THE COST, STATED RATHER THAN DISCOVERED:*** UIE-01's one-line ground repaint at src/App.tsx:35
+# is REWRITTEN BY THIS TICKET within a ticket. One line thrown away. Against that, UIE-01's @theme
+# block and @font-face are what this ticket builds against instead of inventing, and
+# .ai/standards/ui-design-system.md:17 and :18 — § Colour and § Type — are still bare `TODO(project)`
+# stubs, so whichever ticket lands first becomes the de-facto design system. BETTER THE S ONE WHOSE
+# WHOLE SUBJECT IS TOKENS.
+#
+# ***UIE-01 §6 PREDICTED THIS EXACTLY.*** It measured `depends_on: []` on 2026-09-05 against five
+# BACKLOG shells all carrying `allowed_paths: []`, and said to RE-CHECK AT PLAN because a ticket
+# planned in between would fill its own. THIS IS THE THING IT PREDICTED. UIE-01's `depends_on` is
+# not amended by this triage — that is PLAN's call on UIE-01, not triage's on UIE-02.
+#
+# ---------------------------------------------------------------------------------------------
+# 7. THE TOP BAR READS THE URL AND TAKES NO PROPS
+#
+# All four period screens already anchor on the address — src/App.tsx:153, :168, :181, :242 — so
+# TopBar derives the anchor, the previous and next targets and the active segment from useParams()
+# and useLocation(). ***NO CONTEXT, NO UPWARD PROP PATH, NO useOutletContext.*** A shell that has to
+# be told what week it is by the screen inside it inverts the tree.
+#
+# ***THE COST, AND IT IS THE ONE STRUCTURAL MOVE IN THIS TICKET:*** `shiftMonth`
+# (src/routes/MonthView.tsx:304) and `shiftYear` (src/routes/YearView.tsx:306) MUST MOVE TO A SHARED
+# MODULE. That is ADDITIVE — a new module and two call sites — and .ai/01-operating-model.md:375's
+# XL trigger is not reached by it.
+#
+# ***THE CROSS-VIEW LINKS MAP ONTO THE SEGMENTED CONTROL EXACTLY AS THEY ARE ALREADY NAMED***, and
+# this is what makes the switcher free: on the week route it renders `week-month` and `week-year`;
+# on the month route, `month-week` and `month-year`; on the year route, `year-month` and a NEW
+# `year-week`. That last one has ZERO references anywhere in the repository — additive, breaks
+# nothing. ***BUT THE ELEMENTS THEMSELVES STILL LIVE ON THE SCREENS UNTIL UIE-03 REMOVES THEM***, so
+# see §5's duplication rule: the top bar's copies must not carry the same ids while the screens'
+# copies still exist. ***PLAN MUST DECIDE WHICH SIDE HOLDS THE ID DURING THIS TICKET AND SAY SO.***
+# This is the single most likely place for the strict-mode violation in §5 to be introduced.
+#
+# ---------------------------------------------------------------------------------------------
+# 8. ***THE seam-banner HAS NOWHERE TO SIT, AND PLAN MUST PLACE IT RATHER THAN DISCOVER IT.***
+#
+# src/App.tsx:41-50 renders a PERMANENT amber notice above every screen in a mock build. It is
+# NON-DISMISSIBLE BY DESIGN and TWO spec files reference it. A full-bleed two-pane layout with no
+# page margin has no strip for it.
+#
+# ***`app-root` AND `seam-banner` KEEP THEIR NAMES AND THEIR POSITIONS.*** src/App.tsx:1-6 says
+# `app-root` stays on the element wrapping <Routes>, and tests/e2e/smoke.spec.ts:9 depends on it —
+# a file deliberately absent from every allowed_paths this project has ever written.
+#
+# ---------------------------------------------------------------------------------------------
+# 9. ***OUT OF SCOPE, AND THESE ARE NEGATIVE REQUIREMENTS — THE KIND NOBODY CHECKS.***
+#
+# 9.1 ***DO NOT TRANSLATE ANY COPY IN THE SHELL INTO VIETNAMESE.*** Every string in the
+#     transcription is Vietnamese — `Ai Nghỉ?`, `Lịch vắng mặt team`, `TEAM (8)`, `Nghỉ phép (PTO)`,
+#     `Làm ở nhà (WFH)`, `Hôm nay`, `Tuần`, `Tháng`, `Năm`, `+ Đăng ký`, `(Bạn)`. It reverses
+#     .ai/standards/ui-design-system.md § Language — the operator's own instruction of 2026-09-03 —
+#     and it is LINT-ENFORCED at eslint.config.js:83-92 against `Literal`, `TemplateElement` and
+#     `JSXText` under src/. NO SHELL FILE IS IN copyDebt (ui-language.json:20-26) and that list ONLY
+#     EVER SHRINKS; adding one is named as the failure mode at :10-13.
+#     COSTS THE LAYOUT NOTHING: `Week` / `Month` / `Year` and `Today` fit the same segments.
+#     ***THE BRAND LOCKUP `Ai Nghỉ?` IS THE ONE THING TO ASK ABOUT RATHER THAN ASSUME*** — a product
+#     name is not interface copy, UIE-01 meets the identical question one ticket earlier, and
+#     WHATEVER UIE-01 SETTLES IS WHAT THIS TICKET FOLLOWS.
+#
+# 9.2 ***DO NOT ADD THE `Duyệt phép` BUTTON. SHIP IT ABSENT, NOT DISABLED.***
+#     ADM-04, ADM-05 and ADM-06 are all BACKLOG with `allowed_paths: []`. No route is registered, no
+#     component exists, no policy is written. A DISABLED CONTROL ASSERTS *THIS CAPABILITY EXISTS AND
+#     IS UNAVAILABLE TO YOU*, WHICH IS FALSE — IT EXISTS FOR NOBODY. It has no address, so nothing
+#     can address it and no test can say anything true about it. The ticket that ships ADM-04 adds
+#     the button beside the screen it opens — which is how every nav item on this shell arrived:
+#     src/routes/Home.tsx:73, :91, :107, :126, :141, :165, :180, seven links, seven tickets, one each.
+#
+# 9.3 ***DO NOT ADD THE `Ngày lễ` ROW TO THE LEGEND CARD.***
+#     src/routes/WeekView.tsx:27-28 records that holidays are lavender and are NOT DRAWN, because
+#     CAL-08's row forbids CAL-05 inheriting it. A LEGEND ROW FOR A COLOUR THAT NEVER APPEARS BESIDE
+#     IT IS A LEGEND THAT LIES. CAL-08 adds the swatch in the ticket that adds the colour.
+#     ***SEPARATELY, AND NOT THE SAME THING:*** `home-holidays-link` points at the holidays SCREEN,
+#     which exists and shipped (ADM-02 and ADM-03, both DONE). ***NAV ITEM YES, LEGEND ROW NO.***
+#
+# 9.4 ***DO NOT ADD THE `Quá tải (>50%)` LEGEND ROW EITHER.*** It needs `overloadThreshold`, which
+#     needs the team read that src/routes/WeekView.tsx:11-16 deliberately does not make. It is a
+#     UIE-04 matter and a REGISTRY matter — see .ai/board/tickets/UIE-04/ticket.yaml §3.
+#
+# 9.5 ***DO NOT ADD THE PALETTE ICON.*** Two readings and NO EVIDENCE BETWEEN THEM: the `Vui`/`Gọn`
+#     density toggle (CLAUDE.md § Visual direction) or a theme switcher. Against density —
+#     CLAUDE.md puts Vui/Gọn ON THE CALENDAR GRID, and a control in a global sidebar footer beside
+#     sign-out is not a grid control. Against theme — .ai/standards/ui-design-system.md:14 and :27
+#     are bare stubs, so THERE IS NO SECOND THEME TO SWITCH TO, and UIE-01 §4.5 already scopes dark
+#     mode out. The § Visual specification carve-out grants the VISUAL ARRANGEMENT and explicitly
+#     NOT BEHAVIOUR, and what a control DOES is behaviour. ***CLAUDE.md § No invention: OPEN
+#     QUESTION, SHIP ABSENT.***
+#
+# 9.6 ***DO NOT ADD THE `?` BUTTON.*** No help content exists anywhere in this repository. Same
+#     reasoning as 9.5, with less to argue about.
+#
+# 9.7 ***DARK MODE IS OUT OF SCOPE AND § Out-of-scope MUST SAY SO RATHER THAN BE SILENT.*** The
+#     transcription shows one theme. Silence here reads as an omission; it is a decision. Same as
+#     UIE-01 §4.5.
+#
+# Also out of scope, each for its own reason:
+#   - ***REMOVING ANY CHROME FROM THE FOUR PERIOD SCREENS.*** That is UIE-03 and the whole of it.
+#     Doing any of it here puts spec files into this ticket and destroys the cut. See §1.
+#   - ***THE WEEK GRID ITSELF.*** Seven columns is UIE-04. This ticket puts a frame around the
+#     stacked layout that ships today and changes nothing inside it.
+#   - ***src/routes/TeamEntries.tsx AND src/routes/Threshold.tsx.*** Their back-links point at the
+#     landing route, which now redirects, so they keep working with ZERO edits. Named here so that
+#     leaving them untouched is legible as a choice rather than an oversight.
+#   - ***src/routes/EditEntry.tsx.*** See §0.3.
+#   - ***src/routes/MemberList.tsx.*** The sidebar roster DUPLICATES that screen rather than
+#     replacing it. Removing a shipped screen is not a restyle and is not this ticket's.
+#   - AMENDING .ai/standards/ui-design-system.md — filling § Colour, § Type, § Direction or
+#     § Components. HUMAN PLANE, RULE-01.
+#   - AMENDING ui-language.json. See 9.1.
+#   - THE SEED DATA AND THE FIXTURES. src/lib/fixtures.ts and supabase/seed.sql are § Language's
+#     stated exception and keep their Vietnamese diacritics. Nothing here makes the transcription's
+#     eight names real — see §0.4.
+#
+# ---------------------------------------------------------------------------------------------
+# 10. NOTE ON `invariants_touched`
+#
+# Left as the template's `[]`, which is the DEFAULT and NOT an answer.
+# .ai/registry/invariants.md warns that concluding "none" from safe behaviour is circular reasoning.
+# What triage established as a STARTING POINT, and PLAN must reach its own: all seven rows in that
+# file constrain `entry` rows — overlap, approval state, rejection reasons, the absence count,
+# tentative entries, portions, ownership — and NO INVARIANT GOVERNS THE PRESENCE OF A SIDEBAR. Every
+# file in §1 sits ABOVE the seam: no query, no policy, no migration, no arithmetic. The one thing to
+# look at rather than assume is `src/hooks/useRoster.ts`, which READS the roster — a read, not a
+# write, and one the member-list screen already makes.
+# ADR-028 records separately that `Invariants touched` will be `[]` on almost every UIE row, and
+# says so as a COST of the group rather than as permission to skip the question.
+#
+# ---------------------------------------------------------------------------------------------
+# 11. THE ROW IN .ai/registry/features.md
+#
+# THERE IS A ROW: `UIE-02`, in the `## UIE` section, `Status: PLANNED`, `Invariants touched: []`,
+# citing the idea file by name — the provenance ADR-007 requires of every promoted row, written by
+# `product` at /triage.
+#
+# ***feature_ids IS [UIE-02] ALONE.*** .ai/01-operating-model.md:317 makes the ticket ID equal the
+# feature ID in the 1:1 case, and this is exactly that case. CAL-04, CAL-05, CAL-06, ADM-02 and
+# TEA-03 all shipped surfaces this shell surrounds, and NOT ONE OF THEM IS IN feature_ids: listing
+# them would claim this ticket DELIVERS those features, which it does not. The link survives as
+# prose, which is where it belongs.
+#
+# ***UNDER ADR-028's FOUR-STEP TEST THIS IS UIE AT STEP 3.*** Step 1 fails — nothing written down
+# says the product should have a shell, so there is no contradiction to point at and it is not a
+# BUG. Step 2 fails — after this ticket the product can do nothing it could not do before; every
+# screen it reaches was already reachable, two of them by address only. Step 3 answers yes: the
+# deliverable is the appearance and interaction of surfaces that already exist, more than one output
+# would be acceptable, and somebody has to look at the result and judge it.
