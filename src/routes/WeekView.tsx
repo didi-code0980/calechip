@@ -25,8 +25,11 @@
 // `TODO(project)`, so the palette is cited to `CLAUDE.md` § Visual direction, the only place in the
 // repository that carries it: PTO peach, WFH mint, tentative dashed at reduced opacity, approved
 // carrying a small star. No overload pink appears here at all, because no overload state is
-// computed. Holidays are lavender and are NOT drawn — CAL-08, whose row forbids this one inheriting
-// it. 01-plan.md § 2b records that no image was attached at either stage and that the arrangement
+// computed. Holidays are lavender, and CAL-08 draws them HERE — the sentence this replaces said
+// they were not drawn on this screen, and that ticket is the one that spends it. Lavender means NOT
+// WORKING and tints the DAY HEADING only; the rows below are untouched. A bridge day is a working
+// day, gets no lavender, and carries an outlined badge instead (glossary.md, CAL-08 01-plan.md
+// § 2b). 01-plan.md § 2b records that no image was attached at either stage and that the arrangement
 // below is the Tech Lead's own.
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Link, Navigate, useParams } from "react-router-dom";
@@ -37,7 +40,11 @@ import { seam } from "@/lib/data";
 // makes, for the same reason: neither seam implementation counts or derives anything, so there is no
 // second answer for tests/seam-parity.test.ts to miss.
 import { absentEntriesFor, addDays, eachDateInRange } from "@/lib/data/absence";
-import type { AbsenceDetail, DateRange, Entry, Member } from "@/lib/domain/types";
+// CAL-08's derivation, imported the same way and for the same reason. The weekend rule lives inside
+// that module and is not exported — a `isSaturday(d)` written here would be the second definition
+// .ai/registry/features.md:95 forbids, and this file draws no weekend distinction anyway.
+import { dayStatusesFor, holidayReadRange } from "@/lib/data/day-status";
+import type { AbsenceDetail, DateRange, DayStatus, Entry, Holiday, Member } from "@/lib/domain/types";
 
 // ---------------------------------------------------------------------------
 // The week vocabulary. `yyyy-MM-dd` in the URL and everywhere below it.
@@ -119,7 +126,7 @@ type View =
   | { phase: "loading" }
   | { phase: "not-on-a-team" } // the caller has no member row, or has been removed
   | { phase: "unavailable" } // a throw from either read, including the truncation assertion
-  | { phase: "ready"; roster: Member[]; entries: Entry[] };
+  | { phase: "ready"; roster: Member[]; entries: Entry[]; holidays: Holiday[] };
 
 export default function WeekView() {
   const { day } = useParams<{ day: string }>();
@@ -160,19 +167,30 @@ export default function WeekView() {
         return;
       }
 
-      // The two reads 01-plan.md section 4.2 permits, and no third. `listMembers()` returns the
-      // roster INCLUDING removed members (ADR-013), which is what AC-11 needs and what lets an
-      // approver who has since been removed resolve to a name rather than to a bare uuid.
-      const [roster, entries] = await Promise.all([
+      // The two reads 01-plan.md section 4.2 permits, plus the ONE CAL-08 adds, and no fourth.
+      // `listMembers()` returns the roster INCLUDING removed members (ADR-013), which is what AC-11
+      // needs and what lets an approver who has since been removed resolve to a name rather than to
+      // a bare uuid.
+      //
+      // The holiday range is PADDED: `dayStatusesFor` is not total on its own range, because
+      // deciding whether Monday is a bridge day needs the Sunday before it — which for a seven-day
+      // range is outside it. The pad is one exported function rather than an expression here, so the
+      // three views cannot disagree about it (CAL-08 01-plan.md section 8, rejected alternative 2).
+      const [roster, entries, holidays] = await Promise.all([
         seam.listMembers(),
         seam.listTeamEntriesOverlapping(range),
+        seam.listHolidays(holidayReadRange(range)),
       ]);
 
-      setView({ phase: "ready", roster, entries });
+      setView({ phase: "ready", roster, entries, holidays });
     } catch {
-      // AC-15. Both reads throw on a transport failure and on a possibly-truncated answer
+      // AC-15. All three reads throw on a transport failure and on a possibly-truncated answer
       // (`MONTH_ENTRY_LIMIT`, reused rather than joined by a second constant — section 4.2). This
       // branch is the refusal: nobody is listed, rather than a short list that reads as a quiet week.
+      //
+      // CAL-08 AC-12 is the same branch for the holiday read, whose truncation is worse than local:
+      // a dropped Thursday row removes FRIDAY's bridge mark (ADR-015 Consequences), so a week drawn
+      // without its holidays is a believable wrong answer about a day whose own row arrived intact.
       setView({ phase: "unavailable" });
     }
   }, [range]);
@@ -188,6 +206,16 @@ export default function WeekView() {
       view.phase === "ready" && range
         ? absentEntriesFor(view.entries, range, view.roster)
         : new Map<string, readonly AbsenceDetail[]>(),
+    [view, range],
+  );
+
+  // CAL-08 AC-6 and AC-11. The day status of the seven days, from the same module the month grid
+  // reads — which is what makes the two screens unable to disagree about a date (CAL-08 AC-11).
+  const dayStatuses = useMemo(
+    () =>
+      view.phase === "ready" && range
+        ? dayStatusesFor(view.holidays, range)
+        : new Map<string, DayStatus>(),
     [view, range],
   );
 
@@ -291,20 +319,54 @@ export default function WeekView() {
       <div className="flex flex-col gap-3">
         {dates.map((date) => {
           const people = absent.get(date) ?? [];
+          // CAL-08. Every date of the week is a key — the contract `dayStatusesFor` keeps — so the
+          // fallback below is for the loading and failure phases and never for a drawn day.
+          const status = dayStatuses.get(date);
+          const holiday = status?.holiday ?? null;
 
           return (
             <section
               key={date}
               data-testid="week-day"
               data-date={date}
+              // CAL-08 AC-6 and AC-11. The same two attributes the month cell carries, with the same
+              // three values and the same separate `data-bridge` — a bridge day IS a working day.
+              data-day-status={status ? (status.nonWorkingReason ?? "working") : ""}
+              data-bridge={status?.bridge ?? false}
               className="rounded-2xl bg-white p-4 shadow-sm"
             >
               <h2
                 data-testid="week-day-label"
-                className="flex items-baseline gap-2 text-sm font-semibold"
+                className={[
+                  "-mx-4 -mt-4 mb-2 flex flex-wrap items-baseline gap-2 rounded-t-2xl px-4 py-2 text-sm font-semibold",
+                  // CAL-08 AC-6. Lavender (CLAUDE.md § Visual direction) tints the HEADING and only
+                  // for a NON-WORKING holiday. The rows below are untouched, a mandated `working`
+                  // Saturday is named but not tinted, and a bridge day gets no lavender at all.
+                  status?.nonWorkingReason === "holiday" ? "bg-violet-100" : "",
+                ].join(" ")}
               >
                 {WEEKDAY_NAMES[mondayIndex(date)]}
                 <span className="font-normal opacity-60">{date}</span>
+
+                {/* CAL-08 AC-6. Named whenever a row exists, of EITHER kind, and the badge is
+                    outlined rather than filled — lavender means not working. */}
+                {holiday !== null ? (
+                  <span
+                    data-testid="week-day-holiday"
+                    data-kind={holiday.kind}
+                    className="font-normal opacity-80"
+                  >
+                    {holiday.name}
+                  </span>
+                ) : null}
+                {status?.bridge ? (
+                  <span
+                    data-testid="week-day-bridge"
+                    className="rounded-full border border-current px-2 py-0.5 text-xs font-normal opacity-70"
+                  >
+                    Bridge
+                  </span>
+                ) : null}
               </h2>
 
               {people.length === 0 ? (

@@ -359,3 +359,45 @@ export const HOLIDAY_LIMIT = 1000;
 // is UTC+7 and CI is UTC, so it is correct in both and wrong for a developer in the Americas. Every
 // comparison in this feature is on `yyyy-MM-dd` strings, which sort lexicographically, exactly as
 // src/lib/data/absence.ts already does.
+
+// ---------------------------------------------------------------------------
+// CAL-08. 01-plan.md section 4.1.
+//
+// Two additions beside `Holiday`, and nothing existing changes shape — so no existing caller
+// changes and this is not the "changes a shared type module" clause of
+// .ai/01-operating-model.md:375. The precedent is direct and immediately above: ADM-02 added
+// `HolidayKind`, `Holiday` and `HOLIDAY_LIMIT` here and was sized M, as CAL-04 was before it.
+// ---------------------------------------------------------------------------
+
+/**
+ * CAL-08. Why a day is not a working day, when it is not one.
+ *
+ * `holiday` wins over `weekend` when a `non_working` row falls on a Saturday or a Sunday: the row is
+ * the more specific fact and it carries a name to draw.
+ */
+export type NonWorkingReason = "weekend" | "holiday";
+
+/**
+ * CAL-08. The status of one date.
+ *
+ * NOT a flat `"working" | "weekend" | "holiday" | "bridge"` union. A bridge day IS a working day, and
+ * a caller asking "is this a working day" must be able to read the answer without knowing that
+ * `bridge` implies it — .ai/registry/features.md:95 states that as a requirement on this type.
+ */
+export interface DayStatus {
+  date: string; // yyyy-MM-dd. Never a Date — the trap is named beside `Holiday.date` above.
+  /** The one question every caller asks. True for a bridge day and for a mandated `working` Saturday. */
+  working: boolean;
+  /** Null EXACTLY when `working` is true. */
+  nonWorkingReason: NonWorkingReason | null;
+  /** The row on this date, of EITHER kind, or null when there is none. It carries the name to draw. */
+  holiday: Holiday | null;
+  /** Implies `working === true`. A bridge day is a working day and gets no lavender (glossary.md). */
+  bridge: boolean;
+}
+
+/**
+ * Every date in the requested range, present as a key including the ordinary ones — the contract
+ * `AbsenceCounts` already keeps, so a caller iterating one map can index the other with no fallback.
+ */
+export type DayStatuses = ReadonlyMap<string, DayStatus>;

@@ -32,11 +32,22 @@ Under the current gate placement a ticket sits here until it has been planned �
 
 | # | Ticket | Title | State | Blocked on |
 |---|--------|-------|-------|------------|
-| 1 | CAL-08 | Holidays and bridge days shown in the calendar views | BACKLOG | ADM-02, CAL-04, CAL-05, CAL-06 |
-| 2 | ADM-04 | The worklist of entries awaiting a decision | BACKLOG | CAL-01, TEA-03, ADM-01 |
-| 3 | ADM-05 | Approve or reject an entry, with a reason on rejection | BACKLOG | ADM-04, CAL-02 |
-| 4 | ADM-06 | Reject several entries at once, with one reason for the batch | BACKLOG | ADM-05 |
-| 5 | OPS-002 | UI copy to English — entry screens and the seam's error messages | BACKLOG | — |
+| 1 | ADM-04 | The worklist of entries awaiting a decision | BACKLOG | CAL-01, TEA-03, ADM-01 |
+| 2 | ADM-05 | Approve or reject an entry, with a reason on rejection | BACKLOG | ADM-04, CAL-02 |
+| 3 | ADM-06 | Reject several entries at once, with one reason for the batch | BACKLOG | ADM-05 |
+| 4 | OPS-002 | UI copy to English — entry screens and the seam's error messages | BACKLOG | — |
+
+**Renumbered to 1–4 by `orchestrator` at /ship on 2026-09-05**, when CAL-08 left this table for
+`## ARCHIVE`. Bookkeeping, not a reordering. **The CAL group is empty and every remaining row is
+ADM or OPS** — eight calendar rows shipped, and ADM-04 at row 1 is unblocked: its `Blocked on`
+names CAL-01, TEA-03 and ADM-01, all DONE. Rows 1, 2 and 3 are a chain (ADM-04 → ADM-05 → ADM-06)
+whose head is free, and OPS-002 at row 4 is blocked on nothing and has been since 2026-09-03.
+
+**ADM-04's registry row carries two `TODO(project):` markers that decide what its list contains**,
+and they are the operator's in the same way CAL-08's bridge-day definition was — whether a WFH entry
+goes through approval at all, and what happens to a pending entry whose date has passed
+(`features.md:106`). Unlike CAL-08's, no ADR says these must not become a blocked gate. Recorded
+here rather than left for PLAN to rediscover.
 
 **Renumbered to 1–5 by `orchestrator` at /ship on 2026-09-05**, when ADM-03 left this table for
 `## ARCHIVE`. Bookkeeping, not a reordering. **CAL-08 is now row 1 and every one of its four names is
@@ -251,7 +262,8 @@ Tickets that cannot proceed until a human decides something. Name the decision, 
 | 14 | ADM-01 | Set the overload threshold | 2026-09-05 | [#52](https://github.com/didi-code0980/calechip/pull/52) |
 | 15 | CAL-07 | Overload warning shown while choosing dates, before the entry is saved | 2026-09-05 | [#53](https://github.com/didi-code0980/calechip/pull/53) |
 | 16 | ADM-02 | The national holiday calendar, seeded and readable | 2026-09-05 | [#54](https://github.com/didi-code0980/calechip/pull/54) |
-| 17 | ADM-03 | Add, edit or delete a holiday or swap day | 2026-09-05 | PENDING_PR |
+| 17 | ADM-03 | Add, edit or delete a holiday or swap day | 2026-09-05 | [#55](https://github.com/didi-code0980/calechip/pull/55) |
+| 18 | CAL-08 | Holidays and bridge days shown in the calendar views | 2026-09-05 | PENDING_PR |
 
 **OPS-001 is the first ticket that ships no capability at all** — it translates the copy of seven
 already-shipped screens and changes no behaviour. Its five `feature_ids` are all TEA rows, and four

@@ -26,9 +26,13 @@
 // place in the repository that carries it: PTO peach, WFH mint, an overloaded day a soft pink that is
 // deliberately not an alarming red, tentative entries dashed at reduced opacity, approved ones
 // carrying a small star. 01-plan.md § 2b records that citation and why it is honest rather than lazy.
-// Holidays are lavender and are NOT drawn here — that is CAL-08 and the registry row forbids this one
-// inheriting it. There is no density toggle: it is named in CLAUDE.md, specified nowhere, and
-// originating one would be inventing a control rather than a layout (§ 2b).
+// Holidays are lavender, and CAL-08 draws them HERE — the sentence above this one used to say they
+// were not drawn on this screen, and that ticket is the one that spends it. Lavender means NOT
+// WORKING: a bridge day is a working day, gets none of it, and carries an outlined badge instead
+// (glossary.md, and CAL-08 01-plan.md § 2b). The overloaded soft pink still wins the background, so
+// an overloaded holiday is pink AND named — a colour that hid the crowded-day signal would be the
+// suppression ADR-015 forbids (CAL-08 AC-10). There is no density toggle: it is named in CLAUDE.md,
+// specified nowhere, and originating one would be inventing a control rather than a layout (§ 2b).
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Link, Navigate, useParams } from "react-router-dom";
 import EntryForm from "@/components/EntryForm";
@@ -47,7 +51,12 @@ import {
   eachDateInRange,
   isOverloaded,
 } from "@/lib/data/absence";
-import type { DateRange, Entry, Failure, Member, Team } from "@/lib/domain/types";
+// CAL-08's derivation, imported the same way and for the same reason: neither seam implementation
+// derives a day status, so there is no second answer for tests/seam-parity.test.ts to miss. The
+// weekend rule is inside that module and is not exported — a `isSaturday(d)` written here would be
+// the second definition .ai/registry/features.md:95 forbids.
+import { dayStatusesFor, holidayReadRange } from "@/lib/data/day-status";
+import type { DateRange, DayStatus, Entry, Failure, Holiday, Member, Team } from "@/lib/domain/types";
 
 // ---------------------------------------------------------------------------
 // The month vocabulary. `yyyy-MM` in the URL, `yyyy-MM-dd` everywhere below it.
@@ -126,7 +135,7 @@ type View =
   | { phase: "loading" }
   | { phase: "not-on-a-team" } // the caller has no member row, or has been removed
   | { phase: "unavailable" } // a throw from any read, including AC-11's truncation assertion
-  | { phase: "ready"; team: Team; roster: Member[]; entries: Entry[] };
+  | { phase: "ready"; team: Team; roster: Member[]; entries: Entry[]; holidays: Holiday[] };
 
 /** The drag in progress: where it started and where the pointer is now. Order-free — a drag upwards
  *  through the grid is the same range as the same drag downwards. */
@@ -174,10 +183,15 @@ export default function MonthView() {
         return;
       }
 
-      const [team, roster, entries] = await Promise.all([
+      // CAL-08. One read added and no other seam call changed (CAL-08 01-plan.md section 4.3). The
+      // range is PADDED: `dayStatusesFor` is not total on its own range, because deciding whether
+      // the 1st of the month is a bridge day needs the day before it. The pad is one exported
+      // function rather than an expression here, so the three views cannot disagree about it.
+      const [team, roster, entries, holidays] = await Promise.all([
         seam.getTeam(),
         seam.listMembers(),
         seam.listTeamEntriesOverlapping(range),
+        seam.listHolidays(holidayReadRange(range)),
       ]);
 
       // AC-7 and AC-14 need the threshold, and a grid drawn without it is exactly the failure AC-11
@@ -193,11 +207,16 @@ export default function MonthView() {
         return;
       }
 
-      setView({ phase: "ready", team, roster, entries });
+      setView({ phase: "ready", team, roster, entries, holidays });
     } catch {
-      // All three reads throw on a transport failure and on a possibly-truncated answer. AC-11 is
+      // All four reads throw on a transport failure and on a possibly-truncated answer. AC-11 is
       // this branch: a capped read SUMS what it was given, so a day that was overloaded renders
       // normal and nothing anywhere says so. No count is displayed.
+      //
+      // CAL-08 AC-12 is the same branch for the holiday read, and its truncation is worse than
+      // local: a dropped Thursday row removes FRIDAY's bridge mark (ADR-015 Consequences), so a
+      // calendar drawn without its holidays is a believable wrong answer about a date whose own row
+      // arrived intact.
       setView({ phase: "unavailable" });
     }
   }, [range]);
@@ -232,6 +251,21 @@ export default function MonthView() {
       view.phase === "ready" && range
         ? absentMembersFor(view.entries, range, view.roster)
         : new Map<string, readonly Member[]>(),
+    [view, range],
+  );
+
+  // CAL-08 AC-1 to AC-4, AC-11 and AC-14. The day status of every date IN THE MONTH — the range is
+  // the month and not the whole-weeks grid, so the leading and trailing cells have no key here and
+  // stay stateless (CAL-08 AC-14), exactly as they carry no count today.
+  //
+  // `view.holidays` is the PADDED read: the function needs the day either side of the range to
+  // answer the first and last day, and it cannot tell "no row on that date" from "you did not fetch
+  // that date".
+  const dayStatuses = useMemo(
+    () =>
+      view.phase === "ready" && range
+        ? dayStatusesFor(view.holidays, range)
+        : new Map<string, DayStatus>(),
     [view, range],
   );
 
@@ -357,6 +391,9 @@ export default function MonthView() {
           // AC-7. Strictly greater, decided in one place. Out-of-month cells are never evaluated.
           const overloaded = inMonth && isOverloaded(count, active, team.overloadThreshold);
           const selected = Boolean(selection && inMonth && date >= selection.start && date <= selection.end);
+          // CAL-08. Absent on an out-of-month cell, which is the whole of CAL-08 AC-14.
+          const status = inMonth ? dayStatuses.get(date) : undefined;
+          const holiday = status?.holiday ?? null;
 
           return (
             <div
@@ -366,6 +403,12 @@ export default function MonthView() {
               data-in-month={inMonth}
               data-count={inMonth ? count : ""}
               data-overloaded={overloaded}
+              // CAL-08 AC-1, AC-2, AC-3, AC-11 and AC-14. THREE values and not four: `bridge` is a
+              // separate attribute because a bridge day IS a working day, and folding it in here
+              // would rebuild the flat union .ai/registry/features.md:95 forbids. Empty on an
+              // out-of-month cell.
+              data-day-status={status ? (status.nonWorkingReason ?? "working") : ""}
+              data-bridge={status?.bridge ?? false}
               // AC-13. `onMouseDown` starts the drag and `onMouseEnter` extends it; the release is
               // handled on `window` above, so letting go outside the grid still produces a range.
               // A press and a release on one cell is a one-day range, which is the same gesture a
@@ -379,7 +422,12 @@ export default function MonthView() {
                 // describes as deliberately not an alarming red. It is the cell's BACKGROUND rather
                 // than a badge, because a crowded day has to be findable by scanning (§ 2b).
                 inMonth && overloaded ? "bg-rose-100" : "",
-                inMonth && !overloaded ? "bg-white" : "",
+                // CAL-08 AC-1. Lavender (CLAUDE.md § Visual direction) for a NON-WORKING holiday and
+                // for nothing else. A mandated `working` Saturday is named but not tinted (AC-2), a
+                // bridge day is a working day and gets no lavender at all (AC-3), and the overloaded
+                // pink above still wins the background (AC-10).
+                inMonth && !overloaded && status?.nonWorkingReason === "holiday" ? "bg-violet-100" : "",
+                inMonth && !overloaded && status?.nonWorkingReason !== "holiday" ? "bg-white" : "",
                 selected ? "ring-2 ring-slate-400" : "",
               ].join(" ")}
             >
@@ -391,6 +439,36 @@ export default function MonthView() {
                   </span>
                 ) : null}
               </div>
+
+              {/* CAL-08 AC-1, AC-2, AC-3 and AC-10. The name is drawn whenever a row exists, of
+                  EITHER kind — a mandated working Saturday is named so an admin can see the swap day
+                  they entered — and it is drawn on an overloaded cell too, because a signal hidden
+                  by a colour is the suppression ADR-015 forbids.
+
+                  The bridge badge is OUTLINED and carries no fill: lavender means not working, and a
+                  bridge day is a working day that everybody is about to request. */}
+              {holiday !== null || status?.bridge ? (
+                <div className="flex flex-wrap items-center gap-1">
+                  {holiday !== null ? (
+                    <span
+                      data-testid="month-cell-holiday"
+                      data-kind={holiday.kind}
+                      title={holiday.name}
+                      className="truncate opacity-80"
+                    >
+                      {holiday.name}
+                    </span>
+                  ) : null}
+                  {status?.bridge ? (
+                    <span
+                      data-testid="month-cell-bridge"
+                      className="rounded-full border border-current px-1.5 py-0.5 text-[10px] opacity-70"
+                    >
+                      Bridge
+                    </span>
+                  ) : null}
+                </div>
+              ) : null}
 
               {/* INV-04: a view shows a member's avatar exactly when that member's entry is counted.
                   These come from `absentMembersFor`, which walks the same pass as the counts — a
