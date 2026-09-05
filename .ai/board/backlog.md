@@ -411,7 +411,7 @@ Tickets that cannot proceed until a human decides something. Name the decision, 
 | 17 | ADM-03 | Add, edit or delete a holiday or swap day | 2026-09-05 | [#55](https://github.com/didi-code0980/calechip/pull/55) |
 | 18 | CAL-08 | Holidays and bridge days shown in the calendar views | 2026-09-05 | [#56](https://github.com/didi-code0980/calechip/pull/56) |
 | 19 | ADM-04 | The worklist of entries awaiting a decision | 2026-09-05 | [#58](https://github.com/didi-code0980/calechip/pull/58), merged — corrected from `PENDING_PR` at ADM-05's ship |
-| 20 | ADM-05 | Approve or reject an entry, with a reason on rejection | 2026-09-05 | PENDING_PR |
+| 20 | ADM-05 | Approve or reject an entry, with a reason on rejection | 2026-09-05 | [#59](https://github.com/didi-code0980/calechip/pull/59) |
 
 **OPS-001 is the first ticket that ships no capability at all** — it translates the copy of seven
 already-shipped screens and changes no behaviour. Its five `feature_ids` are all TEA rows, and four
@@ -685,5 +685,14 @@ step 3 gives for being the column's only writer. ADM-04's archive row above and 
 now carry [#58](https://github.com/didi-code0980/calechip/pull/58); CAL-08's `features.md` row now
 carries [#56](https://github.com/didi-code0980/calechip/pull/56), which this table already had. Both
 were written by a ship that could not know its own number, which is the structural cause: `/ship`
-commits before it opens the pull request, so the row is true only if a later run comes back for it.
-Nothing does that automatically.
+commits before it opens the pull request, so the row is true only if something comes back for it.
+
+**This ship came back for its own, and that is the whole of the second commit on this branch.**
+`git push --force` is denied in settings (`git-conventions.md`, *Two limits are not the
+orchestrator's to weigh*), so amending was not available and the number could not have been known
+one commit earlier. `.claude/commands/ship.md` says a ticket gets one commit; `git-conventions.md`
+§ *What the orchestrator decides* leaves the count to the orchestrator. **ADR-023's invariant is one
+pull request, not one commit**, and #59 is one pull request. The second commit touches two
+ship-owned files and changes two strings. **The general fix is still owed and is not this**: either
+`/ship` learns to write the row after `gh pr create`, or a check fails a `PENDING_PR` marker on a
+ticket whose branch has an open pull request.
