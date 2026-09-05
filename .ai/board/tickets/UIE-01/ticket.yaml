@@ -255,15 +255,25 @@ gates:
 #     src/lib/data/mock.ts. DISJOINT from §1 above. Corroborated independently by
 #     ui-language.json:20-26, whose copyDebt lists exactly those five entry-and-seam files and
 #     NEITHER auth route.
-#   - THE OTHER FOUR BACKLOG ROWS — CAL-08, ADM-04, ADM-05, ADM-06 — ALL CARRY
-#     `allowed_paths: []`, so no live ticket claims a path at all. Five of five BACKLOG shells are
-#     unfilled.
+#   - THE OTHER FOUR BACKLOG ROWS — ~~CAL-08,~~ ADM-04, ADM-05, ADM-06 — ALL CARRY
+#     `allowed_paths: []`, so no live ticket claims a path at all. ~~Five of five~~ BACKLOG shells
+#     are unfilled.
 #
 # ONE THING THIS DOES NOT PROTECT AGAINST, stated because `depends_on: []` reads as safety: a ticket
-# planned between now and this one's PLAN will fill its allowed_paths, and CAL-08, ADM-04, ADM-05
-# and ADM-06 all add or edit screens. src/App.tsx in particular has appeared in the allowed_paths of
-# NINE shipped tickets. RE-CHECK AT PLAN. `depends_on: []` is a measurement taken on 2026-09-05, not
-# a standing guarantee.
+# planned between now and this one's PLAN will fill its allowed_paths, and ~~CAL-08,~~ ADM-04,
+# ADM-05 and ADM-06 all add or edit screens. src/App.tsx in particular has appeared in the
+# allowed_paths of NINE shipped tickets. RE-CHECK AT PLAN. `depends_on: []` is a measurement taken
+# on 2026-09-05, not a standing guarantee.
+#
+# ***CAL-08 STRUCK FROM BOTH LISTS BY `product` ON 2026-09-05, LATER THE SAME DAY.*** It merged in
+# PR #56 and is `DONE`, so it is no longer a BACKLOG shell and no longer a ticket that might fill an
+# `allowed_paths` between now and this one's PLAN. ***THE MEASUREMENT IS THE THING THIS PARAGRAPH
+# PREDICTED, AND IT LANDED ON THE SIDE THAT COSTS NOTHING:*** CAL-08 claimed src/routes/WeekView.tsx,
+# MonthView.tsx, YearView.tsx and src/lib/data/, and ***NONE OF THOSE IS IN THIS TICKET'S §1 SCOPE***
+# — the two auth routes, src/index.css, src/App.tsx and a new component. `depends_on: []` therefore
+# STILL HOLDS, measured again rather than assumed. Struck rather than deleted so the shape of the
+# original measurement stays readable. ***NOTHING ELSE IN THIS SHELL IS AFFECTED BY THE CAL-08
+# REBASE***, because this ticket touches none of the three files it rewrote.
 #
 # ---------------------------------------------------------------------------------------------
 # 7. ***THE FONT IS THE ONE OPEN QUESTION THAT CAN CHANGE `requires_adr`.***

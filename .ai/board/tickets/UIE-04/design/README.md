@@ -30,8 +30,10 @@ cent in the worst realistic case. It enumerates three answers and recommends one
 this document does not, and neither did triage.**
 
 **`0/8 vắng` IS NOT LAYOUT.** It is an absence count on a screen that
-`src/routes/WeekView.tsx:11-16` says counts nothing, deliberately, because CAL-05's registry row says
-so and because a second count is the second definition INV-04 exists to forbid. The same goes for the
+`src/routes/WeekView.tsx:11-17` says counts nothing, deliberately, because CAL-05's registry row says
+so and because a second count is the second definition INV-04 exists to forbid. (Citation re-measured
+by `product` on 2026-09-05 after `CAL-08` rewrote that file; it read `:11-16`. The paragraph survives
+the rewrite and `:11` still opens *"IT COUNTS NOTHING"*.) The same goes for the
 `Quá tải (>50%)` row in the sidebar legend, which needs the team read that same paragraph refuses.
 Both are **behaviour**, so the § *Visual specification* grant does not reach them, and reproducing
 either needs an amendment to a registry row rather than an acceptance criterion — `ticket.yaml` § 4,
@@ -47,6 +49,15 @@ A week with entries in it; how an entry chip looks at 168px; a column that is fu
 day; hover, focus and active states; any width narrower than desktop; and dark mode. **Silence is not
 removal** — every one of those exists on screen today under CAL-05, and `ticket.yaml` § 7 scopes out
 the ones that are somebody else's.
+
+**Added 2026-09-05, after `CAL-08` merged in PR #56: the image shows no holiday and no bridge day
+either, and that is now a silence about something the screen actually draws.** The transcription's
+column header is a weekday and a date and nothing else. The real one carries a holiday name
+(`src/routes/WeekView.tsx:355`), a bridge badge (`:364`), and a lavender tint on the heading for a
+non-working holiday (`:345`). **Silence is not removal here more sharply than anywhere else on this
+list**, because a header strip drawn from this transcription alone would drop shipped behaviour that
+`tests/e2e/cal-08-holiday-shading.spec.ts` asserts. `ticket.yaml` § 2 carries the four names and both
+attribute vocabularies that must survive the rewrite.
 
 **This document is evidence of intent; it is not a specification.**
 `.ai/standards/ui-design-system.md:137-138` says *"looks like the screenshot" is not an acceptance

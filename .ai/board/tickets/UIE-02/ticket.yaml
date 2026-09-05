@@ -66,6 +66,31 @@ gates:
 # them: they belong to tech-lead-design at PLAN, and the gate sits after PLAN so that they can.
 #
 # ---------------------------------------------------------------------------------------------
+# 0bis. ***AMENDED BY `product` ON 2026-09-05, AFTER CAL-08 MERGED (PR #56) AND THIS BRANCH WAS
+#       REBASED ONTO IT. READ THIS BEFORE §9.3.***
+#
+# This shell was written EARLIER THE SAME DAY, against a tree in which CAL-08 was `PLANNED`. CAL-08
+# is now `DONE`. It rewrote src/routes/WeekView.tsx, MonthView.tsx and YearView.tsx and added
+# src/lib/data/day-status.ts. TWO CLASSES OF STATEMENT IN THIS FILE WERE MADE FALSE BY IT, AND BOTH
+# ARE CORRECTED IN PLACE RATHER THAN DELETED — the ADR-027 pattern, and the same one the
+# OPS-003 -> UIE-01 correction in .ai/board/backlog.md follows. A reader must be able to see what
+# was decided, on what evidence, and what overtook it.
+#
+#   1. ***§9.3's DEFERRAL OF THE `Ngày lễ` LEGEND ROW IS WITHDRAWN. THE ROW IS NOW IN SCOPE HERE.***
+#      Its premise — that no calendar view draws a holiday — is now the opposite of true.
+#
+#   2. ***EVERY WeekView.tsx, MonthView.tsx AND YearView.tsx LINE NUMBER IN THIS FILE WAS STALE BY
+#      28-35 LINES AND HAS BEEN RE-MEASURED IN THIS TREE.*** They did NOT move by a uniform offset.
+#      src/App.tsx and src/routes/Holidays.tsx were NOT touched by CAL-08 and every citation into
+#      them stands unchanged.
+#
+# ***WHAT THE CORRECTION DOES NOT SWEEP UP.*** §9.2 (`Duyệt phép`), §9.4 (`Quá tải (>50%)`), §9.5
+# (the palette icon) and §9.6 (the `?` button) are UNCHANGED and still deferred. §9.4 in particular
+# was re-checked against the rebased file rather than assumed: src/routes/WeekView.tsx:11 STILL
+# reads *"IT COUNTS NOTHING"* and `seam.getTeam()` is STILL deliberately not called. CAL-08 drew
+# holidays; it brought no threshold, no team read and no overload state with it.
+#
+# ---------------------------------------------------------------------------------------------
 # 0. FOUR PREMISES CORRECTED AT TRIAGE. CARRY THEM; DO NOT RE-DERIVE THEM.
 #
 # Each was measured in this tree on 2026-09-05 against a claim made earlier the same day.
@@ -96,6 +121,9 @@ gates:
 #   src/App.tsx                      The route table becomes a layout route. See §2.
 #   src/components/AppShell.tsx      NEW — the two-pane frame, the layout route's element.
 #   src/components/Sidebar.tsx       NEW — brand lockup, roster, nav, legend card, account footer.
+#                                    ***THE LEGEND CARD CARRIES THREE ROWS, NOT TWO: PTO, WFH AND
+#                                    `Ngày lễ`.*** Amended 2026-09-05 on the rebase — see §0bis and
+#                                    §9.3. The `Quá tải (>50%)` row is STILL OUT (§9.4).
 #   src/components/TopBar.tsx        NEW — period controls, the anchor title, the view switcher.
 #   src/hooks/useRoster.ts           NEW — the sidebar's roster read.
 #   src/index.css                    Shell layout tokens on top of UIE-01's @theme block.
@@ -186,8 +214,23 @@ gates:
 #
 # ***THE FAILURE MODE IS DUPLICATION, NOT RELOCATION, AND IT IS THE ONE WAY THIS TICKET GOES RED.***
 # Render `home-sign-out` — or any of the other ten — in the sidebar AND anywhere else at the same
-# time, and ***ELEVEN SPEC FILES FAIL ON A PLAYWRIGHT STRICT-MODE VIOLATION ACROSS 27 REFERENCES.***
+# time, and ***TWELVE SPEC FILES FAIL ON A PLAYWRIGHT STRICT-MODE VIOLATION.***
 # Playwright refuses a locator that resolves to more than one node; it does not pick the first.
+#     ***AMENDED 2026-09-05 ON THE CAL-08 REBASE, AND THIS IS A MEASUREMENT THE OPERATOR DID NOT
+#     ASK FOR — IT WAS FOUND WHILE CORRECTING THE OTHERS. IT READ "ELEVEN SPEC FILES ... ACROSS 27
+#     REFERENCES".*** CAL-08 shipped a TWELFTH: tests/e2e/cal-08-holiday-shading.spec.ts addresses
+#     `home-sign-out` (:112, :113, :153, :184), `home-holidays-link` (:171) and
+#     `home-threshold-link` (:361). ***THE TWELVE ARE:*** adm-01-threshold, adm-02-holidays,
+#     adm-03-holiday-writes, cal-01-create-entry, cal-02-edit-delete-entry, cal-03-admin-edit-entry,
+#     cal-04-month-view, cal-05-week-view, cal-06-year-view, cal-07-overload-warning,
+#     cal-08-holiday-shading and tea-05-sign-in.
+#     ***THIS CHANGES NO SCOPE.*** This ticket still touches ZERO spec files (§1) — the number is the
+#     size of the crater if §5's rule is broken, not a list of files to edit.
+#     TODO(verify): the reference count. ***THE FILE COUNT IS MEASURED; THE OLD "27 REFERENCES" IS
+#     NOT REPRODUCIBLE FROM ANY COUNT TAKEN TODAY*** — a literal-occurrence count over the same
+#     twelve files returns 70, which is plainly counting something else (array members and constants
+#     as well as call sites). RATHER THAN CARRY A NUMBER NOBODY CAN RE-DERIVE, THE FIGURE IS DROPPED
+#     AND THE FILE COUNT IS KEPT. PLAN may re-measure it if it needs one; nothing here turns on it.
 # ***PLAN MUST WRITE "EACH home-* ID APPEARS EXACTLY ONCE IN THE RENDERED TREE" AS AN ACCEPTANCE
 # CRITERION.*** It is not implied by "the sidebar has a sign-out button".
 #
@@ -235,9 +278,17 @@ gates:
 # be told what week it is by the screen inside it inverts the tree.
 #
 # ***THE COST, AND IT IS THE ONE STRUCTURAL MOVE IN THIS TICKET:*** `shiftMonth`
-# (src/routes/MonthView.tsx:304) and `shiftYear` (src/routes/YearView.tsx:306) MUST MOVE TO A SHARED
+# (src/routes/MonthView.tsx:104) and `shiftYear` (src/routes/YearView.tsx:84) MUST MOVE TO A SHARED
 # MODULE. That is ADDITIVE — a new module and two call sites — and .ai/01-operating-model.md:375's
 # XL trigger is not reached by it.
+#     ***THOSE TWO CITATIONS WERE WRONG BEFORE CAL-08 AND ARE CORRECTED HERE RATHER THAN SHIFTED.***
+#     They read `MonthView.tsx:304` and `YearView.tsx:306` until 2026-09-05, and those were USE
+#     sites — the `month-prev` and `year-prev` links — not DEFINITIONS. A ticket that moves a
+#     function to a shared module needs the definition. The use sites now stand at
+#     src/routes/MonthView.tsx:338 and :344 and at src/routes/YearView.tsx:336 and :342, and there
+#     is a THIRD, unrelated `shiftYear` at src/routes/Holidays.tsx:59 which is NOT this one and is
+#     NOT in scope: it shifts a holiday year, that file is untouched by CAL-08, and merging the two
+#     is a change to the holidays screen this ticket does not make.
 #
 # ***THE CROSS-VIEW LINKS MAP ONTO THE SEGMENTED CONTROL EXACTLY AS THEY ARE ALREADY NAMED***, and
 # this is what makes the switcher free: on the week route it renders `week-month` and `week-year`;
@@ -282,16 +333,50 @@ gates:
 #     the button beside the screen it opens — which is how every nav item on this shell arrived:
 #     src/routes/Home.tsx:73, :91, :107, :126, :141, :165, :180, seven links, seven tickets, one each.
 #
-# 9.3 ***DO NOT ADD THE `Ngày lễ` ROW TO THE LEGEND CARD.***
-#     src/routes/WeekView.tsx:27-28 records that holidays are lavender and are NOT DRAWN, because
-#     CAL-08's row forbids CAL-05 inheriting it. A LEGEND ROW FOR A COLOUR THAT NEVER APPEARS BESIDE
-#     IT IS A LEGEND THAT LIES. CAL-08 adds the swatch in the ticket that adds the colour.
-#     ***SEPARATELY, AND NOT THE SAME THING:*** `home-holidays-link` points at the holidays SCREEN,
-#     which exists and shipped (ADM-02 and ADM-03, both DONE). ***NAV ITEM YES, LEGEND ROW NO.***
+# 9.3 ***WITHDRAWN ON 2026-09-05. THIS IS NO LONGER A NEGATIVE REQUIREMENT — THE `Ngày lễ` LEGEND
+#     ROW IS IN THIS TICKET'S SCOPE. THE PARAGRAPH IT REPLACES IS KEPT DIRECTLY BELOW.***
 #
-# 9.4 ***DO NOT ADD THE `Quá tải (>50%)` LEGEND ROW EITHER.*** It needs `overloadThreshold`, which
-#     needs the team read that src/routes/WeekView.tsx:11-16 deliberately does not make. It is a
+#     ~~DO NOT ADD THE `Ngày lễ` ROW TO THE LEGEND CARD. src/routes/WeekView.tsx:27-28 records that
+#     holidays are lavender and are NOT DRAWN, because CAL-08's row forbids CAL-05 inheriting it. A
+#     LEGEND ROW FOR A COLOUR THAT NEVER APPEARS BESIDE IT IS A LEGEND THAT LIES. CAL-08 adds the
+#     swatch in the ticket that adds the colour.~~
+#
+#     ***WHAT OVERTOOK IT, MEASURED IN THIS TREE AFTER THE REBASE.*** CAL-08 merged (PR #56) and is
+#     `DONE`. The argument was never *the colour is unimportant*, it was ***A LEGEND ROW FOR A
+#     COLOUR THAT NEVER APPEARS BESIDE IT IS A LEGEND THAT LIES.*** THE COLOUR NOW APPEARS. The
+#     proof is the very file the deferral cited, whose comment now reads the OPPOSITE of what was
+#     quoted above — src/routes/WeekView.tsx:28-29: *"Holidays are lavender, and CAL-08 draws them
+#     HERE — the sentence this replaces said they were not drawn on this screen"*. So the legend
+#     stops lying by GAINING the row, and omitting it would now be the omission that misleads: a
+#     lavender day heading on the grid with nothing in the legend naming it.
+#
+#     ***WHAT THE ROW MAY AND MAY NOT SAY, BECAUSE CAL-08 DREW TWO THINGS AND NOT ONE.***
+#     src/routes/WeekView.tsx:30-31 and :345 — ***LAVENDER MEANS NOT WORKING AND TINTS THE DAY
+#     HEADING ONLY***, and only for a NON-WORKING holiday; the rows below are untouched, and a
+#     mandated `working` Saturday is named but NOT tinted. ***A BRIDGE DAY GETS NO LAVENDER AT ALL***
+#     (src/routes/WeekView.tsx:362-369): it is a working day and carries an OUTLINED badge instead.
+#     ***SO ONE LAVENDER DOT LABELLED `Ngày lễ` IS CORRECT AND A SECOND DOT FOR BRIDGE DAYS IS NOT***
+#     — a bridge day has no fill to swatch. Whether the legend also explains the outlined badge is a
+#     PLAN question and this triage does not answer it. THE LABEL IS ENGLISH — see 9.1; `Ngày lễ` is
+#     the transcription's string, not the string to type.
+#
+#     ***THE NEW SELECTORS CAL-08 SHIPPED ON THE WEEK VIEW ARE `week-day-holiday`
+#     (src/routes/WeekView.tsx:355) AND `week-day-bridge` (:364).*** They live on the GRID, not in
+#     the sidebar. This ticket does not touch the grid (see § Also out of scope) and ***MUST NOT
+#     REUSE EITHER NAME ON A LEGEND SWATCH*** — that is §5's strict-mode duplication failure with a
+#     new pair of ids, and tests/e2e/cal-08-holiday-shading.spec.ts:285-292 and :413 address both.
+#
+#     ***SEPARATELY, AND STILL NOT THE SAME THING:*** `home-holidays-link` points at the holidays
+#     SCREEN, which exists and shipped (ADM-02 and ADM-03, both DONE). ***NAV ITEM YES — AND NOW
+#     LEGEND ROW YES TOO, FOR A DIFFERENT REASON FROM THE NAV ITEM'S.***
+#
+# 9.4 ***DO NOT ADD THE `Quá tải (>50%)` LEGEND ROW EITHER. UNCHANGED BY CAL-08, AND RE-CHECKED
+#     RATHER THAN ASSUMED ON 2026-09-05.*** It needs `overloadThreshold`, which needs the team read
+#     that src/routes/WeekView.tsx:11-17 deliberately does not make — that paragraph survives the
+#     CAL-08 rewrite verbatim in substance and :11 still opens *"IT COUNTS NOTHING"*. It is a
 #     UIE-04 matter and a REGISTRY matter — see .ai/board/tickets/UIE-04/ticket.yaml §3.
+#     ***THE 9.3 WITHDRAWAL DOES NOT REACH THIS ROW.*** CAL-08 brought a colour for holidays; it
+#     brought no threshold and no overload state, so the legend gains ONE row and not two.
 #
 # 9.5 ***DO NOT ADD THE PALETTE ICON.*** Two readings and NO EVIDENCE BETWEEN THEM: the `Vui`/`Gọn`
 #     density toggle (CLAUDE.md § Visual direction) or a theme switcher. Against density —

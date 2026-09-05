@@ -79,18 +79,38 @@ cited by the other two, because no image was ever on disk.
    each screen's own header — because that is what buys it zero spec files; `UIE-03` is where the
    doubling ends and is the only one of the three that touches a test file.
 3. **`UIE-04` carries a decision nobody has taken, and it is not a layout one.** The mockup's
-   per-column footer reads `0/8 vắng`, and `src/routes/WeekView.tsx:11-16` records that this screen
+   per-column footer reads `0/8 vắng`, and `src/routes/WeekView.tsx:11-17` records that this screen
    counts nothing — deliberately, because CAL-05's registry row says so and a second count is the
    second definition INV-04 exists to forbid. Reproducing that footer, or the overload row in the
    sidebar legend, needs an amendment to a feature row rather than an acceptance criterion.
    **If PLAN concludes it needs one, it stops and asks.** `ticket.yaml` § 4 carries it.
+   **Re-read in the rebased file on 2026-09-05 rather than assumed** — the citation read `:11-16`
+   before CAL-08 rewrote that file, and the paragraph survives it: `:11` still opens *"IT COUNTS
+   NOTHING"* and `seam.getTeam()` is still deliberately not called.
 
 **A fourth piece of the mockup was deliberately not promoted and has no row anywhere:** `Duyệt phép`,
-the `Ngày lễ` legend row, the palette icon and the `?` button. Each points at something that does not
-exist — ADM-04, ADM-05 and ADM-06 for the first, CAL-08 for the second, and a question nobody has
-answered in either direction for the last two. A row will be written when there is something for it
-to point at; a promoted feature with nothing to build is worse than no row. The idea file's *Triage
-verdict* section is the record of the deferral.
+~~the `Ngày lễ` legend row,~~ the palette icon and the `?` button. Each points at something that does
+not exist — ADM-04, ADM-05 and ADM-06 for the first, and a question nobody has answered in either
+direction for the other two. A row will be written when there is something for it to point at; a
+promoted feature with nothing to build is worse than no row. The idea file's *Triage verdict* section
+is the record of the deferral.
+
+**The `Ngày lễ` legend row left that piece on 2026-09-05, later the same day, and is struck above
+rather than deleted.** `CAL-08` merged in PR #56 and is `DONE`, so holidays are now drawn in all three
+calendar views. The deferral's argument was *a legend row for a colour that never appears beside it is
+a legend that lies*; **the colour now appears**, and the file the deferral cited says the reverse of
+what was quoted from it (`src/routes/WeekView.tsx:28`). The row moved into `UIE-02`'s scope — that
+ticket builds the sidebar — and **no new row was created anywhere**, because the ticket that brings
+the control already existed. `.ai/board/tickets/UIE-02/ticket.yaml` § 9.3 carries the withdrawal.
+**Nothing else moved with it:** the overload row was never part of this piece and is untouched, since
+`CAL-08` brought a colour for holidays and no threshold, no team read and no overload state.
+
+**Two other things the rebase changed, both worth a human's attention before any of the three is
+planned.** **`UIE-03` grew:** it now edits **six** spec files, not five — `CAL-08` shipped
+`tests/e2e/cal-08-holiday-shading.spec.ts`, which addresses two of the four `data-testid` names that
+ticket deletes. **And every line citation into `WeekView.tsx`, `MonthView.tsx` and `YearView.tsx` in
+all four `UIE` shells was stale by 28–35 lines and has been re-measured**; they did not move by a
+uniform offset. `Holidays.tsx` and `App.tsx` were untouched by `CAL-08` and their citations stand.
 
 **One thing a human may want to settle before any of the three is planned, and it is not their
 position.** `UIE-04` § 3 finds that the mockup's seven fill-the-viewport columns **overflow by sixty
@@ -120,10 +140,15 @@ are untouched.
 1. **`depends_on` is `[]`, and it was measured rather than inherited.** OPS-001 is `DONE` so its claim
    on `src/App.tsx`, `src/routes/SignIn.tsx` and `src/routes/SignUp.tsx` is released; OPS-002's five
    scope files are the entry screens and the two seam implementations, which are disjoint; and all
-   five `BACKLOG` shells — CAL-08, ADM-04, ADM-05, ADM-06 and OPS-002 — carry `allowed_paths: []`, so
-   **no live ticket claims a path at all**. That is a measurement taken on 2026-09-05, not a standing
-   guarantee: `src/App.tsx` has appeared in the `allowed_paths` of nine shipped tickets, and whichever
-   row is planned next will fill its own. `ticket.yaml` §6 says to re-check at PLAN.
+   ~~five~~ `BACKLOG` shells — ~~CAL-08,~~ ADM-04, ADM-05, ADM-06 and OPS-002 — carry
+   `allowed_paths: []`, so **no live ticket claims a path at all**. That is a measurement taken on
+   2026-09-05, not a standing guarantee: `src/App.tsx` has appeared in the `allowed_paths` of nine
+   shipped tickets, and whichever row is planned next will fill its own. `ticket.yaml` §6 says to
+   re-check at PLAN. **`CAL-08` struck from that list later the same day**, when it merged in PR #56
+   and became `DONE`. **That is the thing this paragraph warned about actually happening, and it
+   landed on the side that costs `UIE-01` nothing:** the paths it claimed were the three calendar
+   views and `src/lib/data/`, none of which is in `UIE-01`'s scope. `depends_on: []` still holds,
+   measured again rather than assumed.
 2. ~~**It is a chore, so no new feature row was written** — a deliberate departure from ADR-007's
    PROMOTE default, the same one BUG-001 and OPS-002 took. The provenance is one sentence appended to
    the `Notes` of `TEA-01` and `TEA-05` in `.ai/registry/features.md`, and nothing else.~~

@@ -52,21 +52,28 @@ no `to=` anywhere under `src/`, so the month grid, which `.ai/registry/features.
 `/members` as *"reachable by address only"* as a deliberate choice.
 
 **Because nothing is persistent, every screen re-implements the same two things: a way home and a way
-to the next period.** The way home is `week-home` (`WeekView.tsx:250`), `month-home`
-(`MonthView.tsx:298`), `year-home` (`YearView.tsx:300`), `holidays-back` (`Holidays.tsx:470`),
+to the next period.** The way home is `week-home` (`WeekView.tsx:278`), `month-home`
+(`MonthView.tsx:332`), `year-home` (`YearView.tsx:330`), `holidays-back` (`Holidays.tsx:470`),
 `team-entries-back` (`TeamEntries.tsx:307`), `threshold-back` three times over
 (`Threshold.tsx:170`, `:193`, `:276`), and `edit-entry-back` twice pointing at `/entries/new` rather
 than at `/` (`EditEntry.tsx:121`, `:206`). The way to the next period is `week-prev` / `week-next`
-(`WeekView.tsx:258`, `:264`), `month-prev` / `month-next` (`MonthView.tsx:304`, `:310`),
-`year-prev` / `year-next` (`YearView.tsx:306`, `:312`) and `holidays-prev` / `holidays-next`
+(`WeekView.tsx:286`, `:292`), `month-prev` / `month-next` (`MonthView.tsx:338`, `:344`),
+`year-prev` / `year-next` (`YearView.tsx:336`, `:342`) and `holidays-prev` / `holidays-next`
 (`Holidays.tsx:272`, `:282`) — four separate implementations of *previous, next* on four screens.
+
+> **Line numbers into `WeekView.tsx`, `MonthView.tsx` and `YearView.tsx` were re-measured throughout
+> this file by `product` on 2026-09-05**, after `CAL-08` merged (PR #56) and rewrote all three. They
+> were stale by 28–35 lines and **did not move by a uniform offset**. `Holidays.tsx`, `App.tsx`,
+> `TeamEntries.tsx`, `Threshold.tsx`, `EditEntry.tsx` and `Home.tsx` were untouched by that ticket
+> and every citation into them is unchanged. **No claim in this section changed** — the eleven
+> back-links and eight period controls are still there, still per-screen, and still the problem.
 
 **Two screens have no way out at all.** `src/routes/MemberList.tsx` and `src/routes/AllowList.tsx`
 contain no `Link` and no `to=` — zero matches in either file. A person who reaches the member list or
 the allow-list has the browser's back button and nothing else on the page.
 
 **And there is no way to move between the three calendar views without going through the landing
-screen.** The one exception is `week-year` (`WeekView.tsx:284`), a single link in a single direction.
+screen.** The one exception is `week-year` (`WeekView.tsx:312`), a single link in a single direction.
 The month view cannot reach the week view, the year view cannot reach either, and nothing reaches the
 month view from anywhere. All three already anchor on the URL — `/week/:day`, `/month/:month`,
 `/year/:year` (`src/App.tsx:169-200`) — so the addresses a view switcher would need already exist and
@@ -94,10 +101,13 @@ and left there rather than resolved.
 - **Anybody who is shown the product.** The first screen after sign-in is a column of underlined text
   links on `bg-slate-50`. `CLAUDE.md` § *Visual direction* describes a pastel, rounded product with a
   dense grid at its centre; the screen that introduces it is a list.
-- **Every future ticket that adds a screen.** ADM-04, ADM-05, ADM-06 and CAL-08 are all `PLANNED` in
+- **Every future ticket that adds a screen.** ADM-04, ADM-05 and ADM-06 are all `PLANNED` in
   `.ai/registry/features.md`. Each will land somewhere, and with no shell each one either adds a
   fifteenth text link to `Home.tsx` or is reachable only by address, which is how `/members` and
-  `/month` already ended up unreachable.
+  `/month` already ended up unreachable. ~~CAL-08~~ **was named here as a fourth and is struck:** it
+  merged in PR #56 on 2026-09-05 and is `DONE`. **It did not add a screen at all** — it drew
+  holidays into three screens that already existed, so it is the one of the four that would never
+  have needed an entry point. The three that remain are exactly the three that would.
 
 ## Evidence
 
@@ -176,10 +186,11 @@ what the `?` button opens; any error or loading state; and dark mode.
   have.** The `‹` / `›` chevrons and `Hôm nay` are the per-screen period controls that four screens
   each re-implement today. The `Tuần` / `Tháng` / `Năm` segments are movement between `/week/:day`,
   `/month/:month` and `/year/:year`, three addresses that already exist (`src/App.tsx:169-200`) and
-  that today are connected by exactly one link in one direction (`WeekView.tsx:284`).
+  that today are connected by exactly one link in one direction (`WeekView.tsx:312`).
 - **The sidebar is where the two unreachable screens would become reachable.** The roster block is
   the content of `/members` (TEA-03), which nothing links to; the legend names holidays, which is
-  CAL-08; the top bar names an approval worklist, which is ADM-04.
+  CAL-08 — **`DONE` since PR #56 on 2026-09-05, so that legend row names a colour that is now
+  drawn**; the top bar names an approval worklist, which is ADM-04 and is still `PLANNED`.
 - **It is the same brand lockup the auth mockup carried**, and the same one the Figma prototype
   carries: `Ai Nghỉ?` over the subtitle `Lịch vắng mặt team`, in a heavy rounded face. That is not a
   new invention arriving with this request, and it is already recorded in
@@ -197,10 +208,11 @@ what the `?` button opens; any error or loading state; and dark mode.
 point anywhere in the product. A feature that reached `DONE` and cannot be opened is indistinguishable
 from one that was never built.
 
-**Every new screen makes it worse in a fixed way.** ADM-04, ADM-05, ADM-06 and CAL-08 are `PLANNED`.
-With no shell, each one's plan has to decide independently where its entry point goes, and the only
-place available is another underlined link in `Home.tsx` — which is already fourteen lines of them
-and is the screen the operator is asking to replace.
+**Every new screen makes it worse in a fixed way.** ADM-04, ADM-05 and ADM-06 are `PLANNED`
+(~~and CAL-08~~ — struck 2026-09-05, it merged in PR #56 and added no screen). With no shell, each
+one's plan has to decide independently where its entry point goes, and the only place available is
+another underlined link in `Home.tsx` — which is already fourteen lines of them and is the screen the
+operator is asking to replace.
 
 **The per-screen chrome keeps multiplying, and it is already eleven back-links and eight period
 controls.** Each is a separate `data-testid`, a separate assertion in the end-to-end suites, and a
@@ -278,10 +290,21 @@ layout question. They are named here so the verdict has to meet them.
    `.ai/registry/features.md:115-117`. No route is registered in `src/App.tsx` and no component
    exists. A shell that carries that button carries a link to nothing.
 
-3. **`Ngày lễ` in the legend names something the calendar views do not draw.** Holidays and bridge
+3. ~~**`Ngày lễ` in the legend names something the calendar views do not draw.** Holidays and bridge
    days inside the calendar views is `CAL-08`, `PLANNED` (`.ai/registry/features.md:104`). `/holidays`
    exists as its own screen — `ADM-02` and `ADM-03`, both `DONE` — but nothing renders a holiday into
-   the week, month or year grid, so a legend row for it describes a colour that never appears.
+   the week, month or year grid, so a legend row for it describes a colour that never appears.~~
+
+   **NO LONGER A CONTRADICTION. Struck on 2026-09-05, later the same day, and kept so the deferral it
+   caused stays legible.** `CAL-08` merged in PR #56 and is `DONE`. Holidays and bridge days **are**
+   drawn in all three calendar views, and the file this section's reasoning rested on now says the
+   opposite of what was quoted from it — `src/routes/WeekView.tsx:28-29` reads *"Holidays are
+   lavender, and CAL-08 draws them HERE — the sentence this replaces said they were not drawn on this
+   screen"*. **So the mockup's `Ngày lễ` legend row asserts nothing the tree denies, and it moved out
+   of the deferred fourth piece and into `UIE-02`'s scope.** See *The fourth piece* below and
+   `.ai/board/tickets/UIE-02/ticket.yaml` § 9.3. **Three contradictions remain, not four**, and the
+   verdict below is unchanged in every other respect. **One thing `CAL-08` did NOT settle:** the
+   label is still Vietnamese and contradiction 1 still governs it.
 
 4. **The palette icon corresponds to nothing decided anywhere.** The nearest thing is the `Vui`/`Gọn`
    density toggle named in `CLAUDE.md` § *Visual direction*, which points at
@@ -299,8 +322,9 @@ something decides otherwise.
 - **Deciding any of the four contradictions above.** They are named, not settled. Two of them name
   features that are `PLANNED` and unbuilt, one reverses a standing operator instruction, and one has
   no decision behind it in either direction.
-- **Building `ADM-04`, `ADM-05`, `ADM-06` or `CAL-08`.** They have rows of their own and the mockup's
-  references to them do not make them this idea's.
+- **Building `ADM-04`, `ADM-05` or `ADM-06`.** They have rows of their own and the mockup's
+  references to them do not make them this idea's. (~~`CAL-08`~~ was named here too and is struck: it
+  shipped on 2026-09-05 in PR #56, so there is nothing left of it for this idea to build.)
 - **Amending `.ai/standards/ui-design-system.md`** — filling § *Direction*, § *Colour*, § *Type* or
   § *Components*, or writing the mockup's measurements into them. Human plane, RULE-01.
 - **Amending `ui-language.json`.** Adding a file to `copyDebt` is what that file calls the failure
@@ -399,7 +423,7 @@ Ready item 5 and belongs to `tech-lead-design` at PLAN.
 | ID | Title | Depends on | What it is |
 |---|---|---|---|
 | `UIE-02` | The application shell — a persistent sidebar and top bar | `UIE-01` | Build the shell. All eleven `home-*` selectors move into it and `Home.tsx` is deleted. The four period screens keep their own headers, so **the app looks doubled for one ticket**. Zero spec files touched. |
-| `UIE-03` | The calendar screens give up their own chrome to the shell | `UIE-02` | Remove the twenty-two duplicated elements from the week, month, year and holidays screens. **The only one of the three that touches tests**, and only to delete four navigation steps. Ends with the app matching the mockup's shell. |
+| `UIE-03` | The calendar screens give up their own chrome to the shell | `UIE-02` | Remove the twenty-two duplicated elements from the week, month, year and holidays screens. **The only one of the three that touches tests**, and only to delete navigation steps. Ends with the app matching the mockup's shell. **Amended 2026-09-05: six spec files, not five** — `tests/e2e/cal-08-holiday-shading.spec.ts` shipped with `CAL-08` and addresses two of the four dying ids. |
 | `UIE-04` | The week view as seven day columns | `UIE-03` | The grid itself. Carries the density defect below, which is a design decision that may not survive contact with a full week. |
 
 **Order is strictly sequential: `UIE-01` → `UIE-02` → `UIE-03` → `UIE-04`.** Not a preference. One
@@ -411,10 +435,15 @@ today, on purpose**, because item 3 requires every named ticket to be DONE and n
 
 ### The fourth piece — named, and deliberately NOT promoted
 
-**`Duyệt phép`, the `Ngày lễ` legend row, the palette icon and the `?` button are not in any of the
-three tickets and have no row of their own.** They are the parts of the mockup that point at
-something that does not exist, and a promoted feature with nothing to build is worse than no row —
-it reads, to everyone downstream, as work that was specified and skipped.
+**AMENDED 2026-09-05, later the same day, after `CAL-08` merged (PR #56) and this branch was rebased
+onto it. The piece is now three things, not four.** The `Ngày lễ` legend row left it — see the struck
+bullet below. Nothing else in this section changed, and no row was created for anything: the
+amendment moves work into a ticket that already exists.
+
+**`Duyệt phép`, the palette icon and the `?` button are not in any of the three tickets and have no
+row of their own.** They are the parts of the mockup that point at something that does not exist, and
+a promoted feature with nothing to build is worse than no row — it reads, to everyone downstream, as
+work that was specified and skipped.
 
 What each is waiting on:
 
@@ -424,12 +453,39 @@ What each is waiting on:
   it exists for nobody. **Ship it absent, not disabled.** The ticket that ships ADM-04 adds the
   button beside the screen it opens, which is how every nav item on this shell arrived in the first
   place: seven links in `Home.tsx`, seven tickets, one each.
-- **The `Ngày lễ` legend row** waits on **CAL-08**, `PLANNED`. `WeekView.tsx:27` records that
+- ~~**The `Ngày lễ` legend row** waits on **CAL-08**, `PLANNED`. `WeekView.tsx:27` records that
   holidays are lavender and are deliberately not drawn, because CAL-05's row forbids inheriting them.
   A legend row for a colour that never appears beside it is a legend that lies. CAL-08 adds the
-  swatch in the ticket that adds the colour. **Separately, and not the same thing:** the holidays
-  *screen* exists (ADM-02 and ADM-03, both DONE), so the sidebar nav item pointing at it stays. Nav
-  item yes, legend row no.
+  swatch in the ticket that adds the colour.~~
+
+  **THE DEFERRAL IS WITHDRAWN. The `Ngày lễ` legend row is in `UIE-02`'s scope and waits on nothing.**
+  Struck rather than deleted, so a reader can see the deferral was made, on what evidence, and what
+  overtook it — the same treatment ADR-027's withdrawal banner and the `OPS-003` → `UIE-01`
+  correction in `.ai/board/backlog.md` were given.
+
+  **What overtook it, measured after the rebase.** `CAL-08` merged in PR #56 and is `DONE`. It
+  rewrote `src/routes/WeekView.tsx`, `MonthView.tsx` and `YearView.tsx` and added
+  `src/lib/data/day-status.ts`. **The argument was never that the colour is unimportant — it was
+  *a legend row for a colour that never appears beside it is a legend that lies*. The colour now
+  appears.** The proof is the same file the deferral cited, whose comment now says the opposite of
+  what was quoted from it (`WeekView.tsx:28-29`): *"Holidays are lavender, and CAL-08 draws them HERE
+  — the sentence this replaces said they were not drawn on this screen"*. So the legend stops lying
+  by **gaining** the row, and omitting it now would be the misleading omission instead: a lavender day
+  heading on the grid with nothing in the legend naming it. `UIE-02` builds the sidebar, so the row is
+  `UIE-02`'s, and its `ticket.yaml` § 9.3 carries the withdrawal in full.
+
+  **One dot, not two.** Lavender means *not working* and tints the day heading only; a bridge day gets
+  no lavender at all — it is a working day carrying an outlined badge (`WeekView.tsx:31`,
+  `WeekView.tsx:362`). A second swatch for bridge days would name a fill that does not exist.
+
+  **Separately, and still not the same thing:** the holidays *screen* exists (ADM-02 and ADM-03, both
+  DONE), so the sidebar nav item pointing at it stays. **Nav item yes — and now legend row yes too,
+  for a different reason from the nav item's.**
+
+  **This does not reach `Quá tải (>50%)`, which was never part of this piece and is scoped out of all
+  three tickets for its own reason.** It needs `overloadThreshold`, from the `getTeam()` call
+  `WeekView.tsx:11` still refuses — re-read in the rebased file rather than assumed. `CAL-08` brought
+  a colour for holidays and brought no threshold, no team read and no overload state with it.
 - **The palette icon** waits on **an operator decision that nobody has taken in either direction.**
   Two readings and no evidence between them: the `Vui`/`Gọn` density toggle, or a theme switcher.
   Against density — `CLAUDE.md` § *Visual direction* puts Vui/Gọn on the calendar grid, and a control
@@ -442,8 +498,10 @@ What each is waiting on:
   repository.**
 
 **A row will be written for these when there is something for it to point at**, and the ticket that
-brings the capability is the ticket that brings its control. Nothing here is refused; all four are
-deferred, and this paragraph is the record of the deferral.
+brings the capability is the ticket that brings its control. Nothing here is refused; ~~all four~~
+**the remaining three** are deferred, and this paragraph is the record of the deferral. **The fourth
+stopped being deferred on 2026-09-05** — see the struck bullet above — and it needed no new row,
+because the ticket that brings the control already existed.
 
 ### What this verdict does not settle, and did not try to
 

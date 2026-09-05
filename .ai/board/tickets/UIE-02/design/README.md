@@ -108,15 +108,37 @@ in the case the image does not draw.
 | Part of § 2 | Ticket |
 |---|---|
 | The two-pane frame, the sidebar in full, the top bar in full | `UIE-02` |
+| The `Ngày lễ` legend row | `UIE-02` — **moved here 2026-09-05, see below** |
 | The four period screens giving up their own headers so the top bar is the only one | `UIE-03` |
 | The grid pane — seven columns, the header and footer strips, the empty-state card | `UIE-04` |
-| `Duyệt phép`, the `Ngày lễ` legend row, the palette icon, the `?` button | **NONE. Deferred.** |
+| `Duyệt phép`, the palette icon, the `?` button | **NONE. Deferred.** |
 
-**The last row is deliberate and is not an oversight.** Each of those four points at something that
-does not exist: `Duyệt phép` at ADM-04, ADM-05 and ADM-06, all `PLANNED` with no route and no screen;
-`Ngày lễ` at CAL-08, `PLANNED`, so the colour never appears beside the legend that names it; and the
-palette icon and the `?` button at nothing decided in either direction. The idea file's *Triage
+**The last row is deliberate and is not an oversight.** Each of those points at something that does
+not exist: `Duyệt phép` at ADM-04, ADM-05 and ADM-06, all `PLANNED` with no route and no screen; and
+the palette icon and the `?` button at nothing decided in either direction. The idea file's *Triage
 verdict* section records the deferral and what each waits on.
+
+**The `Ngày lễ` legend row was in that last row until 2026-09-05 and is not any more. Marked rather
+than deleted**, because a reader has to be able to see that the deferral was made, on what evidence,
+and what overtook it.
+
+> ~~`Ngày lễ` at CAL-08, `PLANNED`, so the colour never appears beside the legend that names it.~~
+
+**What overtook it.** `CAL-08` merged (PR #56) and is `DONE`. The deferral's argument was never that
+the colour is unimportant — it was *a legend row for a colour that never appears beside it is a legend
+that lies*. **The colour now appears.** The file the deferral cited now says the opposite of what was
+quoted from it: `src/routes/WeekView.tsx:28-29` reads *"Holidays are lavender, and CAL-08 draws them
+HERE — the sentence this replaces said they were not drawn on this screen"*. So the legend stops lying
+by **gaining** the row, and omitting it now would be the misleading omission instead — a lavender day
+heading on the grid with nothing in the legend naming it. `UIE-02` builds the sidebar, so the row is
+`UIE-02`'s. **One lavender dot only:** lavender means *not working* and tints the day heading alone,
+and a bridge day gets no lavender at all — it is a working day carrying an outlined badge
+(`src/routes/WeekView.tsx:362`). `.ai/board/tickets/UIE-02/ticket.yaml` § 9.3 carries the full
+correction and the constraint that comes with it.
+
+**The other three are untouched by this**, and `Quá tải (>50%)` — which was never in that row, being
+scoped out for a different reason in all three shells — is untouched too. `CAL-08` brought a colour
+for holidays; it brought no threshold, no team read and no overload state.
 
 ---
 
@@ -134,9 +156,12 @@ requirement in every one of the three `ticket.yaml` files, with its citation.
    holds **four** members on the main team who have not been removed — `:39`, `:72`, `:149`, `:319`;
    `:108` is another team and `:123` carries `removedAt`. Nothing may be asserted from the eight.
 4. **`0/8 vắng` and `Quá tải (>50%)` are an absence count and an overload state on a screen built
-   deliberately without either.** `src/routes/WeekView.tsx:11-16` says so and names CAL-05's registry
+   deliberately without either.** `src/routes/WeekView.tsx:11-17` says so and names CAL-05's registry
    row as the reason. Both are **behaviour**, so the § *Visual specification* grant does not reach
    them, and reproducing them needs a feature-row amendment rather than an acceptance criterion.
+   **Re-checked on 2026-09-05 after the CAL-08 rebase rather than assumed:** that paragraph survives
+   the rewrite, `:11` still opens *"IT COUNTS NOTHING"*, and `seam.getTeam()` is still deliberately
+   not called. The `Ngày lễ` correction in § 4 does not reach this item.
 
 **The visual arrangement is what these tickets take from this image. The copy, the fictional roster,
 the count and the three controls that point at nothing are not.**

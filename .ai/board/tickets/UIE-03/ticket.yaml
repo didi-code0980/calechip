@@ -69,33 +69,53 @@ gates:
 # ---------------------------------------------------------------------------------------------
 # 1. ***THE TWENTY-TWO ELEMENTS, FILE BY FILE. MEASURED AT TRIAGE; DO NOT RE-DERIVE THEM.***
 #
-#   src/routes/WeekView.tsx:249-286   THE WHOLE <header>:
-#                                       week-home      :250
-#                                       week-prev      :258
-#                                       week-anchor    :261   (an h1)
-#                                       week-next      :264
-#                                       week-month     :273
-#                                       week-year      :284
+# ***EVERY LINE NUMBER IN THIS TABLE WAS RE-MEASURED BY `product` ON 2026-09-05, AFTER CAL-08 MERGED
+# (PR #56) AND THIS BRANCH WAS REBASED ONTO IT.*** CAL-08 rewrote all three view files and the
+# citations written earlier the same day were stale by 28-35 lines. ***THEY DID NOT MOVE BY A
+# UNIFORM OFFSET, SO NOTHING BELOW MAY BE DERIVED FROM AN OLD NUMBER PLUS A CONSTANT.*** The
+# superseded numbers are kept in the right-hand column so a reader can tell a correction from a
+# transcription error. src/routes/Holidays.tsx and src/App.tsx were NOT touched by CAL-08 and their
+# citations are unchanged.
 #
-#   src/routes/MonthView.tsx:297-335    month-home     :298
-#                                       month-prev     :304
-#                                       month-anchor   :307   (an h1)
-#                                       month-next     :310
-#                                       month-week     :322
-#                                       month-year     :334
+#                                                              WAS (stale, pre-CAL-08)
+#   src/routes/WeekView.tsx:277-315   THE WHOLE <header>:      (was :249-286)
+#                                       week-home      :278     (was :250)
+#                                       week-prev      :286     (was :258)
+#                                       week-anchor    :289     (was :261)   (an h1)
+#                                       week-next      :292     (was :264)
+#                                       week-month     :301     (was :273)
+#                                       week-year      :312     (was :284)
 #
-#   src/routes/YearView.tsx:299-320     year-home      :300
-#                                       year-prev      :306
-#                                       year-anchor    :309   (an h1)
-#                                       year-next      :312
-#                                       year-month     :320
+#   src/routes/MonthView.tsx:331-370    month-home     :332     (was :298)
+#                                       month-prev     :338     (was :304)
+#                                       month-anchor   :341     (was :307)   (an h1)
+#                                       month-next     :344     (was :310)
+#                                       month-week     :356     (was :322)
+#                                       month-year     :368     (was :334)
 #
-#   src/routes/Holidays.tsx             holidays-prev  :272
-#                                       holidays-year  :278   (an h1)
-#                                       holidays-next  :282
-#                                       holidays-back  :470
+#   src/routes/YearView.tsx:329-353     year-home      :330     (was :300)
+#                                       year-prev      :336     (was :306)
+#                                       year-anchor    :339     (was :309)   (an h1)
+#                                       year-next      :342     (was :312)
+#                                       year-month     :350     (was :320)
+#
+#   src/routes/Holidays.tsx             holidays-prev  :272     UNCHANGED
+#                                       holidays-year  :278     UNCHANGED    (an h1)
+#                                       holidays-next  :282     UNCHANGED
+#                                       holidays-back  :470     UNCHANGED
 #
 #   src/routes/Home.tsx                 THE WHOLE FILE
+#
+# ***THE MONTH RANGE ENDS AT :370 AND THE <header> ELEMENT DOES NOT — READ THIS BEFORE DELETING
+# ANYTHING FROM MonthView.tsx.*** That file's `<header>` opens at :331 and closes at :378, and it
+# holds a SEVENTH child this ticket MUST NOT REMOVE: `month-threshold` at :375, which is CAL-04's
+# AC-14 and carries `data-threshold` and `data-current-members`. ***FOUR ASSERTIONS ACROSS THREE
+# SPEC FILES READ IT*** — tests/e2e/adm-01-threshold.spec.ts (twice), tests/e2e/cal-04-month-view.spec.ts
+# and tests/e2e/cal-06-year-view.spec.ts. It is CONTENT, not chrome, by the same test §4.3 applies to
+# the refusal headings: the top bar does not carry it and nothing in the shell replaces it. The
+# range stops at the close of `month-year` deliberately. ***A DELETION OF "THE WHOLE <header>" IN
+# THAT FILE TAKES THREE SPEC FILES WITH IT.*** This paragraph was added on 2026-09-05 with the
+# re-measurement; the old range :297-335 already stopped short of it, but never said why.
 #
 # ***THE ARITHMETIC, STATED SO THE COUNT IS NOT ARGUED AT REVIEW.*** Twenty-two elements across five
 # files is the figure for the WHOLE mockup. ***THIS TICKET REMOVES TWENTY-ONE ACROSS FOUR FILES***,
@@ -104,17 +124,40 @@ gates:
 # to find out where the twenty-second went rather than conclude the table is wrong.
 #
 # ---------------------------------------------------------------------------------------------
-# 2. SCOPE — FOUR SOURCE FILES PLUS FIVE SPEC FILES. NINE.
+# 2. SCOPE — FOUR SOURCE FILES PLUS ***SIX*** SPEC FILES. ***TEN, NOT NINE.***
+#
+# ***AMENDED ON 2026-09-05 AFTER THE CAL-08 REBASE. THIS IS A SCOPE CHANGE, NOT A CITATION FIX, AND
+# IT IS THE ONE CORRECTION ON THIS TICKET THAT CHANGES WHAT GETS EDITED.*** The heading read
+# *FOUR SOURCE FILES PLUS FIVE SPEC FILES. NINE.* until then. CAL-08 shipped a SIXTH spec file that
+# addresses two of the four ids §3 kills.
 #
 #   src/routes/WeekView.tsx                  header removed
-#   src/routes/MonthView.tsx                 header removed
+#   src/routes/MonthView.tsx                 header removed (NOT `month-threshold` — see §1)
 #   src/routes/YearView.tsx                  header removed
 #   src/routes/Holidays.tsx                  period controls and the back-link removed
-#   tests/e2e/cal-04-month-view.spec.ts      `month-home` navigation step deleted
-#   tests/e2e/cal-05-week-view.spec.ts       `week-home` navigation step deleted
-#   tests/e2e/cal-06-year-view.spec.ts       `year-home` navigation step deleted
-#   tests/e2e/adm-02-holidays.spec.ts        `holidays-back` navigation step deleted
-#   tests/e2e/adm-03-holiday-writes.spec.ts  `holidays-back` navigation step deleted
+#   tests/e2e/cal-04-month-view.spec.ts      `month-home` navigation step deleted        :87
+#   tests/e2e/cal-05-week-view.spec.ts       `week-home` navigation step deleted         :104
+#   tests/e2e/cal-06-year-view.spec.ts       `year-home` navigation step deleted    :137, :336
+#   tests/e2e/adm-02-holidays.spec.ts        `holidays-back` navigation step deleted :122, :280
+#   tests/e2e/adm-03-holiday-writes.spec.ts  `holidays-back` navigation step deleted     :398
+#   tests/e2e/cal-08-holiday-shading.spec.ts ***NEW, AND IN SCOPE FOR EXACTLY ONE REASON:***
+#                                            `holidays-back` :183, `month-home` :356 AND :476
+#
+# ***THE NEW FILE IS IN SCOPE FOR THE DYING SELECTORS AND FOR NOTHING ELSE. SAY IT THAT WAY AT PLAN,
+# BECAUSE THE SIX OTHER SELECTORS IT ADDRESSES ARE THE TRAP.*** tests/e2e/cal-08-holiday-shading.spec.ts
+# also reads `week-anchor` (:138, :456), `week-next` (:406, :407), `month-anchor` (:489),
+# `month-next` (:488), `year-anchor` (:342) and `year-prev` (:341). ***EVERY ONE OF THOSE SIX IS
+# CLASS A — UIE-02 RELOCATES THEM INTO THE TOP BAR RATHER THAN DELETING THEM, SO THEY SURVIVE AND
+# THOSE ASSERTIONS ARE NOT TOUCHED.*** Only the three references on the first line die.
+#
+# ***THAT FILE ALSO ADDRESSES `week-day-holiday` AND `week-day-bridge` (:285-292, :413), WHICH ARE
+# GRID SELECTORS AND ARE NOT THIS TICKET'S AT ALL.*** This ticket deletes the <header> and nothing
+# below it (§4.6). Nothing in it may reach a day cell.
+#
+# ***`month-home` APPEARS TWICE IN THAT FILE (:356 AND :476), NOT ONCE.*** A reader who deletes the
+# first and stops leaves a red suite. `year-home` in tests/e2e/cal-06-year-view.spec.ts and
+# `holidays-back` in tests/e2e/adm-02-holidays.spec.ts are the same shape and always were — the
+# per-file line numbers above are given for that reason.
 #
 # ***THE THREE ANCHOR h1s MOVE INTO THE TOP-BAR TITLE CARRYING THEIR DATA ATTRIBUTES.***
 # `week-anchor` keeps `data-week-start`, `month-anchor` keeps `data-month`, `year-anchor` keeps
@@ -129,12 +172,21 @@ gates:
 # stops existing.
 #
 # ---------------------------------------------------------------------------------------------
-# 3. ***CLASS B — FOUR IDS THAT MUST DIE, ACROSS FIVE SPEC FILES.***
+# 3. ***CLASS B — FOUR IDS THAT MUST DIE, ACROSS ***SIX*** SPEC FILES.***
+#
+# ***THE FILE LIST WAS AMENDED ON 2026-09-05 AFTER THE CAL-08 REBASE — IT READ "FIVE SPEC FILES"
+# AND NAMED FIVE. THE IDS THEMSELVES ARE UNCHANGED; ONLY THE BLAST RADIUS GREW.***
 #
 #   week-home       tests/e2e/cal-05-week-view.spec.ts
-#   month-home      tests/e2e/cal-04-month-view.spec.ts
+#   month-home      tests/e2e/cal-04-month-view.spec.ts,
+#                   ***tests/e2e/cal-08-holiday-shading.spec.ts (TWICE)***
 #   year-home       tests/e2e/cal-06-year-view.spec.ts
-#   holidays-back   tests/e2e/adm-02-holidays.spec.ts, tests/e2e/adm-03-holiday-writes.spec.ts
+#   holidays-back   tests/e2e/adm-02-holidays.spec.ts, tests/e2e/adm-03-holiday-writes.spec.ts,
+#                   ***tests/e2e/cal-08-holiday-shading.spec.ts***
+#
+# ***SIX FILES REFERENCE ONE OF THESE FOUR IDS AND THE LIST IS EXHAUSTIVE, MEASURED IN THIS TREE:***
+# adm-02-holidays, adm-03-holiday-writes, cal-04-month-view, cal-05-week-view, cal-06-year-view and
+# cal-08-holiday-shading. §2 carries the line numbers.
 #
 # ***THERE IS NO HOME BUTTON IN THE MOCKUP AND NO HOME SCREEN LEFT TO POINT AT.*** UIE-02 deleted
 # src/routes/Home.tsx and made the landing route redirect a member to the week route. A control
@@ -143,8 +195,11 @@ gates:
 # ***EACH SPEC CHANGE IS A DELETION OF A NAVIGATION STEP, NOT A REWRITE OF AN ASSERTION.*** The test
 # clicks the control and then asserts something about where it landed; the click goes, and what it
 # asserted about the ORIGIN screen is untouched. ***PLAN MUST SAY SO EXPLICITLY***, because "this
-# ticket edits five spec files" reads as a licence to adjust assertions that have nothing to do with
+# ticket edits six spec files" reads as a licence to adjust assertions that have nothing to do with
 # it, and .ai/standards/testing-standards.md is not a document a chore may quietly reinterpret.
+# ***THE LICENCE IS NARROWEST ON tests/e2e/cal-08-holiday-shading.spec.ts***, which was added to this
+# ticket on 2026-09-05 for three references and reads eight other selectors this ticket does not
+# touch. See §2.
 #
 # ***DO NOT REPLACE A DELETED STEP WITH A CLICK ON THE SHELL'S EQUIVALENT.*** There is no
 # equivalent — that is the point of Class B. A test that navigates via the sidebar instead is a
@@ -183,8 +238,13 @@ gates:
 #     Wherever UIE-02's PLAN placed the seam banner, ***THIS TICKET DOES NOT MOVE IT AGAIN.***
 #
 # 4.6 ***THE WEEK GRID'S CONTENTS ARE UIE-04's AND NOT THIS TICKET'S.*** This ticket deletes
-#     src/routes/WeekView.tsx's <header> and nothing below it. src/routes/WeekView.tsx:290-292 is
-#     today's stacked layout and it survives this ticket unchanged.
+#     src/routes/WeekView.tsx's <header> and nothing below it. src/routes/WeekView.tsx:317-319 is
+#     today's stacked layout and it survives this ticket unchanged. (Re-measured 2026-09-05 on the
+#     CAL-08 rebase; it read `:290-292`.)
+#     ***AND CAL-08 PUT MORE BELOW THAT LINE THAN THERE WAS WHEN THIS SHELL WAS WRITTEN.*** The day
+#     heading now carries `week-day-holiday` (:355) and `week-day-bridge` (:364) and the section
+#     carries `data-day-status` and `data-bridge` (:334-335). ***NONE OF IT IS THIS TICKET'S.***
+#     The <header> ends at :315 and everything from :317 down is untouched.
 #
 # ---------------------------------------------------------------------------------------------
 # 5. `depends_on: [UIE-02]` — ***AND IT FAILS DEFINITION OF READY ITEM 3 TODAY, ON PURPOSE***
@@ -228,11 +288,26 @@ gates:
 #     `allowed_paths: []`. Ship it absent, not disabled — the full argument is
 #     .ai/board/tickets/UIE-02/ticket.yaml §9.2 and it is not restated here.
 #
-# 7.3 ***DO NOT ADD THE `Ngày lễ` ROW TO THE LEGEND CARD.*** src/routes/WeekView.tsx:27-28 records
-#     that holidays are lavender and are NOT DRAWN, because CAL-08's row forbids CAL-05 inheriting
-#     it. This ticket has src/routes/Holidays.tsx open, which makes it the likeliest of the three to
-#     absorb the row by accident. ***THE HOLIDAYS SCREEN EXISTING IS NOT THE SAME AS A HOLIDAY BEING
-#     DRAWN IN A GRID.*** CAL-08 adds the swatch in the ticket that adds the colour.
+# 7.3 ***THE `Ngày lễ` ROW IS STILL NOT THIS TICKET'S — BUT THE REASON CHANGED COMPLETELY ON
+#     2026-09-05, AND THE OLD REASON IS KEPT BELOW RATHER THAN DELETED.***
+#
+#     ~~DO NOT ADD THE `Ngày lễ` ROW TO THE LEGEND CARD. src/routes/WeekView.tsx:27-28 records that
+#     holidays are lavender and are NOT DRAWN, because CAL-08's row forbids CAL-05 inheriting it.
+#     This ticket has src/routes/Holidays.tsx open, which makes it the likeliest of the three to
+#     absorb the row by accident. THE HOLIDAYS SCREEN EXISTING IS NOT THE SAME AS A HOLIDAY BEING
+#     DRAWN IN A GRID. CAL-08 adds the swatch in the ticket that adds the colour.~~
+#
+#     ***WHAT OVERTOOK IT.*** CAL-08 merged (PR #56) and is `DONE`. src/routes/WeekView.tsx:28-29
+#     now reads the OPPOSITE of the sentence quoted above — *"Holidays are lavender, and CAL-08
+#     draws them HERE"*. The colour appears, so the legend no longer lies by carrying the row, and
+#     ***THE ROW MOVED INTO UIE-02's LIVE SCOPE*** (.ai/board/tickets/UIE-02/ticket.yaml §9.3).
+#
+#     ***SO IT IS OUT OF THIS TICKET FOR THE ORDINARY REASON INSTEAD: THE LEGEND CARD IS IN THE
+#     SIDEBAR, THE SIDEBAR IS UIE-02's, AND UIE-02 IS DONE BEFORE THIS RUNS.*** By the time this
+#     ticket starts the row already exists. Adding, moving or restyling it here is editing a shell
+#     component, which § Also out of scope forbids outright. ***AND THE OLD WARNING STILL STANDS ON
+#     ITS OWN FEET:*** this is the ticket with src/routes/Holidays.tsx open, so it remains the
+#     likeliest of the three to absorb a legend change by accident.
 #
 # 7.4 ***DO NOT ADD THE PALETTE ICON OR THE `?` BUTTON.*** Neither corresponds to a decision taken
 #     anywhere. .ai/board/tickets/UIE-02/ticket.yaml §9.5 and §9.6 carry the reasoning; they are
@@ -262,10 +337,12 @@ gates:
 # `product` at /triage.
 #
 # ***feature_ids IS [UIE-03] ALONE.*** .ai/01-operating-model.md:317 makes the ticket ID equal the
-# feature ID in the 1:1 case, and this is exactly that case. CAL-04, CAL-05, CAL-06, ADM-02 and
-# ADM-03 shipped the four screens and the five spec files this ticket edits, and NOT ONE OF THEM IS
-# IN feature_ids: listing them would claim this ticket DELIVERS those features, which it does not —
-# it deletes chrome from the surfaces they shipped. The link survives as prose.
+# feature ID in the 1:1 case, and this is exactly that case. CAL-04, CAL-05, CAL-06, ADM-02, ADM-03
+# and — since 2026-09-05 — CAL-08 shipped the four screens and the SIX spec files this ticket edits,
+# and NOT ONE OF THEM IS IN feature_ids: listing them would claim this ticket DELIVERS those
+# features, which it does not — it deletes chrome from the surfaces they shipped. The link survives
+# as prose. ***CAL-08 IS THE NEWEST OF THE SIX AND THE ONLY ONE THAT WAS `PLANNED` WHEN THIS SHELL
+# WAS WRITTEN;*** it merged in PR #56 the same day and this branch was rebased onto it.
 #
 # ***UNDER ADR-028's FOUR-STEP TEST THIS IS UIE AT STEP 3.*** Step 1 fails — no acceptance criterion
 # and no standard says these screens should have no header of their own; they were built correctly

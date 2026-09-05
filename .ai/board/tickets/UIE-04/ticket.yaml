@@ -87,14 +87,38 @@ gates:
 # not empty, and it is the whole substance of this ticket.
 #
 # ---------------------------------------------------------------------------------------------
-# 2. SCOPE — TWO FILES, POSSIBLY THREE
+# 2. SCOPE — TWO FILES, POSSIBLY ***FOUR***
 #
 #   src/routes/WeekView.tsx                  the grid, below the <header> UIE-03 removed
 #   tests/e2e/cal-05-week-view.spec.ts       whatever §3's chosen option costs it
 #   tests/e2e/cal-07-overload-warning.spec.ts   POSSIBLY. It signs in and reaches this screen; PLAN
 #                                               must check whether it addresses anything this
 #                                               layout moves before deciding it is out.
+#   tests/e2e/cal-08-holiday-shading.spec.ts    ***POSSIBLY. ADDED 2026-09-05 ON THE CAL-08 REBASE
+#                                               AND NOT PRESENT WHEN THIS SHELL WAS WRITTEN.*** Same
+#                                               test as the row above, and it is the STRONGER
+#                                               candidate of the two: that suite addresses THIS
+#                                               SCREEN'S DAY CELLS directly — `week-day-holiday`
+#                                               (:285, :286, :292, :413) and `week-day-bridge`
+#                                               (:291) — and this ticket rewrites the container they
+#                                               sit in. PLAN checks; triage does not decide it.
 #
+# ***THE COLUMN REWRITE MUST CARRY CAL-08's TWO NEW SELECTORS, AND THIS IS A CONSTRAINT THIS TICKET
+# DID NOT HAVE UNTIL 2026-09-05.*** The week view now renders, inside every day section:
+#
+#   week-day-holiday    src/routes/WeekView.tsx:355   the holiday's name; carries `data-kind`
+#   week-day-bridge     src/routes/WeekView.tsx:364   an OUTLINED badge, no fill
+#
+#   ...plus two attributes on the `week-day` section itself — `data-day-status` (:334) and
+#   `data-bridge` (:335) — and the lavender tint on `week-day-label` (:339, :345), which applies to
+#   the DAY HEADING ONLY and only for a NON-WORKING holiday.
+#
+# ***A SEVEN-COLUMN HEADER STRIP IS EXACTLY WHERE THESE GO, AND ALL FOUR NAMES AND BOTH ATTRIBUTE
+# VOCABULARIES ARE FROZEN.*** Renaming one, moving `data-day-status` off the `week-day` section, or
+# dropping the badge because a 168px column has no room for it each break CAL-08's shipped
+# assertions — and dropping the badge in particular reverses CAL-08's own decision that a bridge day
+# is a WORKING day and therefore gets no lavender. ***THAT IS A FEATURE-ROW MATTER, NOT A LAYOUT
+# ONE***, and §4's stop-and-ask applies to it in the same words.
 # ---------------------------------------------------------------------------------------------
 # 3. ***THE DENSITY DEFECT. IT IS IN THE MOCKUP, NOT IN THIS TICKET, AND PLAN MUST CHOOSE.***
 #
@@ -105,15 +129,32 @@ gates:
 #   Height, at 1080px:  1080 - 70 top bar - ~24 margin = ~986px, less the header strip and the
 #                       footer strip = ***~910px of body.***
 #
-# ***WHAT ONE ENTRY COSTS AT 168px.*** src/routes/WeekView.tsx:336-400 renders, per entry: avatar,
-# name, type label and portion pill on a WRAPPING FLEX ROW, then `week-row-note` and
-# `week-row-approver` each `basis-full` — i.e. ***EACH ON ITS OWN LINE BY CONSTRUCTION***
-# (src/routes/WeekView.tsx:388 and :397). At 168px the first row wraps to three or four lines, plus
-# a note line, plus an approver line: ***90-110px per chip.***
+# ***EVERY CITATION IN THIS SECTION WAS RE-MEASURED BY `product` ON 2026-09-05, AFTER CAL-08 MERGED
+# (PR #56) AND THIS BRANCH WAS REBASED ONTO IT.*** CAL-08 rewrote src/routes/WeekView.tsx and the
+# numbers written earlier the same day were stale by 28-62 lines, NOT by a uniform offset. ***THE
+# ARITHMETIC ITSELF IS UNCHANGED*** — CAL-08 added a day heading, not an entry row, so nothing it
+# shipped alters what one chip costs. Only the citations moved. Superseded numbers are kept in
+# brackets so a reader can tell a correction from a transcription error.
 #
-# ***THE WORST REALISTIC CASE IS NOT EIGHT CHIPS, IT IS SIXTEEN.*** src/routes/WeekView.tsx:314-316
-# states it: one member may hold a morning AND an afternoon entry on the same date, and that pair is
-# TWO ROWS.
+# ***WHAT ONE ENTRY COSTS AT 168px.*** src/routes/WeekView.tsx:393-469 — the per-entry <li>, whose
+# `week-row` id sits at :398 (was :336-400) — renders, per entry: avatar, name, type label and
+# portion pill on a WRAPPING FLEX ROW, then `week-row-note` and `week-row-approver` each
+# `basis-full` — i.e. ***EACH ON ITS OWN LINE BY CONSTRUCTION*** (src/routes/WeekView.tsx:452 and
+# :464; was :388 and :397). At 168px the first row wraps to three or four lines, plus a note line,
+# plus an approver line: ***90-110px per chip.***
+#
+# ***THE WORST REALISTIC CASE IS NOT EIGHT CHIPS, IT IS SIXTEEN.*** src/routes/WeekView.tsx:394-396
+# (was :314-316) states it: one member may hold a morning AND an afternoon entry on the same date,
+# and that pair is TWO ROWS.
+#
+# ***AND CAL-08 MADE THE COLUMN HEADER TALLER, WHICH THIS ARITHMETIC DOES NOT YET ACCOUNT FOR.***
+# `week-day-label` (src/routes/WeekView.tsx:339) is now a WRAPPING flex row that may carry a holiday
+# name (:355) and a Bridge badge (:364) beside the weekday and the date. At 168px those wrap. The
+# ~910px of body in the figures above was measured against a one-line header strip and is therefore
+# an OVER-estimate on a holiday week. TODO(verify): the wrapped header's height at 168px cannot be
+# measured from the source — it needs a rendered viewport, which triage has no way to produce. PLAN
+# must measure it rather than inherit ~910px. It makes the overflow WORSE, never better, so no
+# conclusion in §3 is reversed by it.
 #
 #    8 chips x 95px =  760px  -> fits, barely, with nothing to spare
 #   12 chips        = 1140px  -> OVERFLOWS
@@ -122,9 +163,9 @@ gates:
 # ***THE FAILURE MODE IS THE BAD ONE.*** Seven independently scrolling columns means ***YOU CANNOT
 # SEE THE WHOLE WEEK AT ONCE*** — which is the entire purpose of the week view, and a direct
 # contradiction of CLAUDE.md § Visual direction: *information density wins there every time*.
-# ***TODAY'S STACKED LAYOUT (src/routes/WeekView.tsx:290-292) SCROLLS ONCE, VERTICALLY, AND NEVER
-# HIDES A DAY.*** The mockup's layout is not obviously an improvement on it once the week has
-# entries in it, and nobody has seen it with entries in it.
+# ***TODAY'S STACKED LAYOUT (src/routes/WeekView.tsx:317-319; was :290-292) SCROLLS ONCE,
+# VERTICALLY, AND NEVER HIDES A DAY.*** The mockup's layout is not obviously an improvement on it
+# once the week has entries in it, and nobody has seen it with entries in it.
 #
 # ***PLAN MUST WRITE AN ACCEPTANCE CRITERION AGAINST ONE OF THESE THREE, AND CANNOT WRITE "LOOKS
 # LIKE THE SCREENSHOT"*** — .ai/standards/ui-design-system.md:137-138 says so in those words.
@@ -154,13 +195,19 @@ gates:
 # ***THIS IS A REGISTRY MATTER, NOT A LAYOUT ONE. READ IT BEFORE §3.***
 #
 # 4.1 ***`0/8 vắng` IS AN ABSENCE COUNT ON A SCREEN BUILT DELIBERATELY WITHOUT ONE.***
-#     src/routes/WeekView.tsx:11-16, verbatim in substance: *"IT COUNTS NOTHING. No absence count,
+#     src/routes/WeekView.tsx:11-17, verbatim in substance: *"IT COUNTS NOTHING. No absence count,
 #     no overload state, no threshold, and `seam.getTeam()` is deliberately not called"* — because
 #     CAL-05's feature row says so, and ***BECAUSE A SECOND COUNT WOULD BE THE SECOND DEFINITION
 #     INV-04 EXISTS TO FORBID.***
+#     ***RE-READ IN THE REBASED FILE ON 2026-09-05 RATHER THAN ASSUMED*** (the citation was `:11-16`
+#     before CAL-08 rewrote the file). It survives verbatim in substance; :11 still opens *"IT
+#     COUNTS NOTHING"*. ***CAL-08 ADDED A THIRD SEAM CALL — `seam.listHolidays` (:182) — AND STILL
+#     NOT `getTeam()`.*** So the refusal is now a deliberate one taken TWICE, by two tickets, and is
+#     harder rather than easier to read as an oversight.
 #
 # 4.2 ***`Quá tải (>50%)` IN THE LEGEND NEEDS `overloadThreshold`***, which comes from the very
-#     `getTeam()` call the same paragraph refuses.
+#     `getTeam()` call the same paragraph refuses. ***UNCHANGED BY CAL-08*** — it brought a colour
+#     for holidays and no threshold, no team read and no overload state.
 #
 # ***BOTH ARE BEHAVIOUR, NOT VISUAL ARRANGEMENT, SO THE § Visual specification GRANT
 # (.ai/standards/ui-design-system.md:140-155) DOES NOT COVER EITHER.*** Reproducing that footer
@@ -189,8 +236,9 @@ gates:
 # FAILS item 3 as it stands. Deliberate, and stated the way OPS-002 §3 states the same thing.
 #
 # ***IT IS A FILE COLLISION AND A CORRECTNESS ONE AT THE SAME TIME.*** UIE-03 removes
-# src/routes/WeekView.tsx:249-286 — the whole <header> — from the same file this ticket rewrites
-# below line 290; and the ~168px column width in §3 is arithmetic against ***A SHELL THAT MUST
+# src/routes/WeekView.tsx:277-315 — the whole <header>, re-measured 2026-09-05; it read :249-286 —
+# from the same file this ticket rewrites below line 316; and the ~168px column width in §3 is
+# arithmetic against ***A SHELL THAT MUST
 # ALREADY EXIST***, since the 215px sidebar is UIE-02's. Running this first computes a column width
 # against a viewport that no longer exists by the time anyone sees it. One working directory, one
 # branch (ADR-006).
@@ -236,10 +284,27 @@ gates:
 # 7.2 ***DO NOT ADD THE `Quá tải (>50%)` LEGEND ROW.*** See §4.2. It is not a colour choice, it is
 #     a team read this screen deliberately does not make.
 #
-# 7.3 ***DO NOT ADD THE `Ngày lễ` LEGEND ROW.*** src/routes/WeekView.tsx:27-28 records that holidays
-#     are lavender and are NOT DRAWN, because CAL-08's row forbids CAL-05 inheriting it. A LEGEND
-#     ROW FOR A COLOUR THAT NEVER APPEARS BESIDE IT IS A LEGEND THAT LIES. CAL-08 adds the swatch in
-#     the ticket that adds the colour.
+# 7.3 ***THE `Ngày lễ` LEGEND ROW IS STILL NOT THIS TICKET'S — BUT THE REASON CHANGED COMPLETELY ON
+#     2026-09-05, AND THE OLD REASON IS KEPT BELOW RATHER THAN DELETED.***
+#
+#     ~~DO NOT ADD THE `Ngày lễ` LEGEND ROW. src/routes/WeekView.tsx:27-28 records that holidays are
+#     lavender and are NOT DRAWN, because CAL-08's row forbids CAL-05 inheriting it. A LEGEND ROW
+#     FOR A COLOUR THAT NEVER APPEARS BESIDE IT IS A LEGEND THAT LIES. CAL-08 adds the swatch in the
+#     ticket that adds the colour.~~
+#
+#     ***WHAT OVERTOOK IT.*** CAL-08 merged (PR #56) and is `DONE`. src/routes/WeekView.tsx:28-29
+#     now reads the OPPOSITE of the sentence quoted above — *"Holidays are lavender, and CAL-08
+#     draws them HERE"* — and the lavender is drawn ON THIS VERY SCREEN, on the day heading. The
+#     legend no longer lies by carrying the row, so ***THE ROW MOVED INTO UIE-02's LIVE SCOPE***
+#     (.ai/board/tickets/UIE-02/ticket.yaml §9.3) and exists before this ticket starts.
+#
+#     ***SO IT IS OUT OF THIS TICKET FOR THE ORDINARY REASON INSTEAD: THE LEGEND CARD IS IN THE
+#     SIDEBAR AND THE SIDEBAR IS UIE-02's SHELL***, which § Also out of scope already forbids this
+#     ticket from editing. ***THE TRAP HERE IS THE OPPOSITE OF THE OLD ONE:*** this ticket owns the
+#     grid the lavender is drawn ON, so the temptation is to adjust the swatch in the sidebar to
+#     match a column heading it just restyled. That is still a shell edit. §2 carries what this
+#     ticket DOES owe CAL-08 — carrying `week-day-holiday` and `week-day-bridge` through the
+#     rewrite.
 #
 # 7.4 ***DO NOT ADD THE `Duyệt phép` BUTTON.*** ADM-04, ADM-05 and ADM-06 are all BACKLOG with
 #     `allowed_paths: []`. Ship it absent, not disabled — the full argument is
@@ -262,7 +327,12 @@ gates:
 #   - ***THE MONTH AND YEAR VIEWS.*** The transcription shows neither. Their layouts are untouched.
 #   - ***src/lib/data/absence.ts.*** Three shipped consumers use one implementation. Nothing here
 #     opens that file — see §6.
-#   - ***HOLIDAY SHADING IN THE GRID.*** CAL-08's, and it is `PLANNED`.
+#   - ***HOLIDAY SHADING IN THE GRID.*** ~~CAL-08's, and it is `PLANNED`.~~ ***AMENDED 2026-09-05:
+#     CAL-08 IS `DONE` AND THE SHADING IS ALREADY IN THIS FILE.*** It is still out of scope, and now
+#     for the stronger reason: it is SHIPPED BEHAVIOUR THIS TICKET MUST PRESERVE rather than absent
+#     work this ticket must not anticipate. ***CARRY IT THROUGH THE REWRITE UNCHANGED — DO NOT
+#     REDECIDE WHICH DAYS ARE LAVENDER, DO NOT TINT THE ROWS BELOW THE HEADING, AND DO NOT GIVE A
+#     BRIDGE DAY A FILL.*** See §2. Deciding any of that differently amends CAL-08's feature row.
 #   - AMENDING .ai/standards/ui-design-system.md — HUMAN PLANE, RULE-01.
 #   - AMENDING .ai/registry/features.md — ***INCLUDING CAL-05's ROW.*** RULE-01, and §4 is the whole
 #     argument. If it is needed, PLAN stops and asks.
