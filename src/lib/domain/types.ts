@@ -79,6 +79,21 @@ export type FailureCode =
   // ADM-01's `setOverloadThreshold` all do; CAL-01's contrary precedent turned on a shared constant
   // message, which is not the shape here.
   | "holiday_date_taken"
+  // ADM-05, 01-plan.md section 4.1. Clause (a) of `public.entry_enforce_decision()` refused the
+  // write: somebody who is not an admin tried to move a decision column. It arrives as SQLSTATE
+  // 42501, which PostgREST answers as 403.
+  //
+  // NOT `entry_not_permitted`, which is the code CAL-01 and CAL-02 map for a policy refusal and
+  // whose sentence is written about creating and editing. One code carrying two sentences is how a
+  // wrong message reaches a screen — CAL-01's own reasoning for keeping this code out of
+  // `not_permitted`, applied one layer further in. The distinction is real and not cosmetic: a
+  // filtered row means "not yours to touch", and 42501 here means "yours, but not this column".
+  | "entry_decision_not_permitted"
+  // ADM-05, AC-3. INV-03 refused: a rejection with no reason. Raised in the SEAM before the write is
+  // issued, so the interface never meets the raw 23514 the biconditional check would answer with —
+  // the shape ADR-016 section 4 gives `reject_entries`, which raises 22023 with a sentence for the
+  // same reason. The CHECK CONSTRAINT is still the control; this is the sentence.
+  | "rejection_reason_required"
   | "unknown";
 
 export interface Failure {

@@ -270,11 +270,14 @@ test.describe("ADM-04 — the worklist of entries awaiting a decision", () => {
       await expect(page.getByTestId(control)).toHaveCount(0);
     }
 
-    // Nothing that writes. The list holds one link per row and no form, no textarea and no button.
+    // Nothing that writes A FORM. ADM-05 superseded the rest of this assertion: it mounts
+    // `entry-decision` on each row — two buttons and, once reject is pressed, one textarea — which
+    // is what .ai/registry/features.md's ADM-05 row requires ("the decision surface is ADM-04's
+    // list; this row adds the two controls and the mandatory reason to it"). What survives is
+    // ADM-04's own property and is still worth holding: this screen has no form of its own and no
+    // field that edits an entry, so the row link is still the only way to CHANGE one.
     const list = page.getByTestId("pending-entries");
     await expect(list.locator("form")).toHaveCount(0);
-    await expect(list.locator("textarea")).toHaveCount(0);
-    await expect(list.locator("button")).toHaveCount(0);
     await expect(list.locator("input")).toHaveCount(0);
 
     // AC-15. The object is an ENTRY and never a request, an application or an *đơn*; no quota,
