@@ -13,6 +13,7 @@ import type {
   Entry,
   EntryPortion,
   EntryType,
+  Holiday,
   Member,
   Result,
   Session,
@@ -470,6 +471,40 @@ export interface DataSeam {
    * count is the product.
    */
   listTeamEntriesOverlapping(range: DateRange): Promise<Entry[]>;
+
+  // -------------------------------------------------------------------------
+  // ADM-02 — the national holiday calendar, read only. 01-plan.md section 4.2.
+  //
+  // ONE READ AND NO WRITE. `holiday_insert_admin`, `holiday_update_admin` and
+  // `holiday_delete_admin` are ADM-03's, and until they ship NEITHER ROLE can change the calendar
+  // (AC-13) — so an `addHoliday` here would be a function every call refuses, which is the shape
+  // `getTeam()` above already forbids itself.
+  // -------------------------------------------------------------------------
+
+  /**
+   * ADM-02 AC-1, AC-2, AC-4, AC-12. Every holiday row whose date falls inside `range`, ascending.
+   *
+   * NO TEAM PARAMETER AND NO TEAM SCOPE. The calendar is national (ADR-015 section 1), so unlike
+   * every other list read on this seam there is nothing here to narrow — `holiday_select_all` is
+   * `using (true)` and a caller on any team reads the same rows (AC-14).
+   *
+   * A PLAIN TWO-SIDED FILTER ON A SCALAR COLUMN, and this is where ADR-011's pattern deliberately
+   * does NOT transfer. `entry` needed the generated `date_range` column and `ov.` because an entry
+   * SPANS a range and PostgREST filters columns rather than expressions. `holiday.date` is a scalar
+   * served by the btree index `unique (date)` already builds, so there is no daterange, no
+   * generated column and no `btree_gist` here. Copying that shape would be cost with no property
+   * bought — ADR-015 section 6.
+   *
+   * INCLUSIVE AT BOTH ENDS, matching `DateRange` everywhere else on this seam.
+   *
+   * THROWS on a transport failure and on a possibly-truncated answer, the shape `listMembers`,
+   * `listOwnEntries`, `listTeamEntries` and `listTeamEntriesOverlapping` all use. The throw is
+   * AC-12, and the reason it matters more here than anywhere else is in that criterion: one
+   * truncation produces two opposite errors — a holiday rendered as an ordinary working day AND a
+   * mandated Saturday rendered as an inert weekend — and both surface on a date other than the one
+   * whose row was dropped.
+   */
+  listHolidays(range: DateRange): Promise<Holiday[]>;
 }
 
 export type { DataSeam as Seam };

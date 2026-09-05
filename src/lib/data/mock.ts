@@ -20,13 +20,14 @@ import type {
   DateRange,
   Entry,
   EntryPortion,
+  Holiday,
   Member,
   Result,
   Session,
   Team,
 } from "../domain/types";
 // TEA-03, and CAL-04 for the third. RUNTIME imports, not type ones - 02-design.md section 1.1.
-import { MONTH_ENTRY_LIMIT, ROSTER_LIMIT, TEAM_ENTRY_LIMIT } from "../domain/types";
+import { HOLIDAY_LIMIT, MONTH_ENTRY_LIMIT, ROSTER_LIMIT, TEAM_ENTRY_LIMIT } from "../domain/types";
 import {
   FIXTURE_ADMIN,
   FIXTURE_ALLOWED_EMAIL,
@@ -35,6 +36,7 @@ import {
   FIXTURE_APPROVED_MEMBER_CREDENTIAL,
   FIXTURE_CONSUMED_EMAIL,
   FIXTURE_CREDENTIALS,
+  FIXTURE_HOLIDAYS,
   FIXTURE_MEMBER,
   FIXTURE_OTHER_TEAM,
   FIXTURE_OTHER_TEAM_ENTRY,
@@ -291,6 +293,24 @@ const refused = (
 // entry on the other team can be created only by that team's own member signing in — and every
 // suite in this repository signs in on FIXTURE_TEAM.
 const entries: Entry[] = [{ ...FIXTURE_APPROVED_ENTRY }, { ...FIXTURE_OTHER_TEAM_ENTRY }];
+
+// ---------------------------------------------------------------------------
+// ADM-02. 01-plan.md sections 4.3 and 4.5.
+// ---------------------------------------------------------------------------
+
+// The mock's `holiday` table, seeded from the shared fixture module — the same four rows
+// supabase/seed.sql inserts, with the same literals.
+//
+// COPIED, never referenced, for the reason `members` and `teams` above record: the fixtures are
+// shared module-level objects that every test imports. Nothing writes this table on this branch and
+// nothing can — the write policies are ADM-03's (AC-13) — so the copy is a precaution against the
+// ticket that adds them rather than against anything here.
+//
+// ONE TABLE AND NO TEAM COLUMN, which is the whole of AC-14 reproduced: there is no `team_id` to
+// scope by, so unlike every other read in this file `listHolidays` below applies no team filter.
+// A mock that scoped it would pass no test and hide nothing — it would simply be a second story
+// about a table `holiday_select_all` admits to everybody.
+const holidays: Holiday[] = FIXTURE_HOLIDAYS.map((h) => ({ ...h }));
 
 let nextEntryId = 0;
 const newEntryId = (): string => `ee000000-0000-4000-8000-${String(++nextEntryId).padStart(12, "0")}`;
@@ -1100,5 +1120,51 @@ export const seam: DataSeam = {
     }
 
     return rows.map((e) => ({ ...e }));
+  },
+
+  // -------------------------------------------------------------------------
+  // ADM-02. 01-plan.md sections 4.2, 4.3 and 5.
+  // -------------------------------------------------------------------------
+
+  // ADM-02 AC-1, AC-2, AC-4, AC-7, AC-12, AC-14.
+  //
+  // NO CALLER CHECK AND NO TEAM FILTER, and both absences are the POLICY reproduced rather than a
+  // shortcut. `holiday_select_all` is `for select to authenticated using (true)`: it has no team
+  // predicate and no role predicate, so a member, an admin and a signed-in caller with no member row
+  // all read exactly the same rows (AC-2, AC-7, AC-14). Every other read in this file narrows by
+  // `memberTeamId`; this one must not, and a reviewer should read that against the migration's own
+  // comment.
+  //
+  // WHAT IS NOT REPRODUCED: the grant is `to authenticated`, so `anon` reads nothing (AC-6). The
+  // mock has no anon role to be, and the application never reaches this screen without a session —
+  // App.tsx sends a signed-out caller to `/`. The real control is the grant and it is exercised by
+  // no test until a project is provisioned.
+  //
+  // THE SAME TWO STRING COMPARISONS supabase.ts issues as `gte`/`lte`, inclusive at both ends. No
+  // Date is constructed anywhere in this file, and on this table that is load-bearing rather than
+  // stylistic — ADR-015 Consequences: a weekday read west of UTC turns a Thursday holiday into a
+  // Wednesday one and moves the bridge day.
+  //
+  // SORTED HERE, above the datastore, exactly as supabase.ts sorts in the query (AC-4).
+  // tests/seam-parity.test.ts compares names and arity and not row order, so an unsorted mock is a
+  // divergence it cannot see — which is why FIXTURE_HOLIDAYS is deliberately not in date order.
+  async listHolidays(range: DateRange): Promise<Holiday[]> {
+    const rows = holidays
+      .filter((h) => h.date >= range.start && h.date <= range.end)
+      .slice()
+      .sort((a, b) => a.date.localeCompare(b.date))
+      .slice(0, HOLIDAY_LIMIT);
+
+    // AC-12. The same limit and the same raise as supabase.ts, and the same reason as every other
+    // read here: this array is bounded by the fixtures so it never fires, and it exists so the two
+    // implementations tell one story rather than because the mock can truncate.
+    if (rows.length >= HOLIDAY_LIMIT) {
+      throw new Error(
+        `listHolidays returned ${rows.length} rows at the ${HOLIDAY_LIMIT} limit: the calendar may ` +
+          `be truncated and must not be consumed (ADM-02 AC-12)`,
+      );
+    }
+
+    return rows.map((h) => ({ ...h }));
   },
 };

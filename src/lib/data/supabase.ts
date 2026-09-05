@@ -27,6 +27,8 @@ import type {
   EntryStatus,
   EntryType,
   Failure,
+  Holiday,
+  HolidayKind,
   Member,
   MemberRole,
   Result,
@@ -37,6 +39,7 @@ import type {
 // each is needed as a value at the call. They come from ../domain/types and not from ./index, which
 // imports this file back - 02-design.md section 1.1.
 import {
+  HOLIDAY_LIMIT,
   MONTH_ENTRY_LIMIT,
   OWN_ENTRY_LIMIT,
   ROSTER_LIMIT,
@@ -179,6 +182,34 @@ function toTeam(row: TeamRow): Team {
     id: row.id,
     name: row.name,
     overloadThreshold: row.overload_threshold,
+    createdAt: row.created_at,
+  };
+}
+
+// ADM-02. The `holiday` row as PostgREST returns it. NO `team_id` COLUMN EXISTS to select — the
+// calendar is national (ADR-015 section 1), which is why this row shape is the only one in this file
+// with nothing to scope.
+//
+// `date` arrives as `yyyy-MM-dd`: PostgREST renders a `date` column as that string and nothing here
+// parses it into a `Date`. ADR-015 Consequences names why that matters on this table specifically —
+// `new Date('2026-06-11')` is UTC midnight, so a weekday read west of UTC yields Wednesday for a
+// Thursday holiday and the bridge day moves.
+interface HolidayRow {
+  id: string;
+  date: string;
+  name: string;
+  kind: HolidayKind;
+  created_at: string;
+}
+
+const HOLIDAY_COLUMNS = "id, date, name, kind, created_at";
+
+function toHoliday(row: HolidayRow): Holiday {
+  return {
+    id: row.id,
+    date: row.date,
+    name: row.name,
+    kind: row.kind,
     createdAt: row.created_at,
   };
 }
@@ -1012,5 +1043,59 @@ export const seam: DataSeam = {
     }
 
     return rows.map(toEntry);
+  },
+
+  // -------------------------------------------------------------------------
+  // ADM-02. 01-plan.md sections 4.2, 4.3 and 6.
+  // -------------------------------------------------------------------------
+
+  // ADM-02 AC-1, AC-2, AC-4, AC-12.
+  //
+  // A PLAIN TWO-SIDED FILTER ON A SCALAR COLUMN and nothing more — ADR-011's `date_range=ov.` shape
+  // deliberately does NOT transfer here. `entry` needed a generated column and `btree_gist` because
+  // an entry SPANS a range; `holiday.date` is a scalar served by the btree index `unique (date)`
+  // already builds, so copying that shape would be cost with no property bought (ADR-015 section 6).
+  //
+  // `gte`/`lte`, INCLUSIVE AT BOTH ENDS, matching `DateRange` everywhere else on this seam.
+  //
+  // NO TEAM FILTER, and this is the one read in this file where that is correct rather than a gap.
+  // `holiday_select_all` is `using (true)` because a holiday row carries no member, no team and no
+  // personal data (AC-14). A reviewer under check R6 should read the absence of `.eq("team_id", …)`
+  // against the migration's own comment rather than against the other reads here.
+  //
+  // ORDER FIXED ABOVE THE DATASTORE, in both implementations, for the reason
+  // src/lib/data/absence.ts already records: tests/seam-parity.test.ts compares names and arity and
+  // not row order, so two implementations returning rows in different orders is a divergence it
+  // cannot see (AC-4). One `order` call and no tiebreaker is enough here and on no other read in
+  // this file — `unique (date)` makes the sort key single-valued, which is the same constraint AC-5
+  // turns on.
+  async listHolidays(range: DateRange): Promise<Holiday[]> {
+    const { data, error } = await client()
+      .from("holiday")
+      .select(HOLIDAY_COLUMNS)
+      .gte("date", range.start)
+      .lte("date", range.end)
+      .order("date", { ascending: true })
+      .limit(HOLIDAY_LIMIT)
+      .returns<HolidayRow[]>();
+
+    if (error) throw new Error(`listHolidays failed: ${error.message}`);
+
+    const rows = data ?? [];
+
+    // AC-12, and it is the assertion `listMembers` already carries with this table's own sentence.
+    // A short calendar is not a short list, it is a WRONG WORKING CALENDAR: a dropped `non_working`
+    // row renders a holiday as an ordinary working day and a dropped `working` row renders a
+    // mandated Saturday as an inert weekend — two opposite errors from one cause. And the error is
+    // non-local: a dropped Thursday row moves FRIDAY's bridge highlight, so nobody looking at the
+    // wrong day suspects the missing one.
+    if (rows.length >= HOLIDAY_LIMIT) {
+      throw new Error(
+        `listHolidays returned ${rows.length} rows at the ${HOLIDAY_LIMIT} limit: the calendar may ` +
+          `be truncated and must not be consumed (ADM-02 AC-12)`,
+      );
+    }
+
+    return rows.map(toHoliday);
   },
 };

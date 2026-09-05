@@ -8,6 +8,7 @@ import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
 import { seamName } from "./lib/data";
 import { useSession } from "./hooks/useSession";
 import AllowList from "./routes/AllowList";
+import Holidays from "./routes/Holidays";
 import Home from "./routes/Home";
 import MemberList from "./routes/MemberList";
 import MonthView from "./routes/MonthView";
@@ -212,6 +213,38 @@ export default function App() {
             <Route
               path="/threshold"
               element={membership.state === "member" ? <Threshold /> : <Navigate to="/" replace />}
+            />
+
+            {/* ADM-02. The national holiday calendar, and the anchor is the URL exactly as the
+                month's, the week's and the year's are — `/holidays/2026` typed directly produces the
+                same screen as pressing *next* from 2025 (AC-8). `/holidays` with no anchor resolves
+                to the current year, and so does a malformed one, and the component does that rather
+                than a second route here — "which year is it" is a fact about the caller's clock and
+                this file holds no clock (AC-9).
+
+                GUARDED ON A SESSION AND NOT ON A ROLE, which is unlike every guard above it. Both
+                signed-in states render: `holiday_select_all` is `using (true)` and a holiday belongs
+                to no team, so a caller with no member row reads the calendar exactly as a member
+                does (AC-7) — there is no "you are not on a team" to say about a national calendar,
+                and no role to check either, because `Read the holiday calendar` is checked for both
+                roles in .ai/standards/rbac-and-security.md (AC-1, AC-2).
+
+                A SIGNED-OUT CALLER GOES TO `/`, which resolves by membership to the sign-in screen.
+                That guard exists for one specific reason rather than for symmetry: with no session
+                the read returns nothing, and an unguarded screen would then render AC-10's
+                past-the-horizon notice and tell a stranger the calendar is short (AC-6). It is an
+                affordance either way — `grant select … to authenticated` is the control. */}
+            <Route
+              path="/holidays"
+              element={
+                membership.state === "signed-out" ? <Navigate to="/" replace /> : <Holidays />
+              }
+            />
+            <Route
+              path="/holidays/:year"
+              element={
+                membership.state === "signed-out" ? <Navigate to="/" replace /> : <Holidays />
+              }
             />
 
             {/* AC-9. Every address the application does not route lands on `/`, which then resolves
