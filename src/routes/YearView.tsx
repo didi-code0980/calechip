@@ -28,10 +28,14 @@
 // Colour, and where it comes from. `.ai/standards/ui-design-system.md` § Colour is still
 // `TODO(project)`, so the palette is cited to `CLAUDE.md` § Visual direction, the only place in the
 // repository that carries it: PTO peach, WFH mint, tentative at reduced opacity. Holidays are
-// lavender and are NOT drawn — CAL-08, whose row forbids this one inheriting it. 01-plan.md § 2b
-// records that no image was attached at either stage and that the arrangement below is the Tech
-// Lead's own; the prototype in _figma/ is not evidence for this row and was not read, cited or
-// copied.
+// lavender, and CAL-08 draws them HERE — the sentence this replaces said they were not drawn on this
+// screen, and that ticket is the one that spends it. It draws them in a NEW ONE-ROW STRIP under the
+// month ruler and NOT in the member cells: tinting those would put a lookup on all 10,950 of them,
+// which is the budget this file's own comments make load-bearing (CAL-08 01-plan.md § 2b and section
+// 8, rejected alternative 5). A bridge day is a working day, gets no lavender, and is marked with a
+// dot instead. 01-plan.md § 2b records that no image was attached at either stage and that the
+// arrangement below is the Tech Lead's own; the prototype in _figma/ is not evidence for this row and
+// was not read, cited or copied.
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Link, Navigate, useParams } from "react-router-dom";
 // The seam, through its one door. Nothing above the seam names an implementation, and this file must
@@ -46,7 +50,11 @@ import {
   absentEntriesFor,
   eachDateInRange,
 } from "@/lib/data/absence";
-import type { DateRange, Entry, Member } from "@/lib/domain/types";
+// CAL-08's derivation, imported the same way and for the same reason. The weekend rule lives inside
+// that module and is not exported — a `isSaturday(d)` written here would be the second definition
+// .ai/registry/features.md:95 forbids, and this file draws no weekend distinction anyway.
+import { dayStatusesFor, holidayReadRange } from "@/lib/data/day-status";
+import type { DateRange, DayStatus, Entry, Holiday, Member } from "@/lib/domain/types";
 
 // ---------------------------------------------------------------------------
 // The year vocabulary. `yyyy` in the URL, `yyyy-MM-dd` everywhere below it.
@@ -121,7 +129,7 @@ type View =
   | { phase: "loading" }
   | { phase: "not-on-a-team" } // the caller has no member row, or has been removed
   | { phase: "unavailable" } // a throw from either read, including the truncation assertion
-  | { phase: "ready"; roster: Member[]; entries: Entry[] };
+  | { phase: "ready"; roster: Member[]; entries: Entry[]; holidays: Holiday[] };
 
 export default function YearView() {
   const { year } = useParams<{ year: string }>();
@@ -151,19 +159,30 @@ export default function YearView() {
         return;
       }
 
-      // The two reads 01-plan.md section 4.2 permits, and no third. `listMembers()` returns the
-      // roster INCLUDING removed members (ADR-013), which is what AC-8 needs: a member removed
-      // partway through the year keeps a row, filled up to the removal and empty after it.
-      const [roster, entries] = await Promise.all([
+      // The two reads 01-plan.md section 4.2 permits, plus the ONE CAL-08 adds, and no fourth.
+      // `listMembers()` returns the roster INCLUDING removed members (ADR-013), which is what AC-8
+      // needs: a member removed partway through the year keeps a row, filled up to the removal and
+      // empty after it.
+      //
+      // The holiday range is PADDED: `dayStatusesFor` is not total on its own range, because
+      // deciding whether 1 January is a bridge day needs 31 December of the year before. The pad is
+      // one exported function rather than an expression here, so the three views cannot disagree
+      // about it (CAL-08 01-plan.md section 8, rejected alternative 2).
+      const [roster, entries, holidays] = await Promise.all([
         seam.listMembers(),
         seam.listTeamEntriesOverlapping(range),
+        seam.listHolidays(holidayReadRange(range)),
       ]);
 
-      setView({ phase: "ready", roster, entries });
+      setView({ phase: "ready", roster, entries, holidays });
     } catch {
-      // AC-14. Both reads throw on a transport failure and on a possibly-truncated answer
+      // AC-14. All three reads throw on a transport failure and on a possibly-truncated answer
       // (`MONTH_ENTRY_LIMIT`, reused rather than joined by a second constant — section 4.2). This
       // branch is the refusal: no grid at all, rather than one missing the entries the read dropped.
+      //
+      // CAL-08 AC-12 is the same branch for the holiday read, whose truncation is worse than local:
+      // a dropped Thursday row removes FRIDAY's bridge mark (ADR-015 Consequences), and
+      // `HOLIDAY_LIMIT` is the one row limit a YEAR-wide range could plausibly approach.
       setView({ phase: "unavailable" });
     }
   }, [range]);
@@ -219,6 +238,17 @@ export default function YearView() {
 
     return found;
   }, [ready, range]);
+
+  // CAL-08 AC-7 and AC-11. One status per date of the year, from the same module the month grid and
+  // the week list read — which is what makes the three screens unable to disagree about a date.
+  //
+  // Built ONCE in a memo, like every other derivation on this screen: the strip is 365 elements and
+  // a derivation per element is the cost this file refuses everywhere else.
+  const dayStatuses = useMemo(
+    () =>
+      ready && range ? dayStatusesFor(ready.holidays, range) : new Map<string, DayStatus>(),
+    [ready, range],
+  );
 
   // AC-3's row order. By display name ascending, then by id — the tiebreaker `listMembers` already
   // uses, so two members sharing a name never swap places between renders. The collation is
@@ -346,6 +376,48 @@ export default function YearView() {
             ))}
           </div>
 
+          {/* CAL-08 AC-7 and AC-11. ONE ELEMENT PER DATE, immediately under the month ruler and
+              sharing the same column template, so the strip cannot drift out of alignment with the
+              rows below it. Lavender for a non-working holiday; a dot for a bridge day, which is a
+              working day and gets no lavender (glossary.md). The name reaches a reader through
+              `title`, because a one-day-wide element has no room for text — the same answer this
+              file already gives for a member cell's type.
+
+              THE MEMBER CELLS THEMSELVES ARE UNTOUCHED. 30 members over 365 days is 10,950 cells and
+              this file's own comments make the per-cell budget the property that decides whether the
+              screen scrolls; a strip is 365 elements (01-plan.md section 8, rejected alternative 5). */}
+          <div data-testid="year-daystatus" className="grid items-center gap-px pb-1" style={columns}>
+            <div className="sticky left-0 z-10 bg-white pr-2 font-medium opacity-60">Calendar</div>
+            {dates.map((date) => {
+              const status = dayStatuses.get(date);
+              const holiday = status?.holiday ?? null;
+
+              return (
+                <div
+                  key={date}
+                  data-testid="year-daystatus-cell"
+                  data-date={date}
+                  data-day-status={status ? (status.nonWorkingReason ?? "working") : ""}
+                  data-bridge={status?.bridge ?? false}
+                  title={holiday !== null ? `${date} — ${holiday.name}` : date}
+                  className={[
+                    "flex h-3 items-center justify-center rounded-[2px]",
+                    // Lavender for a NON-WORKING holiday and for nothing else: a mandated `working`
+                    // Saturday is named through `title` but not tinted (AC-2), and a weekend is drawn
+                    // exactly as it is today, which is not at all (01-plan.md section 1, Out of scope).
+                    status?.nonWorkingReason === "holiday" ? "bg-violet-200" : "bg-slate-100",
+                  ].join(" ")}
+                >
+                  {/* AC-3's mark, and it is deliberately NOT a colour: lavender means not working
+                      and a bridge day is a working day that everybody is about to request. */}
+                  {status?.bridge ? (
+                    <span aria-hidden="true" className="block h-1 w-1 rounded-full bg-slate-500" />
+                  ) : null}
+                </div>
+              );
+            })}
+          </div>
+
           {rows.map((member) => {
             // Precomputed, and looked up once per ROW rather than once per cell. A member with no
             // entries all year is a key here carrying an empty set — that is AC-3, and it is the
@@ -443,6 +515,25 @@ export default function YearView() {
           </div>
         </div>
       </div>
+
+      {/* CAL-08 AC-8. A year the calendar does not reach says so IN WORDS, rather than rendering as
+          a year that happens to have no lavender in it — the feature row's own sentence.
+
+          Read off the ROWS the range returned and not off `dayStatuses`: every date is a key there
+          whether or not anything is drawn on it, so the map can never answer "this year has no
+          calendar". The read is padded by a week either side, which makes this slightly conservative
+          — a 1 January row belonging to the next year would defeat the sentence — and that is the
+          right direction, because the sentence claims the calendar is empty and must not appear when
+          a row was seen. */}
+      {view.holidays.length === 0 ? (
+        <p
+          data-testid="year-holidays-empty"
+          className="rounded-2xl bg-white p-6 text-center text-sm opacity-70 shadow-sm"
+        >
+          The holiday calendar holds no day for {anchorYear}. Nothing is marked because nothing has
+          been entered, not because the year is ordinary.
+        </p>
+      ) : null}
     </section>
   );
 }
