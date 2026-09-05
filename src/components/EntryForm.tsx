@@ -23,6 +23,7 @@
 // names editing explicitly: whether a member may move an entry onto a past date is the operator's
 // decision. So the date inputs carry no `min` and neither seam function carries a past-date check.
 import { useState } from "react";
+import OverloadWarning from "@/components/OverloadWarning";
 import type { EntryPortion, EntryType, Failure } from "@/lib/domain/types";
 
 // CAL-01 AC-4. WFH is a TYPE and not a second feature: one control, two values, and everything
@@ -80,6 +81,19 @@ export interface EntryFormProps {
    *  rendered verbatim — this component never composes one of its own about why a write was
    *  refused, so a SQLSTATE or a PostgREST message text can never reach the screen. */
   onSubmit(values: EntryFormValues): Promise<Failure | null>;
+
+  /** CAL-07, 01-plan.md section 4.4. The draft's owner, or null for the caller.
+   *
+   *  OPTIONAL, and that is the most load-bearing thing about it: `NewEntry.tsx` and `MonthView.tsx`
+   *  pass nothing and get the caller, which is correct on both, so neither file is in this ticket's
+   *  `allowed_paths` and neither is edited (01-plan.md section 7). `EditEntry.tsx` passes the
+   *  entry's `memberId`, which is what makes AC-18 true for an admin editing another member's
+   *  entry. */
+  ownerId?: string | null;
+
+  /** CAL-07. The saved row this form is editing, so it is not counted BESIDE the draft (AC-17).
+   *  Optional for the same reason: on a create there is no row to exclude. */
+  excludeEntryId?: string | null;
 }
 
 // The same three-state shape SignIn.tsx uses, and `submitting` is never terminal: every path out of
@@ -95,6 +109,8 @@ export default function EntryForm({
   initial,
   afterSubmit,
   onSubmit,
+  ownerId = null,
+  excludeEntryId = null,
 }: EntryFormProps) {
   const [type, setType] = useState<EntryType>(initial.type);
   const [portion, setPortion] = useState<EntryPortion>(initial.portion);
@@ -240,6 +256,26 @@ export default function EntryForm({
           className="rounded-xl border border-slate-200 px-3 py-2"
         />
       </label>
+
+      {/* CAL-07, 01-plan.md sections 4.3 and 4.4. BETWEEN the last field and the save control, and
+          inside the form: above the button because a person reads down to it, below the fields
+          because it is a consequence of them. Not above the fields, where it would push the form
+          down and move the control under the pointer as the dates change.
+
+          It is fed from the state this form already holds and it is given no way to reach the
+          submit control below — which is AC-9, AC-10 and AC-12 held by construction. The button
+          keeps its `disabled={!complete || submitting}`, its label and its position; there is no
+          "Save anyway" and nothing here can add one (charter refusal 6). */}
+      <OverloadWarning
+        ownerId={ownerId}
+        excludeEntryId={excludeEntryId}
+        type={type}
+        portion={portion}
+        startDate={startDate}
+        endDate={endDate}
+        tentative={tentative}
+        testIdPrefix={testIdPrefix}
+      />
 
       {state.phase === "editing" && state.error ? (
         <p data-testid={`${testIdPrefix}-error`} role="alert" className="text-sm text-rose-600">

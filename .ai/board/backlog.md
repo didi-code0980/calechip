@@ -32,14 +32,24 @@ Under the current gate placement a ticket sits here until it has been planned �
 
 | # | Ticket | Title | State | Blocked on |
 |---|--------|-------|-------|------------|
-| 1 | CAL-07 | Overload warning shown while choosing dates, before the entry is saved | BACKLOG | CAL-01, CAL-04 |
-| 2 | ADM-02 | The national holiday calendar, seeded and readable | BACKLOG | TEA-01, ADM-01 |
-| 3 | ADM-03 | Add, edit or delete a holiday or swap day | BACKLOG | ADM-02 |
-| 4 | CAL-08 | Holidays and bridge days shown in the calendar views | BACKLOG | ADM-02, CAL-04, CAL-05, CAL-06 |
-| 5 | ADM-04 | The worklist of entries awaiting a decision | BACKLOG | CAL-01, TEA-03, ADM-01 |
-| 6 | ADM-05 | Approve or reject an entry, with a reason on rejection | BACKLOG | ADM-04, CAL-02 |
-| 7 | ADM-06 | Reject several entries at once, with one reason for the batch | BACKLOG | ADM-05 |
-| 8 | OPS-002 | UI copy to English — entry screens and the seam's error messages | BACKLOG | — |
+| 1 | ADM-02 | The national holiday calendar, seeded and readable | BACKLOG | TEA-01, ADM-01 |
+| 2 | ADM-03 | Add, edit or delete a holiday or swap day | BACKLOG | ADM-02 |
+| 3 | CAL-08 | Holidays and bridge days shown in the calendar views | BACKLOG | ADM-02, CAL-04, CAL-05, CAL-06 |
+| 4 | ADM-04 | The worklist of entries awaiting a decision | BACKLOG | CAL-01, TEA-03, ADM-01 |
+| 5 | ADM-05 | Approve or reject an entry, with a reason on rejection | BACKLOG | ADM-04, CAL-02 |
+| 6 | ADM-06 | Reject several entries at once, with one reason for the batch | BACKLOG | ADM-05 |
+| 7 | OPS-002 | UI copy to English — entry screens and the seam's error messages | BACKLOG | — |
+
+**Renumbered to 1–7 by `orchestrator` at /ship on 2026-09-05**, when CAL-07 left this table for
+`## ARCHIVE`. Bookkeeping, not a reordering. **ADM-02 is now row 1 and is blocked on nothing** — its
+`Blocked on` names TEA-01 and ADM-01, both DONE.
+
+**Read `.ai/standards/data-model.md` OPEN QUESTIONS item 1 before planning ADM-02.** CAL-04's
+registry row kept holiday shading deliberately out of scope because that open question *"blocks the
+first story touching `holiday`"*, and ADM-02 is that story. It is the first row in months to reach
+position 1 carrying a known, named precondition that is not a ticket dependency — so `depends_on`
+will not surface it and DoR will not grade it, exactly like the pull-request precondition OPS-001 and
+OPS-002 carried.
 
 **Renumbered to 1–8 by `orchestrator` at /ship on 2026-09-05**, when ADM-01 left this table for
 `## ARCHIVE`. Bookkeeping, not a reordering. **CAL-07 is now row 1 and is blocked on nothing** — its
@@ -228,7 +238,8 @@ Tickets that cannot proceed until a human decides something. Name the decision, 
 | 11 | CAL-04 | Month view — a day grid showing who is away and which days are overloaded | 2026-09-04 | [#48](https://github.com/didi-code0980/calechip/pull/48) |
 | 12 | CAL-05 | Week view — per-person detail for one week, with half-days, notes and who approved | 2026-09-04 | [#49](https://github.com/didi-code0980/calechip/pull/49) |
 | 13 | CAL-06 | Year view — one row per member across 365 days | 2026-09-04 | [#51](https://github.com/didi-code0980/calechip/pull/51) |
-| 14 | ADM-01 | Set the overload threshold | 2026-09-05 | PENDING_PR |
+| 14 | ADM-01 | Set the overload threshold | 2026-09-05 | [#52](https://github.com/didi-code0980/calechip/pull/52) |
+| 15 | CAL-07 | Overload warning shown while choosing dates, before the entry is saved | 2026-09-05 | PENDING_PR |
 
 **OPS-001 is the first ticket that ships no capability at all** — it translates the copy of seven
 already-shipped screens and changes no behaviour. Its five `feature_ids` are all TEA rows, and four
@@ -244,6 +255,32 @@ corrected to `DONE` here, on the fact of the merge rather than on this ticket's 
 ticket to reach `/ship` that way, because `product` created the shell on 2026-09-03 from the current
 template. The five before it were each created before 2026-09-01 and each had to be migrated by
 whichever role noticed.
+
+**CAL-07 is the ticket CAL-04 was designed for, and the design held.** CAL-04's registry row
+argued its absence function had to be **pure and take rows** — `absenceCountsFor(entries, range,
+roster)`, every fetch outside it — for one reason stated in advance: *a function that fetches its own
+rows cannot be called with an unsaved entry*, and CAL-07's whole job is the count a day will have
+**if the draft in the form is saved**. This is that call. `src/lib/draft-entry.ts` turns the unsaved
+draft into an `Entry` row and hands it to the same function, so the prospective count is CAL-04's
+arithmetic rather than a second one — and `tests/absence.test.ts` and `tests/seam-parity.test.ts`
+pass **unedited**, which is what plan section 5 stakes INV-04's single definition on. Third consumer,
+one implementation.
+
+**Its `depends_on` deliberately excludes ADM-01, and that call also held.** The triage shell recorded
+that the idea bundled the warning with the threshold setting — *"cannot ship honestly without the
+second"* — and rejected it as a release-ordering claim rather than a dependency, since
+`overload_threshold` is `not null default 0.5`. ADM-01 shipped first anyway, so the argument was
+never tested; what it bought was that it did not have to be.
+
+**The review's `next_state` reads `QA`, a state ADR-022 removed.**
+`.ai/templates/review-report.md` still ships that value. ADM-01's reviewer hit the same template
+hours earlier and corrected it in the artifact, naming the staleness; this one copied it through. The
+gate is `PASS` and the lifecycle at `.ai/01-operating-model.md:36` is authoritative, so the ship is
+unaffected — but the template is still producing a retired state and that is steward work.
+
+**Definition of Done item 3 was NOT run at `/ship`**: the operator instructed step 1 to be skipped.
+The exit-0 evidence is REVIEW's, from 01:27 on the same tree with nothing committed since —
+`vitest run` 5 files / 108 tests and `playwright test` 108 tests, 13 of them this ticket's.
 
 **ADM-01 is the first ADM row to ship, and the first ticket whose PLAN gate had to be run twice.**
 The 2026-09-03 pass came back `gate: BLOCKED` — it could not tell whether ADM-01 was allowed to carry
