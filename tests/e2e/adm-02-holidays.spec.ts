@@ -8,12 +8,15 @@ import { expect, test, type Page } from "@playwright/test";
 // (`holidays-row-date`, `holidays-row-name`, `holidays-row-effect`) and `holidays-list` are NOT in
 // that table and are declared in 03-impl-log.md § Deviations.
 //
-// **THREE CRITERIA ARE ASSERTED NOWHERE, AND THAT IS DECLARED IN 03-impl-log.md.** It is the same
-// shape CAL-05 and CAL-06 each recorded:
-// - AC-5 (a second row for a date is refused) — that is `unique (date)` in the datastore. Nothing in
-//   the product can insert a holiday at all on this branch: no insert policy and no insert grant
-//   ship here, which is AC-13. The constraint is exercised by no test until a project is
-//   provisioned, and RULE-09 keeps applying the migration human.
+// **THREE CRITERIA WERE ASSERTED NOWHERE WHEN THIS FILE SHIPPED, AND THAT IS DECLARED IN ADM-02's
+// 03-impl-log.md.** It is the same shape CAL-05 and CAL-06 each recorded:
+// - AC-5 (a second row for a date is refused) — that is `unique (date)` in the datastore, and when
+//   this suite was written nothing in the product could insert a holiday at all: no insert policy
+//   and no insert grant shipped on that branch. **ADM-03 CLOSED THAT GAP.** The write path exists
+//   now, so a person can meet the constraint, and ADM-03 AC-6 is where that refusal is asserted —
+//   `tests/e2e/adm-03-holiday-writes.spec.ts` through the interface and
+//   `tests/holiday-writes.test.ts` at the seam. The constraint ITSELF is still exercised by no test
+//   until a project is provisioned, and RULE-09 keeps applying the migration human.
 // - AC-11 (a failed read shows a failure) and AC-12 (a truncated read is refused) — both are throws
 //   inside the seam. The mock's holiday table is four fixture rows and cannot reach HOLIDAY_LIMIT,
 //   and no test can make PostgREST cap a read or a socket fail without a provisioned project. What
@@ -29,9 +32,13 @@ import { expect, test, type Page } from "@playwright/test";
 // place. The real rows arrive through
 // supabase/migrations/20260905120100_adm02_holiday_seed.sql, which a human fills and applies.
 //
-// `holiday_select_all` (`using (true)`), `grant select on public.holiday to authenticated` and the
-// ABSENCE of all three write policies are the real mechanisms behind AC-1, AC-2, AC-6, AC-7, AC-13
-// and AC-14. This suite observes the mock's reproduction of them.
+// `holiday_select_all` (`using (true)`) and `grant select on public.holiday to authenticated` are
+// the real mechanisms behind AC-1, AC-2, AC-6, AC-7 and AC-14. This suite observes the mock's
+// reproduction of them.
+//
+// It once named a third mechanism — the ABSENCE of all three write policies — and that was AC-13,
+// which ADM-03 retired where it stood below. The two read-half objects above are untouched by that
+// ticket, which is why the eleven tests here still pass with no character changed.
 //
 // EACH TEST GETS FRESH MOCK STATE, because the mock's tables and its session live in module memory
 // and a `page.goto` reloads the module. Navigation WITHIN a test is done by clicking links, which
@@ -241,17 +248,28 @@ test.describe("ADM-02 the national holiday calendar", () => {
     await expect(page.getByTestId("holidays-unavailable")).toHaveCount(0);
   });
 
-  test("AC-13: the calendar is not writable by anybody, admin included", async ({ page }) => {
-    await openHolidays(page, ADMIN_EMAIL);
-
-    // The denial is held by the datastore — no insert, update or delete policy and no write grant
-    // ships on this branch — and what this suite can observe is that the surface offers nothing
-    // either. No button, no field, no control of any kind on the screen an admin reaches.
-    await expect(page.getByRole("button")).toHaveCount(0);
-    await expect(page.getByRole("textbox")).toHaveCount(0);
-    await expect(page.locator("form")).toHaveCount(0);
-    await expect(page.getByTestId("holidays-row")).toHaveCount(DATES_2026.length);
-  });
+  // AC-13 STOOD HERE AND IS RETIRED BY ADM-03, not reworded. ADM-03 01-plan.md section 7 carries the
+  // permission and its exact scope.
+  //
+  // It asserted that the calendar is not writable by anybody, admin included: zero buttons, zero
+  // textboxes and zero forms on this screen for FIXTURE_ADMIN. Its SUBJECT was the absence of
+  // `holiday_insert_admin`, `holiday_update_admin`, `holiday_delete_admin` and the write grant —
+  // ADM-02 shipped the read half of `public.holiday` and left the calendar unwritable on purpose,
+  // and this test was that fact observed from the outside. It was true of the branch that shipped
+  // it, and ADM-02's own plan said in terms that "ADM-03 ships the write half".
+  //
+  // supabase/migrations/20260905140000_adm03_holiday_writes.sql ends that absence, so there is no
+  // narrower true statement left for this block to make about an admin on this screen. It is not
+  // rewritten into an assertion about a MEMBER: that is ADM-03 AC-14 and ADM-03's own suite owns it,
+  // and a second copy here would be a second place the same fact is decided.
+  //
+  // WHERE THE ADM-03-ERA TRUTH IS ASSERTED INSTEAD:
+  // - a member is offered no control — tests/e2e/adm-03-holiday-writes.spec.ts, AC-14
+  // - a member's, a member-less caller's and a removed admin's writes are refused BELOW the
+  //   interface — tests/holiday-writes.test.ts, AC-15 and AC-16
+  //
+  // The eleven tests around this comment are untouched and must stay so: a green run of them is the
+  // evidence that ADM-03 added a write path without disturbing the read one (ADM-03 AC-18).
 
   test("AC-14: the calendar is national — a caller on another team reads the same rows", async ({
     page,

@@ -7,6 +7,7 @@
 // pass against a broken trigger, which is the one failure a mock seam can cause and not catch.
 import type {
   AddAllowedEmailInput,
+  AddHolidayInput,
   CreateEntryInput,
   DataSeam,
   SetOverloadThresholdInput,
@@ -14,6 +15,7 @@ import type {
   SignUpInput,
   SignUpOutcome,
   UpdateEntryInput,
+  UpdateHolidayInput,
 } from "./index";
 import type {
   AllowedEmail,
@@ -258,8 +260,11 @@ const currentAdmin = (): Member | null => {
   return me && me.role === "admin" ? me : null;
 };
 
+// ADM-03 adds `holiday_date_taken` to the union. It is widened rather than replaced by
+// `FailureCode`: the narrow list is what stops this file returning a code no mock path can produce,
+// and a code added here is a code some function below must actually be able to reach.
 const refused = (
-  code: "not_permitted" | "already_allow_listed" | "already_consumed",
+  code: "not_permitted" | "already_allow_listed" | "already_consumed" | "holiday_date_taken",
   message: string,
 ): { ok: false; error: { code: typeof code; message: string } } => ({
   ok: false,
@@ -311,6 +316,21 @@ const entries: Entry[] = [{ ...FIXTURE_APPROVED_ENTRY }, { ...FIXTURE_OTHER_TEAM
 // A mock that scoped it would pass no test and hide nothing — it would simply be a second story
 // about a table `holiday_select_all` admits to everybody.
 const holidays: Holiday[] = FIXTURE_HOLIDAYS.map((h) => ({ ...h }));
+
+// ADM-03. The id a row added through the product gets, in the shape `newEntryId` and `newUserId`
+// already use — a `cc` prefix, matching the four fixture rows above so a reader can tell at a glance
+// which table an id belongs to.
+let nextHolidayId = 0;
+const newHolidayId = (): string =>
+  `cc000000-0000-4000-8000-${String(++nextHolidayId + 900).padStart(12, "0")}`;
+
+// ADM-03. The four sentences, repeated from src/lib/data/supabase.ts so the two implementations of
+// the seam carry the same words — the rule CAL-01's three refusal constants already state, and the
+// reason src/lib/fixtures.ts and supabase/seed.sql repeat their literals too.
+const HOLIDAY_ADD_REFUSED = "Only an admin can add to the holiday calendar.";
+const HOLIDAY_UPDATE_REFUSED = "Only an admin can change the holiday calendar.";
+const HOLIDAY_DELETE_REFUSED = "Only an admin can remove a day from the holiday calendar.";
+const HOLIDAY_DATE_TAKEN = "The calendar already has a row for that date. Edit that row instead.";
 
 let nextEntryId = 0;
 const newEntryId = (): string => `ee000000-0000-4000-8000-${String(++nextEntryId).padStart(12, "0")}`;
@@ -1166,5 +1186,106 @@ export const seam: DataSeam = {
     }
 
     return rows.map((h) => ({ ...h }));
+  },
+
+  // -------------------------------------------------------------------------
+  // ADM-03. 01-plan.md sections 4.2, 4.3 and 5.
+  //
+  // THESE REPRODUCE THE POLICIES AND NOT THE SCREEN, for the reason `currentAdmin` above records and
+  // ADM-01's `setOverloadThreshold` repeats: the acceptance suite drives this seam (BUG-001,
+  // tests/e2e/seam.setup.ts), so a mock that let a member through would make AC-14, AC-15 and AC-16
+  // pass against nothing at all.
+  //
+  // `currentAdmin()` IS ALL THREE POLICIES' WHOLE PREDICATE. It already filters `removedAt === null`
+  // and `role === "admin"`, which is `public.is_admin` reproduced — AC-16 is inherited here exactly
+  // as it is inherited in SQL from that function's own body, written once rather than three times.
+  //
+  // AND THERE IS NO TEAM CHECK, unlike every other write in this file. That absence is the policies
+  // reproduced rather than a shortcut: `holiday` has no `team_id` and none of the three carries a
+  // team conjunct (ADR-015 section 1, and the migration's own comment). A mock that scoped by team
+  // would refuse `FIXTURE_OTHER_TEAM`'s admin where the datastore admits them, which would be a
+  // second story about a national calendar rather than a stricter one.
+  //
+  // ALL THREE CHECK `unique (date)` BEFORE WRITING. That is the constraint ADM-02's migration
+  // carries, reproduced here for the same reason INV-01's overlap check is reproduced above: it is a
+  // second implementation of a datastore mechanism, acceptable only because the mock is not a
+  // datastore anybody's data lives in, and it exists so AC-6 and AC-7 are observable end-to-end
+  // without a provisioned project.
+  // -------------------------------------------------------------------------
+
+  // ADM-03 AC-1, AC-2, AC-4, AC-6, AC-15, AC-16.
+  //
+  // NO YEAR FILTER OF ANY KIND. A row may be added in any year, including one the screen is not
+  // showing — the calendar is one table and `listHolidays` is what narrows a READ to a year. AC-4 is
+  // the screen noticing afterwards, not this function refusing.
+  //
+  // A COPY GOES BACK, never the stored object, so a caller cannot write the mock's table through the
+  // value it was handed — the shape every read here already uses.
+  async addHoliday(input: AddHolidayInput): Promise<Result<Holiday>> {
+    const me = currentAdmin();
+    if (!me) return refused("not_permitted", HOLIDAY_ADD_REFUSED);
+
+    // AC-6. `unique (date)` met by a person: the refusal names the date rather than reporting a
+    // constraint, and it is checked against the WHOLE table and not the displayed year — which is
+    // the reason 01-plan.md section 8 rejected doing this in the form.
+    if (holidays.some((h) => h.date === input.date)) {
+      return refused("holiday_date_taken", HOLIDAY_DATE_TAKEN);
+    }
+
+    const row: Holiday = {
+      id: newHolidayId(),
+      date: input.date,
+      name: input.name,
+      kind: input.kind,
+      createdAt: new Date().toISOString(),
+    };
+    holidays.push(row);
+    return { ok: true, value: { ...row } };
+  },
+
+  // ADM-03 AC-7, AC-8, AC-10, AC-15, AC-16.
+  //
+  // A MISSING ROW IS `not_permitted` AND NOT A DISTINCT ANSWER, which is the filtered UPDATE
+  // reproduced: in the datastore a row the policy refuses and a row that does not exist are the same
+  // empty body, and a mock that told them apart would be reporting something the real seam cannot
+  // know.
+  //
+  // ONE ROW IS ASSIGNED, field by field (AC-10). There is no path here that touches another row, and
+  // `id` and `createdAt` are untouched — the three writable columns and no more.
+  async updateHoliday(holidayId: string, input: UpdateHolidayInput): Promise<Result<Holiday>> {
+    const me = currentAdmin();
+    if (!me) return refused("not_permitted", HOLIDAY_UPDATE_REFUSED);
+
+    const row = holidays.find((h) => h.id === holidayId);
+    if (!row) return refused("not_permitted", HOLIDAY_UPDATE_REFUSED);
+
+    // AC-7. The same constraint and the same sentence as the add, and `h.id !== holidayId` is what
+    // makes saving a row onto its OWN date an ordinary edit rather than a duplicate — the behaviour
+    // `unique (date)` has in the datastore, where a row does not collide with itself.
+    if (holidays.some((h) => h.id !== holidayId && h.date === input.date)) {
+      return refused("holiday_date_taken", HOLIDAY_DATE_TAKEN);
+    }
+
+    row.date = input.date;
+    row.name = input.name;
+    row.kind = input.kind;
+    return { ok: true, value: { ...row } };
+  },
+
+  // ADM-03 AC-11, AC-13, AC-15, AC-16. A HARD delete, matching supabase.ts: the row leaves the array
+  // and there is no trash to restore it from (01-plan.md section 8).
+  //
+  // EXACTLY ONE ROW LEAVES (AC-13). `splice` at the found index and nothing else, so a delete cannot
+  // reach a neighbour — the failure a filter-and-reassign would make possible if the predicate were
+  // ever widened.
+  async deleteHoliday(holidayId: string): Promise<Result<void>> {
+    const me = currentAdmin();
+    if (!me) return refused("not_permitted", HOLIDAY_DELETE_REFUSED);
+
+    const at = holidays.findIndex((h) => h.id === holidayId);
+    if (at < 0) return refused("not_permitted", HOLIDAY_DELETE_REFUSED);
+
+    holidays.splice(at, 1);
+    return { ok: true, value: undefined };
   },
 };
