@@ -24,12 +24,21 @@ import type {
   EntryPortion,
   Holiday,
   Member,
+  PendingEntryPage,
+  PendingEntryQuery,
   Result,
   Session,
   Team,
 } from "../domain/types";
 // TEA-03, and CAL-04 for the third. RUNTIME imports, not type ones - 02-design.md section 1.1.
-import { HOLIDAY_LIMIT, MONTH_ENTRY_LIMIT, ROSTER_LIMIT, TEAM_ENTRY_LIMIT } from "../domain/types";
+// ADM-04 adds PENDING_PAGE_SIZE, which is a WINDOW and not a ceiling - see its own comment there.
+import {
+  HOLIDAY_LIMIT,
+  MONTH_ENTRY_LIMIT,
+  PENDING_PAGE_SIZE,
+  ROSTER_LIMIT,
+  TEAM_ENTRY_LIMIT,
+} from "../domain/types";
 import {
   FIXTURE_ADMIN,
   FIXTURE_ALLOWED_EMAIL,
@@ -1287,5 +1296,92 @@ export const seam: DataSeam = {
 
     holidays.splice(at, 1);
     return { ok: true, value: undefined };
+  },
+
+  // -------------------------------------------------------------------------
+  // ADM-04. 01-plan.md section 4.2.
+  //
+  // ONE READ AND NO WRITE. Nothing here sets `status`, `rejection_reason`, `approved_by` or
+  // `approved_at` — those are ADM-05's and this ticket carries no approve control and no reject
+  // control (AC-9).
+  // -------------------------------------------------------------------------
+
+  // ADM-04 AC-1 to AC-8, AC-11, AC-13.
+  //
+  // THIS FUNCTION FILTERS BY TEAM AND THE REAL ONE DOES NOT, the same asymmetry `listTeamEntries`
+  // above records: the real implementation is scoped by `entry_select_team`, the mock has no policy
+  // so the scope has to be written, and a mock that returned every entry it holds would pass seam
+  // parity, pass every happy path, and leave AC-13 untestable against the seam the acceptance suite
+  // actually drives (BUG-001 pinned that suite to this implementation).
+  //
+  // `sameTeam` and not `===`, for the reason that function records: `member_team_id` is null for a
+  // removed member and `null = null` is NULL in SQL rather than true.
+  //
+  // THE ORDER IS WRITTEN TWICE, ONCE PER IMPLEMENTATION, AND `tests/seam-parity.test.ts` CANNOT SEE
+  // A DIVERGENCE — it compares names and arity, not row order. That is the one duplication this
+  // codebase otherwise refuses (`absence.ts` sorts above the seam precisely to avoid it), and paging
+  // is what forces it: a page boundary needs a stable SERVER-side order, and an order applied after
+  // the slice would reorder one page rather than the set. 01-plan.md section 2, Open questions item
+  // 5 names it, and tests/pending-entries.test.ts asserts this copy.
+  //
+  // `start_date` ascending, then `created_at`, then `id`. Soonest-concerning first, because the
+  // decision is wanted before the date arrives (01-plan.md section 8, rejected alternative 5); two
+  // deterministic tiebreakers because a boundary that shuffles between requests either repeats a row
+  // or drops one, and dropping one here is an entry nobody ever decides.
+  async listPendingEntries(query: PendingEntryQuery): Promise<PendingEntryPage> {
+    const mine = memberTeamId(currentMemberId);
+
+    const matching = entries
+      .filter((e) => sameTeam(memberTeamId(e.memberId), mine))
+      .filter((e) => e.status === "pending")
+      // `null` means both types (AC-8). 01-plan.md section 2, Open questions item 1: a WFH entry
+      // goes through approval exactly as a PTO entry does, and the filter is what makes the volume
+      // manageable if the operator's objection turns out to be noise rather than principle.
+      .filter((e) => query.type === null || e.type === query.type)
+      // AC-6 and AC-7. `yyyy-MM-dd` STRING comparison, which sorts lexicographically and carries no
+      // timezone — the vocabulary `Entry.startDate`, `Holiday.date` and ./absence.ts all use. The
+      // boundary is the CALLER's date and never a clock read here (AC-16).
+      .filter((e) =>
+        query.window === "upcoming"
+          ? e.endDate >= query.today
+          : query.window === "past"
+            ? e.endDate < query.today
+            : true,
+      )
+      .slice()
+      .sort((a, b) =>
+        a.startDate !== b.startDate
+          ? a.startDate.localeCompare(b.startDate)
+          : a.createdAt !== b.createdAt
+            ? a.createdAt.localeCompare(b.createdAt)
+            : a.id.localeCompare(b.id),
+      );
+
+    // AC-3. THE EXACT SIZE OF THE MATCHING SET, and it is NOT `rows.length` — here more than
+    // anywhere, because in this implementation the two happen to agree on the last page and the
+    // simplification would pass every test until a queue outgrew one page.
+    const total = matching.length;
+
+    const from = query.page * PENDING_PAGE_SIZE;
+    const rows = matching.slice(from, from + PENDING_PAGE_SIZE);
+
+    // AC-5. The assertion that replaces the ceiling every other read here uses, in the same words as
+    // supabase.ts. It cannot fire in this implementation — the slice and the count come from one
+    // array — and it is written anyway so the two tell one story, which is the reason every other
+    // truncation raise in this file exists.
+    if (rows.length < PENDING_PAGE_SIZE && from + rows.length < total) {
+      throw new Error(
+        `listPendingEntries returned ${rows.length} of ${PENDING_PAGE_SIZE} rows on page ` +
+          `${query.page} while ${total} match: the page was shortened and must not be consumed, ` +
+          `because a queue that comes back short reads as an empty queue (ADM-04 AC-5)`,
+      );
+    }
+
+    return {
+      rows: rows.map((e) => ({ ...e })),
+      total,
+      page: query.page,
+      pageSize: PENDING_PAGE_SIZE,
+    };
   },
 };

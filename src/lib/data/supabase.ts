@@ -33,6 +33,8 @@ import type {
   HolidayKind,
   Member,
   MemberRole,
+  PendingEntryPage,
+  PendingEntryQuery,
   Result,
   Session,
   Team,
@@ -44,6 +46,7 @@ import {
   HOLIDAY_LIMIT,
   MONTH_ENTRY_LIMIT,
   OWN_ENTRY_LIMIT,
+  PENDING_PAGE_SIZE,
   ROSTER_LIMIT,
   TEAM_ENTRY_LIMIT,
 } from "../domain/types";
@@ -1241,5 +1244,102 @@ export const seam: DataSeam = {
     }
 
     return { ok: true, value: undefined };
+  },
+
+  // -------------------------------------------------------------------------
+  // ADM-04. 01-plan.md section 4.2.
+  //
+  // ONE READ AND NO WRITE. Nothing here writes `status`, `rejection_reason`, `approved_by` or
+  // `approved_at` — `entry_update_admin` and `public.entry_enforce_decision()` are ADM-05's, and
+  // this ticket's registry row forbids an approve control on this surface (AC-9).
+  // -------------------------------------------------------------------------
+
+  // ADM-04 AC-1 to AC-8, AC-11, AC-13.
+  //
+  // NO TEAM FILTER, exactly as `listTeamEntries` has none: `entry_select_team` is the scope, and a
+  // `member_team_id` predicate written here would be a second, weaker copy of the policy (AC-13).
+  //
+  // NO `is_admin` CHECK. `Read any entry in the team` is checked for BOTH roles in
+  // rbac-and-security.md, so this read is not where the admin capability lives — PendingEntries.tsx
+  // refuses a non-admin as an AFFORDANCE, and there is no control behind it at all.
+  //
+  // `{ count: "exact" }` WITH `.range()` IS THE WHOLE OF AC-3, and it was verified against the
+  // installed client rather than recalled: the option is at
+  // @supabase/postgrest-js@2.112.4/dist/index.d.mts:4303-4306, the response field at :646, `.range`
+  // at :1351, and :3519 documents that with `count` and `range` together the count is the TOTAL
+  // matching set rather than the page. One request answers both halves, which is what makes the
+  // number on screen and the rows under it unable to disagree — two calls could, because a write can
+  // land between them (01-plan.md section 8, rejected alternative 1).
+  //
+  // THREE `order` CALLS, and the order is written twice — once here, once in mock.ts — which
+  // `tests/seam-parity.test.ts` cannot see. Paging is what forces the duplication: a page boundary
+  // needs a stable SERVER-side order, so unlike `absence.ts` the order cannot be applied above the
+  // seam. 01-plan.md section 2, Open questions item 5.
+  //
+  // ASCENDING BY `start_date`, unlike `listTeamEntries` and `listOwnEntries`: this is a worklist and
+  // the entries running out of time belong at the top. `created_at` is the first tiebreaker, so
+  // within one date the first-in-first-out order still applies (01-plan.md section 8, rejected
+  // alternative 5).
+  async listPendingEntries(query: PendingEntryQuery): Promise<PendingEntryPage> {
+    const from = query.page * PENDING_PAGE_SIZE;
+    const to = from + PENDING_PAGE_SIZE - 1;
+
+    // Built in steps because two of the three predicates are conditional. Each call returns the same
+    // builder, so this is one request and not three.
+    let request = client()
+      .from("entry")
+      .select(ENTRY_COLUMNS, { count: "exact" })
+      .eq("status", "pending");
+
+    // AC-8. `null` means both types, so no predicate at all rather than an `in` over both values —
+    // an `in` would be a filter that can be got wrong for no behaviour it buys.
+    if (query.type !== null) request = request.eq("type", query.type);
+
+    // AC-6, AC-7 and AC-16. `end_date` against the CALLER's `yyyy-MM-dd`. NOT `current_date`: that
+    // is evaluated in the datastore's timezone, which is UTC, so between 00:00 and 07:00 ICT the
+    // boundary would sit on yesterday for the only team this product has (01-plan.md section 8,
+    // rejected alternative 3).
+    if (query.window === "upcoming") request = request.gte("end_date", query.today);
+    else if (query.window === "past") request = request.lt("end_date", query.today);
+
+    const { data, error, count } = await request
+      .order("start_date", { ascending: true })
+      .order("created_at", { ascending: true })
+      .order("id", { ascending: true })
+      .range(from, to)
+      .returns<EntryRow[]>();
+
+    if (error) throw new Error(`listPendingEntries failed: ${error.message}`);
+
+    const rows = data ?? [];
+
+    // AC-3. `count` is asked for explicitly, so a null one means the datastore did not answer the
+    // half this screen is built on. Falling back to `rows.length` is the one simplification the
+    // feature row rules out in words — it would report a page as the whole queue, which is the
+    // silent short queue this ticket exists to make impossible.
+    if (count === null || count === undefined) {
+      throw new Error(
+        "listPendingEntries got no exact count: the outstanding figure must never be derived from " +
+          "the number of rows on the page (ADM-04 AC-3)",
+      );
+    }
+
+    // AC-5. THE ASSERTION THAT REPLACES THE CEILING every other read in this file uses, and it is
+    // strictly stronger than one: it detects a lowered `max-rows` WITHOUT KNOWING ITS VALUE, which
+    // is the unknown ROSTER_LIMIT, OWN_ENTRY_LIMIT, TEAM_ENTRY_LIMIT, MONTH_ENTRY_LIMIT and
+    // HOLIDAY_LIMIT have each carried a `TODO(verify)` for.
+    //
+    // A short page is normal on the LAST page and only there. Short while more rows remain means
+    // PostgREST capped the window — and the loss here points the wrong way round: the queue reads as
+    // EMPTY, nothing looks wrong, and the entries nobody can see are never decided.
+    if (rows.length < PENDING_PAGE_SIZE && from + rows.length < count) {
+      throw new Error(
+        `listPendingEntries returned ${rows.length} of ${PENDING_PAGE_SIZE} rows on page ` +
+          `${query.page} while ${count} match: the page was shortened and must not be consumed, ` +
+          `because a queue that comes back short reads as an empty queue (ADM-04 AC-5)`,
+      );
+    }
+
+    return { rows: rows.map(toEntry), total: count, page: query.page, pageSize: PENDING_PAGE_SIZE };
   },
 };

@@ -16,6 +16,7 @@ import WeekView from "./routes/WeekView";
 import YearView from "./routes/YearView";
 import EditEntry from "./routes/EditEntry";
 import NewEntry from "./routes/NewEntry";
+import PendingEntries from "./routes/PendingEntries";
 import TeamEntries from "./routes/TeamEntries";
 import Threshold from "./routes/Threshold";
 import NotOnATeam from "./routes/NotOnATeam";
@@ -152,6 +153,28 @@ export default function App() {
             <Route
               path="/entries/team"
               element={membership.state === "member" ? <TeamEntries /> : <Navigate to="/" replace />}
+            />
+
+            {/* ADM-04. The worklist of entries awaiting a decision, at its own address — ADM-01's
+                `TODO(project):` was answered at its own PLAN with *its own screen at /threshold*,
+                and .ai/registry/features.md:103 says the later admin rows inherit that answer rather
+                than re-asking it. `/entries/pending` sits in the family `/entries/team` and
+                `/entries/new` already established.
+
+                A STATIC SEGMENT ABOVE `/entries/:id/edit`, and it cannot be shadowed by it: react
+                router v7 ranks a static segment above a dynamic one regardless of declaration order,
+                so `/entries/pending` never resolves to EditEntry with an id of "pending".
+
+                GUARDED ON `member` AND NOT ON `admin`, which is the choice /entries/team and
+                /threshold already record: a member who types this address must reach the component
+                and be refused BY IT (`pending-entries-refused`, AC-10) rather than be bounced to
+                `/`, because the refusal is what says why. The guard is an affordance either way —
+                and here there is no control behind it at all: `entry_select_team` admits these rows
+                to both roles, so a member who got past the refusal would see what they can already
+                read at /entries/team (01-plan.md section 3). */}
+            <Route
+              path="/entries/pending"
+              element={membership.state === "member" ? <PendingEntries /> : <Navigate to="/" replace />}
             />
 
             {/* CAL-04. The month grid, and the anchor is the URL — `/month/2026-04` typed directly

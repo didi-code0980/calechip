@@ -185,6 +185,33 @@ export default function Home({ member, signOut }: HomeProps) {
         </p>
       ) : null}
 
+      {/* ADM-04. The one link this ticket adds to this file, and the whole of its edit here
+          (01-plan.md section 7). The FOURTH admin-only link, placed beside the other three and under
+          the same condition — the shape ADM-01 section 4.3 asks for and the shape this file has used
+          since TEA-05.
+
+          An AFFORDANCE and not a control, and here that is stronger than on the three above it:
+          `entry_select_team` admits the whole team's rows to BOTH roles, so a member who types
+          /entries/pending reaches PendingEntries.tsx, is refused by it, and would gain nothing at
+          all if the refusal were deleted — the same rows are already readable to them at
+          /entries/team. There is no capability behind this link that a member lacks; what is
+          admin-only is the WORK, which arrives at ADM-05.
+
+          It carries no count. The outstanding figure is on the worklist itself, from the same read
+          that draws the rows, and a badge here would need a second read that could disagree with it
+          — the one property .ai/registry/features.md:103 forbids this feature from having. */}
+      {member.role === "admin" ? (
+        <p className="mt-2">
+          <Link
+            data-testid="home-pending-entries-link"
+            to="/entries/pending"
+            className="text-sm underline"
+          >
+            Waiting for a decision
+          </Link>
+        </p>
+      ) : null}
+
       <button
         data-testid="home-sign-out"
         type="button"

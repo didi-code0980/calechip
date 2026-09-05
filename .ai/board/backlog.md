@@ -32,14 +32,31 @@ Under the current gate placement a ticket sits here until it has been planned �
 
 | # | Ticket | Title | State | Blocked on |
 |---|--------|-------|-------|------------|
-| 1 | ADM-04 | The worklist of entries awaiting a decision | BACKLOG | CAL-01, TEA-03, ADM-01 |
-| 2 | ADM-05 | Approve or reject an entry, with a reason on rejection | BACKLOG | ADM-04, CAL-02 |
-| 3 | ADM-06 | Reject several entries at once, with one reason for the batch | BACKLOG | ADM-05 |
-| 4 | OPS-002 | UI copy to English — entry screens and the seam's error messages | BACKLOG | — |
-| 5 | UIE-01 | Restyle the sign-in and sign-up screens to the product's visual direction | BACKLOG | — |
-| 6 | UIE-02 | The application shell — a persistent sidebar and top bar | BACKLOG | UIE-01 |
-| 7 | UIE-03 | The calendar screens give up their own chrome to the shell | BACKLOG | UIE-02 |
-| 8 | UIE-04 | The week view as seven day columns | BACKLOG | UIE-03 |
+| 1 | ADM-05 | Approve or reject an entry, with a reason on rejection | BACKLOG | ADM-04, CAL-02 |
+| 2 | ADM-06 | Reject several entries at once, with one reason for the batch | BACKLOG | ADM-05 |
+| 3 | OPS-002 | UI copy to English — entry screens and the seam's error messages | BACKLOG | — |
+| 4 | UIE-01 | Restyle the sign-in and sign-up screens to the product's visual direction | BACKLOG | — |
+| 5 | UIE-02 | The application shell — a persistent sidebar and top bar | BACKLOG | UIE-01 |
+| 6 | UIE-03 | The calendar screens give up their own chrome to the shell | BACKLOG | UIE-02 |
+| 7 | UIE-04 | The week view as seven day columns | BACKLOG | UIE-03 |
+
+**Renumbered to 1–7 by `orchestrator` at /ship on 2026-09-05**, when ADM-04 left this table for
+`## ARCHIVE`. Bookkeeping, not a reordering. **ADM-05 is now row 1 and is unblocked** — its
+`Blocked on` names ADM-04, which just shipped, and CAL-02, DONE since 2026-09-03. The ADM chain is
+down to its last two links, and ADM-05 is where the decision itself arrives: ADM-04 shipped the
+worklist with **no approve control and no reject control**, which its registry row required.
+
+**A `BUG` row is owed and nothing on this board issues one automatically.** ADM-04's PLAN answered
+the `TODO(verify):` four tickets had been carrying — the datastore's default cap is **1000 rows**,
+read off the installed client's own d.ts rather than recalled — and two shipped constants sit above
+it. `TEAM_ENTRY_LIMIT` and `MONTH_ENTRY_LIMIT` are both 2000 in `src/lib/domain/types.ts`, so their
+`rows.length >= 2000` truncation assertions can never fire: the server caps at 1000 and returns a
+believable short list. **CAL-04 AC-11 is the acceptance criterion that is not held** — the month
+grid sums what it was given and shows a wrong count with no error anywhere. `HOLIDAY_LIMIT` is 1000,
+exactly equal, and survives only because the comparison is `>=`. PLAN recorded it rather than fixing
+it, correctly: changing two numbers inside a ticket whose `invariants_touched` is `[]` would
+silently alter two other tickets' criteria. `/triage` issues the row, and the cap is per-project
+configurable, so the fix is a decision about which number moves.
 
 **Renumbered to 1–4 by `orchestrator` at /ship on 2026-09-05**, when CAL-08 left this table for
 `## ARCHIVE`. Bookkeeping, not a reordering. **The CAL group is empty and every remaining row is
@@ -393,7 +410,8 @@ Tickets that cannot proceed until a human decides something. Name the decision, 
 | 15 | CAL-07 | Overload warning shown while choosing dates, before the entry is saved | 2026-09-05 | [#53](https://github.com/didi-code0980/calechip/pull/53) |
 | 16 | ADM-02 | The national holiday calendar, seeded and readable | 2026-09-05 | [#54](https://github.com/didi-code0980/calechip/pull/54) |
 | 17 | ADM-03 | Add, edit or delete a holiday or swap day | 2026-09-05 | [#55](https://github.com/didi-code0980/calechip/pull/55) |
-| 18 | CAL-08 | Holidays and bridge days shown in the calendar views | 2026-09-05 | PENDING_PR |
+| 18 | CAL-08 | Holidays and bridge days shown in the calendar views | 2026-09-05 | [#56](https://github.com/didi-code0980/calechip/pull/56) |
+| 19 | ADM-04 | The worklist of entries awaiting a decision | 2026-09-05 | PENDING_PR |
 
 **OPS-001 is the first ticket that ships no capability at all** — it translates the copy of seven
 already-shipped screens and changes no behaviour. Its five `feature_ids` are all TEA rows, and four
