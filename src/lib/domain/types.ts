@@ -293,3 +293,57 @@ export interface AbsenceDetail {
   entry: Entry;
   member: Member;
 }
+
+// ---------------------------------------------------------------------------
+// ADM-02. 01-plan.md section 4.1.
+//
+// Three additions and nothing existing changes shape — which is why this is not the "changes a
+// shared type module" clause of .ai/01-operating-model.md:375: that clause is about a shape that
+// ripples outward, and no existing caller must change. The precedent is direct — CAL-04 added
+// `Team`, `AbsenceCounts` and `AbsenceDetail` to this file and was sized M.
+// ---------------------------------------------------------------------------
+
+/**
+ * ADM-02. ADR-015 section 2. THE VALUES NAME THE EFFECT ON THE WORKING CALENDAR, NOT THE
+ * VIETNAMESE LABEL — `name` already carries the label.
+ *
+ * `working` is a mandated Saturday: a weekend day the government turns into a working day, the
+ * exact inverse of a holiday. A `holiday` row with `kind = 'working'` is a holiday that is not a
+ * holiday, and ADR-015 records that naming smell rather than renaming the table: `holiday` is the
+ * word glossary.md defines and the word rbac-and-security.md's permission row uses.
+ */
+export type HolidayKind = "non_working" | "working";
+
+/** A row of `public.holiday`, in application casing. ADR-015 section 3. NO `teamId`: the calendar
+ *  is national and there is no foreign key. */
+export interface Holiday {
+  id: string;
+  date: string; // yyyy-MM-dd. Never a Date — see below.
+  name: string;
+  kind: HolidayKind;
+  createdAt: string; // ISO 8601
+}
+
+/**
+ * The explicit row limit `listHolidays` asks for, and the count at which it refuses to answer. Same
+ * shape and same reasoning as ROSTER_LIMIT, OWN_ENTRY_LIMIT, TEAM_ENTRY_LIMIT and
+ * MONTH_ENTRY_LIMIT: it must sit BELOW the datastore's own `max-rows` cap so this assertion fires
+ * before the server's silent one does.
+ *
+ * ADR-015 asks for "an explicit limit above the widest possible range (366 plus margin)". A
+ * Vietnamese year carries on the order of fifteen rows, so 1000 is roughly sixty years of calendar
+ * and comfortably above any range this screen can request.
+ *
+ * TODO(verify): the datastore's default `max-rows`. The same unknown is carried by the four limits
+ * above and by CAL-04, ADM-02 and ADM-04 in .ai/registry/features.md. If it is lower than this, the
+ * fix is this one number.
+ */
+export const HOLIDAY_LIMIT = 1000;
+
+// `date` IS A STRING AND NEVER A `Date`, and on this table it is the difference between a correct
+// and an incorrect feature. ADR-015 Consequences names the trap and predicts it will pass every test
+// run in Vietnam: `new Date('2026-06-11')` parses as UTC midnight, and a weekday read west of UTC
+// yields the previous day — so a Thursday holiday becomes a Wednesday and the bridge day moves. ICT
+// is UTC+7 and CI is UTC, so it is correct in both and wrong for a developer in the Americas. Every
+// comparison in this feature is on `yyyy-MM-dd` strings, which sort lexicographically, exactly as
+// src/lib/data/absence.ts already does.

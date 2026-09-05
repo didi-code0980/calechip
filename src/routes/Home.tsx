@@ -144,6 +144,30 @@ export default function Home({ member, signOut }: HomeProps) {
         </Link>
       </p>
 
+      {/* ADM-02. The one link ADM-02 adds to this file, and the whole of its edit here (01-plan.md
+          section 7). Shown to BOTH roles under no role condition, for the reason the week and year
+          links above are: `Read the holiday calendar` is checked for a member and for an admin in
+          .ai/standards/rbac-and-security.md, and `holiday_select_all` is `using (true)` with no role
+          predicate and no team predicate at all (AC-15).
+
+          The feature row calls it "a read-only admin screen", and 01-plan.md Open question 3
+          resolves that against the permission table rather than choosing between the two: the
+          permission table is the source for WHO may do what, so the phrase is read as WHERE the
+          surface lives — its own screen, inheriting ADM-01's answer. If the operator meant
+          admin-only, the change is one condition here and one on the route.
+
+          It points at `/holidays` with NO anchor, so the component resolves the current year from
+          the caller's clock. A year computed here would be a second clock in a second file, and this
+          screen holds none.
+
+          Placed with the read-only views rather than with the three admin links, because that is
+          what it is: there is nothing here it could be hiding, since nothing is refused. */}
+      <p className="mt-2">
+        <Link data-testid="home-holidays-link" to="/holidays" className="text-sm underline">
+          The public holiday calendar
+        </Link>
+      </p>
+
       {/* ADM-01. The one link ADM-01 adds to this file, and the whole of its edit here (01-plan.md
           section 7). The THIRD admin-only link, placed beside the other two rather than beside the
           read-only views, and under the same condition — the shape section 4.3 asks for.

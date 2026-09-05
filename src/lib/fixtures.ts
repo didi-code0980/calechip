@@ -7,7 +7,7 @@
 // change it there in the same commit.
 //
 // The uuids are fixed literals and never generated, for the same reason.
-import type { AuthUser, Entry, Member, Team } from "./domain/types";
+import type { AuthUser, Entry, Holiday, Member, Team } from "./domain/types";
 
 /**
  * CAL-04 gives this row a TYPE and a `createdAt`. The inline object literal that stood here predated
@@ -408,3 +408,81 @@ export const FIXTURE_OTHER_TEAM_ENTRY: Entry = {
   createdAt: "2026-09-01T01:00:00+00:00",
   updatedAt: "2026-09-01T01:00:00+00:00",
 };
+
+// ---------------------------------------------------------------------------
+// ADM-02. 01-plan.md section 4.5, which transcribes ADR-015 section 5.
+//
+// THE SYNTHETIC SET, AND IT IS DELIBERATELY NOT THE REAL VIETNAMESE CALENDAR. ADR-015 section 5:
+// *"A test asserting '30/4/2026 is a bridge day' asserts a fact about the world that an admin may
+// correctly change, and it would then fail for the right reason in the wrong place."* The real rows
+// arrive through supabase/migrations/20260905120100_adm02_holiday_seed.sql, which a human fills and
+// a human applies (RULE-09).
+//
+// EVERY WEEKDAY BELOW WAS COMPUTED, NOT RECALLED. ADR-015 section 4's worked example turns on
+// 11 June 2026 being a Thursday and 13 June 2026 a Saturday; 15 October 2026 is a Thursday. A
+// fixture whose weekday is wrong makes the bridge-day case it exists to represent silently not that
+// case — and CAL-08 is the ticket that would discover it, far from here.
+//
+// 2027 CARRIES NO ROW AT ALL. That is ADR-015 section 5's *"one year with no rows"* and it is
+// AC-10's fixture: the year the calendar does not reach.
+//
+// THE NAMES ARE VIETNAMESE AND SAY THEY ARE SYNTHETIC. This file is on the `userContent` list in
+// ui-language.json, which tests/ui-language.test.ts asserts MUST contain diacritics — holiday names
+// are user content, so this is the standard's exception working rather than an exception being made.
+//
+// The same literals are inserted by supabase/seed.sql. Change a value here and change it there in
+// the same commit, which is the rule this module states at its own head.
+// ---------------------------------------------------------------------------
+
+const HOLIDAY_SEEDED_AT = "2026-09-05T00:00:00+00:00";
+
+/** Thursday. The holiday of ADR-015 section 4's worked example. */
+export const FIXTURE_HOLIDAY_THURSDAY: Holiday = {
+  id: "cc000000-0000-4000-8000-000000000001",
+  date: "2026-06-11",
+  name: "Ngày lễ thử nghiệm",
+  kind: "non_working",
+  createdAt: HOLIDAY_SEEDED_AT,
+};
+
+/**
+ * Saturday, and `working` — a mandated Saturday, the exact inverse of a holiday (ADR-015 section
+ * 2). WITH IT, Friday 12 June is NOT a bridge day, which is the false positive a two-input
+ * computation produces. It is the row that makes `kind` worth having at all.
+ */
+export const FIXTURE_HOLIDAY_WORKING_SATURDAY: Holiday = {
+  id: "cc000000-0000-4000-8000-000000000002",
+  date: "2026-06-13",
+  name: "Làm bù thử nghiệm",
+  kind: "working",
+  createdAt: HOLIDAY_SEEDED_AT,
+};
+
+/** Monday. The compensatory day off ADR-015 section 5 asks for — `non_working`, because `kind`
+ *  names the effect and not the Vietnamese label. */
+export const FIXTURE_HOLIDAY_COMPENSATORY: Holiday = {
+  id: "cc000000-0000-4000-8000-000000000003",
+  date: "2026-06-15",
+  name: "Nghỉ bù thử nghiệm",
+  kind: "non_working",
+  createdAt: HOLIDAY_SEEDED_AT,
+};
+
+/** Thursday, with an ordinary Friday and an ordinary weekend after it — so Friday 16 October IS a
+ *  bridge day. CAL-08 draws that highlight; nothing in ADM-02 computes it. */
+export const FIXTURE_HOLIDAY_BRIDGED: Holiday = {
+  id: "cc000000-0000-4000-8000-000000000004",
+  date: "2026-10-15",
+  name: "Ngày nghỉ thử nghiệm",
+  kind: "non_working",
+  createdAt: HOLIDAY_SEEDED_AT,
+};
+
+/** The four rows, in the order supabase/seed.sql inserts them — which is NOT date order, so that a
+ *  seam returning them unsorted fails AC-4 rather than passing it by accident. */
+export const FIXTURE_HOLIDAYS: readonly Holiday[] = [
+  FIXTURE_HOLIDAY_BRIDGED,
+  FIXTURE_HOLIDAY_COMPENSATORY,
+  FIXTURE_HOLIDAY_THURSDAY,
+  FIXTURE_HOLIDAY_WORKING_SATURDAY,
+];

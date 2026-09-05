@@ -575,3 +575,66 @@ values (
   '2026-09-01T01:00:00+00:00'
 )
 on conflict (id) do nothing;
+
+-- ---------------------------------------------------------------------------
+-- ADM-02. 01-plan.md section 4.5, which transcribes ADR-015 section 5.
+--
+-- THE SYNTHETIC SET, AND IT IS DELIBERATELY NOT THE REAL VIETNAMESE CALENDAR. ADR-015 section 5
+-- specifies exactly this shape and says why: *"A test asserting '30/4/2026 is a bridge day' asserts
+-- a fact about the world that an admin may correctly change, and it would then fail for the right
+-- reason in the wrong place."*
+--
+-- THE REAL ROWS ARE SOMEWHERE ELSE ON PURPOSE. They arrive through
+-- supabase/migrations/20260905120100_adm02_holiday_seed.sql, which reaches every environment and
+-- which a human fills and applies (RULE-09). This file runs under `supabase db reset`, refuses to
+-- run against anything but a local target under the guard at the top of it, and never reaches the
+-- hosted project — so the two sets are different sets, and that is the decision rather than an
+-- accident.
+--
+-- `kind` NAMES THE EFFECT ON THE WORKING CALENDAR, NOT THE VIETNAMESE LABEL (ADR-015 section 2):
+-- `Lam bu` below is `working` — a Saturday that counts as a working day, the exact inverse of a
+-- holiday — and `Nghi bu`, a compensatory day off, is `non_working`. Getting either backwards is
+-- the failure mode this comment exists to prevent.
+--
+-- EVERY WEEKDAY WAS COMPUTED, NOT RECALLED: 11 June 2026 is a Thursday, 13 June 2026 a Saturday,
+-- 15 June 2026 a Monday, 15 October 2026 a Thursday. 2027 carries no row at all, which is
+-- ADR-015 section 5's *"one year with no rows"* and is AC-10's fixture.
+--
+-- `id` IS NAMED rather than defaulted, and `created_at` with it, so this file and
+-- src/lib/fixtures.ts hold the same literals — the rule this seed states at its own head.
+-- `on conflict (id) do nothing`, matching every other statement here.
+--
+-- The same literals are FIXTURE_HOLIDAYS in src/lib/fixtures.ts. Change one, change both.
+-- ---------------------------------------------------------------------------
+
+insert into public.holiday (id, date, name, kind, created_at)
+values
+  (
+    'cc000000-0000-4000-8000-000000000004',
+    '2026-10-15',
+    'Ngày nghỉ thử nghiệm',
+    'non_working',
+    '2026-09-05T00:00:00+00:00'
+  ),
+  (
+    'cc000000-0000-4000-8000-000000000003',
+    '2026-06-15',
+    'Nghỉ bù thử nghiệm',
+    'non_working',
+    '2026-09-05T00:00:00+00:00'
+  ),
+  (
+    'cc000000-0000-4000-8000-000000000001',
+    '2026-06-11',
+    'Ngày lễ thử nghiệm',
+    'non_working',
+    '2026-09-05T00:00:00+00:00'
+  ),
+  (
+    'cc000000-0000-4000-8000-000000000002',
+    '2026-06-13',
+    'Làm bù thử nghiệm',
+    'working',
+    '2026-09-05T00:00:00+00:00'
+  )
+on conflict (id) do nothing;
