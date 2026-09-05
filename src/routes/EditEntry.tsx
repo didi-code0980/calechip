@@ -18,11 +18,29 @@
 // succeed. `entry_update_admin` is the control, and a member who reached an admin's list would still
 // have every save refused (CAL-03 AC-5).
 //
-// **NOTHING ON THIS SCREEN WRITES `status`.** The status is displayed because AC-5 and AC-6 turn on
-// it — a substantive edit returns an approved entry to pending and a note-only edit does not — and a
-// member who cannot see that would have to be told by an admin. Approving is ADM-05.
+// **THE FORM ON THIS SCREEN STILL WRITES NO `status`, AND ADM-05 ADDS THREE THINGS THAT ARE NOT THE
+// FORM.** CAL-02's header read "nothing on this screen writes `status` … approving is ADM-05", and
+// that is now here — as a SEPARATE panel beside the form, never as a field in it. `EntryForm`'s six
+// substantive fields are untouched, and a decision is not an edit.
+//
+//   1. **`EntryDecision`, FOR AN ADMIN ONLY** — the affordance that makes AC-4, AC-5 and AC-11
+//      reachable for an entry that is no longer pending. `/entries/pending` shows pending entries by
+//      construction, so `rejected → approved` and the reason edit have nowhere else to happen. The
+//      role branch this file already makes for its READ decides it, and it is an affordance for the
+//      same reason that branch is: clause (a) of `public.entry_enforce_decision()` is the control,
+//      and a member who reached the panel would have every decision refused (AC-8, AC-9).
+//   2. **The rejection reason, and when the decision was recorded — FOR BOTH ROLES (AC-15).** The
+//      member is the reader this criterion is about: v1 has no notification channel and must not
+//      grow one, so the reason reaches its subject ON PULL, here, with no admin telling them. The
+//      time is `updated_at`, which the trigger writes from the datastore's clock and no client can
+//      set. WHO rejected is not available and 01-plan.md Open questions item 1 says why: `entry` has
+//      no `rejected_by`, and clause (b) nulls `approved_by` on any transition off `approved` rather
+//      than park a false record there.
+//   3. **One sentence on what the star means (AC-19)**, beside `edit-entry-status`, which is where
+//      somebody who has just seen a star on a calendar is standing.
 import { useCallback, useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
+import EntryDecision from "@/components/EntryDecision";
 import EntryForm from "@/components/EntryForm";
 import type { EntryFormValues } from "@/components/EntryForm";
 import { seam } from "@/lib/data";
@@ -155,11 +173,38 @@ export default function EditEntry() {
         excludeEntryId={entry.id}
       />
 
+      {/* ADM-05 AC-4, AC-5, AC-10, AC-11. An ADMIN ONLY, and the branch is the one this screen
+          already makes for its read — an affordance and not a control, exactly as that branch is.
+          It is the SAME component the worklist mounts, so the rule that a rejection carries a reason
+          is written once.
+
+          `load` and not a local write: the trigger rewrites `status`, `approved_by`, `approved_at`
+          and `rejection_reason` on the way through, and a screen that painted what it sent would
+          show an entry as rejected while still naming its approver. */}
+      {admin ? (
+        <div className="rounded-2xl bg-white px-4 py-3 shadow-sm">
+          <EntryDecision entry={entry} onDecided={load} />
+        </div>
+      ) : null}
+
       <div className="flex flex-wrap items-center gap-4 rounded-2xl bg-white px-4 py-3 text-sm shadow-sm">
         {/* AC-5 and AC-6. The status as the datastore returned it after the write, which is how a
             member sees that a substantive edit cost them an approval and a note-only edit did not. */}
         <span data-testid="edit-entry-status" data-status={entry.status} className="opacity-70">
           {STATUS_LABELS[entry.status]}
+        </span>
+
+        {/* ADM-05 AC-19. The star's meaning, stated ONCE, in the product — the calendar views draw
+            the star and none of them explains it, and until this ticket nothing could put one there
+            to be explained. Rendered on every status rather than only on an approved entry: the
+            person who asks what a star means is usually looking at an entry that has not got one.
+
+            It says what an approval IS and, deliberately, what it is not — a coordination signal
+            about the team's schedule, never a decision about whether somebody may be away
+            (AC-18, AC-20, charter refusal 2). */}
+        <span data-testid="edit-entry-star-meaning" className="opacity-70">
+          A star means an admin has seen this entry and accepted it against the team&rsquo;s
+          schedule. It is not permission to be away.
         </span>
 
         {/* Present ONLY when the entry names an approver. Its absence after a substantive edit is
@@ -175,6 +220,31 @@ export default function EditEntry() {
           >
             Đã duyệt bởi {entry.approvedBy}
           </span>
+        ) : null}
+
+        {/* ADM-05 AC-15. The reason and the time, for BOTH roles — the owner of a rejected entry
+            reads them here with no admin telling them, which is the member-facing half of INV-03.
+            Present only when the entry is `rejected`, which is not a rendering choice but the
+            constraint: `entry_rejection_reason_iff_rejected` is a BICONDITIONAL, so a reason exists
+            on exactly these rows and on no others.
+
+            WHO decided is absent, and 01-plan.md Open questions item 1 records that as a
+            TODO(project) rather than dropping it quietly: `entry` has no `rejected_by` column, and
+            writing the rejecter into `approved_by` would be the false record ADR-016's own revert
+            condition 1 exists to detect. Closing it is a schema change and a human's. */}
+        {entry.status === "rejected" ? (
+          <>
+            <span data-testid="edit-entry-rejection-reason" className="opacity-70">
+              Why it was rejected: {entry.rejectionReason}
+            </span>
+            <span
+              data-testid="edit-entry-decided-at"
+              data-updated-at={entry.updatedAt}
+              className="opacity-70"
+            >
+              Decision recorded {entry.updatedAt}
+            </span>
+          </>
         ) : null}
 
         {/* AC-12, carried as attributes for the same reason the own-entry row carries them. */}

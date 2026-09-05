@@ -22,6 +22,7 @@ import type {
   DateRange,
   Entry,
   EntryPortion,
+  EntryStatus,
   Holiday,
   Member,
   PendingEntryPage,
@@ -411,6 +412,80 @@ const adminMayReach = (me: Member, entry: Entry): boolean =>
 // policies it stands for rather than as one merged predicate — 01-plan.md section 8 rejects merging
 // them in the migration, and merging them here would lose the same property one layer up.
 const ownsEntry = (me: Member, entry: Entry): boolean => entry.memberId === me.id;
+
+// ---------------------------------------------------------------------------
+// ADM-05. 01-plan.md sections 4.2 and 5.
+// ---------------------------------------------------------------------------
+
+// The four sentences, repeated from src/lib/data/supabase.ts so the two implementations of the seam
+// carry the same words — the rule CAL-01's three refusal constants and ADM-03's four already state.
+const DECISION_REFUSED =
+  "Only an admin can approve or reject an entry. Nothing about this entry has changed.";
+const APPROVE_REFUSED = "This entry could not be approved.";
+const REJECT_REFUSED = "This entry could not be rejected.";
+const REASON_REQUIRED =
+  "A rejection needs a reason. Say what would work instead, so the entry can be re-planned.";
+
+// CLAUSES (a) AND (b) OF `public.entry_enforce_decision()`, REPRODUCED — AND THAT IS DECLARED
+// RATHER THAN HIDDEN. This is a SECOND IMPLEMENTATION OF A CONTROL, not of an invariant, which is
+// the strongest form of the thing this file does three times already (INV-01, INV-02, the policies).
+// It is acceptable on the terms this file already states for INV-01 — the mock is not a datastore
+// anybody's data lives in and the real mechanism is the trigger — and it exists so AC-8, AC-9,
+// AC-16 and AC-17 are observable end to end with no provisioned project.
+//
+// WHAT IT PROVES AND WHAT IT DOES NOT is 01-plan.md Open questions item 2, and the honest half is
+// this: ADR-016's own headline consequence asks for a member PATCHing {"status":"approved"} against
+// a REAL PostgreSQL with a member's token, and no project is provisioned. Against this file AC-8 and
+// AC-9 demonstrate THE SENTENCE, not the refusal. The refusal is held by the trigger.
+//
+// ONE FUNCTION FOR BOTH CLAUSES, because the SQL is one function: `approveEntry` and `rejectEntry`
+// both go through it, so clause (a) is written once here exactly as it is written once there.
+//
+// CLAUSE (c) IS NOT HERE. No decision writes a substantive column, so the reset cannot fire on this
+// path — and it already lives in `updateEntry`, where the edits that do fire it go through.
+function applyDecision(
+  me: Member,
+  row: Entry,
+  next: { status: EntryStatus; rejectionReason: string | null },
+): Result<Entry> {
+  // (a) THE GUARD. `is_admin` filters `removed_at is null` (TEA-01's migration, line 54), so a
+  // removed admin is not an admin — the same filter `adminMayReach` above inherits.
+  //
+  // The condition is "a decision column MOVES", not "an admin is acting": an admin re-rejecting with
+  // the identical wording moves nothing and would pass the guard in PostgreSQL too, and writing
+  // `role !== "admin"` alone here would refuse a case the trigger admits.
+  const moves = next.status !== row.status || next.rejectionReason !== row.rejectionReason;
+  if (moves && !(me.role === "admin" && me.removedAt === null)) {
+    return { ok: false, error: { code: "entry_decision_not_permitted", message: DECISION_REFUSED } };
+  }
+
+  const wasApproved = row.status === "approved";
+
+  // The two columns this ticket's grant names, and no others. `tentative` is untouched (INV-05,
+  // AC-6) and so are the dates, the type and the portion.
+  row.status = next.status;
+  row.rejectionReason = next.rejectionReason;
+
+  // (b) PROVENANCE, NEVER FROM THE WIRE. `approvedBy` is the acting member and never a parameter —
+  // there is no parameter on either seam function that could carry one (AC-7).
+  //
+  // Nulling `rejectionReason` on approval is FORCED, not chosen: INV-03's check is a biconditional
+  // and refuses any transition off `rejected` that leaves the reason standing (AC-4).
+  if (row.status === "approved" && !wasApproved) {
+    row.approvedBy = me.id;
+    row.approvedAt = new Date().toISOString();
+    row.rejectionReason = null;
+  } else if (row.status !== "approved") {
+    row.approvedBy = null;
+    row.approvedAt = null;
+  }
+
+  // The trigger's `new.updated_at := now()`, which is AC-15's "when the decision was recorded" —
+  // the datastore's clock in the real seam, and here the only clock there is.
+  row.updatedAt = new Date().toISOString();
+
+  return { ok: true, value: { ...row } };
+}
 
 export const seam: DataSeam = {
   async ready() {
@@ -1383,5 +1458,70 @@ export const seam: DataSeam = {
       page: query.page,
       pageSize: PENDING_PAGE_SIZE,
     };
+  },
+
+  // -------------------------------------------------------------------------
+  // ADM-05. 01-plan.md sections 4.2 and 5.
+  //
+  // TWO STEPS IN THIS ORDER, IN BOTH FUNCTIONS, AND THE ORDER IS THE DATASTORE'S: the POLICIES
+  // filter the row first, and the TRIGGER runs on what survives. So a row the caller may not reach
+  // at all answers `entry_not_permitted` (AC-16, AC-17), and a row they CAN reach but may not decide
+  // answers `entry_decision_not_permitted` (AC-8, AC-9). Reversed, a member would learn that an
+  // entry of another team exists, and an admin's cross-team refusal would name a permission rather
+  // than a row.
+  // -------------------------------------------------------------------------
+
+  // ADM-05 AC-1, AC-4, AC-6, AC-7, AC-10, AC-16, AC-17.
+  //
+  // AC-10 needs no branch and that is the point: self-approval is PERMITTED
+  // (rbac-and-security.md), so an admin's own entry reaches the row through `ownsEntry` and then
+  // passes the guard because they are an admin. A carve-out here would be inventing a permission row.
+  async approveEntry(entryId: string): Promise<Result<Entry>> {
+    const me = members.find((m) => m.id === currentMemberId && m.removedAt === null) ?? null;
+    if (!me) {
+      return { ok: false, error: { code: "entry_not_permitted", message: APPROVE_REFUSED } };
+    }
+
+    // The two PERMISSIVE policies composing, exactly as `updateEntry` above composes them:
+    // `entry_update_own` admits the caller's own rows and `entry_update_admin` their team's rows
+    // when the caller is an admin. "Not yours", "no such entry" and "another team's" stay ONE
+    // answer, or this file becomes an oracle for which entry ids exist in a team nobody may read.
+    const row =
+      entries.find((e) => e.id === entryId && (ownsEntry(me, e) || adminMayReach(me, e))) ?? null;
+    if (!row) {
+      return { ok: false, error: { code: "entry_not_permitted", message: APPROVE_REFUSED } };
+    }
+
+    return applyDecision(me, row, { status: "approved", rejectionReason: row.rejectionReason });
+  },
+
+  // ADM-05 AC-2, AC-3, AC-5, AC-9, AC-16, AC-17.
+  //
+  // AC-3 FIRST, before anything else, exactly as the real seam refuses it before the round trip and
+  // as `createEntry` and `updateEntry` refuse an inverted range. `trim()` only DECIDES: the reason is
+  // stored as the admin wrote it, because `entry_rejection_reason_iff_rejected` tests emptiness with
+  // `btrim` and nothing else.
+  //
+  // AC-5 IS THIS FUNCTION ON AN ALREADY-REJECTED ROW. `status` and `rejectionReason` are written
+  // together because INV-03's biconditional refuses either one alone, and re-wording a rejection
+  // creates and destroys no approval — clause (b)'s `else` branch nulls two columns that are already
+  // null.
+  async rejectEntry(entryId: string, reason: string): Promise<Result<Entry>> {
+    if (reason.trim() === "") {
+      return { ok: false, error: { code: "rejection_reason_required", message: REASON_REQUIRED } };
+    }
+
+    const me = members.find((m) => m.id === currentMemberId && m.removedAt === null) ?? null;
+    if (!me) {
+      return { ok: false, error: { code: "entry_not_permitted", message: REJECT_REFUSED } };
+    }
+
+    const row =
+      entries.find((e) => e.id === entryId && (ownsEntry(me, e) || adminMayReach(me, e))) ?? null;
+    if (!row) {
+      return { ok: false, error: { code: "entry_not_permitted", message: REJECT_REFUSED } };
+    }
+
+    return applyDecision(me, row, { status: "rejected", rejectionReason: reason });
   },
 };

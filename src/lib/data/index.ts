@@ -646,6 +646,72 @@ export interface DataSeam {
    * navigate.
    */
   listPendingEntries(query: PendingEntryQuery): Promise<PendingEntryPage>;
+
+  // -------------------------------------------------------------------------
+  // ADM-05 — the decision itself, over ADM-04's surface. 01-plan.md section 4.2.
+  //
+  // THE TWO WRITES THE COMMENT ABOVE SAID WERE NOT ADM-04'S, and the sentence that forbade them is
+  // now spent: `entry_update_admin` shipped with CAL-03 and clause (a) of
+  // `public.entry_enforce_decision()` ships in
+  // supabase/migrations/20260905190000_adm05_entry_decision.sql, so these are no longer functions
+  // every call would refuse. `listPendingEntries` above is UNCHANGED — not one character.
+  //
+  // NEITHER TAKES A ROLE AND NEITHER CHECKS ONE, the property `updateEntry` and `deleteEntry`
+  // already have and for the same reason: ownership and rank were never the seam's to decide. The
+  // control is `entry_update_admin` plus clause (a); these are the affordance.
+  //
+  // TWO FUNCTIONS AND NOT ONE `decideEntry(entryId, decision)`. The two have DIFFERENT
+  // PRECONDITIONS — a rejection carries a mandatory reason and an approval must carry none — so a
+  // single function would take a `reason?: string` that is required for one value of its own
+  // parameter and forbidden for the other, and the runtime check that followed would be a third
+  // place INV-03 is written, after the constraint and the field (01-plan.md section 8, rejected
+  // alternative 3).
+  //
+  // NOTHING RETURNS AN ENTRY TO `pending`. That transition is named in no permission row, and
+  // `rbac-and-security.md` is human-only under RULE-01 — `approved → rejected` carries a reason and
+  // is the available path (AC-11). The only route back to `pending` is INV-02's trigger, on a
+  // substantive edit, which is `updateEntry`'s and not a decision at all.
+  // -------------------------------------------------------------------------
+
+  /**
+   * ADM-05 AC-1, AC-4, AC-6, AC-7, AC-10, AC-16, AC-17. Approves ONE entry. Admin only, and the
+   * control is clause (a) of `public.entry_enforce_decision()` — not this function, and not the
+   * screen that calls it.
+   *
+   * IT SENDS `status` AND NOTHING ELSE. `approved_by` and `approved_at` are written by the datastore
+   * from `auth.uid()` and `now()`, and anything sent for them is discarded (AC-7); `rejection_reason`
+   * is nulled by the same clause, because INV-03's check is a biconditional and a transition off
+   * `rejected` that leaves the reason standing is refused with a raw 23514 (AC-4). A seam that sent
+   * those columns would be a second expression of clause (b) that agrees with it until one is edited.
+   *
+   * IT MUST COUNT THE AFFECTED ROWS. A row the policy does not admit is FILTERED, not errored:
+   * PostgREST answers 200 with an empty body, so an `!error` check is green on a refusal. Zero rows is
+   * `entry_not_permitted` — the shape `updateEntry` and `deleteEntry` already use (AC-16, AC-17).
+   *
+   * 42501 from clause (a) maps to `entry_decision_not_permitted` with a sentence (AC-8).
+   *
+   * `tentative` IS NOT TOUCHED (INV-05, AC-6). Approval and tentativeness are two independent axes,
+   * and the column is not in this ticket's grant either.
+   */
+  approveEntry(entryId: string): Promise<Result<Entry>>;
+
+  /**
+   * ADM-05 AC-2, AC-3, AC-5, AC-9, AC-16, AC-17. Rejects ONE entry with a reason, and REWRITES the
+   * reason on an entry that is already rejected — one function, because they are one statement:
+   * `status = 'rejected'` and `rejection_reason = reason` written together. AC-5 is `rejectEntry`
+   * called on a rejected row, which is why the idea calls the per-entry reason edit *"the same field
+   * on the same form"*.
+   *
+   * REFUSES A BLANK REASON BEFORE ISSUING THE WRITE — `rejection_reason_required`, empty or
+   * whitespace-only (AC-3). That is an AFFORDANCE. `entry_rejection_reason_iff_rejected` is the
+   * control and it refuses the same write with 23514; this exists so the interface never renders a
+   * SQLSTATE, which is the failure ADR-011 recorded for 23P01.
+   *
+   * NOT `public.reject_entries(uuid[], text)`. That is ADM-06's, for the batch only — ADR-016 section
+   * 4: "the single approve and the single reject stay a plain PATCH", and a second path for N=1 is a
+   * second thing to keep correct.
+   */
+  rejectEntry(entryId: string, reason: string): Promise<Result<Entry>>;
 }
 
 export type { DataSeam as Seam };

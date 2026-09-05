@@ -32,13 +32,12 @@ Under the current gate placement a ticket sits here until it has been planned �
 
 | # | Ticket | Title | State | Blocked on |
 |---|--------|-------|-------|------------|
-| 1 | ADM-05 | Approve or reject an entry, with a reason on rejection | BACKLOG | ADM-04, CAL-02 |
-| 2 | ADM-06 | Reject several entries at once, with one reason for the batch | BACKLOG | ADM-05 |
-| 3 | OPS-002 | UI copy to English — entry screens and the seam's error messages | BACKLOG | — |
-| 4 | UIE-01 | Restyle the sign-in and sign-up screens to the product's visual direction | BACKLOG | — |
-| 5 | UIE-02 | The application shell — a persistent sidebar and top bar | BACKLOG | UIE-01 |
-| 6 | UIE-03 | The calendar screens give up their own chrome to the shell | BACKLOG | UIE-02 |
-| 7 | UIE-04 | The week view as seven day columns | BACKLOG | UIE-03 |
+| 1 | ADM-06 | Reject several entries at once, with one reason for the batch | BACKLOG | ADM-05 |
+| 2 | OPS-002 | UI copy to English — entry screens and the seam's error messages | BACKLOG | — |
+| 3 | UIE-01 | Restyle the sign-in and sign-up screens to the product's visual direction | BACKLOG | — |
+| 4 | UIE-02 | The application shell — a persistent sidebar and top bar | BACKLOG | UIE-01 |
+| 5 | UIE-03 | The calendar screens give up their own chrome to the shell | BACKLOG | UIE-02 |
+| 6 | UIE-04 | The week view as seven day columns | BACKLOG | UIE-03 |
 
 **Renumbered to 1–7 by `orchestrator` at /ship on 2026-09-05**, when ADM-04 left this table for
 `## ARCHIVE`. Bookkeeping, not a reordering. **ADM-05 is now row 1 and is unblocked** — its
@@ -411,7 +410,8 @@ Tickets that cannot proceed until a human decides something. Name the decision, 
 | 16 | ADM-02 | The national holiday calendar, seeded and readable | 2026-09-05 | [#54](https://github.com/didi-code0980/calechip/pull/54) |
 | 17 | ADM-03 | Add, edit or delete a holiday or swap day | 2026-09-05 | [#55](https://github.com/didi-code0980/calechip/pull/55) |
 | 18 | CAL-08 | Holidays and bridge days shown in the calendar views | 2026-09-05 | [#56](https://github.com/didi-code0980/calechip/pull/56) |
-| 19 | ADM-04 | The worklist of entries awaiting a decision | 2026-09-05 | PENDING_PR |
+| 19 | ADM-04 | The worklist of entries awaiting a decision | 2026-09-05 | [#58](https://github.com/didi-code0980/calechip/pull/58), merged — corrected from `PENDING_PR` at ADM-05's ship |
+| 20 | ADM-05 | Approve or reject an entry, with a reason on rejection | 2026-09-05 | [#59](https://github.com/didi-code0980/calechip/pull/59) |
 
 **OPS-001 is the first ticket that ships no capability at all** — it translates the copy of seven
 already-shipped screens and changes no behaviour. Its five `feature_ids` are all TEA rows, and four
@@ -670,3 +670,29 @@ this table. The registry's own reason for the assignment — the owner should be
 the policy is exercisable at its own gate — therefore points back at CAL-04, which is who it already
 names. **`.ai/registry/features.md` is unedited, because nothing in it is wrong.** ADM-01's plan must
 be re-run to clear its gate; the read half its sections 4, 6 and 7 marked for striking is struck.
+
+**ADM-05 is the fourth ticket running to reach `/implement` still reading `BACKLOG` with both gates
+`false`, and ADM-04's own metrics row predicted it in terms** — *"Steward work, and it will recur on
+ADM-05 unless something is given the write."* It recurred. No command in `.claude/commands/` owns the
+PLAN -> READY transition: the loop at `.ai/01-operating-model.md:284-286` has it, `/next-ticket`
+grades the Definition of Ready and writes no file **by design**, and `/ship` is where `state`,
+`branch` and `gates.plan` are finally recorded. Four occurrences with a standing prediction attached
+is no longer a note for a ticket shell; it is a defect in the model with a named owner and no ticket.
+
+**Two stale `PENDING_PR` markers were corrected at this ship, on the fact of the merge rather than on
+this ticket's work** — the same repair OPS-001's ship made to TEA-02, and for the same reason `/ship`
+step 3 gives for being the column's only writer. ADM-04's archive row above and its `features.md` row
+now carry [#58](https://github.com/didi-code0980/calechip/pull/58); CAL-08's `features.md` row now
+carries [#56](https://github.com/didi-code0980/calechip/pull/56), which this table already had. Both
+were written by a ship that could not know its own number, which is the structural cause: `/ship`
+commits before it opens the pull request, so the row is true only if something comes back for it.
+
+**This ship came back for its own, and that is the whole of the second commit on this branch.**
+`git push --force` is denied in settings (`git-conventions.md`, *Two limits are not the
+orchestrator's to weigh*), so amending was not available and the number could not have been known
+one commit earlier. `.claude/commands/ship.md` says a ticket gets one commit; `git-conventions.md`
+§ *What the orchestrator decides* leaves the count to the orchestrator. **ADR-023's invariant is one
+pull request, not one commit**, and #59 is one pull request. The second commit touches two
+ship-owned files and changes two strings. **The general fix is still owed and is not this**: either
+`/ship` learns to write the row after `gh pr create`, or a check fails a `PENDING_PR` marker on a
+ticket whose branch has an open pull request.

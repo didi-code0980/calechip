@@ -403,6 +403,72 @@ const CREATE_REFUSED = "Không thể tạo đăng ký này.";
 const UPDATE_REFUSED = "Không sửa được đăng ký này.";
 const DELETE_REFUSED = "Không xoá được đăng ký này.";
 
+// ---------------------------------------------------------------------------
+// ADM-05. 01-plan.md sections 4.1 and 4.2.
+// ---------------------------------------------------------------------------
+
+// The four ADM-05 sentences, repeated in mock.ts so the two implementations of the seam carry the
+// same words — the rule CAL-01's three refusal constants and ADM-03's four already state.
+//
+// ENGLISH, unlike CAL-01's three above. `.ai/standards/ui-design-system.md` § Language requires it,
+// and this file's Vietnamese literals are `copyDebt` that OPS-002 pays off rather than a precedent to
+// extend — the same choice ADM-03 made for the holiday sentences. Declared in 03-impl-log.md.
+//
+// NONE OF THEM NAMES A QUOTA, A BALANCE OR AN ENTITLEMENT, and none says a member may not go
+// (AC-18, AC-20). A refusal here is about who records the decision, never about whether the absence
+// is allowed.
+const DECISION_REFUSED =
+  "Only an admin can approve or reject an entry. Nothing about this entry has changed.";
+const APPROVE_REFUSED = "This entry could not be approved.";
+const REJECT_REFUSED = "This entry could not be rejected.";
+const REASON_REQUIRED =
+  "A rejection needs a reason. Say what would work instead, so the entry can be re-planned.";
+
+// A FOURTH mapper rather than three more cases inside `toEntryFailure`, and this one is the case the
+// rule those three mappers state was written for: `entry` answers the SAME TWO SQLSTATEs with
+// different meanings on the decision path than on the edit path.
+//
+//   * `42501` on an edit means "this is not your entry, or you named a column you may not write".
+//     On a decision the two columns ARE granted, so the only thing that raises it is clause (a) of
+//     `public.entry_enforce_decision()` — "yours, but not this column" — which is a different
+//     sentence and a different code (`entry_decision_not_permitted`, 01-plan.md section 4.1).
+//   * `23514` on an edit is `entry_end_after_start`. On a decision NO DATE IS WRITTEN, so that check
+//     cannot fire and the only reachable one is INV-03's biconditional
+//     `entry_rejection_reason_iff_rejected`. Routing it through `toEntryFailure` would put "the end
+//     date must be on or after the start date" in front of an admin who wrote no date at all.
+//
+// MATCHED ON THE SQLSTATE, NEVER ON THE CONSTRAINT NAME OR THE MESSAGE TEXT, for the reason
+// `toEntryFailure` records: a name match breaks silently the day the constraint is renamed, and
+// PostgREST's wording is not a contract.
+//
+// IT TAKES NO REFUSAL SENTENCE, and that is the one place it departs from `toEntryFailure` and
+// `toHolidayFailure`. Those two take the verb's sentence as a parameter because the SAME code means
+// "could not create" on one screen and "could not save" on another. Neither case here is
+// verb-specific: clause (a) does not distinguish approving from rejecting, so its sentence names
+// both acts, and INV-03's is about the reason on either path. The verb-specific sentence is the
+// ZERO-ROW refusal, which each call site writes for itself with `APPROVE_REFUSED` or
+// `REJECT_REFUSED`. A parameter here would be a parameter no branch could use.
+function toDecisionFailure(error: PostgrestError): Failure {
+  switch (error.code) {
+    // INV-03's biconditional check. UNREACHABLE FROM THIS APPLICATION — `rejectEntry` refuses a
+    // blank reason before the request is sent — so reaching this case means a caller that is not
+    // this application, and the honest answer is still the one about the reason.
+    case "23514":
+      return { code: "rejection_reason_required", message: REASON_REQUIRED };
+    // AC-8 and AC-9. Clause (a) refused the write: somebody who is not an admin moved a decision
+    // column. It is NOT `entry_not_permitted` — a filtered row means "not yours to touch" and this
+    // means "yours, but not this column", and the two reach different people on different screens.
+    case "42501":
+    case "PGRST301": // JWT missing or expired: the request reaches the trigger as nobody
+      return { code: "entry_decision_not_permitted", message: DECISION_REFUSED };
+    default:
+      // Kept, rather than folded into the 42501 case: an unknown failure that claimed to be a
+      // permission refusal would send an admin to look for a permission they already have.
+      return { code: "unknown", message: "Something went wrong. Please try again." };
+  }
+}
+
+
 // CAL-01 AC-9 and CAL-02 AC-11, refused BEFORE the request is sent and in both write paths. ADR-011
 // Consequences records that an inverted pair fails INSIDE the generated column with "range lower
 // bound must be less than or equal to range upper bound" - a database error text where a sentence
@@ -1341,5 +1407,81 @@ export const seam: DataSeam = {
     }
 
     return { rows: rows.map(toEntry), total: count, page: query.page, pageSize: PENDING_PAGE_SIZE };
+  },
+
+  // -------------------------------------------------------------------------
+  // ADM-05. 01-plan.md sections 4.2 and 6.
+  //
+  // `updateEntry` and `deleteEntry` above are UNCHANGED by this ticket — not one character — and
+  // `listPendingEntries` with them. One BEHAVIOUR of `updateEntry` does change and a reviewer will
+  // look for it: a member's edit of an APPROVED entry now has an approval to revoke, so INV-02's
+  // reset becomes observable through a function this ticket does not edit (AC-12, AC-14). That is
+  // ADR-005 working as designed, exactly as CAL-03 recorded for the widening it shipped.
+  // -------------------------------------------------------------------------
+
+  // ADM-05 AC-1, AC-4, AC-6, AC-7, AC-10, AC-16, AC-17.
+  //
+  // ONE COLUMN ON THE WIRE. `approved_by`, `approved_at` and `rejection_reason` are clause (b)'s and
+  // are not sent: the first two are not even granted, and a seam that sent them would be a second
+  // expression of the clause that agrees with it until one of the two is edited. AC-7 is held there
+  // and not here — there is no parameter on this function that could carry a forged approver.
+  //
+  // `tentative` is not sent either, which is INV-05 and AC-6: approval and tentativeness are two
+  // independent axes and this write touches only one of them.
+  //
+  // ZERO ROWS BACK IS A REFUSAL, not a success (AC-16, AC-17). Under row-level security a refused
+  // UPDATE is FILTERED rather than errored — it matches no row and PostgREST answers 200 with an
+  // empty body — so `!error` is green on a refusal. The `.select()` is what makes the difference
+  // visible, and it is also what returns the row the TRIGGER rewrote: the approver, the timestamp
+  // and the cleared reason are read back rather than assumed.
+  async approveEntry(entryId: string): Promise<Result<Entry>> {
+    const { data, error } = await client()
+      .from("entry")
+      .update({ status: "approved" })
+      .eq("id", entryId)
+      .select(ENTRY_COLUMNS)
+      .returns<EntryRow[]>();
+
+    if (error) return { ok: false, error: toDecisionFailure(error) };
+
+    const row = (data ?? [])[0];
+    if (!row) {
+      return { ok: false, error: { code: "entry_not_permitted", message: APPROVE_REFUSED } };
+    }
+
+    return { ok: true, value: toEntry(row) };
+  },
+
+  // ADM-05 AC-2, AC-3, AC-5, AC-9, AC-16, AC-17.
+  //
+  // AC-3, AND IT IS AN AFFORDANCE. `entry_rejection_reason_iff_rejected` is the control and refuses
+  // the same write with a raw 23514; this refusal exists so the interface never renders a SQLSTATE,
+  // which is the failure ADR-011 recorded for 23P01. `trim()` only DECIDES — the reason is stored as
+  // the admin wrote it, because the constraint tests emptiness with `btrim` and nothing else.
+  //
+  // THE TWO COLUMNS GO IN ONE STATEMENT, and they have to: INV-03's check is a biconditional, so a
+  // statement that set `status` without the reason is refused, and one that set the reason without
+  // the status is refused too. AC-5 is this same function on a row that is ALREADY rejected — one
+  // path, because rejecting and re-wording a rejection are one statement.
+  async rejectEntry(entryId: string, reason: string): Promise<Result<Entry>> {
+    if (reason.trim() === "") {
+      return { ok: false, error: { code: "rejection_reason_required", message: REASON_REQUIRED } };
+    }
+
+    const { data, error } = await client()
+      .from("entry")
+      .update({ status: "rejected", rejection_reason: reason })
+      .eq("id", entryId)
+      .select(ENTRY_COLUMNS)
+      .returns<EntryRow[]>();
+
+    if (error) return { ok: false, error: toDecisionFailure(error) };
+
+    const row = (data ?? [])[0];
+    if (!row) {
+      return { ok: false, error: { code: "entry_not_permitted", message: REJECT_REFUSED } };
+    }
+
+    return { ok: true, value: toEntry(row) };
   },
 };

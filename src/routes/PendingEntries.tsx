@@ -1,14 +1,21 @@
 // ADM-04 — the worklist of entries awaiting a decision. 01-plan.md sections 2, 2b, 3, 4.3 and 4.5.
 //
-// **IT CARRIES NO APPROVE CONTROL AND NO REJECT CONTROL, and that is the ticket rather than an
-// omission.** `product` argued at triage that a read-only worklist is not separable from the action
-// and lost; the losing argument is kept in .ai/registry/features.md:103 precisely so nobody
-// re-argues it here. This screen LISTS, FILTERS, COUNTS and LINKS. ADM-05 puts the decision on it,
-// on this same surface, consuming `entry_update_admin` and `public.entry_enforce_decision()` — and
-// until then no seam write function is imported at all, which is how AC-9 is checked by reading.
+// **ADM-05 PUTS THE DECISION ON THIS SURFACE, which is what ADM-04's own header said it would.**
+// That header read "it carries no approve control and no reject control, and that is the ticket
+// rather than an omission" — the losing half of a triage argument kept in
+// .ai/registry/features.md:103 so nobody re-argued it there. It is spent now: ADM-05 mounts
+// `EntryDecision` on each row, consuming `entry_update_admin` and clause (a) of
+// `public.entry_enforce_decision()`. ADM-04's other three verbs are UNCHANGED — this screen still
+// LISTS, FILTERS and COUNTS exactly as it did, and ADM-04's own suite passes unedited.
 //
-// **IT WRITES NOTHING.** The one link on a row goes to `/entries/:id/edit`, which is CAL-02's and
-// CAL-03's shipped screen: navigation to an existing capability, not a control this ticket adds.
+// **THE ONE WRITE IS THE PANEL'S AND THIS FILE STILL ISSUES NONE.** `EntryDecision` calls the seam;
+// this screen hands it an entry and re-reads when it reports back. The link on a row still goes to
+// `/entries/:id/edit`, which is CAL-02's and CAL-03's shipped screen.
+//
+// **AFTER A DECISION THE SCREEN RELOADS THE PAGE IT IS ON (ADM-05 AC-1, AC-2).** `load()`, never a
+// local splice: the row leaves the queue and `pending-entries-count` falls because the datastore
+// says so. Splicing would make the count and the list disagree, which is the one property this
+// screen was built not to have.
 //
 // **THE REFUSAL IS AN AFFORDANCE AND NOT A CONTROL**, and it has to be said plainly because a screen
 // that says "this page is for admins" reads exactly like one — the sentence TeamEntries.tsx already
@@ -37,6 +44,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 // The seam, through its one door. Nothing above the seam names an implementation, and this file must
 // never import `./supabase` or `./mock` (RULE-02).
+import EntryDecision from "@/components/EntryDecision";
 import { seam } from "@/lib/data";
 import type {
   Entry,
@@ -366,9 +374,10 @@ export default function PendingEntries() {
               {entry.tentative ? <span className="opacity-70">Tentative</span> : null}
               {entry.note ? <span className="opacity-70">{entry.note}</span> : null}
 
-              {/* AC-14. The SAME route the owner and CAL-03's team list already use. This screen
-                  adds no editing of its own, and there is no approve or reject beside this link —
-                  ADM-05 is the ticket that puts one here. */}
+              {/* ADM-04 AC-14. The SAME route the owner and CAL-03's team list already use, and
+                  it keeps its name, its destination and its position —
+                  tests/e2e/adm-04-worklist.spec.ts clicks it and ADM-05 01-plan.md section 7
+                  requires that suite to pass UNEDITED. */}
               <Link
                 data-testid="pending-entry-row-link"
                 to={`/entries/${entry.id}/edit`}
@@ -376,6 +385,14 @@ export default function PendingEntries() {
               >
                 Open
               </Link>
+
+              {/* ADM-05 AC-1, AC-2. The decision, on the surface the feature row names. It is the
+                  SAME component `/entries/:id/edit` mounts, so "a rejection carries a reason" is
+                  decided in one place rather than twice.
+
+                  `load` and not a splice: a decided entry leaves this view because the next read
+                  does not return it, and the count above falls for the same reason. */}
+              <EntryDecision entry={entry} onDecided={load} />
             </li>
           ))}
         </ul>
