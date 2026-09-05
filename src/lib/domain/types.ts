@@ -67,6 +67,18 @@ export type FailureCode =
   // `not_permitted`: that code's message is written about the allow-list, and one code carrying two
   // sentences is how a wrong message reaches a screen.
   | "entry_not_permitted"
+  // ADM-03, 01-plan.md section 4.1. AC-6, AC-7: `unique (date)` refused the write (SQLSTATE 23505).
+  //
+  // NOT `already_allow_listed`, which is the other 23505 this seam maps and whose message names an
+  // email address. One code carrying two sentences is how a wrong message reaches a screen — the
+  // reason CAL-01 gave for `entry_not_permitted`, applied to the constraint rather than to the
+  // policy.
+  //
+  // THERE IS NO `holiday_not_permitted` BESIDE IT. The policy refusal reuses `not_permitted` with a
+  // sentence written at its own call site, which is what `removeMember`, `promoteMember` and
+  // ADM-01's `setOverloadThreshold` all do; CAL-01's contrary precedent turned on a shared constant
+  // message, which is not the shape here.
+  | "holiday_date_taken"
   | "unknown";
 
 export interface Failure {

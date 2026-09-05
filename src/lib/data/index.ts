@@ -14,6 +14,7 @@ import type {
   EntryPortion,
   EntryType,
   Holiday,
+  HolidayKind,
   Member,
   Result,
   Session,
@@ -101,6 +102,40 @@ export interface SetOverloadThresholdInput {
    * the seam is how a factor of one hundred gets applied twice.
    */
   overloadThreshold: number;
+}
+
+/** ADM-03, 01-plan.md section 4.2. AC-1, AC-2, AC-5.
+ *
+ *  THE THREE COLUMNS AN ADMIN MAY SET, and no more. `id` and `createdAt` are the datastore's — the
+ *  grant behind this one is table-wide rather than column-scoped, unlike ADM-01's and TEA-04's, so
+ *  unusually for this seam the DTO is the only thing withholding them. 01-plan.md Open question 1
+ *  records why the grant is transcribed that way and carries the narrowing to the operator.
+ *
+ *  NO `teamId`, and here that is not a refusal of a caller-supplied value the way it is on
+ *  `addAllowedEmail` — the calendar is NATIONAL and the column does not exist (ADR-015 section 1).
+ *
+ *  `name` ARRIVES TRIMMED. The screen refuses a blank or whitespace-only name before calling
+ *  (AC-5), the way `EntryForm` already trims `note` on its way out. */
+export interface AddHolidayInput {
+  date: string; // yyyy-MM-dd. Never a Date — see the note beside `Holiday.date`.
+  name: string;
+  kind: HolidayKind;
+}
+
+/** ADM-03, 01-plan.md section 4.2. AC-7, AC-8.
+ *
+ *  The same three fields: an edit may move the date, correct the label and flip the effect. A
+ *  SEPARATE interface rather than an alias, for the reason `CreateEntryInput` and `UpdateEntryInput`
+ *  are separate — the two writes answer to different policies and will not stay identical, and an
+ *  alias would make `addHoliday` and `updateHoliday` look interchangeable to a caller who never
+ *  reads the seam.
+ *
+ *  A FULL REPLACEMENT OF THE THREE FIELDS, not a patch of the changed ones: a partial shape would
+ *  make "the caller did not send `kind`" and "the caller chose `non_working`" the same request. */
+export interface UpdateHolidayInput {
+  date: string;
+  name: string;
+  kind: HolidayKind;
 }
 
 export interface SignUpOutcome {
@@ -505,6 +540,63 @@ export interface DataSeam {
    * whose row was dropped.
    */
   listHolidays(range: DateRange): Promise<Holiday[]>;
+
+  // -------------------------------------------------------------------------
+  // ADM-03 — the WRITE half of the same table. 01-plan.md section 4.2.
+  //
+  // THE THREE FUNCTIONS THE COMMENT ABOVE SAID WOULD ARRIVE HERE, and the sentence that forbade
+  // them is now spent: `holiday_insert_admin`, `holiday_update_admin` and `holiday_delete_admin`
+  // ship in supabase/migrations/20260905140000_adm03_holiday_writes.sql, so these are no longer
+  // functions every call would refuse. `listHolidays` above is UNCHANGED — not one character —
+  // which is AC-18.
+  //
+  // NO TEAM PARAMETER ON ANY OF THE THREE, for the reason `listHolidays` already records: the
+  // calendar is national and there is nothing to narrow. This is the only place on this seam where
+  // that is true of a WRITE, and the three policies carry no team conjunct for the same reason.
+  //
+  // THEY DO NOT SHARE ONE SUCCESS TEST, and that is the single thing a developer gets wrong here in
+  // good faith. Under row-level security a refused INSERT is REFUSED — `42501` arrives as an error
+  // — but a refused UPDATE or DELETE is FILTERED: it matches no row and PostgREST answers 200 with
+  // an empty body. So `addHoliday` may read an error, and the two below must count rows.
+  // -------------------------------------------------------------------------
+
+  /**
+   * ADM-03 AC-1, AC-2, AC-6, AC-15, AC-16. Adds one row. Admin only; `holiday_insert_admin` is the
+   * control and this function is the affordance.
+   *
+   * Returns the stored row, so the screen can say which year it landed in (AC-4) rather than
+   * assuming the one it is displaying.
+   *
+   * `holiday_date_taken` ON A SECOND ROW FOR ONE DATE (AC-6). That is `unique (date)`, which ADM-02
+   * created and this ticket only makes a person meet — the seam translates `23505` into a sentence
+   * and nothing above it re-implements the constraint.
+   */
+  addHoliday(input: AddHolidayInput): Promise<Result<Holiday>>;
+
+  /**
+   * ADM-03 AC-7, AC-8, AC-10, AC-15, AC-16. Replaces the three writable columns of ONE row.
+   *
+   * ZERO ROWS RETURNED IS A REFUSAL, not a success — the shape `removeMember`, `promoteMember` and
+   * `setOverloadThreshold` all document. Treating `!error` as success would report a member's
+   * refused edit as done (AC-15).
+   *
+   * `holiday_date_taken` when the edit moves the row onto an occupied date (AC-7). Deliberately the
+   * same code and the same sentence as `addHoliday`'s: it is the same constraint, and a second code
+   * would be a second thing for a screen to branch on for no difference in what happened.
+   */
+  updateHoliday(holidayId: string, input: UpdateHolidayInput): Promise<Result<Holiday>>;
+
+  /**
+   * ADM-03 AC-11, AC-13, AC-15, AC-16. Removes one row. HARD delete: nothing references `holiday`,
+   * there is no cascade anywhere in this model (data-model.md) and there is no trash — 01-plan.md
+   * section 8 rejects a `deleted_at` column and says why.
+   *
+   * IT COUNTS THE DELETED ROW AS ITS SUCCESS TEST, for the reason `deleteEntry` records: a refused
+   * DELETE is filtered, matches nothing, and answers 200 with an empty body. A delete has no
+   * obvious return value to inspect, so without asking for the deleted representation every refusal
+   * would be reported as a completed delete. Zero rows is `not_permitted` (AC-15).
+   */
+  deleteHoliday(holidayId: string): Promise<Result<void>>;
 }
 
 export type { DataSeam as Seam };

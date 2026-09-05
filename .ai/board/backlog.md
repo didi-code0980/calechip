@@ -32,12 +32,17 @@ Under the current gate placement a ticket sits here until it has been planned �
 
 | # | Ticket | Title | State | Blocked on |
 |---|--------|-------|-------|------------|
-| 1 | ADM-03 | Add, edit or delete a holiday or swap day | BACKLOG | ADM-02 |
-| 2 | CAL-08 | Holidays and bridge days shown in the calendar views | BACKLOG | ADM-02, CAL-04, CAL-05, CAL-06 |
-| 3 | ADM-04 | The worklist of entries awaiting a decision | BACKLOG | CAL-01, TEA-03, ADM-01 |
-| 4 | ADM-05 | Approve or reject an entry, with a reason on rejection | BACKLOG | ADM-04, CAL-02 |
-| 5 | ADM-06 | Reject several entries at once, with one reason for the batch | BACKLOG | ADM-05 |
-| 6 | OPS-002 | UI copy to English — entry screens and the seam's error messages | BACKLOG | — |
+| 1 | CAL-08 | Holidays and bridge days shown in the calendar views | BACKLOG | ADM-02, CAL-04, CAL-05, CAL-06 |
+| 2 | ADM-04 | The worklist of entries awaiting a decision | BACKLOG | CAL-01, TEA-03, ADM-01 |
+| 3 | ADM-05 | Approve or reject an entry, with a reason on rejection | BACKLOG | ADM-04, CAL-02 |
+| 4 | ADM-06 | Reject several entries at once, with one reason for the batch | BACKLOG | ADM-05 |
+| 5 | OPS-002 | UI copy to English — entry screens and the seam's error messages | BACKLOG | — |
+
+**Renumbered to 1–5 by `orchestrator` at /ship on 2026-09-05**, when ADM-03 left this table for
+`## ARCHIVE`. Bookkeeping, not a reordering. **CAL-08 is now row 1 and every one of its four names is
+DONE** — ADM-02, CAL-04, CAL-05 and CAL-06. It is the row the holiday work was built for: ADM-02 made
+the calendar exist, ADM-03 made it editable, and CAL-08 is where it finally appears in the three
+views a person actually looks at.
 
 **Renumbered to 1–6 by `orchestrator` at /ship on 2026-09-05**, when ADM-02 left this table for
 `## ARCHIVE`. Bookkeeping, not a reordering. **ADM-02 unblocked two rows at once by shipping** —
@@ -245,7 +250,8 @@ Tickets that cannot proceed until a human decides something. Name the decision, 
 | 13 | CAL-06 | Year view — one row per member across 365 days | 2026-09-04 | [#51](https://github.com/didi-code0980/calechip/pull/51) |
 | 14 | ADM-01 | Set the overload threshold | 2026-09-05 | [#52](https://github.com/didi-code0980/calechip/pull/52) |
 | 15 | CAL-07 | Overload warning shown while choosing dates, before the entry is saved | 2026-09-05 | [#53](https://github.com/didi-code0980/calechip/pull/53) |
-| 16 | ADM-02 | The national holiday calendar, seeded and readable | 2026-09-05 | PENDING_PR |
+| 16 | ADM-02 | The national holiday calendar, seeded and readable | 2026-09-05 | [#54](https://github.com/didi-code0980/calechip/pull/54) |
+| 17 | ADM-03 | Add, edit or delete a holiday or swap day | 2026-09-05 | PENDING_PR |
 
 **OPS-001 is the first ticket that ships no capability at all** — it translates the copy of seven
 already-shipped screens and changes no behaviour. Its five `feature_ids` are all TEA rows, and four
@@ -261,6 +267,34 @@ corrected to `DONE` here, on the fact of the merge rather than on this ticket's 
 ticket to reach `/ship` that way, because `product` created the shell on 2026-09-03 from the current
 template. The five before it were each created before 2026-09-01 and each had to be migrated by
 whichever role noticed.
+
+**ADM-03 is the first ticket where the bounded-chat channel did the job it was built for, and the
+first plan to be amended by the question rather than by its author noticing.** At 10:35 the
+`developer` found that `01-plan.md` §4.5 and §7 were wrong: both asserted
+`tests/e2e/adm-02-holidays.spec.ts` would pass **unedited**, and both reasoned about **selector names
+only**. Every selector does keep its name — that part was right — but ADM-02's AC-13 signs in as an
+admin and asserts **zero buttons, zero textboxes and zero forms** on `/holidays`, and five of this
+ticket's criteria each require one of those three, for that caller, on that screen. The contradiction
+is total, and it was **measured rather than predicted**: the full acceptance suite ran
+`134 passed, 1 failed` with that one test as the only failure.
+
+**What makes it worth recording is what the developer did next, which was nothing.** RULE-03 forbade
+the edit, so they stopped, wrote `99-questions.md`, and routed it — the routing table sends *R5
+impossible as specified* to `tech-lead-design`, which amended §4.5 and §7 at 10:45, scoped to that one
+retired criterion, `size` 9 → 10 and still M. **RULE-08: no rework charged**, because the defect was
+upstream of the stage that hit it. `chat_budget` `developer->tech-lead-design` is 1 of 6 — the first
+non-zero chat count on the board.
+
+**`allowed_paths` therefore grew from nine to ten between the DoR grade and the ship, which is
+exactly what the forbidden thing looks like.** `.claude/commands/ship.md` says a path outside the list
+is fixed by taking the file out of the commit, *"never to widen `allowed_paths`"* — that prohibition
+is on `/ship` widening the list to get past its own step 6. This is the opposite: PLAN amended its own
+plan, before the edit was made, through the channel the model provides for it. The distinction is
+worth keeping legible, because the two are indistinguishable from the diff alone.
+
+**AC-13 was retired where it stood, not reworded.** ADM-02's suite now carries a comment block naming
+the ticket that superseded it and where the replacement assertion lives — ADM-03 AC-6, in both the
+browser suite and the seam test. Its other eleven tests pass with no character changed.
 
 **ADM-02 is the first ticket whose branch had to be merged with `main` before `/ship` could write
 the board.** `feat/ADM-02` was cut from `2515a84`, one ship before CAL-07 merged as

@@ -11,6 +11,7 @@ import {
 import type { PostgrestError } from "@supabase/supabase-js";
 import type {
   AddAllowedEmailInput,
+  AddHolidayInput,
   CreateEntryInput,
   DataSeam,
   SetOverloadThresholdInput,
@@ -18,6 +19,7 @@ import type {
   SignUpInput,
   SignUpOutcome,
   UpdateEntryInput,
+  UpdateHolidayInput,
 } from "./index";
 import type {
   AllowedEmail,
@@ -342,6 +344,54 @@ function toEntryFailure(error: PostgrestError, refusal: string): Failure {
       return { code: "unknown", message: "Có lỗi không rõ. Thử lại giúp mình nhé." };
   }
 }
+
+// ADM-03. 01-plan.md section 4.3, and it is a THIRD mapper rather than three more cases inside
+// either of the two above — the rule `toEntryFailure` already states, applied one table further on.
+// `23505` on `allowed_email` means "this address is already listed" and on `holiday` it means "this
+// date already has a row", and one function returning both would put the wrong sentence in front of
+// one of the two admins.
+//
+// MATCHED ON THE SQLSTATE, NEVER ON THE CONSTRAINT NAME OR THE MESSAGE TEXT, for the reason
+// `toEntryFailure` records: a name match breaks silently the day the constraint is renamed, and
+// PostgREST's wording is not a contract.
+//
+// THE REFUSAL SENTENCE IS A PARAMETER, exactly as CAL-02 made `toEntryFailure`'s: "Could not add
+// this date to the calendar." in front of an admin who just pressed save on an EDIT is the wrong
+// message. The CODES are the same on all three verbs, so nothing downstream branches differently.
+function toHolidayFailure(error: PostgrestError, refusal: string): Failure {
+  switch (error.code) {
+    // `unique (date)` on `public.holiday`, created by ADM-02's migration. AC-6 on the add and AC-7
+    // on the edit — the same constraint, so the same code and the same sentence.
+    //
+    // IT NAMES THE DATE, which is what makes it something an admin can act on rather than a
+    // database error: the row they are looking for is already in the calendar, in a year the screen
+    // may not be showing.
+    case "23505":
+      return {
+        code: "holiday_date_taken",
+        message: "The calendar already has a row for that date. Edit that row instead.",
+      };
+    // The policy refused the write, or the JWT never reached it. `not_permitted` and NOT a
+    // `holiday_not_permitted` of its own: the sentence is written at the call site the way
+    // `removeMember`, `promoteMember` and `setOverloadThreshold` all write theirs, so there is no
+    // shared constant that would need a code to disambiguate it (01-plan.md section 4.1).
+    case "42501":
+    case "PGRST301": // JWT missing or expired: the request reaches the policy as nobody
+      return { code: "not_permitted", message: refusal };
+    default:
+      return { code: "unknown", message: "Something went wrong. Please try again." };
+  }
+}
+
+// ADM-03. The three refusal sentences, one per verb, beside CAL-01's three and for the same reason:
+// mock.ts repeats these literals so the two implementations of the seam carry the same words.
+//
+// EACH NAMES THE CALENDAR AS AN ADMIN'S TO CHANGE rather than saying "not permitted", because the
+// only caller who can reach one of these through the interface is somebody who bypassed a control
+// that was never rendered for them (AC-14, AC-15).
+const HOLIDAY_ADD_REFUSED = "Only an admin can add to the holiday calendar.";
+const HOLIDAY_UPDATE_REFUSED = "Only an admin can change the holiday calendar.";
+const HOLIDAY_DELETE_REFUSED = "Only an admin can remove a day from the holiday calendar.";
 
 // The three refusal sentences, one per verb, held here so the two implementations of the seam can
 // carry the same words — mock.ts repeats these literals for the same reason src/lib/fixtures.ts and
@@ -1097,5 +1147,99 @@ export const seam: DataSeam = {
     }
 
     return rows.map(toHoliday);
+  },
+
+  // -------------------------------------------------------------------------
+  // ADM-03. 01-plan.md sections 4.2, 4.3 and 6.
+  //
+  // `listHolidays` above is UNCHANGED by this ticket — not one character. The three functions below
+  // issue statements the datastore was refusing everybody until this branch's migration; that is
+  // ADR-005 working as designed, and it is the evidence that ADM-02 put the denial in the datastore
+  // rather than in the absence of a function here.
+  //
+  // NO `.eq("team_id", …)` ON ANY OF THE THREE, and unlike everywhere else in this file that is
+  // correct rather than a gap: `holiday` has no `team_id` (ADR-015 section 1) and the three policies
+  // carry no team conjunct either.
+  // -------------------------------------------------------------------------
+
+  // ADM-03 AC-1, AC-2, AC-6, AC-15, AC-16.
+  //
+  // `.single()`, AND IT IS THE ONLY ONE OF THE THREE THAT MAY USE IT. A refused INSERT is REFUSED
+  // rather than filtered — `holiday_insert_admin`'s `with check` raises `42501 new row violates
+  // row-level security policy` — so there is no silent zero-row case to count here, and a refusal
+  // arrives as an error. The two below cannot use it and say why.
+  //
+  // THREE COLUMNS AND NO MORE. The grant behind this is table-wide (01-plan.md Open question 1), so
+  // unlike CAL-01's insert and ADM-01's update nothing one layer down would refuse a fourth — the
+  // object literal here and `AddHolidayInput` are what withhold `id` and `created_at`.
+  async addHoliday(input: AddHolidayInput): Promise<Result<Holiday>> {
+    const { data, error } = await client()
+      .from("holiday")
+      .insert({ date: input.date, name: input.name, kind: input.kind })
+      .select(HOLIDAY_COLUMNS)
+      .single<HolidayRow>();
+
+    if (error) return { ok: false, error: toHolidayFailure(error, HOLIDAY_ADD_REFUSED) };
+    if (!data) {
+      return { ok: false, error: { code: "not_permitted", message: HOLIDAY_ADD_REFUSED } };
+    }
+
+    return { ok: true, value: toHoliday(data) };
+  },
+
+  // ADM-03 AC-7, AC-8, AC-10, AC-15, AC-16.
+  //
+  // ZERO ROWS BACK IS A REFUSAL (AC-15). Under row-level security a refused UPDATE is FILTERED
+  // rather than errored: it matches no row and PostgREST answers 200 with an empty body, so
+  // `!error` is not success — the trap `updateEntry`, `promoteMember` and `setOverloadThreshold` all
+  // record. `.select()` is what makes the difference visible.
+  //
+  // `.returns<HolidayRow[]>()` AND NOT `.maybeSingle()`, for the reason `setOverloadThreshold`
+  // records: on zero rows `maybeSingle()` gives `data: null` with no error, which is
+  // indistinguishable from a successful update of a row that no longer exists.
+  //
+  // ONE ROW, BY ID (AC-10). `.eq("id", holidayId)` is the whole scope, and `holiday_update_admin`
+  // is what stops a member issuing the same statement — the filter here is not a second, weaker copy
+  // of the policy, it is which row this call is about.
+  async updateHoliday(holidayId: string, input: UpdateHolidayInput): Promise<Result<Holiday>> {
+    const { data, error } = await client()
+      .from("holiday")
+      .update({ date: input.date, name: input.name, kind: input.kind })
+      .eq("id", holidayId)
+      .select(HOLIDAY_COLUMNS)
+      .returns<HolidayRow[]>();
+
+    if (error) return { ok: false, error: toHolidayFailure(error, HOLIDAY_UPDATE_REFUSED) };
+
+    const row = (data ?? [])[0];
+    if (!row) {
+      return { ok: false, error: { code: "not_permitted", message: HOLIDAY_UPDATE_REFUSED } };
+    }
+
+    return { ok: true, value: toHoliday(row) };
+  },
+
+  // ADM-03 AC-11, AC-13, AC-15, AC-16. A HARD delete: nothing references `holiday`, there is no
+  // cascade anywhere in this model, and 01-plan.md section 8 rejects a `deleted_at` column.
+  //
+  // THE `.select()` IS THE WHOLE CORRECTNESS OF THIS FUNCTION, exactly as it is on `deleteEntry`. A
+  // DELETE the policy filters answers 200 with an empty body just as an UPDATE does, and a delete
+  // has no obvious return value to inspect — so without asking for the deleted representation and
+  // counting it, every refusal would be reported as a completed delete.
+  async deleteHoliday(holidayId: string): Promise<Result<void>> {
+    const { data, error } = await client()
+      .from("holiday")
+      .delete()
+      .eq("id", holidayId)
+      .select(HOLIDAY_COLUMNS)
+      .returns<HolidayRow[]>();
+
+    if (error) return { ok: false, error: toHolidayFailure(error, HOLIDAY_DELETE_REFUSED) };
+
+    if (!(data ?? [])[0]) {
+      return { ok: false, error: { code: "not_permitted", message: HOLIDAY_DELETE_REFUSED } };
+    }
+
+    return { ok: true, value: undefined };
   },
 };
