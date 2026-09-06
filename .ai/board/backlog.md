@@ -32,12 +32,23 @@ Under the current gate placement a ticket sits here until it has been planned �
 
 | # | Ticket | Title | State | Blocked on |
 |---|--------|-------|-------|------------|
-| 1 | ADM-06 | Reject several entries at once, with one reason for the batch | BACKLOG | ADM-05 |
-| 2 | OPS-002 | UI copy to English — entry screens and the seam's error messages | BACKLOG | — |
-| 3 | UIE-01 | Restyle the sign-in and sign-up screens to the product's visual direction | BACKLOG | — |
-| 4 | UIE-02 | The application shell — a persistent sidebar and top bar | BACKLOG | UIE-01 |
-| 5 | UIE-03 | The calendar screens give up their own chrome to the shell | BACKLOG | UIE-02 |
-| 6 | UIE-04 | The week view as seven day columns | BACKLOG | UIE-03 |
+| 1 | OPS-002 | UI copy to English — entry screens and the seam's error messages | BACKLOG | — |
+| 2 | UIE-01 | Restyle the sign-in and sign-up screens to the product's visual direction | BACKLOG | — |
+| 3 | UIE-02 | The application shell — a persistent sidebar and top bar | BACKLOG | UIE-01 |
+| 4 | UIE-03 | The calendar screens give up their own chrome to the shell | BACKLOG | UIE-02 |
+| 5 | UIE-04 | The week view as seven day columns | BACKLOG | UIE-03 |
+
+**Renumbered to 1–5 by `orchestrator` at /ship on 2026-09-06**, when ADM-06 left this table for
+`## ARCHIVE`. Bookkeeping, not a reordering. **The ADM group is empty and the board is now one
+translation row and the four-row UIE chain** — six admin rows shipped, and `OPS-002` at row 1 is
+blocked on nothing and has been since 2026-09-03. `UIE-01` at row 2 is also unblocked; rows 3, 4 and
+5 are the rest of that chain and each waits on the one above it.
+
+**This row spent its whole life at `BACKLOG` in this table while `ticket.yaml` moved it to `REVIEW`,
+and `/next-ticket` on 2026-09-06 read the disagreement rather than the view.** The `State` column
+here is written by `/ship` and by nothing else, so a ticket that is planned, built and reviewed
+between two ships is stale in this file for that entire span. It is not a defect in this row; it is
+what a view that has one writer at the end of the loop necessarily looks like from the middle of it.
 
 **Renumbered to 1–7 by `orchestrator` at /ship on 2026-09-05**, when ADM-04 left this table for
 `## ARCHIVE`. Bookkeeping, not a reordering. **ADM-05 is now row 1 and is unblocked** — its
@@ -392,26 +403,37 @@ Tickets that cannot proceed until a human decides something. Name the decision, 
 
 | # | Ticket | Title | Shipped | PR |
 |---|--------|-------|---------|-----|
-| 1 | TEA-01 | Sign up and establish the member record | 2026-08-31 | [#11](https://github.com/didi-code0980/calechip/pull/11), merged 16:49:02Z; board and registry in [#12](https://github.com/didi-code0980/calechip/pull/12), merged 16:50:48Z |
-| 2 | TEA-02 | Manage the allow-list | 2026-09-01 | [#13](https://github.com/didi-code0980/calechip/pull/13) |
-| 3 | TEA-03 | Team member list | 2026-09-01 | [#17](https://github.com/didi-code0980/calechip/pull/17) |
-| 4 | TEA-04 | Remove a member, and promote a member to admin | 2026-09-01 | [#20](https://github.com/didi-code0980/calechip/pull/20) |
-| 5 | BUG-001 | The end-to-end suite does not pin which seam it drives | 2026-09-03 | [#27](https://github.com/didi-code0980/calechip/pull/27); board files in [#28](https://github.com/didi-code0980/calechip/pull/28) |
-| 6 | TEA-05 | Sign in, sign out, and the member-less landing state | 2026-09-03 | [#29](https://github.com/didi-code0980/calechip/pull/29); board and registry in [#30](https://github.com/didi-code0980/calechip/pull/30) |
-| 7 | CAL-01 | Create an entry for themselves, over a range of dates | 2026-09-03 | [#32](https://github.com/didi-code0980/calechip/pull/32); board and registry in [#34](https://github.com/didi-code0980/calechip/pull/34) |
-| 8 | CAL-02 | Edit or delete their own entry | 2026-09-03 | [#36](https://github.com/didi-code0980/calechip/pull/36) |
-| 9 | CAL-03 | Edit or delete another member's entry, as an admin | 2026-09-03 | [#38](https://github.com/didi-code0980/calechip/pull/38) |
-| 10 | OPS-001 | UI copy to English — chrome, account and team screens | 2026-09-03 | [#40](https://github.com/didi-code0980/calechip/pull/40) |
-| 11 | CAL-04 | Month view — a day grid showing who is away and which days are overloaded | 2026-09-04 | [#48](https://github.com/didi-code0980/calechip/pull/48) |
-| 12 | CAL-05 | Week view — per-person detail for one week, with half-days, notes and who approved | 2026-09-04 | [#49](https://github.com/didi-code0980/calechip/pull/49) |
-| 13 | CAL-06 | Year view — one row per member across 365 days | 2026-09-04 | [#51](https://github.com/didi-code0980/calechip/pull/51) |
-| 14 | ADM-01 | Set the overload threshold | 2026-09-05 | [#52](https://github.com/didi-code0980/calechip/pull/52) |
-| 15 | CAL-07 | Overload warning shown while choosing dates, before the entry is saved | 2026-09-05 | [#53](https://github.com/didi-code0980/calechip/pull/53) |
-| 16 | ADM-02 | The national holiday calendar, seeded and readable | 2026-09-05 | [#54](https://github.com/didi-code0980/calechip/pull/54) |
-| 17 | ADM-03 | Add, edit or delete a holiday or swap day | 2026-09-05 | [#55](https://github.com/didi-code0980/calechip/pull/55) |
-| 18 | CAL-08 | Holidays and bridge days shown in the calendar views | 2026-09-05 | [#56](https://github.com/didi-code0980/calechip/pull/56) |
-| 19 | ADM-04 | The worklist of entries awaiting a decision | 2026-09-05 | [#58](https://github.com/didi-code0980/calechip/pull/58), merged — corrected from `PENDING_PR` at ADM-05's ship |
-| 20 | ADM-05 | Approve or reject an entry, with a reason on rejection | 2026-09-05 | [#59](https://github.com/didi-code0980/calechip/pull/59) |
+| 1 | TEA-02 | Manage the allow-list | 2026-09-01 | [#13](https://github.com/didi-code0980/calechip/pull/13) |
+| 2 | TEA-03 | Team member list | 2026-09-01 | [#17](https://github.com/didi-code0980/calechip/pull/17) |
+| 3 | TEA-04 | Remove a member, and promote a member to admin | 2026-09-01 | [#20](https://github.com/didi-code0980/calechip/pull/20) |
+| 4 | BUG-001 | The end-to-end suite does not pin which seam it drives | 2026-09-03 | [#27](https://github.com/didi-code0980/calechip/pull/27); board files in [#28](https://github.com/didi-code0980/calechip/pull/28) |
+| 5 | TEA-05 | Sign in, sign out, and the member-less landing state | 2026-09-03 | [#29](https://github.com/didi-code0980/calechip/pull/29); board and registry in [#30](https://github.com/didi-code0980/calechip/pull/30) |
+| 6 | CAL-01 | Create an entry for themselves, over a range of dates | 2026-09-03 | [#32](https://github.com/didi-code0980/calechip/pull/32); board and registry in [#34](https://github.com/didi-code0980/calechip/pull/34) |
+| 7 | CAL-02 | Edit or delete their own entry | 2026-09-03 | [#36](https://github.com/didi-code0980/calechip/pull/36) |
+| 8 | CAL-03 | Edit or delete another member's entry, as an admin | 2026-09-03 | [#38](https://github.com/didi-code0980/calechip/pull/38) |
+| 9 | OPS-001 | UI copy to English — chrome, account and team screens | 2026-09-03 | [#40](https://github.com/didi-code0980/calechip/pull/40) |
+| 10 | CAL-04 | Month view — a day grid showing who is away and which days are overloaded | 2026-09-04 | [#48](https://github.com/didi-code0980/calechip/pull/48) |
+| 11 | CAL-05 | Week view — per-person detail for one week, with half-days, notes and who approved | 2026-09-04 | [#49](https://github.com/didi-code0980/calechip/pull/49) |
+| 12 | CAL-06 | Year view — one row per member across 365 days | 2026-09-04 | [#51](https://github.com/didi-code0980/calechip/pull/51) |
+| 13 | ADM-01 | Set the overload threshold | 2026-09-05 | [#52](https://github.com/didi-code0980/calechip/pull/52) |
+| 14 | CAL-07 | Overload warning shown while choosing dates, before the entry is saved | 2026-09-05 | [#53](https://github.com/didi-code0980/calechip/pull/53) |
+| 15 | ADM-02 | The national holiday calendar, seeded and readable | 2026-09-05 | [#54](https://github.com/didi-code0980/calechip/pull/54) |
+| 16 | ADM-03 | Add, edit or delete a holiday or swap day | 2026-09-05 | [#55](https://github.com/didi-code0980/calechip/pull/55) |
+| 17 | CAL-08 | Holidays and bridge days shown in the calendar views | 2026-09-05 | [#56](https://github.com/didi-code0980/calechip/pull/56) |
+| 18 | ADM-04 | The worklist of entries awaiting a decision | 2026-09-05 | [#58](https://github.com/didi-code0980/calechip/pull/58), merged — corrected from `PENDING_PR` at ADM-05's ship |
+| 19 | ADM-05 | Approve or reject an entry, with a reason on rejection | 2026-09-05 | [#59](https://github.com/didi-code0980/calechip/pull/59) |
+| 20 | ADM-06 | Reject several entries at once, with one reason for the batch | 2026-09-06 | PENDING_PR |
+
+**The window filled at this ship, and `TEA-01` is the first row it pushed out.** The heading says
+*last 20*; twenty rows stood here and ADM-06 is the twenty-first, so the oldest left the table. **Its
+content is reproduced verbatim here so that nothing this file recorded is lost to a renumbering** —
+*TEA-01, Sign up and establish the member record, shipped 2026-08-31,*
+[#11](https://github.com/didi-code0980/calechip/pull/11) *merged 16:49:02Z; board and registry in*
+[#12](https://github.com/didi-code0980/calechip/pull/12) *merged 16:50:48Z.* From here every ship
+displaces a row, and a displaced row's links exist in no other file — `metrics.md` carries TEA-01's
+five transitions and has no PR column. **A rolling window that quietly drops evidence is worth a
+human's decision rather than a convention**: either this heading grows, or something else becomes the
+permanent record of what a ticket merged as.
 
 **OPS-001 is the first ticket that ships no capability at all** — it translates the copy of seven
 already-shipped screens and changes no behaviour. Its five `feature_ids` are all TEA rows, and four

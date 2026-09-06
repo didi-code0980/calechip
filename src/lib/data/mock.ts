@@ -19,6 +19,7 @@ import type {
 } from "./index";
 import type {
   AllowedEmail,
+  BulkRejectionOutcome,
   DateRange,
   Entry,
   EntryPortion,
@@ -425,6 +426,15 @@ const APPROVE_REFUSED = "This entry could not be approved.";
 const REJECT_REFUSED = "This entry could not be rejected.";
 const REASON_REQUIRED =
   "A rejection needs a reason. Say what would work instead, so the entry can be re-planned.";
+
+// ---------------------------------------------------------------------------
+// ADM-06. 01-plan.md section 4.2.
+// ---------------------------------------------------------------------------
+
+// Two more sentences, repeated from src/lib/data/supabase.ts so the two implementations of the seam
+// carry the same words — the rule CAL-01's three refusal constants and ADM-05's four already state.
+const BULK_REJECT_REFUSED = "These entries could not be rejected.";
+const NOTHING_SELECTED = "Select at least one entry before rejecting.";
 
 // CLAUSES (a) AND (b) OF `public.entry_enforce_decision()`, REPRODUCED — AND THAT IS DECLARED
 // RATHER THAN HIDDEN. This is a SECOND IMPLEMENTATION OF A CONTROL, not of an invariant, which is
@@ -1523,5 +1533,77 @@ export const seam: DataSeam = {
     }
 
     return applyDecision(me, row, { status: "rejected", rejectionReason: reason });
+  },
+
+  // -------------------------------------------------------------------------
+  // ADM-06. 01-plan.md sections 4.2 and 5.
+  // -------------------------------------------------------------------------
+
+  // ADM-06 AC-1 to AC-11, AC-18.
+  //
+  // IT REPRODUCES `public.reject_entries` PLUS THE TWO CONTROLS AROUND IT, which is the third thing
+  // this file reproduces and is declared for the reason it already states for INV-01 and for clauses
+  // (a) and (b): the mock is not a datastore anybody's data lives in, the real mechanisms are the
+  // policy and the trigger, and this exists so AC-5, AC-7, AC-8 and AC-11 are observable end to end
+  // with no provisioned project. What it proves is THE SENTENCE and the arithmetic; the refusal is
+  // clause (a)'s and is verified the day a project exists (01-plan.md section 3).
+  //
+  // THE ORDER IS THE DATASTORE'S: reason, then selection, then the policy filter, then the guard,
+  // then the write. Reversed anywhere it stops modelling the thing it is modelling.
+  //
+  // ATOMIC ON FAILURE (AC-7): the guard is evaluated over the WHOLE admitted set before a single row
+  // is written, so a refusal leaves every entry exactly as it was. Nothing here writes as it goes.
+  async rejectEntries(entryIds: string[], reason: string): Promise<Result<BulkRejectionOutcome>> {
+    // AC-3 FIRST, exactly as `rejectEntry` above refuses it and as the real seam refuses it before
+    // the round trip. `trim()` only DECIDES: the reason is stored as the admin wrote it.
+    if (reason.trim() === "") {
+      return { ok: false, error: { code: "rejection_reason_required", message: REASON_REQUIRED } };
+    }
+
+    // AC-6. De-duplicated HERE rather than left to `= any(p_ids)`, which collapses them silently:
+    // `requested` must be a number the returned count can be compared against.
+    const ids = [...new Set(entryIds)];
+
+    // AC-4. A refusal and not a no-op — an empty batch reporting `{ requested: 0, rejected: 0 }`
+    // would be ok:true on a write that never happened.
+    if (ids.length === 0) {
+      return { ok: false, error: { code: "no_entries_selected", message: NOTHING_SELECTED } };
+    }
+
+    const me = members.find((m) => m.id === currentMemberId && m.removedAt === null) ?? null;
+    if (!me) {
+      return { ok: false, error: { code: "entry_not_permitted", message: BULK_REJECT_REFUSED } };
+    }
+
+    // The two PERMISSIVE policies composing, exactly as `approveEntry` and `rejectEntry` compose
+    // them. A row neither admits is FILTERED — dropped from the set and counted out — and is never an
+    // error (AC-11). An id that names no entry at all is filtered by the same expression, which is
+    // what `= any(p_ids)` does in PostgreSQL: it matches rows, it does not resolve ids.
+    const admitted = ids
+      .map((id) => entries.find((e) => e.id === id && (ownsEntry(me, e) || adminMayReach(me, e))))
+      .filter((e): e is Entry => e !== undefined);
+
+    // Clause (a), over the whole admitted set and BEFORE any write. A rejection moves `status` or
+    // `rejection_reason` on every row it touches, so a non-admin is refused for the batch as a whole
+    // — which is what one statement and one transaction means (AC-7, AC-8). The condition is "a
+    // decision column MOVES" and not "an admin is acting", for `applyDecision`'s reason: an admin
+    // re-rejecting with the identical wording moves nothing and would pass the guard in PostgreSQL.
+    const moves = admitted.some((e) => e.status !== "rejected" || e.rejectionReason !== reason);
+    if (moves && !(me.role === "admin" && me.removedAt === null)) {
+      return {
+        ok: false,
+        error: { code: "entry_decision_not_permitted", message: DECISION_REFUSED },
+      };
+    }
+
+    // The write, through the SAME function the single path uses, so clause (b)'s nulling of
+    // `approved_by` and `approved_at` is written once in this file rather than twice (AC-9).
+    for (const row of admitted) {
+      applyDecision(me, row, { status: "rejected", rejectionReason: reason });
+    }
+
+    // AC-18. `rejected` is the number of rows that were actually changed and `requested` the number
+    // of distinct ids asked for. The two are separate numbers even when they are equal.
+    return { ok: true, value: { requested: ids.length, rejected: admitted.length } };
   },
 };

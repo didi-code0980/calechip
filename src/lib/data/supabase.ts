@@ -23,6 +23,7 @@ import type {
 } from "./index";
 import type {
   AllowedEmail,
+  BulkRejectionOutcome,
   DateRange,
   Entry,
   EntryPortion,
@@ -424,6 +425,20 @@ const REJECT_REFUSED = "This entry could not be rejected.";
 const REASON_REQUIRED =
   "A rejection needs a reason. Say what would work instead, so the entry can be re-planned.";
 
+// ---------------------------------------------------------------------------
+// ADM-06. 01-plan.md section 4.2.
+// ---------------------------------------------------------------------------
+
+// Two more sentences, repeated in mock.ts so the two implementations of the seam carry the same
+// words — the rule CAL-01's three refusal constants, ADM-03's four and ADM-05's four already state.
+//
+// ENGLISH, for ADM-05's reason: `.ai/standards/ui-design-system.md` § Language requires it, and this
+// file's Vietnamese literals are `copyDebt` that OPS-002 pays off rather than a precedent to extend.
+//
+// NEITHER NAMES A QUOTA, A BALANCE OR AN ENTITLEMENT, and neither says a member may not go (AC-16).
+const BULK_REJECT_REFUSED = "These entries could not be rejected.";
+const NOTHING_SELECTED = "Select at least one entry before rejecting.";
+
 // A FOURTH mapper rather than three more cases inside `toEntryFailure`, and this one is the case the
 // rule those three mappers state was written for: `entry` answers the SAME TWO SQLSTATEs with
 // different meanings on the decision path than on the edit path.
@@ -454,6 +469,13 @@ function toDecisionFailure(error: PostgrestError): Failure {
     // blank reason before the request is sent — so reaching this case means a caller that is not
     // this application, and the honest answer is still the one about the reason.
     case "23514":
+      return { code: "rejection_reason_required", message: REASON_REQUIRED };
+    // ADM-06. `public.reject_entries` raises this for a blank reason — ADR-016 section 4, "an empty
+    // reason is refused with a sentence rather than a raw 23514". UNREACHABLE FROM THIS APPLICATION,
+    // because `rejectEntries` refuses it first; reaching it means a caller that is not this
+    // application, and the honest answer is still the one about the reason. It shares 23514's
+    // sentence because it is the same missing thing, not because the two codes were folded.
+    case "22023":
       return { code: "rejection_reason_required", message: REASON_REQUIRED };
     // AC-8 and AC-9. Clause (a) refused the write: somebody who is not an admin moved a decision
     // column. It is NOT `entry_not_permitted` — a filtered row means "not yours to touch" and this
@@ -1483,5 +1505,72 @@ export const seam: DataSeam = {
     }
 
     return { ok: true, value: toEntry(row) };
+  },
+
+  // -------------------------------------------------------------------------
+  // ADM-06. 01-plan.md sections 4.2 and 6.
+  //
+  // `approveEntry` and `rejectEntry` above are UNCHANGED by this ticket — not one character — and so
+  // are `listPendingEntries`, `updateEntry` and `deleteEntry`.
+  // -------------------------------------------------------------------------
+
+  // ADM-06 AC-1 to AC-11, AC-18.
+  //
+  // `.rpc()` AND NOT `.update()`, and the reason is ADR-016 section 4's rather than a preference:
+  // the ids travel in the POST body instead of the query string, so the 414 ceiling is gone; and the
+  // function returns the affected count, which is the only way the filtered-row case is detectable at
+  // all. This is the FIRST `.rpc()` call in this file, which is worth a reviewer's attention rather
+  // than a note in passing — it is a second shape of request beside the table builders.
+  //
+  // THE PARAMETER NAMES ARE THE FUNCTION'S — `p_ids` and `p_reason`. PostgREST matches an RPC's
+  // arguments by name, so a rename here is a 404 at runtime and not a type error.
+  //
+  // `toDecisionFailure` IS REUSED UNCHANGED and no fourth mapper is written. It already answers the
+  // three codes this path can produce — 42501 from clause (a), 23514 from INV-03's biconditional, and
+  // PGRST301 for a missing or expired token — and 22023 is the one addition, which is the same
+  // sentence 23514 already carries because it is the same missing thing.
+  //
+  // NO ZERO-ROW REFUSAL HERE, unlike `approveEntry` and `rejectEntry` above, and the difference is
+  // the ticket: zero of eight is a PARTIAL RESULT and not an error (AC-5, AC-11). A batch that
+  // reached nothing is reported as "0 of 8" by the caller comparing the two numbers, because the
+  // datastore filtering every row and the datastore refusing are different facts.
+  async rejectEntries(entryIds: string[], reason: string): Promise<Result<BulkRejectionOutcome>> {
+    // AC-3, AND IT IS AN AFFORDANCE. `entry_rejection_reason_iff_rejected` is the control, and the
+    // function's own 22023 is the sentence in front of it; this refusal exists so no request is
+    // issued for a batch that cannot possibly land. `trim()` only DECIDES — the reason is stored as
+    // the admin wrote it, because the constraint tests emptiness with `btrim` and nothing else.
+    if (reason.trim() === "") {
+      return { ok: false, error: { code: "rejection_reason_required", message: REASON_REQUIRED } };
+    }
+
+    // AC-6. De-duplicated HERE rather than left to `= any(p_ids)`, which collapses them silently:
+    // `requested` must be a number the returned count can be compared against, and the raw array
+    // length is not one.
+    const ids = [...new Set(entryIds)];
+
+    // AC-4. A refusal and not a no-op: `update ... where id = any('{}')` succeeds and changes
+    // nothing, so an empty batch would otherwise report `{ requested: 0, rejected: 0 }` — ok:true on
+    // a write that never happened, which is the fail-quiet shape this whole ticket exists to expose.
+    if (ids.length === 0) {
+      return { ok: false, error: { code: "no_entries_selected", message: NOTHING_SELECTED } };
+    }
+
+    const { data, error } = await client().rpc("reject_entries", {
+      p_ids: ids,
+      p_reason: reason,
+    });
+
+    // AC-7. FAILURE IS ATOMIC and that property is the datastore's, not this function's: one
+    // statement in one transaction, so an error here means NONE of the batch was rejected.
+    if (error) return { ok: false, error: toDecisionFailure(error) };
+
+    // AC-18. The count is the datastore's. A null or non-numeric body is a contract violation rather
+    // than a zero — reporting "0 of 8" for a response nobody could read would be the fail-quiet
+    // answer to a fail-quiet problem.
+    if (typeof data !== "number") {
+      return { ok: false, error: { code: "unknown", message: BULK_REJECT_REFUSED } };
+    }
+
+    return { ok: true, value: { requested: ids.length, rejected: data } };
   },
 };

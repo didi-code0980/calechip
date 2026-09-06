@@ -12,6 +12,14 @@
 // this screen hands it an entry and re-reads when it reports back. The link on a row still goes to
 // `/entries/:id/edit`, which is CAL-02's and CAL-03's shipped screen.
 //
+// **ADM-06 ADDS THE BATCH TO THE SAME SURFACE, AND THE SENTENCE ABOVE SURVIVES IT.** `BulkRejection`
+// calls `seam.rejectEntries`; this screen holds the SELECTION (AC-14 empties it on every query
+// change, AC-15 needs the page's ids) and the OUTCOME (`load()` unmounts the bar, and section 2b
+// requires the sentence naming both numbers to stay on screen), hands both down, and re-reads when
+// the bar reports back. It still issues no write of its own. ADM-04's and ADM-05's behaviour is
+// UNCHANGED — this screen lists, filters, counts and pages exactly as it did, `load` is untouched,
+// and the per-row panel keeps its place on every row.
+//
 // **AFTER A DECISION THE SCREEN RELOADS THE PAGE IT IS ON (ADM-05 AC-1, AC-2).** `load()`, never a
 // local splice: the row leaves the queue and `pending-entries-count` falls because the datastore
 // says so. Splicing would make the count and the list disagree, which is the one property this
@@ -44,9 +52,11 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 // The seam, through its one door. Nothing above the seam names an implementation, and this file must
 // never import `./supabase` or `./mock` (RULE-02).
+import BulkRejection from "@/components/BulkRejection";
 import EntryDecision from "@/components/EntryDecision";
 import { seam } from "@/lib/data";
 import type {
+  BulkRejectionOutcome,
   Entry,
   EntryPortion,
   EntryType,
@@ -128,6 +138,20 @@ export default function PendingEntries() {
   const [type, setType] = useState<EntryType | null>(null);
   const [page, setPage] = useState(0);
 
+  // ADM-06 AC-14 and AC-15. THE SELECTION LIVES ON THE SCREEN AND NOT IN THE BAR, for two reasons
+  // that both point here: AC-14 resets it whenever the query changes, and AC-15 needs the ids of the
+  // page the screen is holding. A bar that owned it would own a set of ids that outlived the rows it
+  // was drawn from, which is the one property a bulk rejection must not have.
+  const [selected, setSelected] = useState<string[]>([]);
+
+  // ADM-06 AC-5. THE OUTCOME LIVES HERE FOR A MECHANICAL REASON, not a design one: `load()` below
+  // sets the `loading` phase, which returns before the bar is rendered, so the bar UNMOUNTS during
+  // the re-read AC-12 requires and anything it held would be lost. 01-plan.md section 2b requires
+  // the opposite — the sentence naming both numbers stays on screen, because the rows it is about
+  // are gone from the view and it is the only record of a partial write. Declared as a deviation
+  // from section 4.4's prop list in 03-impl-log.md.
+  const [outcome, setOutcome] = useState<BulkRejectionOutcome | null>(null);
+
   const query = useMemo(
     () => ({ type, window: dateWindow, today, page }),
     [type, dateWindow, today, page],
@@ -180,6 +204,19 @@ export default function PendingEntries() {
   useEffect(() => {
     void load();
   }, [load]);
+
+  // ADM-06 AC-14. A BATCH MAY ONLY EVER CONTAIN ROWS THE ADMIN CAN SEE AT THE MOMENT THEY SUBMIT IT,
+  // so changing the date window, the kind filter or the page empties the selection. It keys on the
+  // same `query` memo `load` depends on, which is what makes "the view changed" one fact rather than
+  // three places to remember. The result sentence goes with it: a count about a batch drawn from a
+  // view that is no longer on screen is true and unreadable.
+  //
+  // NOT on `load` itself: `load` is also the bar's `onRejected`, and clearing there would be
+  // indistinguishable from AC-13's clear-on-success while quietly also firing on a refusal's re-read.
+  useEffect(() => {
+    setSelected([]);
+    setOutcome(null);
+  }, [query]);
 
   if (view.phase === "loading") {
     return (
@@ -325,6 +362,33 @@ export default function PendingEntries() {
         </label>
       </div>
 
+      {/* ADM-06 AC-1, AC-4, AC-5, AC-13, AC-14, AC-15. The batch bar, BETWEEN THE FILTERS AND THE
+          LIST and OUTSIDE the `<ul>` — a placement decision with a test consequence and it is
+          deliberate (01-plan.md section 2b). ADM-04's AC-9 suite asserts that
+          `[data-testid="pending-entries"]` holds no `form`, and keeping the bar out of the list is
+          what leaves that half of the assertion meaningful after this ticket.
+
+          It is NOT a dialog and it does not cover the list: an admin typing one reason for twelve
+          entries has to be able to look at the twelve entries while they type it.
+
+          RENDERED IN EVERY READY VIEW, including an empty one, because it carries the result
+          sentence — a batch that emptied the page would otherwise take the only record of what it
+          did off the screen with the last row (AC-5).
+
+          `load` and not a splice, exactly as the per-row panel: the rejected entries leave this view
+          because the next read does not return them, and `pending-entries-count` falls for the same
+          reason (AC-12). */}
+      <BulkRejection
+        selectedIds={selected}
+        pageIds={rows.map((entry) => entry.id)}
+        onSelectionChange={setSelected}
+        outcome={outcome}
+        onRejected={async (landed) => {
+          setOutcome(landed);
+          await load();
+        }}
+      />
+
       {/* AC-11. An empty worklist SAYS SO. A screen with no rows and no sentence is
           indistinguishable from one that failed to load, and on this screen that mistake is the
           feature's whole failure mode read backwards. */}
@@ -350,6 +414,27 @@ export default function PendingEntries() {
               data-tentative={entry.tentative}
               className="flex flex-wrap items-center gap-3 rounded-2xl bg-white px-4 py-3 text-sm shadow-sm"
             >
+              {/* ADM-06 AC-1, AC-14, AC-15. The selection checkbox, FIRST on the row so the set
+                  being composed reads down the left edge of the list. It writes NOTHING (AC-17):
+                  the batch is composed here and sent from the bar above, and there is no interaction
+                  on this screen that writes as a side effect of being used. */}
+              <input
+                data-testid="pending-entry-row-select"
+                type="checkbox"
+                aria-label={`Select the entry starting ${entry.startDate}`}
+                checked={selected.includes(entry.id)}
+                onChange={(event) =>
+                  setSelected((current) =>
+                    event.target.checked
+                      ? current.includes(entry.id)
+                        ? current
+                        : [...current, entry.id]
+                      : current.filter((id) => id !== entry.id),
+                  )
+                }
+                className="size-4 rounded"
+              />
+
               {/* AC-2. The column that makes this a worklist rather than a list of rows: a queue of
                   unnamed entries is not the feature, and TEA-03's `member_select_team` is the hard
                   dependency that makes the name readable at all. */}
