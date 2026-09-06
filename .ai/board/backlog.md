@@ -422,7 +422,7 @@ Tickets that cannot proceed until a human decides something. Name the decision, 
 | 17 | CAL-08 | Holidays and bridge days shown in the calendar views | 2026-09-05 | [#56](https://github.com/didi-code0980/calechip/pull/56) |
 | 18 | ADM-04 | The worklist of entries awaiting a decision | 2026-09-05 | [#58](https://github.com/didi-code0980/calechip/pull/58), merged — corrected from `PENDING_PR` at ADM-05's ship |
 | 19 | ADM-05 | Approve or reject an entry, with a reason on rejection | 2026-09-05 | [#59](https://github.com/didi-code0980/calechip/pull/59) |
-| 20 | ADM-06 | Reject several entries at once, with one reason for the batch | 2026-09-06 | PENDING_PR |
+| 20 | ADM-06 | Reject several entries at once, with one reason for the batch | 2026-09-06 | [#60](https://github.com/didi-code0980/calechip/pull/60) |
 
 **The window filled at this ship, and `TEA-01` is the first row it pushed out.** The heading says
 *last 20*; twenty rows stood here and ADM-06 is the twenty-first, so the oldest left the table. **Its
