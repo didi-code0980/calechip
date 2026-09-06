@@ -1596,3 +1596,57 @@ under `.ai/` and `.claude/` plus `CLAUDE.md`**, and is wider than the governed-d
 limits the other three. Rewritten to name the ID generically. Recorded rather than quietly fixed:
 this is the second time an audit has caught my own file within a minute of writing it, and a log that
 only ever agrees with the present is worth nothing.
+
+### 2026-09-06 — D6 learns to tell an owed path from a broken one
+
+Task, from the orchestrator at `/next-ticket`: clear the D6 failure blocking [#60](https://github.com/didi-code0980/calechip/pull/60). `.github/workflows/verify.yml:42` runs
+`check-docs.mjs`, so one error there fails ADM-06's own pull request over a file ADM-06 never touched.
+
+**The finding was true and the reference was correct, which is why it could not be fixed by editing
+the document.** `.ai/registry/features.md`'s ADM-05 row names `tests/permission-model.test.ts` inside
+a sentence saying that file does not exist and that the sharpest test in the product therefore cannot
+be run. D6 read the path, found nothing on disk, and reported a broken reference. Removing the path
+or breaking the code span would have made the audit green by deleting the fact — the exact move
+`.ai/standards/testing-standards.md` § *What a check may be scoped to* says a badly aimed check buys.
+
+**Why the existing escape did not reach it.** D6 already has a phase-aware branch: a path under a
+`SCAFFOLD_ROOTS` entry that does not exist is PENDING, not an error. That defers a whole tree until it
+appears, and `tests/` appeared at TEA-01. What is missing here is one file inside a tree that is
+otherwise real, which no root-level rule can express.
+
+- **Added `OWED_PATHS`** to `scripts/check-docs.mjs`, beside `SCAFFOLD_ROOTS`: a path, and the reason
+  its absence is a recorded fact. One row today. D6 reports a registered path as PENDING, and — the
+  half that makes it a control rather than a mute button — **errors the moment a registered path
+  exists on disk**, naming the row to delete. A waiver that outlives its reason is worse than none,
+  because the register then reads as current.
+- **Put `/scripts/` behind CODEOWNERS review.** `.github/CODEOWNERS` covered the registry, the
+  standards, `.claude/` and `.github/`, but not the directory holding the audit itself. A waiver
+  register an agent can extend unreviewed to clear its own gate is not a waiver register. The rest of
+  `scripts/` earns the same review on the same argument: `check-docs.mjs` and
+  `check-allowed-paths.mjs` **are** the audit, and the hooks have been owner-reviewed since the file
+  was written.
+- **Three tests, both directions plus the real tree**: an owed path inside an existing scaffold root
+  is deferred while an unregistered sibling in the same sentence still fails; an owed path that has
+  arrived produces exactly one error, against `scripts/check-docs.mjs` and not against the document
+  that cited it; and the shipped repository has no `FAIL D6`, so a stale row fails here rather than
+  being discovered by a reader who trusted it. **225 of 225 pass** (`node --test
+  .claude/hooks/tests/*.test.mjs scripts/tests/*.test.mjs`, exit 0). Audit: 0 errors, 1 pending, the
+  same 2 advisory D8 warnings as before.
+
+**Recorded, not fixed — MD-026.** The orchestrator reported that `TEA-01` now has no row in
+`.ai/board/backlog.md`: the archive is a rolling *last 20* and ADM-06 was the twenty-first ship. The
+displaced content was preserved in prose beneath the table, which is the right call and is the whole
+problem — it is one agent's judgement on one afternoon, required by no command and reported by no
+check, and from here **every ship displaces exactly one row**. What is lost is specific: the two merge
+PR numbers, which `metrics.md` has no column for and the ticket directory does not carry. The debt row
+gives two fix shapes and says plainly that the choice of where the permanent record lives is the
+operator's, not mine.
+
+**MD-019 was left alone deliberately.** It is a defect in the same function, `pathCandidates`, and its
+fix shape is one regex — but it is a recorded debt item with a stated fix and it blocks nothing, and
+widening a scope-clearing run to sweep the neighbourhood is the drift the standing instructions name.
+
+No registry write. No ADR: nothing here decides anything the operator has not already decided; a
+check learning to distinguish *owed* from *broken* is the model doing what
+`.ai/standards/testing-standards.md` already tells it to. Tree left dirty — these are chore paths, not
+ADM-06's, and per ADR-023 `/ship` does not commit them.

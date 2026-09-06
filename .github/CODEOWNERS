@@ -14,7 +14,14 @@
 /.ai/standards/   @didi-code0980
 /.claude/         @didi-code0980
 /.github/         @didi-code0980
+/scripts/         @didi-code0980
 /.mcp.json        @didi-code0980
+
+# `scripts/` was added on 2026-09-06, with `OWED_PATHS` in `scripts/check-docs.mjs`. That register
+# tells check D6 that a named-but-absent path is owed rather than broken, which is a waiver on the
+# audit — and a waiver an agent can grant itself to clear its own gate is not a control. The rest of
+# the directory earns the same review for the same reason: `check-docs.mjs` and `check-allowed-paths.mjs`
+# ARE the audit, and `.claude/hooks/**` has been behind owner review since this file was written.
 
 # TODO(project): add the schema or migrations directory once the datastore is chosen. Applying a
 # migration is permanently human under RULE-09, and this is where that becomes true of a pull
