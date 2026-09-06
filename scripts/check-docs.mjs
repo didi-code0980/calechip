@@ -31,6 +31,27 @@ const SCAFFOLD_ROOTS = ["src/", "tests/", "node_modules/"];
 const scaffoldRootExists = (root) => fs.existsSync(path.join(ROOT, root.replace(/[/]$/, "")));
 const ANY_SCAFFOLD = SCAFFOLD_ROOTS.some(scaffoldRootExists);
 
+// Paths a human-owned document names, that do not exist on disk, and whose ABSENCE is the recorded
+// fact rather than a broken reference. D6 reports these as PENDING, and errors the moment one of
+// them exists — a waiver that outlives its reason is worse than no waiver, because the register
+// then reads as current.
+//
+// The scaffold-root branch below cannot cover this case: it defers a whole tree until it appears,
+// and `tests/` appeared long ago. What is missing is one file inside a tree that is otherwise real.
+//
+// A row here is a waiver on the audit, so it is deliberately expensive. It needs the reason and the
+// document carrying the obligation, and `.github/CODEOWNERS` puts `scripts/` behind owner review so
+// that no agent can add one to get past its own gate.
+const OWED_PATHS = new Map([
+  [
+    "tests/permission-model.test.ts",
+    "mandatory under .ai/standards/testing-standards.md, owed since TEA-01, and named as still owed " +
+      "by ADR-016, ADR-017 and ADR-027. It must execute against a real PostgreSQL with a token per " +
+      "role; no project is provisioned, and every design so far has refused to write it against the " +
+      "mock. ADR-027 phase 1 is where it gets written",
+  ],
+]);
+
 const errors = [];
 const warnings = [];
 const pending = [];
@@ -320,6 +341,13 @@ for (const file of aiFiles) {
     const target = concrete.replace(/\/$/, "");
     if (!target) continue;
     if (fs.existsSync(path.join(ROOT, target))) continue;
+    // Owed, not broken. Checked before the scaffold-root branch because the two answer different
+    // questions and only this one survives the tree being created.
+    const owed = OWED_PATHS.get(target);
+    if (owed) {
+      pending.push({ check: "D6", file: r, msg: `${cand} — owed, not broken: ${owed}` });
+      continue;
+    }
     // Per scaffold root, not global: a repository with a source tree but no test tree gets strict
     // checking on the one that exists and deferred checking on the one that does not.
     const deferredRoot = SCAFFOLD_ROOTS.find(
@@ -335,6 +363,17 @@ for (const file of aiFiles) {
     }
     err("D6", r, `mentions ${cand}, which does not exist on disk`);
   }
+}
+
+// The register audits itself. An owed path that has arrived is a row to delete, and nothing else in
+// the repository would report that the waiver is now covering a file that exists.
+for (const owedPath of OWED_PATHS.keys()) {
+  if (!fs.existsSync(path.join(ROOT, owedPath))) continue;
+  err(
+    "D6",
+    "scripts/check-docs.mjs",
+    `${owedPath} exists on disk — delete its OWED_PATHS row, the waiver has outlived its reason`
+  );
 }
 
 // --- D7: verbatim copies match character-for-character -----------------------------------------
@@ -917,7 +956,7 @@ for (const [check, list] of byCheck(warnings)) {
   for (const e of list) console.log(`  - ${e.file}: ${e.msg}`);
 }
 if (pending.length) {
-  console.log(`PENDING D6 (${pending.length}) — resolves when the named directory exists`);
+  console.log(`PENDING D6 (${pending.length}) — resolves when the named path exists`);
   for (const e of pending) console.log(`  - ${e.file}: ${e.msg}`);
 }
 

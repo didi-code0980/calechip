@@ -1141,6 +1141,41 @@ test("D6 is strict per root: one root present, another absent", () => {
   assert.match(r.stdout, /tests\/also-gone\.ts — under tests\//);
 });
 
+test("D6 defers an owed path inside a scaffold root that already exists", () => {
+  // The scaffold-root branch cannot reach this: tests/ is on disk, so the tree is strict and the one
+  // file inside it that is owed rather than broken would be reported as a missing reference.
+  const r = run(project(LEDGER + UNISSUED, "x", {
+    "tests/.keep": "",
+    ".ai/standards/probe-owed.md":
+      FRONT + "See `tests/permission-model.test.ts` and `tests/really-gone.ts`.\n",
+  }));
+  const d6 = r.findings("D6").filter((l) => l.includes("probe-owed.md"));
+  assert.equal(d6.length, 1, `only the unregistered path should fail, got:\n${r.stdout}`);
+  assert.match(d6[0], /tests\/really-gone\.ts/);
+  assert.equal(r.pending("D6").length, 1, r.stdout);
+  assert.match(r.pending("D6")[0], /tests\/permission-model\.test\.ts — owed, not broken/);
+});
+
+test("an owed path that has arrived is an error against the register, not silence", () => {
+  // The half that makes the register a control rather than a mute button. A waiver still covering a
+  // file that exists reads as current and is the reason to be strict about the second direction.
+  const r = run(project(LEDGER + UNISSUED, "x", {
+    "tests/permission-model.test.ts": "// arrived\n",
+  }));
+  const d6 = r.findings("D6");
+  assert.equal(d6.length, 1, `expected exactly one D6 finding, got:\n${r.stdout}`);
+  assert.match(d6[0], /scripts\/check-docs\.mjs/);
+  assert.match(d6[0], /exists on disk — delete its OWED_PATHS row/);
+  assert.deepEqual(r.pending("D6"), [], "an arrived path must not also be pending");
+});
+
+test("every owed path in the shipped tree is still owed", () => {
+  // The real-file test. The register is asserted against the repository it governs, so a row that
+  // has gone stale fails here rather than being discovered by a reader who trusts it.
+  const res = spawnSync(process.execPath, [SCRIPT], { cwd: REPO, encoding: "utf8" });
+  assert.ok(!/^FAIL D6/m.test(res.stdout ?? ""), `the shipped tree fails D6:\n${res.stdout}`);
+});
+
 test("D5, D6 and D9 agree on what is out of scope", () => {
   // One definition, three consumers. If they drift, a board artifact is exempt from one check and
   // not the others, which is worse than either policy applied consistently.
