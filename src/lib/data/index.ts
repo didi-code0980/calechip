@@ -9,6 +9,7 @@
 // a configuration change rather than a rewrite.
 import type {
   AllowedEmail,
+  BulkRejectionOutcome,
   DateRange,
   Entry,
   EntryPortion,
@@ -712,6 +713,52 @@ export interface DataSeam {
    * second thing to keep correct.
    */
   rejectEntry(entryId: string, reason: string): Promise<Result<Entry>>;
+
+  // -------------------------------------------------------------------------
+  // ADM-06 — the batch, over the same surface. 01-plan.md section 4.2.
+  //
+  // `approveEntry` and `rejectEntry` above are UNCHANGED — not one character — and so are
+  // `listPendingEntries`, `updateEntry` and `deleteEntry`. This is one addition to the seam and no
+  // amendment to it, which is why the XL clause of .ai/01-operating-model.md:375 is not engaged:
+  // no existing caller changes.
+  //
+  // THERE IS NO BULK APPROVAL BESIDE IT. No feature row asks for one, and the asymmetry is the
+  // ticket's rather than an oversight: a rejection carries a reason, which is what makes a batch of
+  // them ONE act with ONE justification, and an approval carries none — so a batch of approvals is a
+  // sequence of unrelated judgements with nothing binding them (01-plan.md section 1, Out of scope).
+  // -------------------------------------------------------------------------
+
+  /**
+   * ADM-06 AC-1 to AC-11, AC-18. Rejects SEVERAL entries in ONE statement, with ONE reason written
+   * onto every one of them.
+   *
+   * IT IS `public.reject_entries(p_ids uuid[], p_reason text)` AND NOT A PATCH WITH `id=in.(…)`.
+   * ADR-016 section 4, verified there against the installed @supabase/postgrest-js: `in()` appends
+   * the ids TO THE QUERY STRING at 37 bytes per uuid, so a few hundred meets a proxy's request-line
+   * cap as an opaque 414 — at the exact moment an admin clears a backlog. Chunking to avoid that
+   * reintroduces the cross-chunk partial failure a single statement does not have.
+   *
+   * NEITHER TAKES A ROLE NOR CHECKS ONE, the property every write on this seam has: the controls are
+   * `entry_update_admin` and clause (a) of `public.entry_enforce_decision()`, both of which still run
+   * AS THE CALLER because the function is `security invoker` (01-plan.md section 3).
+   *
+   * IT RETURNS BOTH NUMBERS. A row the policy does not admit is FILTERED, not errored — the batch
+   * succeeds and changes fewer rows than it named — so `rejected` comes from the function's
+   * `get diagnostics row_count` and `requested` from the de-duplicated id list, and a caller is
+   * expected to compare them (AC-5, AC-18).
+   *
+   * IT REFUSES TWO THINGS BEFORE ISSUING ANYTHING, and both are AFFORDANCES: a blank or
+   * whitespace-only reason (`rejection_reason_required`, AC-3) and an empty id list
+   * (`no_entries_selected`, AC-4). The controls are `entry_rejection_reason_iff_rejected` and the
+   * function's own `22023`; these exist so the interface never renders a SQLSTATE.
+   *
+   * FAILURE IS ATOMIC (AC-7). One statement, one transaction: if the datastore raises on any row,
+   * none are rejected and this returns a failure rather than a partial count.
+   *
+   * NOT FOR N=1. `rejectEntry` above stays the single path — ADR-016 section 4 in terms — and this
+   * function is never called to reject one entry from the row-level panel.
+   */
+  rejectEntries(entryIds: string[], reason: string): Promise<Result<BulkRejectionOutcome>>;
 }
 
 export type { DataSeam as Seam };

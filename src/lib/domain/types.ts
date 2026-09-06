@@ -94,6 +94,15 @@ export type FailureCode =
   // the shape ADR-016 section 4 gives `reject_entries`, which raises 22023 with a sentence for the
   // same reason. The CHECK CONSTRAINT is still the control; this is the sentence.
   | "rejection_reason_required"
+  // ADM-06, AC-4. A batch with nothing in it, refused in the SEAM before a request is issued.
+  //
+  // It is a refusal rather than a no-op because `update ... where id = any('{}')` succeeds and
+  // changes nothing, so an empty batch would otherwise report `{ requested: 0, rejected: 0 }` —
+  // ok:true on a write that never happened, which is the exact fail-quiet shape this whole ticket
+  // exists to make visible. NOT `rejection_reason_required`: the two refusals name different missing
+  // things and one code carrying two sentences is how a wrong message reaches a screen (CAL-01's
+  // reasoning, applied a third time).
+  | "no_entries_selected"
   | "unknown";
 
 export interface Failure {
@@ -486,3 +495,27 @@ export interface PendingEntryPage {
  * this ticket's, and it wants a BUG row of its own.
  */
 export const PENDING_PAGE_SIZE = 50;
+
+// ---------------------------------------------------------------------------
+// ADM-06. 01-plan.md section 4.1.
+//
+// One interface, added at the end beside ADM-04's three shapes. Nothing existing changes shape, so
+// no existing caller changes and the "changes a shared type module" clause of
+// .ai/01-operating-model.md:375 is not engaged — the CAL-04, ADM-02, CAL-08 and ADM-04 precedent.
+// ---------------------------------------------------------------------------
+
+/**
+ * ADM-06. What a bulk rejection actually did.
+ *
+ * BOTH NUMBERS, and that is the whole reason this is a shape rather than a `number`. A row the policy
+ * does not admit is FILTERED rather than errored, so a batch of eight can reject five and report
+ * success; a caller holding only the count cannot tell that from a batch of five that rejected five.
+ * `requested` is what was asked for and `rejected` is what the datastore says it changed, and the
+ * screen is required to say both (AC-5, AC-18).
+ */
+export interface BulkRejectionOutcome {
+  /** DISTINCT ids sent, after de-duplication in the seam (AC-6). Never the raw array length. */
+  requested: number;
+  /** `get diagnostics row_count` from `public.reject_entries`. NEVER derived from `requested`. */
+  rejected: number;
+}
