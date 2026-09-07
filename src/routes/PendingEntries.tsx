@@ -58,29 +58,15 @@ import { seam } from "@/lib/data";
 import type {
   BulkRejectionOutcome,
   Entry,
-  EntryPortion,
   EntryType,
   Member,
   PendingWindow,
 } from "@/lib/domain/types";
+import { PORTION_LABELS, TYPE_LABELS } from "@/lib/labels";
 
-// `.ai/standards/ui-design-system.md` section Language: every string the interface renders is
-// English. These two maps DUPLICATE the ones in src/routes/TeamEntries.tsx rather than importing
-// them, and the duplication is declared in 03-impl-log.md for the reason that file already records:
-// the shared home for them is a component neither ticket owns, and OPS-001 is the ticket that folds
-// the copy of the product into one place.
-const TYPE_LABELS: Record<EntryType, string> = {
-  pto: "Leave",
-  // A WFH member IS working — glossary.md calls this the single most costly confusion in the domain,
-  // which is why the label says so rather than reading as a kind of absence.
-  wfh: "Working from home",
-};
-
-const PORTION_LABELS: Record<EntryPortion, string> = {
-  full: "Full day",
-  am: "Morning",
-  pm: "Afternoon",
-};
+// OPS-002 folded these into src/lib/labels.ts. The paragraph that stood here handed the fold to
+// OPS-001, which shipped without doing it; the shared home is a module rather than a component, so
+// no ticket has to own a component to fold a label set into it.
 
 // AC-6 and AC-7. Three windows, always visible, never collapsed behind a control — a filter that
 // hides rows while itself being hidden is how an admin concludes the queue is empty (01-plan.md

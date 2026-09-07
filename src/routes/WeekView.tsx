@@ -45,6 +45,7 @@ import { absentEntriesFor, addDays, eachDateInRange } from "@/lib/data/absence";
 // .ai/registry/features.md:95 forbids, and this file draws no weekend distinction anyway.
 import { dayStatusesFor, holidayReadRange } from "@/lib/data/day-status";
 import type { AbsenceDetail, DateRange, DayStatus, Entry, Holiday, Member } from "@/lib/domain/types";
+import { PORTION_LABELS, TYPE_LABELS } from "@/lib/labels";
 
 // ---------------------------------------------------------------------------
 // The week vocabulary. `yyyy-MM-dd` in the URL and everywhere below it.
@@ -99,19 +100,11 @@ function today(): string {
   return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
 }
 
-/** What a row says about how much of the day is gone. INV-06: one value for the whole entry. */
-const PORTION_LABEL: Record<Entry["portion"], string> = {
-  full: "All day",
-  am: "Morning",
-  pm: "Afternoon",
-};
-
-/** A WFH member IS working — glossary.md calls that the single most costly confusion in the domain,
- *  which is why the two types are worded as well as coloured differently. */
-const TYPE_LABEL: Record<Entry["type"], string> = {
-  pto: "Leave",
-  wfh: "Working from home",
-};
+/* OPS-002 folded the two label maps that stood here into src/lib/labels.ts (AC-8). They were named
+   in the singular and had already diverged: `full` read "All day" here and "Full day" on the two
+   screens that declared it next, a divergence nobody introduced deliberately and no test caught.
+   AC-13 settles it to "Full day", so THIS SCREEN'S WORDING FOR `full` CHANGES and the other two do
+   not. */
 
 // ---------------------------------------------------------------------------
 // The screen.
@@ -420,7 +413,7 @@ export default function WeekView() {
                         </span>
 
                         <span data-testid="week-row-type" data-type={entry.type} className="opacity-70">
-                          {TYPE_LABEL[entry.type]}
+                          {TYPE_LABELS[entry.type]}
                         </span>
 
                         {/* AC-3 and AC-4. `data-portion` is the attribute the criteria turn on, and
@@ -432,7 +425,7 @@ export default function WeekView() {
                           data-portion={entry.portion}
                           className="rounded-full bg-white/70 px-2 py-0.5"
                         >
-                          {PORTION_LABEL[entry.portion]}
+                          {PORTION_LABELS[entry.portion]}
                         </span>
 
                         {/* AC-9's marking. The dashed border above says it visually; this says it in

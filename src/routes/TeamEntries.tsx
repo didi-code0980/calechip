@@ -31,33 +31,12 @@ import { Link } from "react-router-dom";
 // The seam, through its one door. Nothing above the seam names an implementation, and this file must
 // never import `./supabase` or `./mock` (RULE-02).
 import { seam } from "@/lib/data";
-import type { Entry, EntryPortion, EntryStatus, EntryType, Failure, Member } from "@/lib/domain/types";
+import type { Entry, Failure, Member } from "@/lib/domain/types";
+import { PORTION_LABELS, STATUS_LABELS, TYPE_LABELS } from "@/lib/labels";
 
-// `.ai/standards/ui-design-system.md` section Language: every string the interface renders is
-// English. These three maps DUPLICATE the Vietnamese ones in src/components/EntryForm.tsx and
-// src/routes/NewEntry.tsx rather than importing them, and the duplication is declared in
-// 03-impl-log.md: EntryForm.tsx is not in this ticket's `allowed_paths` (01-plan.md section 7 keeps
-// it out on purpose, because a form that behaved differently for an admin would be a second place
-// the permission model is expressed), so translating it is not this ticket's to do. The ticket that
-// translates the other thirteen files folds these into one place.
-const TYPE_LABELS: Record<EntryType, string> = {
-  pto: "Leave",
-  // A WFH member IS working — glossary.md calls this the single most costly confusion in the domain,
-  // which is why the label says so rather than reading as a kind of absence.
-  wfh: "Working from home",
-};
-
-const PORTION_LABELS: Record<EntryPortion, string> = {
-  full: "Full day",
-  am: "Morning",
-  pm: "Afternoon",
-};
-
-const STATUS_LABELS: Record<EntryStatus, string> = {
-  pending: "Awaiting approval",
-  approved: "Approved",
-  rejected: "Rejected",
-};
+// OPS-002 is the ticket the paragraph that stood here named: "the ticket that translates the other
+// thirteen files folds these into one place." The three maps are now in src/lib/labels.ts and this
+// file imports them — the wording is unchanged, and it is these values that AC-8 kept.
 
 // Four states, and they are four for the reason MemberList.tsx records. "Still loading", "you are
 // not an admin" and "the read failed" are three different facts, and folding any two of them would

@@ -55,6 +55,7 @@ import {
 // .ai/registry/features.md:95 forbids, and this file draws no weekend distinction anyway.
 import { dayStatusesFor, holidayReadRange } from "@/lib/data/day-status";
 import type { DateRange, DayStatus, Entry, Holiday, Member } from "@/lib/domain/types";
+import { TYPE_LABELS } from "@/lib/labels";
 
 // ---------------------------------------------------------------------------
 // The year vocabulary. `yyyy` in the URL, `yyyy-MM-dd` everywhere below it.
@@ -94,13 +95,9 @@ const shiftYear = (year: string, by: number): string =>
  */
 const currentYear = (): string => String(new Date().getFullYear()).padStart(4, "0");
 
-/** A WFH member IS working — glossary.md calls that the single most costly confusion in the domain,
- *  which is why the two types are worded as well as coloured differently. The cell is one day wide
- *  and carries no text, so this reaches a reader through `title` and through `data-type`. */
-const TYPE_LABEL: Record<Entry["type"], string> = {
-  pto: "Leave",
-  wfh: "Working from home",
-};
+/* OPS-002 folded the type labels that stood here into src/lib/labels.ts (AC-8). The cell is one day
+   wide and carries no text, so they still reach a reader through `title` and through `data-type` —
+   the wording is unchanged. */
 
 /**
  * What one filled cell says about itself, precomputed once per filled (member, date) pair.
@@ -458,7 +455,7 @@ export default function YearView() {
                       // .ai/standards/ui-design-system.md. Absent on an empty cell, so "away" and
                       // "away for an unknown reason" are never the same cell.
                       {...(mark ? { "data-type": mark.type } : {})}
-                      title={mark ? `${date} — ${TYPE_LABEL[mark.type]}` : date}
+                      title={mark ? `${date} — ${TYPE_LABELS[mark.type]}` : date}
                       className={[
                         "h-4 rounded-[2px]",
                         // PTO peach, WFH mint (CLAUDE.md § Visual direction), matching the chips on

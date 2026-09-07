@@ -16,12 +16,15 @@
 // intact, so the edit route renders the same six fields rather than a second copy of them.
 import { useCallback, useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import EntryForm, { PORTION_LABELS, TYPE_LABELS } from "@/components/EntryForm";
+import EntryForm from "@/components/EntryForm";
 import type { EntryFormValues } from "@/components/EntryForm";
 // The seam, through its one door. Nothing above the seam names an implementation, and this file must
 // never import `./supabase` or `./mock` (RULE-02).
 import { seam } from "@/lib/data";
 import type { Entry, Failure } from "@/lib/domain/types";
+// OPS-002. The three label sets, declared once (AC-8). The status words below used to be a
+// three-branch conditional in the row itself, which was a sixth copy of the same three strings.
+import { PORTION_LABELS, STATUS_LABELS, TYPE_LABELS } from "@/lib/labels";
 
 export default function NewEntry() {
   const [own, setOwn] = useState<Entry[]>([]);
@@ -76,7 +79,7 @@ export default function NewEntry() {
       else setConfirming(null);
       await load();
     } catch {
-      setDeleteError({ code: "unknown", message: "Không xoá được đăng ký. Thử lại giúp mình nhé." });
+      setDeleteError({ code: "unknown", message: "This entry could not be deleted. Please try again." });
     } finally {
       setDeleting(false);
     }
@@ -86,9 +89,9 @@ export default function NewEntry() {
     <section className="mx-auto flex max-w-xl flex-col gap-8">
       <EntryForm
         testIdPrefix="new-entry"
-        title="Đăng ký nghỉ hoặc làm ở nhà"
-        submitLabel="Lưu đăng ký"
-        submittingLabel="Đang lưu…"
+        title="Book leave or working from home"
+        submitLabel="Save entry"
+        submittingLabel="Saving…"
         initial={{
           type: "pto",
           portion: "full",
@@ -102,7 +105,7 @@ export default function NewEntry() {
       />
 
       <div className="flex flex-col gap-2">
-        <h2 className="text-sm font-medium opacity-70">Đăng ký của bạn</h2>
+        <h2 className="text-sm font-medium opacity-70">Your entries</h2>
 
         {deleteError ? (
           <p data-testid="own-entry-delete-error" role="alert" className="text-sm text-rose-600">
@@ -115,7 +118,7 @@ export default function NewEntry() {
             data-testid="own-entries-empty"
             className="rounded-2xl bg-white p-8 text-center text-sm opacity-70 shadow-sm"
           >
-            Bạn chưa có đăng ký nào.
+            You have no entries yet.
           </p>
         ) : (
           <ul className="flex flex-col gap-2">
@@ -150,7 +153,7 @@ export default function NewEntry() {
                 </span>
                 {entry.tentative ? (
                   <span data-testid="own-entry-row-tentative" className="opacity-70">
-                    Chưa chắc chắn
+                    Not certain
                   </span>
                 ) : null}
                 {entry.note ? <span className="opacity-70">{entry.note}</span> : null}
@@ -163,11 +166,7 @@ export default function NewEntry() {
                   data-status={entry.status}
                   className="opacity-70"
                 >
-                  {entry.status === "approved"
-                    ? "Đã duyệt"
-                    : entry.status === "rejected"
-                      ? "Bị từ chối"
-                      : "Chờ duyệt"}
+                  {STATUS_LABELS[entry.status]}
                 </span>
 
                 <span className="ml-auto flex items-center gap-3">
@@ -176,7 +175,7 @@ export default function NewEntry() {
                     to={`/entries/${entry.id}/edit`}
                     className="underline"
                   >
-                    Sửa
+                    Edit
                   </Link>
 
                   {confirming === entry.id ? (
@@ -188,7 +187,7 @@ export default function NewEntry() {
                         onClick={() => void onDelete(entry.id)}
                         className="rounded-lg bg-rose-600 px-2 py-1 text-white disabled:opacity-40"
                       >
-                        {deleting ? "Đang xoá…" : "Xoá hẳn"}
+                        {deleting ? "Deleting…" : "Delete permanently"}
                       </button>
                       <button
                         data-testid="own-entry-delete-cancel"
@@ -197,7 +196,7 @@ export default function NewEntry() {
                         onClick={() => setConfirming(null)}
                         className="underline disabled:opacity-40"
                       >
-                        Thôi
+                        Cancel
                       </button>
                     </>
                   ) : (
@@ -210,7 +209,7 @@ export default function NewEntry() {
                       }}
                       className="underline"
                     >
-                      Xoá
+                      Delete
                     </button>
                   )}
                 </span>

@@ -7,30 +7,101 @@ feature_ids: [CAL-01, CAL-02, TEA-01, TEA-02, TEA-03, TEA-04, TEA-05]
 group: CAL           # SINGLE-VALUED FIELD, TWO GROUPS SPANNED. See §5 — the split rationale that
                      # Definition of Ready item 6 requires is written there, and `CAL` records the
                      # primary group rather than the whole truth.
-state: BACKLOG
+state: DONE          # `orchestrator` at /ship, 2026-09-07, on 04-review.md `gate: PASS` /
+                     # `next_state: DONE`. ADR-022 removed the QA stage, so REVIEW -> DONE is the
+                     # whole remaining transition (.ai/01-operating-model.md:36).
+#
+# PREVIOUS VALUE, `REVIEW`, set by `developer` at /implement. Its comment is reproduced below rather
+# than deleted, because what it records is still true and is now on its SIXTH consecutive ticket: no
+# command in `.claude/commands/` owns PLAN -> READY, so this shell went BACKLOG -> REVIEW on disk
+# while the work went through PLAN, IN_PROGRESS and REVIEW, and both gate rows had to be transcribed
+# after the fact.
+#
+# ONE CORRECTION TO IT, and it is the only part that was not accurate. It says the `false` gate
+# records "a DoR grading `/next-ticket` never ran". The grading DID run: `/next-ticket` in the
+# orchestrator session graded the full Definition of Ready, SIX OF SIX PASS, at 2026-09-07 08:29 +07,
+# after `/plan` and before `/implement`. What was missing was a WRITER for the result, not the
+# grading — which is the same defect, stated more precisely. The metrics row records it.
+#
+# state: REVIEW      # BACKLOG -> IN_PROGRESS -> REVIEW at /implement, 2026-09-07. NOTE: `gates.plan`
+#                    # below is still false while 01-plan.md carries `gate: PASS`. That records a
+#                    # DoR grading `/next-ticket` never ran, not a gate that failed — the loop went
+#                    # /plan straight to /implement. `/ship` needs it closed by a human.
+#                    # 03-impl-log.md Open questions item 3.
 owner: ""
 branch: "feat/OPS-002"   # NOT `ops/<slug>`. See §4 — this is deliberate and it is not free.
-size_estimate: ""     # S|M - set by tech-lead-design at PLAN; gates DoR
-size: ""              # S|M|L|XL - set by tech-lead-design at PLAN; decides splitting
+size_estimate: M      # 01-plan.md section 1. Eleven files, no schema, no new capability.
+size: M               # 01-plan.md section 7, counted from the TWELVE allowed_paths below (the ticket
+                      # folder is not counted). M is up to 12 at .ai/01-operating-model.md:373, so
+                      # this is THE CEILING EXACTLY, with no headroom left — it was eleven until the
+                      # 2026-09-07 amendment. Anything further this ticket needs makes it L, and L
+                      # must split at PLAN. It AGREES with size_estimate, so ADR-012 never engages —
+                      # but the two figures agree about the bucket while disagreeing about which
+                      # files fill it. See section 7.
 depends_on: [CAL-03]  # see §3 — this FAILS Definition of Ready item 3 today, on purpose
-invariants_touched: []   # LEFT AS THE TEMPLATE SHIPS IT. This is item 2 and belongs to
-                         # tech-lead-design at PLAN. `[]` here is the template's default, NOT a
-                         # considered answer, and PLAN must reach its own. See the note below §2.
-allowed_paths: []     # LEFT EMPTY DELIBERATELY. guard-allowed-paths.mjs blocks every write outside
-                      # this ticket folder while it is empty. PLAN fills it. The file list in §1 is
-                      # the triage's scope statement and is NOT an allowed_paths list.
+                      # NO LONGER TRUE, annotated rather than rewritten by `orchestrator` at
+                      # /ship. CAL-03 has been `DONE` since 2026-09-03, so item 3 PASSES.
+                      # §3's sentence was accurate on 2026-09-03 and stopped being so the
+                      # same day; 01-plan.md:50 is where PLAN recorded the change.
+invariants_touched: []   # REACHED AT PLAN, and no longer the template's default. 01-plan.md
+                         # section 2 carries the row-by-row reasoning. All seven range over `entry`
+                         # or `member` ROWS; none ranges over a rendered string. INV-03 is the
+                         # nearest and is unaffected: a rejection reason is USER-AUTHORED text in a
+                         # field this ticket does not touch, and no refusal sentence translated here
+                         # is ever stored — each is built at the moment of failure and rendered.
+# FILLED BY tech-lead-design AT PLAN, from 01-plan.md section 7. Twelve files (eleven at PLAN,
+# plus tests/ui-language.test.ts at the 2026-09-07 amendment — see the note on that entry below).
+#
+# FOUR OF THESE ARE NOT IN §1'S SCOPE STATEMENT AND ARE NOT IN `copyDebt` — they are ALREADY
+# ENGLISH, and are opened only to delete a duplicate label declaration and add an import.
+# §6 of this shell says three copies of the label sets must not survive this ticket. The tree now
+# holds FIVE declarations of the type labels: src/components/EntryForm.tsx:35, TeamEntries.tsx:43,
+# PendingEntries.tsx:72, WeekView.tsx:112 and YearView.tsx:101 — the last three shipped after this
+# shell was written on 2026-09-03. Folding only the three §6 knew about would leave two identical
+# English copies behind. AC-8 is unsatisfiable without them.
+#
+# `ui-language.json` IS NOT OPTIONAL. tests/ui-language.test.ts fails on "still has copy to
+# translate" the moment a listed file loses its diacritics, so the translation and the `copyDebt`
+# deletion must land in the same change. This ticket empties `copyDebt` — the sweep's stated proof.
+allowed_paths:
+  - ".ai/board/tickets/OPS-002/**"
+  - "src/lib/labels.ts"
+  - "src/components/EntryForm.tsx"
+  - "src/routes/NewEntry.tsx"
+  - "src/routes/EditEntry.tsx"
+  - "src/routes/TeamEntries.tsx"
+  - "src/routes/PendingEntries.tsx"
+  - "src/routes/WeekView.tsx"
+  - "src/routes/YearView.tsx"
+  - "src/lib/data/supabase.ts"
+  - "src/lib/data/mock.ts"
+  - "ui-language.json"
+  # ADDED 2026-09-07 by tech-lead-design, after /implement reported BLOCKED. AC-10 empties copyDebt
+  # and AC-12 assumed the two `it.each` cases over that list would go vacuous; Vitest 4.1.11 fails a
+  # suite that registers no tests ("No test found in suite"). The Developer could not reach the one
+  # file that resolves it. R5 impossible as specified -> tech-lead-design, NO rework_count increment
+  # (.ai/01-operating-model.md:145). TWELVE files now: the M ceiling exactly, no headroom left.
+  - "tests/ui-language.test.ts"
 schema_delta: none
 requires_adr: false
 rework_count: 0
 chat_budget:
   # ADR-019 retired `ba` from the loop, so the two `->ba` edges are gone. They are not listed as
   # zeroes: an edge nobody can walk is not a budget, it is a row that invites someone to try.
-  developer->tech-lead-design: { used: 0, max: 6 }
+  developer->tech-lead-design: { used: 1, max: 6 }   # OPS-002 99-questions.md, 2026-09-07
   # ADR-022 removed the QA stage, and the `qa->tech-lead-design` edge with it.
 tracker: { provider: "", external_id: "", sync_enabled: false }
 gates:
-  plan:   { passed: false, at: null }   # ADR-019 merged the `spec` and `design` gates into one
-  review: { passed: false, at: null }
+  # BOTH ROWS TRANSCRIBED BY `orchestrator` AT /ship ON 2026-09-07. Neither stage wrote its own, and
+  # neither value is claimed here — each is a copy of a gate somebody else reached, taken from that
+  # artifact's front-matter and not from any summary of it.
+  #
+  # From .ai/board/tickets/OPS-002/01-plan.md front-matter: `gate: PASS`, `blocking_reason: ""`,
+  # `produced_at: 2026-09-07T08:21:08+07:00`. ADR-019 merged the `spec` and `design` gates into one.
+  plan:   { passed: true, at: "2026-09-07T08:21:08+07:00" }
+  # From .ai/board/tickets/OPS-002/04-review.md front-matter: `gate: PASS`, `blocking_reason: ""`,
+  # `next_state: DONE`, `produced_at: 2026-09-07T08:59:52+07:00`.
+  review: { passed: true, at: "2026-09-07T08:59:52+07:00" }
   # No `qa` key. ADR-022 removed the stage and this shell is created after that date, so the two
   # gates that decide anything are `plan` and `review`. /ship requires both.
 

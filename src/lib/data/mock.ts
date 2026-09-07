@@ -514,7 +514,7 @@ export const seam: DataSeam = {
     if (input.password.length < 6) {
       return {
         ok: false,
-        error: { code: "weak_password", message: "Mật khẩu quá yếu. Đặt dài hơn giúp mình nhé." },
+        error: { code: "weak_password", message: "That password is too weak. Please choose a longer one." },
       };
     }
 
@@ -575,7 +575,7 @@ export const seam: DataSeam = {
   // that could name another team, so AC-4 has no path through any client this repository builds.
   async addAllowedEmail(input: AddAllowedEmailInput): Promise<Result<AllowedEmail>> {
     const me = currentAdmin();
-    if (!me) return refused("not_permitted", "Chỉ quản trị viên mới thêm được địa chỉ.");
+    if (!me) return refused("not_permitted", "Only an admin can add an address.");
 
     const email = fold(input.email);
 
@@ -583,7 +583,7 @@ export const seam: DataSeam = {
     // an address already allowed on another team collides too. The real datastore raises 23505 for
     // exactly this, and matching it here is what keeps the two implementations telling one story.
     if (allowedEmails.some((a) => a.email === email)) {
-      return refused("already_allow_listed", "Địa chỉ này đã có trong danh sách rồi.");
+      return refused("already_allow_listed", "That address is already on the list.");
     }
 
     const row: AllowedEmailRow = {
@@ -606,18 +606,21 @@ export const seam: DataSeam = {
   // "not yours at all", because the two are different sentences on screen.
   async removeAllowedEmail(email: string): Promise<Result<void>> {
     const me = currentAdmin();
-    if (!me) return refused("not_permitted", "Chỉ quản trị viên mới gỡ được địa chỉ.");
+    if (!me) return refused("not_permitted", "Only an admin can remove an address.");
 
     const folded = fold(email);
     const index = allowedEmails.findIndex((a) => a.email === folded && a.teamId === me.teamId);
     const row = index === -1 ? undefined : allowedEmails[index];
 
-    if (!row) return refused("not_permitted", "Không tìm thấy địa chỉ này trong danh sách.");
+    if (!row) return refused("not_permitted", "That address is not on the list.");
 
     // AC-7. `added_by` is the only provenance for who let somebody in
     // (.ai/standards/data-model.md), and this is the refusal that keeps it.
     if (row.consumedAt !== null) {
-      return refused("already_consumed", "Địa chỉ này đã có người dùng để vào nhóm, không gỡ được.");
+      return refused(
+        "already_consumed",
+        "Someone has already used that address to join the team, so it cannot be removed.",
+      );
     }
 
     allowedEmails.splice(index, 1);
@@ -688,24 +691,24 @@ export const seam: DataSeam = {
   // `not_permitted`, which is why they collapse to one code here (01-plan.md section 4.1).
   async removeMember(memberId: string): Promise<Result<Member>> {
     const me = currentAdmin();
-    if (!me) return refused("not_permitted", "Chỉ quản trị viên mới gỡ được thành viên.");
+    if (!me) return refused("not_permitted", "Only an admin can remove a member.");
 
     // `member_update_admin.using`, both halves - INV-07 is the team comparison and nothing else.
     // A row on another team and a row that does not exist are the same answer, because the policy
     // filters rather than errors and the caller learns nothing either way.
     const target = members.find((m) => m.id === memberId && m.teamId === me.teamId);
-    if (!target) return refused("not_permitted", "Không gỡ được thành viên này.");
+    if (!target) return refused("not_permitted", "That member could not be removed.");
 
     // AC-9, the trigger comparing `old.id` to `auth.uid()`.
     if (target.id === me.id) {
-      return refused("not_permitted", "Bạn không thể tự gỡ mình khỏi nhóm.");
+      return refused("not_permitted", "You cannot remove yourself from the team.");
     }
 
     // The trigger's one-way clause. Removal is not undone and not re-dated - restoring a member is
     // not a decided permission, and re-dating one is ADR-013's revert condition as an ordinary
     // write.
     if (target.removedAt !== null) {
-      return refused("not_permitted", "Người này đã rời nhóm rồi.");
+      return refused("not_permitted", "That person has already left the team.");
     }
 
     // AC-3. The mock's own clock, standing for the trigger's `now()`. Nothing the caller passed can
@@ -726,20 +729,20 @@ export const seam: DataSeam = {
   // the policy does, and there is nothing here to enforce.
   async promoteMember(memberId: string): Promise<Result<Member>> {
     const me = currentAdmin();
-    if (!me) return refused("not_permitted", "Chỉ quản trị viên mới thăng quyền được.");
+    if (!me) return refused("not_permitted", "Only an admin can promote a member.");
 
     const target = members.find((m) => m.id === memberId && m.teamId === me.teamId);
-    if (!target) return refused("not_permitted", "Không thăng quyền cho người này được.");
+    if (!target) return refused("not_permitted", "That person could not be promoted.");
 
     if (target.role === "admin") {
-      return refused("not_permitted", "Người này đã là quản trị viên rồi.");
+      return refused("not_permitted", "That person is already an admin.");
     }
 
     // AC-10, the trigger. `is_admin` filters `removed_at is null`, so a promoted removed member
     // would hold a role that answers false everywhere - a row that says `admin` and behaves as
     // nobody.
     if (target.removedAt !== null) {
-      return refused("not_permitted", "Người đã rời nhóm thì không thăng quyền được.");
+      return refused("not_permitted", "Someone who has left the team cannot be promoted.");
     }
 
     target.role = "admin";
@@ -797,7 +800,7 @@ export const seam: DataSeam = {
     if (!account || account.password !== input.password) {
       return {
         ok: false,
-        error: { code: "invalid_credentials", message: "Email hoặc mật khẩu không đúng." },
+        error: { code: "invalid_credentials", message: "That email or password is not correct." },
       };
     }
 
@@ -806,7 +809,7 @@ export const seam: DataSeam = {
         ok: false,
         error: {
           code: "email_not_confirmed",
-          message: "Bạn cần mở liên kết xác nhận trong email trước khi đăng nhập.",
+          message: "Open the confirmation link in your email before signing in.",
         },
       };
     }
@@ -851,7 +854,7 @@ export const seam: DataSeam = {
         ok: false,
         error: {
           code: "invalid_date_range",
-          message: "Ngày kết thúc phải bằng hoặc sau ngày bắt đầu.",
+          message: "The end date must be the same as, or after, the start date.",
         },
       };
     }
@@ -862,7 +865,7 @@ export const seam: DataSeam = {
     if (!me) {
       return {
         ok: false,
-        error: { code: "entry_not_permitted", message: "Không thể tạo đăng ký này." },
+        error: { code: "entry_not_permitted", message: "This entry could not be created." },
       };
     }
 
@@ -878,8 +881,8 @@ export const seam: DataSeam = {
         error: {
           code: "overlapping_entry",
           message:
-            "Bạn đã có một đăng ký trùng với khoảng ngày và buổi này. " +
-            "Hãy sửa đăng ký cũ hoặc chọn khoảng khác.",
+            "You already have an entry covering these dates and this portion. " +
+            "Edit the existing entry, or choose a different range.",
         },
       };
     }
@@ -953,7 +956,7 @@ export const seam: DataSeam = {
         ok: false,
         error: {
           code: "invalid_date_range",
-          message: "Ngày kết thúc phải bằng hoặc sau ngày bắt đầu.",
+          message: "The end date must be the same as, or after, the start date.",
         },
       };
     }
@@ -962,7 +965,7 @@ export const seam: DataSeam = {
     if (!me) {
       return {
         ok: false,
-        error: { code: "entry_not_permitted", message: "Không sửa được đăng ký này." },
+        error: { code: "entry_not_permitted", message: "This entry could not be edited." },
       };
     }
 
@@ -985,7 +988,7 @@ export const seam: DataSeam = {
     if (!row) {
       return {
         ok: false,
-        error: { code: "entry_not_permitted", message: "Không sửa được đăng ký này." },
+        error: { code: "entry_not_permitted", message: "This entry could not be edited." },
       };
     }
 
@@ -1013,8 +1016,8 @@ export const seam: DataSeam = {
         error: {
           code: "overlapping_entry",
           message:
-            "Bạn đã có một đăng ký trùng với khoảng ngày và buổi này. " +
-            "Hãy sửa đăng ký cũ hoặc chọn khoảng khác.",
+            "You already have an entry covering these dates and this portion. " +
+            "Edit the existing entry, or choose a different range.",
         },
       };
     }
@@ -1078,7 +1081,7 @@ export const seam: DataSeam = {
     if (index === -1) {
       return {
         ok: false,
-        error: { code: "entry_not_permitted", message: "Không xoá được đăng ký này." },
+        error: { code: "entry_not_permitted", message: "This entry could not be deleted." },
       };
     }
 

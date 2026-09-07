@@ -44,13 +44,10 @@ import EntryDecision from "@/components/EntryDecision";
 import EntryForm from "@/components/EntryForm";
 import type { EntryFormValues } from "@/components/EntryForm";
 import { seam } from "@/lib/data";
-import type { Entry, EntryStatus, Failure } from "@/lib/domain/types";
-
-const STATUS_LABELS: Record<EntryStatus, string> = {
-  pending: "Chờ duyệt",
-  approved: "Đã duyệt",
-  rejected: "Bị từ chối",
-};
+import type { Entry, Failure } from "@/lib/domain/types";
+// OPS-002. The status words moved to src/lib/labels.ts, which is their ONE declaration (AC-8) —
+// TeamEntries.tsx held a second, already-English copy of the same three strings.
+import { STATUS_LABELS } from "@/lib/labels";
 
 // Three states and not two. "Still loading" and "no such entry of yours" are different facts, and
 // rendering the refusal while the read is in flight would show `edit-entry-not-found` on every load
@@ -104,7 +101,7 @@ export default function EditEntry() {
   // through, and a screen that painted the values it sent would show an entry as still approved
   // after the datastore had returned it to pending.
   async function onSave(values: EntryFormValues): Promise<Failure | null> {
-    if (!id) return { code: "entry_not_permitted", message: "Không sửa được đăng ký này." };
+    if (!id) return { code: "entry_not_permitted", message: "This entry could not be edited." };
 
     const result = await seam.updateEntry(id, values);
     if (!result.ok) return result.error;
@@ -120,7 +117,7 @@ export default function EditEntry() {
         role="status"
         className="mx-auto max-w-xl rounded-2xl bg-white p-8 text-center text-sm opacity-70 shadow-sm"
       >
-        Đang tải…
+        Loading…
       </p>
     );
   }
@@ -134,10 +131,10 @@ export default function EditEntry() {
         data-testid="edit-entry-not-found"
         className="mx-auto flex max-w-xl flex-col gap-4 rounded-2xl bg-white p-8 text-center text-sm shadow-sm"
       >
-        <p>Không tìm thấy đăng ký này trong danh sách của bạn.</p>
+        <p>We could not find that entry in your list.</p>
         <p>
           <Link data-testid="edit-entry-back" to="/entries/new" className="underline">
-            Về danh sách đăng ký của bạn
+            Back to your entries
           </Link>
         </p>
       </section>
@@ -150,9 +147,9 @@ export default function EditEntry() {
     <section className="mx-auto flex max-w-xl flex-col gap-4">
       <EntryForm
         testIdPrefix="edit-entry"
-        title="Sửa đăng ký"
-        submitLabel="Lưu thay đổi"
-        submittingLabel="Đang lưu…"
+        title="Edit entry"
+        submitLabel="Save changes"
+        submittingLabel="Saving…"
         initial={{
           type: entry.type,
           portion: entry.portion,
@@ -218,7 +215,7 @@ export default function EditEntry() {
             data-approved-at={entry.approvedAt ?? ""}
             className="opacity-70"
           >
-            Đã duyệt bởi {entry.approvedBy}
+            Approved by {entry.approvedBy}
           </span>
         ) : null}
 
@@ -254,7 +251,7 @@ export default function EditEntry() {
           data-updated-at={entry.updatedAt}
           className="opacity-70"
         >
-          Sửa lần cuối: {entry.updatedAt}
+          Last edited: {entry.updatedAt}
         </span>
 
         {/* CAL-03. An ADDITIONAL link, and `edit-entry-back` below keeps its name, its destination
@@ -277,7 +274,7 @@ export default function EditEntry() {
           to="/entries/new"
           className={admin ? "underline" : "ml-auto underline"}
         >
-          Về danh sách
+          Back to the list
         </Link>
       </div>
     </section>
