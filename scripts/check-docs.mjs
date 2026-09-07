@@ -33,22 +33,41 @@ const ANY_SCAFFOLD = SCAFFOLD_ROOTS.some(scaffoldRootExists);
 
 // Paths a human-owned document names, that do not exist on disk, and whose ABSENCE is the recorded
 // fact rather than a broken reference. D6 reports these as PENDING, and errors the moment one of
-// them exists — a waiver that outlives its reason is worse than no waiver, because the register
-// then reads as current.
+// them exists — a register that outlives its reason is worse than none, because it then reads as
+// current.
 //
-// The scaffold-root branch below cannot cover this case: it defers a whole tree until it appears,
-// and `tests/` appeared long ago. What is missing is one file inside a tree that is otherwise real.
+// TWO REASONS A PATH BELONGS HERE, and the register carries which in the reason text:
+//   OWED     the file has never been written and something in the human plane says it is due
+//   RETIRED  the file existed, a shipped ticket deleted it, and a registry row says so in the past
+//            tense. The row is history and correct; D6 reading it as a broken link is the check
+//            mistaking a statement of absence for a claim of presence
+//
+// The scaffold-root branch below cannot cover either: it defers a whole tree until it appears, and
+// `src/` and `tests/` have both existed for weeks. What is absent is one file inside a real tree.
 //
 // A row here is a waiver on the audit, so it is deliberately expensive. It needs the reason and the
-// document carrying the obligation, and `.github/CODEOWNERS` puts `scripts/` behind owner review so
-// that no agent can add one to get past its own gate.
-const OWED_PATHS = new Map([
+// document carrying it, and `.github/CODEOWNERS` puts `scripts/` behind owner review so that no
+// agent can add one to get past its own gate.
+//
+// TODO(verify): a RETIRED row is owed by every future ticket that deletes a file and says so in
+// `features.md`, so this map grows on a schedule rather than by exception. Two entries is not a
+// maintenance problem; a dozen would be, and would mean the mechanism is wrong rather than the
+// register full. Revisit at that point — do not just keep appending.
+const ABSENT_BY_DESIGN = new Map([
   [
     "tests/permission-model.test.ts",
-    "mandatory under .ai/standards/testing-standards.md, owed since TEA-01, and named as still owed " +
-      "by ADR-016, ADR-017 and ADR-027. It must execute against a real PostgreSQL with a token per " +
-      "role; no project is provisioned, and every design so far has refused to write it against the " +
-      "mock. ADR-027 phase 1 is where it gets written",
+    "OWED — mandatory under .ai/standards/testing-standards.md, owed since TEA-01, and named as " +
+      "still owed by ADR-016, ADR-017 and ADR-027. It must execute against a real PostgreSQL with " +
+      "a token per role; no project is provisioned, and every design so far has refused to write " +
+      "it against the mock. ADR-027 phase 1 is where it gets written",
+  ],
+  [
+    "src/routes/Home.tsx",
+    "RETIRED — deleted by UIE-02 (8a1c2bb), which relocated its twelve `home-*` selector ids " +
+      "unrenamed into the sidebar and top bar. Four citations in .ai/registry/features.md name it, " +
+      "and all four are correct in the past tense — the UIE-02 row says in terms that the file IS " +
+      "DELETED BY THIS TICKET. Editing them to satisfy D6 would delete true history from the " +
+      "registry to make a check green",
   ],
 ]);
 
@@ -355,9 +374,9 @@ for (const file of aiFiles) {
     if (fs.existsSync(path.join(ROOT, target))) continue;
     // Owed, not broken. Checked before the scaffold-root branch because the two answer different
     // questions and only this one survives the tree being created.
-    const owed = OWED_PATHS.get(target);
-    if (owed) {
-      pending.push({ check: "D6", file: r, msg: `${cand} — owed, not broken: ${owed}` });
+    const byDesign = ABSENT_BY_DESIGN.get(target);
+    if (byDesign) {
+      pending.push({ check: "D6", file: r, msg: `${cand} — absent by design: ${byDesign}` });
       continue;
     }
     // Per scaffold root, not global: a repository with a source tree but no test tree gets strict
@@ -379,12 +398,12 @@ for (const file of aiFiles) {
 
 // The register audits itself. An owed path that has arrived is a row to delete, and nothing else in
 // the repository would report that the waiver is now covering a file that exists.
-for (const owedPath of OWED_PATHS.keys()) {
-  if (!fs.existsSync(path.join(ROOT, owedPath))) continue;
+for (const declaredPath of ABSENT_BY_DESIGN.keys()) {
+  if (!fs.existsSync(path.join(ROOT, declaredPath))) continue;
   err(
     "D6",
     "scripts/check-docs.mjs",
-    `${owedPath} exists on disk — delete its OWED_PATHS row, the waiver has outlived its reason`
+    `${declaredPath} exists on disk — delete its ABSENT_BY_DESIGN row, it has outlived its reason`
   );
 }
 
@@ -968,7 +987,7 @@ for (const [check, list] of byCheck(warnings)) {
   for (const e of list) console.log(`  - ${e.file}: ${e.msg}`);
 }
 if (pending.length) {
-  console.log(`PENDING D6 (${pending.length}) — resolves when the named path exists`);
+  console.log(`PENDING D6 (${pending.length}) — deferred; each row says why`);
   for (const e of pending) console.log(`  - ${e.file}: ${e.msg}`);
 }
 

@@ -1171,7 +1171,7 @@ test("D6 is strict per root: one root present, another absent", () => {
   assert.match(r.stdout, /tests\/also-gone\.ts — under tests\//);
 });
 
-test("D6 defers an owed path inside a scaffold root that already exists", () => {
+test("D6 defers a path named as absent by design, inside a scaffold root that exists", () => {
   // The scaffold-root branch cannot reach this: tests/ is on disk, so the tree is strict and the one
   // file inside it that is owed rather than broken would be reported as a missing reference.
   const r = run(project(LEDGER + UNISSUED, "x", {
@@ -1183,10 +1183,10 @@ test("D6 defers an owed path inside a scaffold root that already exists", () => 
   assert.equal(d6.length, 1, `only the unregistered path should fail, got:\n${r.stdout}`);
   assert.match(d6[0], /tests\/really-gone\.ts/);
   assert.equal(r.pending("D6").length, 1, r.stdout);
-  assert.match(r.pending("D6")[0], /tests\/permission-model\.test\.ts — owed, not broken/);
+  assert.match(r.pending("D6")[0], /tests\/permission-model\.test\.ts — absent by design: OWED/);
 });
 
-test("an owed path that has arrived is an error against the register, not silence", () => {
+test("a declared-absent path that has arrived is an error against the register, not silence", () => {
   // The half that makes the register a control rather than a mute button. A waiver still covering a
   // file that exists reads as current and is the reason to be strict about the second direction.
   const r = run(project(LEDGER + UNISSUED, "x", {
@@ -1195,15 +1195,42 @@ test("an owed path that has arrived is an error against the register, not silenc
   const d6 = r.findings("D6");
   assert.equal(d6.length, 1, `expected exactly one D6 finding, got:\n${r.stdout}`);
   assert.match(d6[0], /scripts\/check-docs\.mjs/);
-  assert.match(d6[0], /exists on disk — delete its OWED_PATHS row/);
+  assert.match(d6[0], /exists on disk — delete its ABSENT_BY_DESIGN row/);
   assert.deepEqual(r.pending("D6"), [], "an arrived path must not also be pending");
 });
 
-test("every owed path in the shipped tree is still owed", () => {
+test("every path the register declares absent is still absent in the shipped tree", () => {
   // The real-file test. The register is asserted against the repository it governs, so a row that
   // has gone stale fails here rather than being discovered by a reader who trusts it.
   const res = spawnSync(process.execPath, [SCRIPT], { cwd: REPO, encoding: "utf8" });
   assert.ok(!/^FAIL D6/m.test(res.stdout ?? ""), `the shipped tree fails D6:\n${res.stdout}`);
+});
+
+test("a RETIRED path is deferred on the same footing as an OWED one", () => {
+  // The second reason a path is absent by design, and the one that recurs: a shipped ticket deleted
+  // the file and a registry row says so in the past tense. `src/` exists, so the scaffold branch is
+  // strict and the citation would otherwise be reported as a broken link to history.
+  const r = run(project(LEDGER + UNISSUED, "x", {
+    "src/.keep": "",
+    ".ai/standards/probe-retired.md":
+      FRONT + "UIE-02 deleted `src/routes/Home.tsx`. It did not delete `src/routes/Ghost.tsx`.\n",
+  }));
+  const d6 = r.findings("D6").filter((l) => l.includes("probe-retired.md"));
+  assert.equal(d6.length, 1, `only the unregistered path should fail, got:\n${r.stdout}`);
+  assert.match(d6[0], /src\/routes\/Ghost\.tsx/);
+  assert.equal(r.pending("D6").length, 1, r.stdout);
+  assert.match(r.pending("D6")[0], /src\/routes\/Home\.tsx — absent by design: RETIRED/);
+});
+
+test("a RETIRED path that comes back is reported too, not only an OWED one", () => {
+  // Same control, other reason code. A file returning under its old name makes the register's
+  // account of it false, and a reader who trusts the row would be told the file is gone.
+  const r = run(project(LEDGER + UNISSUED, "x", {
+    "src/routes/Home.tsx": "// came back\n",
+  }));
+  const d6 = r.findings("D6");
+  assert.equal(d6.length, 1, `expected exactly one D6 finding, got:\n${r.stdout}`);
+  assert.match(d6[0], /src\/routes\/Home\.tsx exists on disk — delete its ABSENT_BY_DESIGN row/);
 });
 
 test("D5, D6 and D9 agree on what is out of scope", () => {

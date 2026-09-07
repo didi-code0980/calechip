@@ -1650,3 +1650,53 @@ No registry write. No ADR: nothing here decides anything the operator has not al
 check learning to distinguish *owed* from *broken* is the model doing what
 `.ai/standards/testing-standards.md` already tells it to. Tree left dirty — these are chore paths, not
 ADM-06's, and per ADR-023 `/ship` does not commit them.
+
+### 2026-09-07 — the register learns a second reason, and a row is corrected rather than rewritten
+
+Task, from the orchestrator: clear the red on `main` and finish the uncommitted debt row. Both done;
+`.ai/registry/features.md` was not edited, which is the part worth recording.
+
+**`main` had been failing its own audit since UIE-02 merged.** D6 reported
+`.ai/registry/features.md` citing `src/routes/Home.tsx` twice, and two real-file tests — including the
+one written here on 2026-09-06 — were red that whole time. **The obvious fix was the wrong one.** All
+four citations are correct in the past tense, and the UIE-02 row states in terms that the file *IS
+DELETED BY THIS TICKET*: editing them to satisfy the check would have deleted true history from the
+registry to make a gate green, which is the move `.ai/standards/testing-standards.md` § *What a check
+may be scoped to* exists to warn against, and the same one refused on 2026-09-06 for
+`tests/permission-model.test.ts`.
+
+- **Generalised yesterday's register.** `OWED_PATHS` became `ABSENT_BY_DESIGN` in
+  `scripts/check-docs.mjs`, carrying two reason codes: `OWED` (never written, something in the human
+  plane says it is due) and `RETIRED` (existed, a shipped ticket deleted it, a registry row says so in
+  the past tense). The self-audit half is unchanged and now covers both — a registered path that
+  exists on disk is an error naming the row to delete. `src/routes/Home.tsx` is the first `RETIRED`
+  row, citing `8a1c2bb`.
+- **Named the growth problem in the file rather than discovering it later.** A `RETIRED` row is owed
+  by every future ticket that deletes a file and says so in `features.md`, so this map grows on a
+  schedule rather than by exception. Two entries is not a maintenance problem; a dozen would mean the
+  mechanism is wrong rather than the register full. Written as `TODO(verify):` beside the map.
+- **Four tests**, two rewritten for the rename and two new for the `RETIRED` reason in both
+  directions. 106 of 106 in `check-docs.test.mjs`; full suite below.
+- **MD-027 marked RESOLVED, with its original text kept**, and saying plainly that the fix was not the
+  one the row assumed.
+- **MD-028 corrected, not rewritten.** `6076e5f` wrote UIE-05's shell while the row sat uncommitted,
+  so its leading claim is now false. It is restated in the past tense with the date of observation and
+  a sentence saying what still stands: nothing reported the gap, and nothing would report the next
+  one. A row edited to agree with the present stops being evidence that the gap was real.
+
+**Two things that went wrong in this run and are worth the record.**
+
+**The working tree was shared.** `HEAD` moved three times in six minutes under an open edit, and
+`model-debt.md` reached `UU`. The row was renumbered MD-027 to MD-028 by the operator's conflict
+resolution while uncommitted, and the ID collision the register's own header warns about happened for
+real. Nothing was lost, and nothing in the model prevented it — ADR-006 assumes one tree, one session,
+and that assumption was simply not true today.
+
+**I reported two numbers I had not measured.** The stale checkout was 11 commits behind, not 35, and
+the untracked `01-plan.md` was byte-identical to the shipped version rather than different — both
+corrected by the operator. The `35` came from a `rev-list --count` run before a fetch that had already
+happened between sessions, and the `differs` from a `diff -q` whose exit code I read as content rather
+than checking it. Recorded because the standing instruction is *verify before answering*, and running
+a command is not the same as reading its result.
+
+No registry write. No ADR.
