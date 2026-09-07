@@ -275,45 +275,15 @@ export default function WeekView({ landing = false }: WeekViewProps) {
 
   return (
     <section className="mx-auto flex max-w-3xl flex-col gap-6">
-      <header className="flex flex-wrap items-center gap-4">
-        <Link data-testid="week-home" to="/" className="underline">
-          Home
-        </Link>
+      {/* UIE-03 AC-1. **The week screen's own header is gone, and nothing replaces it here.** It
+          carried a link to the landing route, then `week-prev`, `week-anchor`, `week-next`,
+          `week-month` and `week-year`. The landing link is dead — UIE-02 deleted the home screen and
+          made `/` show the current week — and the other five are now the top bar's, rendered once
+          for every period screen (01-plan.md § 4.3). AC-5 is why the dead id is not named here.
+          `week-anchor` still carries `data-week-start` set to the same Monday this screen computed,
+          which is why the 43 references that read it need no edit.
 
-        {/* AC-14. Links and not buttons: the week IS the address, so moving between weeks is
-            navigation and a member can bookmark or share the week they are looking at. Previous is
-            the seven days ENDING the day before this Monday; next is the seven BEGINNING the day
-            after this Sunday. */}
-        <Link data-testid="week-prev" to={`/week/${addDays(start, -7)}`} className="underline">
-          Previous
-        </Link>
-        <h1 data-testid="week-anchor" data-week-start={start} className="text-xl font-semibold">
-          Week of {start}
-        </h1>
-        <Link data-testid="week-next" to={`/week/${addDays(start, 7)}`} className="underline">
-          Next
-        </Link>
-
-        {/* AC-14's second half, and the reason CAL-04 could not build it: switching views keeps the
-            DATE, so this goes to the month containing the day in the URL — not the month containing
-            the Monday, which for a week spanning a month boundary is a different month and would
-            drop the date the caller was actually looking at. */}
-        <Link
-          data-testid="week-month"
-          to={`/month/${anchorDay.slice(0, 7)}`}
-          className="ml-auto underline"
-        >
-          Month
-        </Link>
-
-        {/* CAL-06 AC-12. The one link CAL-06 adds to this file, and the whole of its edit here
-            (CAL-06 01-plan.md section 7). It keeps the DATE the same way `week-month` above does:
-            the year of the day in the URL, not of the Monday — for a week spanning 31 December those
-            are different years, and the anchor is the date the caller actually arrived with. */}
-        <Link data-testid="week-year" to={`/year/${anchorDay.slice(0, 4)}`} className="underline">
-          Year
-        </Link>
-      </header>
+          The day list below is untouched, CAL-08's cell selectors included (AC-10). */}
 
       {/* AC-13. Seven sections, always. A week that hid its quiet days would make "nobody is away on
           Sunday" and "Sunday is missing" the same screen. */}

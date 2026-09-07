@@ -232,11 +232,24 @@ export type PeriodKind = "week" | "month" | "year";
 
 export interface PeriodNav {
   kind: PeriodKind;
-  /** What `shell-period-anchor` says. */
+  /** The human string the anchor renders — `1 Dec – 7 Dec 2025`. Unchanged by UIE-03. */
   label: string;
-  /** `to` for `shell-period-prev`. */
+  /**
+   * UIE-03 § 4.2. The RAW anchor the screens' own `h1` carried, which the top bar now publishes as
+   * `data-week-start`, `data-month` or `data-year` according to `kind`: `yyyy-MM-dd` (the MONDAY,
+   * not the day in the URL), `yyyy-MM`, or `yyyy`.
+   *
+   * **It is not derivable from `label`,** which is display copy — `weekLabel` renders a range and
+   * `monthLabel` renders `April 2026`. Forty-three spec assertions read this value through the
+   * attribute, and every one of them read it off a deleted screen header until this ticket.
+   *
+   * For a week it is the same Monday `prevTo` and `nextTo` already step from, so no second
+   * normalisation exists here to disagree with that one.
+   */
+  anchorValue: string;
+  /** `to` for `<kind>-prev`. */
   prevTo: string;
-  /** `to` for `shell-period-next`. */
+  /** `to` for `<kind>-next`. */
   nextTo: string;
   /** `to` for `shell-period-today` — the anchorless address, so the SCREEN resolves the clock. */
   todayTo: string;
@@ -288,6 +301,7 @@ export function periodNavFor(pathname: string): PeriodNav | null {
     return {
       kind: "week",
       label: weekLabel(monday),
+      anchorValue: monday,
       prevTo: `/week/${shiftDay(monday, -7)}`,
       nextTo: `/week/${shiftDay(monday, 7)}`,
       todayTo: "/",
@@ -310,6 +324,7 @@ export function periodNavFor(pathname: string): PeriodNav | null {
     return {
       kind: "week",
       label: weekLabel(monday),
+      anchorValue: monday,
       prevTo: `/week/${shiftDay(monday, -7)}`,
       nextTo: `/week/${shiftDay(monday, 7)}`,
       todayTo: "/week",
@@ -324,6 +339,7 @@ export function periodNavFor(pathname: string): PeriodNav | null {
     return {
       kind: "month",
       label: monthLabel(anchor),
+      anchorValue: anchor,
       prevTo: `/month/${shiftMonth(anchor, -1)}`,
       nextTo: `/month/${shiftMonth(anchor, 1)}`,
       todayTo: "/month",
@@ -338,6 +354,7 @@ export function periodNavFor(pathname: string): PeriodNav | null {
     return {
       kind: "year",
       label: anchor,
+      anchorValue: anchor,
       prevTo: `/year/${shiftYear(anchor, -1)}`,
       nextTo: `/year/${shiftYear(anchor, 1)}`,
       todayTo: "/year",

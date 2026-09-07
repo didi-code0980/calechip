@@ -395,7 +395,7 @@ test.describe("ADM-03 add, edit or delete a holiday or swap day", () => {
     const asMember = await drawnDates(page);
     expect(asMember).toHaveLength(4);
 
-    await page.getByTestId("holidays-back").click();
+    // UIE-03 AC-12. The back-link step is deleted; sign-out is in the sidebar, on this screen.
     await page.getByTestId("home-sign-out").click();
     await expect(page.getByTestId("sign-in-submit")).toBeVisible();
 

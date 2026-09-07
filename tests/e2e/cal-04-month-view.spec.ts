@@ -84,7 +84,18 @@ async function openMonthAs(page: Page, email: string): Promise<void> {
 
 /** Ends the session and starts another, all client-side, and returns to the grid. */
 async function switchTo(page: Page, email: string): Promise<void> {
-  await page.getByTestId("month-home").click();
+  // UIE-03 AC-12. The click on the landing-screen link is deleted, and NO shell control stands in
+  // for it: sign-out is a SIDEBAR control now and is clicked wherever the caller already stands.
+  //
+  // **`goForward` is here because that click also pushed a HISTORY ENTRY, and `backToMonth` below
+  // walks history.** Signing out and signing back in each REPLACE the current entry rather than
+  // pushing one, so from the grid alone the walk back would find `about:blank` behind it and the
+  // grid would be unreachable — the collateral AC-12's first clause contemplates. Stepping forward
+  // into the entry `openMonthAs` left in FRONT of the grid restores the depth the walk needs without
+  // clicking anything, which is why it is a harness call and not a navigation.
+  await page.goForward();
+  await expect(page.getByTestId("home-sign-out")).toBeVisible();
+
   await page.getByTestId("home-sign-out").click();
   await signIn(page, email);
   await expect(page.getByTestId("home-sign-out")).toBeVisible();

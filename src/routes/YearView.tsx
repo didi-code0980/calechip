@@ -62,7 +62,11 @@ import { TYPE_LABELS } from "@/lib/labels";
 // than two. This import and the deletions under it are the whole of UIE-02's edit to this screen —
 // no rendered output changes here, which is what keeps `Out of scope` item 1 true and zero spec
 // files in scope. `MONTH_ABBR` holds the SAME twelve strings this file drew before.
-import { MONTH_ABBR, isRealYear, shiftYear } from "@/lib/period";
+//
+// UIE-03 § 4.4. `shiftYear` LEAVES THIS IMPORT with the header that used it — stepping a year is the
+// top bar's now. `MONTH_ABBR` and `isRealYear` stay: the twelve column headings and the route guard
+// are untouched.
+import { MONTH_ABBR, isRealYear } from "@/lib/period";
 
 // ---------------------------------------------------------------------------
 // The year vocabulary. `yyyy` in the URL, `yyyy-MM-dd` everywhere below it.
@@ -316,31 +320,14 @@ export default function YearView() {
 
   return (
     <section className="mx-auto flex max-w-full flex-col gap-6">
-      <header className="flex flex-wrap items-center gap-4">
-        <Link data-testid="year-home" to="/" className="underline">
-          Home
-        </Link>
+      {/* UIE-03 AC-3. **The year screen's own header is gone.** Its link to the landing route is
+          dead — UIE-02 deleted the home screen — and `year-prev`, `year-anchor`, `year-next` and
+          `year-month` are the top bar's now, under those same names (01-plan.md § 4.3). AC-5 is why
+          the deleted id is described rather than named. `year-anchor` still carries
+          `data-year`, so the specs reading it need no edit; `year-week` exists for the first time,
+          created by the switcher's naming rule and referenced by nothing (§ 2 *Open questions* 2).
 
-        {/* AC-11. Links and not buttons: the year IS the address, so moving between years is
-            navigation and a member can bookmark or share the year they are looking at. */}
-        <Link data-testid="year-prev" to={`/year/${shiftYear(anchorYear, -1)}`} className="underline">
-          Previous
-        </Link>
-        <h1 data-testid="year-anchor" data-year={anchorYear} className="text-xl font-semibold">
-          {anchorYear}
-        </h1>
-        <Link data-testid="year-next" to={`/year/${shiftYear(anchorYear, 1)}`} className="underline">
-          Next
-        </Link>
-
-        {/* AC-11 and AC-12. Switching views keeps the YEAR, and January is the month this screen
-            starts at — there is no narrower date on a year address to keep. In the header and never
-            on a cell: a cell here is eight pixels wide and a click target that small is a misclick,
-            which is the same reason CAL-05 put its link in the header rather than on a month cell. */}
-        <Link data-testid="year-month" to={`/month/${anchorYear}-01`} className="ml-auto underline">
-          Month
-        </Link>
-      </header>
+          The grid below is untouched (AC-10). */}
 
       {/* AC-1, AC-2, AC-3. Horizontal scroll is the GRID's and not the page's, and the member column
           is sticky inside it — 365 columns is wider than any screen, and a name that scrolls away

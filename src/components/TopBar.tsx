@@ -16,12 +16,16 @@
 // An absent or malformed anchor draws no cluster at all (AC-15, AC-16): the screen's own redirect
 // arrives one render later, and guessing would make the shell disagree with the screen for a frame.
 //
-// **NONE OF THESE IDS IS A SCREEN'S.** `week-prev`, `month-anchor`, `year-month` and their siblings
-// still exist on the four period screens through this ticket — the doubling 01-plan.md § 1 Out of
-// scope item 1 declares — so reusing one here would resolve its locator to TWO nodes and Playwright
-// fails a strict locator rather than picking the first. Fifteen spec files. New `shell-*` names are
-// the only shape that survives the doubling; UIE-03 deletes the screens' headers and may then decide
-// whether the old names move here (§ 4.8).
+// **UIE-03 TOOK THE DECISION § 4.8 LEFT OPEN, AND THE PERIOD IDS ARE THE SCREENS' OLD ONES.** The
+// superseded paragraph read *NONE OF THESE IDS IS A SCREEN'S* — true for exactly one ticket, while
+// the screens still rendered their own headers and reusing `week-prev` here would have resolved a
+// strict locator to TWO nodes. UIE-03 deleted those four headers, so there is now exactly one copy
+// of each name and it is this one. The anchor, the step controls and the switcher segments are
+// named from `nav.kind` — `week-anchor`, `month-prev`, `year-month` — which is what keeps 83
+// assertions across the calendar specs passing without being rewritten (UIE-03 01-plan.md § 4.3).
+//
+// `shell-topbar`, `shell-period-today` and `home-new-entry-link` keep their names: nothing on a
+// screen was ever called those, so there was nothing to adopt (UIE-03 AC-14).
 import { Link, useLocation } from "react-router-dom";
 import { periodNavFor, type PeriodKind } from "@/lib/period";
 
@@ -50,33 +54,24 @@ export default function TopBar() {
   const { pathname } = useLocation();
   const nav = periodNavFor(pathname);
 
+  // UIE-03 § 4.3. No `testId` field any more: a segment's name depends on WHERE IT GOES *and*
+  // WHERE IT IS — `week-month` from a week, `month-week` from a month — so it is `<nav.kind>-<kind>`
+  // computed at render, below. Six of the nine names the rule yields are the ones the screens' own
+  // cross-view links carried; the other three — `week-week`, `month-month`, `year-year`, the
+  // segment pointing at the view you are already on — plus `year-week`, which UIE-02 § 4.8 declined
+  // to create and which the rule yields anyway, are referenced by nothing. § 2 *Open questions* 1
+  // and 2 accept those four as the price of a rule with no special case for the active segment.
   const segments: readonly {
     kind: PeriodKind;
-    testId: string;
     label: string;
     to: string;
   }[] =
     nav === null
       ? []
       : [
-          {
-            kind: "week",
-            testId: "shell-view-week",
-            label: "Week",
-            to: nav.weekTo,
-          },
-          {
-            kind: "month",
-            testId: "shell-view-month",
-            label: "Month",
-            to: nav.monthTo,
-          },
-          {
-            kind: "year",
-            testId: "shell-view-year",
-            label: "Year",
-            to: nav.yearTo,
-          },
+          { kind: "week", label: "Week", to: nav.weekTo },
+          { kind: "month", label: "Month", to: nav.monthTo },
+          { kind: "year", label: "Year", to: nav.yearTo },
         ];
 
   return (
@@ -97,22 +92,36 @@ export default function TopBar() {
               IS the address, so moving between them is navigation and a member can bookmark or
               share the week they are looking at. */}
           <Link
-            data-testid="shell-period-prev"
+            data-testid={`${nav.kind}-prev`}
             to={nav.prevTo}
             aria-label="Previous"
             className={ICON_BUTTON}
           >
             &lsaquo;
           </Link>
+
+          {/* UIE-03 AC-6. **The label is not the anchor, and only one of the two is asserted.** The
+              bar goes on rendering `nav.label` — `1 Dec – 7 Dec 2025` — where the week screen's own
+              `h1` read `Week of 2026-10-05`; that difference is safe because all 43 spec references
+              to these anchors read a `data-*` attribute and none reads the text (§ 0 measurement 2).
+
+              THE THREE ATTRIBUTES ARE MUTUALLY EXCLUSIVE BY KIND and the two that do not apply are
+              `undefined`, which React omits from the DOM entirely — so a month anchor carries
+              `data-month` and no empty `data-week-start` beside it. Writing them as three fixed
+              attributes rather than one computed key keeps the names greppable, which is how a
+              reader finds what a spec is reading. `data-period-kind` is UIE-02's and is kept. */}
           <p
-            data-testid="shell-period-anchor"
+            data-testid={`${nav.kind}-anchor`}
             data-period-kind={nav.kind}
+            data-week-start={nav.kind === "week" ? nav.anchorValue : undefined}
+            data-month={nav.kind === "month" ? nav.anchorValue : undefined}
+            data-year={nav.kind === "year" ? nav.anchorValue : undefined}
             className="text-[17px] font-semibold text-ink"
           >
             {nav.label}
           </p>
           <Link
-            data-testid="shell-period-next"
+            data-testid={`${nav.kind}-next`}
             to={nav.nextTo}
             aria-label="Next"
             className={ICON_BUTTON}
@@ -133,17 +142,19 @@ export default function TopBar() {
       ) : null}
 
       <div className="ml-auto flex items-center gap-3">
-        {/* AC-14. Three segments, and each target KEEPS THE DATE — `shell-view-year` from
+        {/* AC-14. Three segments, and each target KEEPS THE DATE — `month-year` from
             `/month/2027-04` reaches `/year/2027` and not the current year. The targets are the ones
             the screens' own cross-view links already compute (§ 4.5). */}
-        {segments.length > 0 ? (
+        {/* `nav !== null` and not `segments.length > 0`, which is the same condition one inference
+            away: the segment name below reads `nav.kind`, and only the null test narrows it. */}
+        {nav !== null ? (
           <div className="flex items-center gap-0.5 rounded-pill bg-track p-0.5">
             {segments.map((segment) => {
-              const on = nav !== null && segment.kind === nav.kind;
+              const on = segment.kind === nav.kind;
               return (
                 <Link
                   key={segment.kind}
-                  data-testid={segment.testId}
+                  data-testid={`${nav.kind}-${segment.kind}`}
                   to={segment.to}
                   aria-current={on ? "page" : undefined}
                   className={segmentClass(on)}
