@@ -22,7 +22,14 @@ size: "S"             # S|M|L|XL - counted from allowed_paths. 01-plan.md §7; a
 depends_on: []        # MEASURED, NOT INHERITED. See §6.
 invariants_touched: [INV-07]   # 01-plan.md §2. The first team row and the first member's team_id.
 allowed_paths:
-  - "supabase/bootstrap.sql"   # the whole ticket. 01-plan.md §7.
+  # the whole ticket. 01-plan.md §7.
+  #
+  # THE COMMENT IS ON ITS OWN LINE AND MUST STAY THERE. `scripts/check-allowed-paths.mjs:61-66`
+  # captures the rest of the list item and strips only a leading and a trailing quote, so an inline
+  # `# ...` after the closing quote becomes part of the path and the glob matches nothing. This
+  # ticket is the first to write one and it failed the check at /ship over a file that was in fact
+  # declared. The path itself is unchanged; only where the comment sits.
+  - "supabase/bootstrap.sql"
 schema_delta: none    # DECIDED, NOT DEFAULTED. See §4.
 requires_adr: false   # The ADR EXISTS — ADR-030, written in the same /triage run. See §0.
 rework_count: 0
