@@ -33,7 +33,16 @@ Under the current gate placement a ticket sits here until it has been planned �
 | # | Ticket | Title | State | Blocked on |
 |---|--------|-------|-------|------------|
 | 1 | OPS-004 | A password-free bootstrap file that creates the first team and the first admin | BACKLOG | — |
+| 2 | UIE-05 | The week column fills the viewport, and its header strip and entry chip are restacked | BACKLOG | — |
+| 3 | UIE-06 | The month grid becomes one ruled full-width card with taller cells, on the product's tokens | BACKLOG | — |
 
+**THE THREE ROWS ABOVE MET AT A MERGE, AND THE NUMBERS MOVED — NOTHING ELSE DID.** `OPS-004` and the
+two `UIE` rows were each written into an EMPTY table, on branches that did not see one another, so
+both sides produced a row 1. `OPS-004` reached `main` first (PR #68) and keeps the number it landed
+with; `UIE-05` and `UIE-06` were rows 1 and 2 on their branch and are now 2 and 3. **That is an
+artefact of two branches, not a statement about priority** — the header says a human reorders, and
+none of the three paragraphs below was rewritten to match its row's new number. Read each one
+against the ticket it names rather than the digit it opens with.
 **Row 1 was appended by `product` at /triage on 2026-09-07, and it is the row the paragraph
 immediately below was waiting for.** That paragraph says this table is empty and is **left standing
 rather than rewritten** — it was true when `UIE-04` shipped and it stopped being true when this row
@@ -89,6 +98,110 @@ and *Re-triage verdict* sections are the reasoning.
   Under ADR-026 that file is the target schema and is applied by hand to stand up a fresh project, so
   a reader following § 9 will believe two screens are broken that are not. **It has no row**, and it
   sits in the file whoever applies this ticket's bootstrap will be standing next to.
+**Row 2 was appended by `product` at /triage on 2026-09-07, later the same day, and `product` asserts
+nothing about its position.** Same stance as every paragraph in this file: the header says a human
+reorders, so placing it above row 1 would have moved a row that was already here. Nothing was
+renumbered and no row moved relative to another.
+
+It is from
+`.ai/board/ideas/2026-09-07-the-month-grid-is-the-only-calendar-surface-still-drawn-in-defaults.md`;
+that file's *Triage verdict* section is the reasoning, and
+`.ai/board/tickets/UIE-06/design/README.md` is the visual reference — **a hand transcription of the
+operator's second image of the day, shown in conversation and never on disk, and a different image
+again from UIE-05's and from the one UIE-02, UIE-03 and UIE-04 were built against.**
+
+**Four facts a human needs, and none of them is a priority question.**
+
+1. **`depends_on` is `[]` and Definition of Ready item 3 passes today.** UIE-01 through UIE-04 are
+   DONE. **UIE-05 is deliberately not named**: it owns `src/routes/WeekView.tsx` and this row owns
+   `src/routes/MonthView.tsx`, which are disjoint, and `allowed_paths` is `[]` on every ticket on the
+   board so nothing claims a path. **The one file that could collide is `src/index.css`** if both
+   tickets add a token, and both shells record that neither expects to. One working directory holds
+   one branch (ADR-006), so only one is ever in flight regardless.
+2. **This idea was cut in two at triage as well, and the other half is not a ticket.** The picture
+   **deletes the per-cell absence count** — `month-cell-count` — and that is a domain amendment rather
+   than a restyle: CAL-04 AC-3 states INV-04's formula in words, and `CAL-04/01-plan.md:192` grants the
+   Tech Lead the count's *position* while saying nothing about its *presence*. It went to
+   `.ai/board/ideas/2026-09-07-the-month-cell-number-is-what-stops-the-avatars-being-counted.md` on a
+   **NEEDS-ADR** verdict, with
+   [ADR-031](../registry/decisions/ADR-031-the-month-cell-renders-no-absence-count.md) drafted in full
+   and **`PROPOSED` — awaiting the operator**. **This row does not wait on that decision** and ships a
+   month grid matching the picture minus one small numeral per busy cell.
+3. **Much of the picture is already on screen**, which is the finding most likely to move this
+   ticket's size and is why no size is recorded here — the day numeral, the avatar chips and their two
+   colours, the overloaded day's whole-cell pink, Monday-first whole weeks and greyed out-of-month
+   days are all shipped. **What is genuinely missing is the full-pane width, the ruled single card,
+   the cell height, the weekday strip's position, the out-of-month tint and the badge's slot.** The
+   size will move on one thing that is not in that list: whether the plan also converts the grid onto
+   UIE-01's and UIE-02's tokens, which it uses none of today.
+4. **The load-bearing half of this ticket is what it does *not* do**, and `ticket.yaml` § 7 carries it
+   as ten negative requirements. The four worth reading before planning: **no Vietnamese copy** —
+   `CẦU` fails the build, not just review, because `eslint.config.js:84-92` lints JSX text for
+   diacritics and `Ầ` is U+1EA6; **`month-cell-count` and `month-threshold` both stay**; **the bridge
+   badge is not filled**, because pink is the overload colour and filling it paints a crowded-day
+   signal onto a working day; and **no shell edit at all**.
+
+**Two things a human may want to settle before it is planned, and neither is its position.**
+
+- **ADR-029 and ADR-030 are now both on the desk, from two pictures by the same person on the same
+  day, and neither is readable alone.** One adds a per-day absence count to the week view; the other
+  removes it from the month view. **Neither violates INV-04** — the invariant governs the number's
+  definition, not where it is rendered — but ADR-029 argues for itself by saying the week strip
+  *"provably agrees with the month grid"*, and ADR-031 removes the surface that agreement was ever
+  visible on. Both documents carry the interaction in a section of its own, so whichever is opened
+  first says so. **They are two signatures, not one.**
+- **`src/index.css:141-143` and `src/components/Sidebar.tsx:62-65` state something that is not true**
+  — that no calendar view computes an overload state and that `seam.getTeam()` is not called by any of
+  them. `MonthView.tsx:175` calls it and `:347` computes `isOverloaded`, and has since CAL-04 shipped
+  the day before those comments were written; verified independently against source at this triage.
+  **It is the recorded reason the sidebar has no overload legend row — the row both images draw.**
+  Correcting the comments is two lines; building the row is a shell change nobody has scoped.
+
+**Row 1 was appended by `product` at /triage on 2026-09-07, and `product` asserts nothing about its
+position — it is row 1 because the table was empty, not because anyone placed it there.** The
+paragraph immediately below said this table was empty and it was true for a few hours; it is left
+standing rather than rewritten, on the same convention every corrected-in-place paragraph in this file
+follows. **The door it names is the door that was used**: `/triage` turned a request into an idea and,
+on a PROMOTE verdict, wrote the shell that became this row.
+
+It is from
+`.ai/board/ideas/2026-09-07-a-busy-week-does-not-fit-and-a-day-does-not-say-how-full-it-is.md`; that
+file's *Triage verdict* section is the reasoning, and `.ai/board/tickets/UIE-05/design/README.md` is
+the visual reference — **a hand transcription of an image shown in conversation and never on disk, and
+a different image from the one UIE-02, UIE-03 and UIE-04 were built against.**
+
+**Four facts a human needs, and none of them is a priority question.**
+
+1. **`depends_on` is `[]` and Definition of Ready item 3 passes today — the first row in this group
+   for which that is true.** UIE-01 through UIE-04 are all DONE, so the chain this screen sits on is
+   complete. Nothing on the board claims a path, because nothing else is on the board.
+2. **The idea it came from was cut in two at triage, and the other half is not a ticket.** The image's
+   per-day footer count — `n/8 vắng` — went to
+   `.ai/board/ideas/2026-09-07-a-day-does-not-say-how-full-it-is.md` on a **NEEDS-ADR** verdict, with
+   [ADR-029](../registry/decisions/ADR-029-the-week-view-renders-a-per-day-absence-count.md) drafted
+   in full and **`PROPOSED` — awaiting the operator**. **This row does not wait on that decision**; it
+   ships a screen matching the picture minus one strip along the bottom of each column. **The two were
+   split rather than folded** because a count on this screen reverses CAL-05's registry row and
+   UIE-04's shipped AC-13, and folding it into a restyle would have reversed three deliberate refusals
+   somewhere nobody reviews them.
+3. **Roughly half of what the image asks for is already on screen**, which is the finding most likely
+   to change this ticket's size and is why no size is recorded here. The seven columns are already
+   exactly equal in height; what is missing is that a column *fills* the viewport on a quiet week, and
+   the answer is `min-height` rather than `height` — which is what lets UIE-04's AC-4 and AC-5 survive
+   while its § 4.2 prose is reversed. `ticket.yaml` § 2 and § 3.1.
+4. **The load-bearing half of this ticket is what it does *not* do**, and it is four negative
+   requirements: no Vietnamese copy, no footer count, none of the chip's five facts deleted, and no
+   shell edit. `ticket.yaml` § 7 carries them. **`week-day-empty` keeps its sentence** — its deletion
+   is coupled to the footer count and is decided with it or not at all.
+
+**One thing a human may want to settle before it is planned, and it is not its position.** ADR-029 is
+the only ADR in this repository that an agent has drafted and refused to accept. It reverses a refusal
+that CAL-05's row, CAL-05's plan and UIE-04's AC-13 each took deliberately, which is changing the
+envelope rather than deciding inside it (ADR-008) — so the status may only ever read
+`ACCEPTED by the operator` or `REJECTED`. **Two of the three reasons behind the standing refusal do
+not survive being checked**, and that is true whichever way the operator decides: `absenceCountsFor`
+is the one definition and needs no team read, so `src/routes/WeekView.tsx:11-17` owes a correction
+even under a `REJECTED`.
 
 ***THIS TABLE IS EMPTY, AND IT IS THE FIRST TIME.*** `UIE-04` left it for `## ARCHIVE` on
 2026-09-07, and with it the last of the twenty-six rows this board has carried. Every `CAL`, `TEA`,

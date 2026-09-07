@@ -317,7 +317,19 @@ function pathCandidates(text) {
     // `:123` is a line citation, not part of the filename. The model asks for `file:line` in every
     // review item and design, so a path carrying one has to resolve to the path. Trailing
     // punctuation is stripped after it, because a citation can end a sentence.
-    .map((s) => s.trim().replace(/:\d+(?::\d+)?$/, "").replace(/[.,;:]+$/, ""))
+    //
+    // **The range `:12-20` is stripped too, and that was MD-019.** Until 2026-09-07 this pattern
+    // matched `file.ts:12` and `file.ts:12:34` but not `file.ts:12-20`, so the range survived into
+    // the candidate, no such path existed, and D6 reported the FILE as missing when the file was
+    // there and only the citation was a range. The error naming the wrong cause is what made it
+    // expensive: an agent reading "does not exist on disk" removes the fact rather than the range,
+    // which is exactly what happened on this branch before MD-019 was found. A range is the natural
+    // citation to a block and this repository already uses it.
+    //
+    // It is widened to a RANGE and no further. `.replace(/:.*$/)` would swallow anything after a
+    // colon and stop reporting real typos in filenames, which is the whole reason the strip is
+    // narrow — MD-019's fix shape says so in those words.
+    .map((s) => s.trim().replace(/:\d+(?:-\d+)?(?::\d+)?$/, "").replace(/[.,;:]+$/, ""))
     .filter(
       (s) =>
         s.includes("/") &&

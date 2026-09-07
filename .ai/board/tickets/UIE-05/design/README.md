@@ -98,7 +98,7 @@ under `T6 03/04`. The word `vắng` reads in a soft pink; the fraction in grey.
 **This strip is behaviour, not arrangement, and UIE-05 does not build it.** It went to a second idea
 at the same triage — `.ai/board/ideas/2026-09-07-a-day-does-not-say-how-full-it-is.md` — and the
 decision is drafted as
-[ADR-029](../../../registry/decisions/ADR-029-the-week-view-renders-a-per-day-absence-count.md),
+[ADR-029](../../../../registry/decisions/ADR-029-the-week-view-renders-a-per-day-absence-count.md),
 status `PROPOSED — awaiting the operator`. **Do not add it, do not approximate it, and above all do
 not substitute the day's chip count for it**: a day holding one full-day and two half-day entries has
 three chips and an absence count of two, which is the second definition INV-04 exists to forbid.

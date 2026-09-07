@@ -16,7 +16,7 @@ inputs_read:
   - .ai/board/tickets/UIE-04/design/README.md
   - .ai/board/backlog.md
   - tech-lead-design's technical read of the same request, 2026-09-07
-consulted: [tech-lead-design]
+consulted: []
 gate: PASS
 blocking_reason: ""
 next_state: TRIAGE
@@ -249,6 +249,10 @@ not one.
 
 **The technical read reached the same conclusion in its § 4 and warned `product` not to talk itself
 out of it. It did not have to; the answer is the same from this side.**
+
+*`consulted` is `[]` above and that is deliberate: `tech-lead-design` was **co-dispatched by the same
+`/triage` run**, not consulted under RULE-11. Its technical read is listed as an input, which is what
+it is, and no chat budget was spent.*
 
 ## What happens next, and what does not
 
