@@ -107,9 +107,18 @@ section.** The ruled hairline grid in place of gapped tiles, one card in place o
 strip lifted onto the page ground, ~170px rows, the avatar drawn as a filled circular chip, the card
 radius — these are **arrangement preferences**. Several of them buy the density item 2 is about, which
 is a real argument for them; none of them is a thing a person cannot do today. **Two other differences
-are neither preference nor fix**: the picture *deletes* the count and the threshold readout, and it
+are neither preference nor fix**: the picture *deletes* the count, ~~and the threshold readout,~~ and it
 spends lavender on a second meaning. Those are in § *Constraints already known*, because they are not
 this idea's to settle.
+
+**CORRECTION, `product` at the verdict dispatch of the same `/triage`, 2026-09-07 — struck above
+rather than rewritten.** *The threshold readout is not deleted by the image; it is one of the things
+the image does not show.* The transcription's § 5 lists it beside the holiday, the tentative border
+and the approved star — **silence, on the same terms as everything else in that list**, and this file's
+own § *Out of scope* already carried it there. The two readings sat in one document for a few hours and
+the second is the correct one. **`month-cell-count` is the only rendered fact this image positively
+removes**; § 3 of the transcription enumerates what the cell holds and says *nothing else is written in
+the cell*, which is a statement about the cell and about nothing above it.
 
 ## Who has it
 
@@ -201,8 +210,14 @@ Cited, not chosen. The first three are why this may not be a straight PROMOTE.
   Lead's grant covers visual arrangement and *never* behaviour; removing a rendered fact is at the
   boundary and an idea may not move it.
 
-- **The image also DELETES the threshold readout, and that one breaks a shipped test on another
-  ticket.** `MonthView.tsx:330-332` renders `month-threshold`; the transcription's § 5 lists *"the
+- ~~**The image also DELETES the threshold readout, and that one breaks a shipped test on another
+  ticket.**~~ **CORRECTED, `product`, same day, at the verdict dispatch: the image does NOT delete the
+  threshold readout. It is SILENT about it, which is not the same thing** — see the correction in
+  § *Problem*. The bullet is left standing because everything in it after the first sentence is true and
+  is the reason the readout must survive: it is the only explanation the pink cell has anywhere on the
+  screen. **ADR-030 clause 3 makes that survival part of the decision rather than an assumption about
+  it.** The original wording follows.
+  `MonthView.tsx:330-332` renders `month-threshold`; the transcription's § 5 lists *"the
   overload threshold readout"* among the things the image does not show, and its § 2 top bar has no room
   for it. **`tests/e2e/adm-01-threshold.spec.ts:222-224` navigates from the admin threshold form to the
   month grid and asserts `month-threshold` carries `data-threshold="0.6"` and contains the text
@@ -340,7 +355,11 @@ Real ones. A verdict turns on the first three.
    apart from the same person. The question is one question and must be put once, with both pictures in
    view. **A month cell showing five avatars over a real count of 4.5 has no way to say so**, which is
    the confusion ADR-029 rejects for the week view in its own § *Rationale*.
-2. **Does the threshold readout go, and if it does, what explains the soft pink cell?** Deleting
+2. ~~**Does the threshold readout go, and if it does, what explains the soft pink cell?**~~
+   **CLOSED at the verdict, same day, and not by an assumption: the image never asked for it to go.**
+   § 5 of the transcription files it under silence. It stays, and ADR-030 clause 3 says so in the
+   decision rather than in a comment. The question as written follows, because the second half of it is
+   the reason the answer matters. Deleting
    `month-threshold` breaks `tests/e2e/adm-01-threshold.spec.ts:222-224` — ADM-01's only proof that a
    saved threshold reaches the calendar — and leaves the overloaded colour with no explanation anywhere
    on the screen, because the sidebar legend has no overload row and the image's fourth legend row is
