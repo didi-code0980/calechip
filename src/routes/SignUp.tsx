@@ -9,6 +9,15 @@ import { AVATAR_CHOICES, type Failure } from "@/lib/domain/types";
 // a hook would be a thirteenth file, and design section 5 says a thirteenth tips this ticket to L.
 // The boundary RULE-02 protects is untouched — no Supabase client is imported here.
 import { seam } from "@/lib/data";
+// UIE-01. Presentational only, and it is the same card /signin renders — which is what makes the
+// segmented control a change of route rather than a change of screen.
+import AuthCard, {
+  FIELD_INPUT,
+  FIELD_LABEL,
+  FIELD_STACK,
+  FORM_ERROR,
+  primaryButtonClass,
+} from "@/components/AuthCard";
 
 // AC-13: `submitted` is terminal. The notice, and nothing after it — no navigation, no session, no
 // member read. That is what makes this half of TEA-01 an operation that begins and ends on one screen.
@@ -58,111 +67,135 @@ export default function SignUp() {
     }
   }
 
+  // UIE-01 AC-14. THE THIRD STATE OF THE SAME CARD, which is the whole point of routing it through
+  // AuthCard: same ground, same card, same title and subtitle, so this reads as the end of the
+  // operation rather than as a different screen. `showTabs={false}` is what keeps TEA-01 AC-13's
+  // terminality true — a segmented control here would let somebody click away from a terminal state.
   if (state.phase === "submitted") {
     return (
-      <section
-        data-testid="signup-confirm-notice"
-        className="mx-auto max-w-md rounded-2xl bg-white p-8 text-center shadow-sm"
-      >
-        <h1 className="text-xl font-semibold">Check your email</h1>
-        <p className="mt-2 text-sm opacity-70">
-          We have sent a confirmation link to the address you entered. Open it to finish signing up.
-        </p>
-      </section>
+      <AuthCard tab="signup" showTabs={false}>
+        <section data-testid="signup-confirm-notice" className="text-center">
+          <h2 className="text-base font-bold text-ink">Check your email</h2>
+          <p className="mt-2 text-[13px] text-ink-2">
+            We have sent a confirmation link to the address you entered. Open it to finish signing
+            up.
+          </p>
+        </section>
+      </AuthCard>
     );
   }
 
   const submitting = state.phase === "submitting";
 
+  // UIE-01 AC-10: the nine `signup-*` names on this screen are frozen. New controls may add
+  // selectors; not one of these may be renamed, because twelve spec files address them.
   return (
-    <form
-      data-testid="signup-form"
-      onSubmit={onSubmit}
-      className="mx-auto flex max-w-md flex-col gap-4 rounded-2xl bg-white p-8 shadow-sm"
-    >
-      <h1 className="text-xl font-semibold">Sign up</h1>
+    <AuthCard tab="signup">
+      <form data-testid="signup-form" onSubmit={onSubmit} className={FIELD_STACK}>
+        {/* AC-8 puts the order here, and it is originated rather than transcribed: the reference
+            shows no avatar picker and no email field at all. Display name and avatar are the two
+            things the person is CHOOSING about themselves, so they lead; the credentials follow. */}
+        <label className="block">
+          <span className={FIELD_LABEL}>Display name</span>
+          <input
+            data-testid="signup-display-name"
+            type="text"
+            required
+            value={displayName}
+            onChange={(e) => setDisplayName(e.target.value)}
+            className={FIELD_INPUT}
+          />
+        </label>
 
-      <label className="flex flex-col gap-1 text-sm">
-        Email
-        <input
-          data-testid="signup-email"
-          type="email"
-          required
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-          className="rounded-xl border border-slate-200 px-3 py-2"
-        />
-      </label>
+        {/* TEA-01 AC-8: the person supplies both. There is no server to fill them in (ADR-005) and
+            no correction screen in v1, so sign-up is the only moment they can be collected.
 
-      <label className="flex flex-col gap-1 text-sm">
-        Password
-        <input
-          data-testid="signup-password"
-          type="password"
-          required
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-          className="rounded-xl border border-slate-200 px-3 py-2"
-        />
-      </label>
+            UIE-01 AC-9 — THE PICKER SURVIVES THE RESTYLE AS A PICKER. The reference shows no avatar
+            selection at all, and removing it would break TEA-01's AC-8, the `complete` gate above
+            and four assertions in tests/e2e/tea-01-signup.spec.ts. A card ~355px wide has no room
+            for a wrapping grid of swatches, so it becomes ONE horizontally scrollable row at the
+            same 44px rhythm as the inputs — the first swatch is reachable without scrolling, which
+            is what the `.first().click()` in that spec depends on.
 
-      {/* AC-8: the person supplies both. There is no server to fill them in (ADR-005) and no
-          correction screen in v1, so sign-up is the only moment they can be collected. */}
-      <label className="flex flex-col gap-1 text-sm">
-        Display name
-        <input
-          data-testid="signup-display-name"
-          type="text"
-          required
-          value={displayName}
-          onChange={(e) => setDisplayName(e.target.value)}
-          className="rounded-xl border border-slate-200 px-3 py-2"
-        />
-      </label>
+            `py-1` on the scroller is not spacing: the selected swatch's ring sits OUTSIDE its box,
+            and an `overflow-x-auto` container with no vertical padding clips it.
 
-      <fieldset className="flex flex-col gap-2 text-sm">
-        <legend>Avatar</legend>
-        <div
-          data-testid="signup-avatar-picker"
-          role="radiogroup"
-          aria-label="Avatar"
-          className="flex flex-wrap gap-2"
+            `min-w-0` ON THE FIELDSET IS LOAD-BEARING AND WAS FOUND BY LOOKING, NOT BY REASONING.
+            A fieldset carries `min-inline-size: min-content` in the UA stylesheet, so it refuses to
+            shrink below its widest content — twelve 44px swatches. Without this the strip does not
+            scroll, it pushes the CARD wider than the viewport and the whole page scrolls sideways,
+            which is exactly what AC-16 forbids. */}
+        <fieldset className="block min-w-0">
+          <legend className={FIELD_LABEL}>Avatar</legend>
+          <div
+            data-testid="signup-avatar-picker"
+            role="radiogroup"
+            aria-label="Avatar"
+            className="flex gap-2 overflow-x-auto py-1"
+          >
+            {AVATAR_CHOICES.map((choice) => (
+              <button
+                key={choice}
+                type="button"
+                data-testid="signup-avatar-option"
+                data-avatar={choice}
+                role="radio"
+                aria-checked={avatar === choice}
+                onClick={() => setAvatar(choice)}
+                className={
+                  // AC-9: the selected swatch is distinguished by MORE THAN COLOUR — a ring, which
+                  // is a shape, and `aria-checked`, which is what a screen reader gets.
+                  "h-11 w-11 shrink-0 rounded-full bg-field text-lg " +
+                  "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink " +
+                  (avatar === choice ? "ring-2 ring-ink ring-offset-2 ring-offset-card" : "")
+                }
+              >
+                {choice}
+              </button>
+            ))}
+          </div>
+        </fieldset>
+
+        <label className="block">
+          <span className={FIELD_LABEL}>Email</span>
+          <input
+            data-testid="signup-email"
+            type="email"
+            required
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            className={FIELD_INPUT}
+          />
+        </label>
+
+        <label className="block">
+          <span className={FIELD_LABEL}>Password</span>
+          <input
+            data-testid="signup-password"
+            type="password"
+            required
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            className={FIELD_INPUT}
+          />
+        </label>
+
+        {/* AC-11: inside the card, between the last field and the button, still announced. */}
+        {state.phase === "editing" && state.error ? (
+          <p data-testid="signup-error" role="alert" className={FORM_ERROR}>
+            {state.error.message}
+          </p>
+        ) : null}
+
+        <button
+          data-testid="signup-submit"
+          type="submit"
+          disabled={!complete || submitting}
+          className={primaryButtonClass({ submitting, disabled: !complete })}
         >
-          {AVATAR_CHOICES.map((choice) => (
-            <button
-              key={choice}
-              type="button"
-              data-testid="signup-avatar-option"
-              data-avatar={choice}
-              role="radio"
-              aria-checked={avatar === choice}
-              onClick={() => setAvatar(choice)}
-              className={
-                avatar === choice
-                  ? "rounded-full border-2 border-slate-900 px-3 py-2 text-lg"
-                  : "rounded-full border border-slate-200 px-3 py-2 text-lg"
-              }
-            >
-              {choice}
-            </button>
-          ))}
-        </div>
-      </fieldset>
-
-      {state.phase === "editing" && state.error ? (
-        <p data-testid="signup-error" role="alert" className="text-sm text-rose-600">
-          {state.error.message}
-        </p>
-      ) : null}
-
-      <button
-        data-testid="signup-submit"
-        type="submit"
-        disabled={!complete || submitting}
-        className="rounded-xl bg-slate-900 px-4 py-2 text-white disabled:opacity-40"
-      >
-        {submitting ? "Sending…" : "Sign up"}
-      </button>
-    </form>
+          {submitting ? "Sending…" : "Sign up"}
+        </button>
+      </form>
+    </AuthCard>
   );
 }

@@ -1,1 +1,132 @@
+/* UIE-01 — the product's first palette, first type scale and first loaded font.
+   01-plan.md § 4.1 is the contract this file implements.
+
+   Until this ticket this file was one line, `@import "tailwindcss";`. Nine tickets shipped against
+   Tailwind's defaults: a slate ground, and `font-sans` resolving to whatever the operating system
+   supplied — which is why the Vietnamese fixture names have never rendered in a face chosen for
+   them. Both facts change here, and they change for all fourteen routes, deliberately (§ 4.4). */
 @import "tailwindcss";
+
+/* ---------------------------------------------------------------------------------------------
+   The faces, SELF-HOSTED. 01-plan.md § 4.1 and § 6: this is the only one of the three paths that
+   needs no ADR. A Google Fonts `@import` is a runtime third party and an integration
+   (.ai/standards/integrations.md:42 sends it through R9); `@fontsource/*` is an npm dependency that
+   R9 fails without one. The .woff2 files were fetched once, at build time, and committed under
+   public/fonts/ — nothing here reaches a third party when the page loads.
+
+   BOTH RANGES ARE DECLARED FOR EVERY FACE, and that is not padding. 01-plan.md § 4.1: declaring the
+   Vietnamese subset alone renders accented text in the product face and unaccented text in the
+   fallback, which is worse than either alone. `latin` carries U+0000-00FF — the whole English
+   interface — and `vietnamese` carries the diacritics AC-17 is about.
+
+   The unicode-range values are Google's own, copied from the css2 response rather than recalled;
+   they are the ranges the subset files were actually cut to, so narrowing or widening one here
+   would ask the browser for glyphs the file does not hold. */
+
+@font-face {
+  font-family: "Baloo 2";
+  src: url("/fonts/baloo2-700-latin.woff2") format("woff2");
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304,
+    U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+
+@font-face {
+  font-family: "Baloo 2";
+  src: url("/fonts/baloo2-700-vietnamese.woff2") format("woff2");
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+  unicode-range: U+0102-0103, U+0110-0111, U+0128-0129, U+0168-0169, U+01A0-01A1, U+01AF-01B0,
+    U+0300-0301, U+0303-0304, U+0308-0309, U+0323, U+0329, U+1EA0-1EF9, U+20AB;
+}
+
+@font-face {
+  font-family: "Nunito";
+  src: url("/fonts/nunito-400-latin.woff2") format("woff2");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304,
+    U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+
+@font-face {
+  font-family: "Nunito";
+  src: url("/fonts/nunito-400-vietnamese.woff2") format("woff2");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+  unicode-range: U+0102-0103, U+0110-0111, U+0128-0129, U+0168-0169, U+01A0-01A1, U+01AF-01B0,
+    U+0300-0301, U+0303-0304, U+0308-0309, U+0323, U+0329, U+1EA0-1EF9, U+20AB;
+}
+
+@font-face {
+  font-family: "Nunito";
+  src: url("/fonts/nunito-700-latin.woff2") format("woff2");
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304,
+    U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+
+@font-face {
+  font-family: "Nunito";
+  src: url("/fonts/nunito-700-vietnamese.woff2") format("woff2");
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+  unicode-range: U+0102-0103, U+0110-0111, U+0128-0129, U+0168-0169, U+01A0-01A1, U+01AF-01B0,
+    U+0300-0301, U+0303-0304, U+0308-0309, U+0323, U+0329, U+1EA0-1EF9, U+20AB;
+}
+
+/* ---------------------------------------------------------------------------------------------
+   The tokens. Tailwind v4 (tech-stack.md: resolved 4.3.3, no config file), so `@theme` is the
+   mechanism and every name below also generates a utility: `--color-ink` gives `text-ink`,
+   `--shadow-soft` gives `shadow-soft`, and so on. That is why the components address these through
+   utilities rather than through `var()` — a utility is how Tailwind knows the token is used.
+
+   THE PALETTE IS THE PRODUCT'S OWN PROTOTYPE, NOT AN INVENTION: _figma/src/index.css:4-33. The four
+   marked NEW are originated by 01-plan.md § 4.1 because the prototype has no auth screen.
+
+   THESE VALUES HAVE NO DOCUMENT BEHIND THEM YET, and that is 01-plan.md's Open question 1, which is
+   for the operator. § Colour and § Type in .ai/standards/ui-design-system.md are bare
+   `TODO(project)` stubs, and that file is human plane under RULE-01 — a developer may write tokens
+   here and may not record them there. Until somebody does, this block is the de-facto design
+   system and the next screen has nothing to conform to. */
+@theme {
+  /* Ground and surface — _figma/src/index.css */
+  --color-bg: #f1effa;
+  --color-card: #ffffff;
+  --color-line: #e4e0f4;
+
+  /* Ink — _figma/src/index.css */
+  --color-ink: #241f45; /* titles, active labels, input text */
+  --color-ink-2: #5a5480; /* subtitle, body */
+  --color-ink-3: #8f89b3; /* field labels, inactive segment, disabled fill */
+
+  /* NEW — the auth surface the prototype does not cover */
+  --color-field: #edebf7; /* filled borderless input */
+  --color-track: #edebf9; /* segmented-control track */
+  --color-primary: #2a2145; /* primary button fill */
+  --color-danger: #be123c; /* error text — 5.9:1 on --color-card, WCAG AA */
+
+  /* `--radius-card`, NOT `--radius-lg` as 01-plan.md § 4.1 names it. The plan's name is a token
+     collision rather than a preference: `--radius-lg` is one of Tailwind's OWN theme keys, so
+     redefining it at 26px silently repaints every `rounded-lg` in the application — ten of them,
+     across BulkRejection, EntryDecision, PendingEntries, Holidays, NewEntry and TeamEntries. Those
+     screens are named in 01-plan.md § 1 Out-of-scope, so the plan's own scope statement is what
+     rules the plan's own token name out. `--radius-card` generates `rounded-card` and collides with
+     nothing. The VALUE is unchanged. */
+  --radius-card: 26px;
+  --radius-pill: 9999px;
+
+  --shadow-soft:
+    0 4px 20px -2px rgba(36, 31, 69, 0.05), 0 0 3px rgba(36, 31, 69, 0.02);
+
+  --font-display: "Baloo 2", "Trebuchet MS", system-ui, sans-serif;
+  --font-sans: "Nunito", system-ui, -apple-system, "Segoe UI", sans-serif;
+}

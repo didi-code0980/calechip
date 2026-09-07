@@ -6,9 +6,20 @@
 //
 // On success it renders nothing of its own. The seam notifies, `useSession` re-resolves, and
 // `App.tsx` routes away — which is why there is no navigation call anywhere in this file.
+//
+// RESTYLED BY UIE-01 AND NOTHING BELOW THE SURFACE MOVED (AC-18). The seam call at `signIn(...)`,
+// the form state machine, the refusal handling and all four `sign-in-*` selectors are exactly what
+// TEA-05 shipped. What changed is the markup around them and the classes on it.
 import { useState } from "react";
 import type { SignInInput } from "@/lib/data";
 import type { Failure, Result, Session } from "@/lib/domain/types";
+import AuthCard, {
+  FIELD_INPUT,
+  FIELD_LABEL,
+  FIELD_STACK,
+  FORM_ERROR,
+  primaryButtonClass,
+} from "@/components/AuthCard";
 
 interface SignInProps {
   signIn(input: SignInInput): Promise<Result<Session>>;
@@ -59,60 +70,73 @@ export default function SignIn({ signIn }: SignInProps) {
   // No `data-testid` on the form itself: 01-plan.md section 8 does not name one, and section 8 is
   // the ONLY channel through which a selector reaches QA (RULE-05). `sign-in-submit` is what that
   // table says asserts "the sign-in screen", for AC-5 and AC-9.
+  //
+  // UIE-01 AC-10: the four `sign-in-*` names below are frozen. Renaming one would pull twelve spec
+  // files into this ticket — eight of them only because each carries a local `signIn(page, email)`
+  // helper filling these three ids — and seventeen files is L, which must split.
   return (
-    <form
-      onSubmit={onSubmit}
-      className="mx-auto flex max-w-md flex-col gap-4 rounded-2xl bg-white p-8 shadow-sm"
-    >
-      <h1 className="text-xl font-semibold">Sign in</h1>
+    <AuthCard tab="signin">
+      <form onSubmit={onSubmit} className={FIELD_STACK}>
+        <label className="block">
+          <span className={FIELD_LABEL}>Email</span>
+          <input
+            data-testid="sign-in-email"
+            type="email"
+            required
+            autoComplete="email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            className={FIELD_INPUT}
+          />
+        </label>
 
-      <label className="flex flex-col gap-1 text-sm">
-        Email
-        <input
-          data-testid="sign-in-email"
-          type="email"
-          required
-          autoComplete="email"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-          className="rounded-xl border border-slate-200 px-3 py-2"
-        />
-      </label>
+        <label className="block">
+          <span className={FIELD_LABEL}>Password</span>
+          <input
+            data-testid="sign-in-password"
+            type="password"
+            required
+            autoComplete="current-password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            className={FIELD_INPUT}
+          />
+        </label>
 
-      <label className="flex flex-col gap-1 text-sm">
-        Password
-        <input
-          data-testid="sign-in-password"
-          type="password"
-          required
-          autoComplete="current-password"
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-          className="rounded-xl border border-slate-200 px-3 py-2"
-        />
-      </label>
+        {/* AC-11: inside the card, between the last field and the button, and still `role="alert"`
+            so the refusal is announced rather than only shown. */}
+        {state.phase === "editing" && state.error ? (
+          <p data-testid="sign-in-error" role="alert" className={FORM_ERROR}>
+            {state.error.message}
+          </p>
+        ) : null}
 
-      {state.phase === "editing" && state.error ? (
-        <p data-testid="sign-in-error" role="alert" className="text-sm text-rose-600">
-          {state.error.message}
-        </p>
-      ) : null}
-
-      <button
-        data-testid="sign-in-submit"
-        type="submit"
-        disabled={!complete || submitting}
-        className="rounded-xl bg-slate-900 px-4 py-2 text-white disabled:opacity-40"
-      >
-        {submitting ? "Signing in…" : "Sign in"}
-      </button>
-
-      {/* NO LINK TO /signup, and its absence is deliberate. 01-plan.md section 1 puts a navigation
-          menu out of scope and says "nothing else navigates": the single admin-only /allow-list link
-          on the landing screen is the one link the feature row permits, and it is the real version
-          of TEA-02's AC-9 arriving for exactly one item. /signup stays reachable by address in every
-          membership state, exactly as /allow-list and /members already are. A link here would be a
-          second item, added by this ticket, with no criterion behind it. */}
-    </form>
+        <button
+          data-testid="sign-in-submit"
+          type="submit"
+          disabled={!complete || submitting}
+          className={primaryButtonClass({ submitting, disabled: !complete })}
+        >
+          {submitting ? "Signing in…" : "Sign in"}
+        </button>
+      </form>
+    </AuthCard>
   );
 }
+
+/* THERE IS NOW A LINK TO /signup, AND THIS COMMENT RECORDS THE REVERSAL RATHER THAN THE DECISION IT
+   REPLACES. What stood here through TEA-05 said the absence of such a link was deliberate, citing
+   that ticket's 01-plan.md section 1 — "nothing else navigates", with the single admin-only
+   /allow-list link on the landing screen as the one link the feature row permitted.
+
+   UIE-01 SUPERSEDES IT. The segmented control in AuthCard is that link, in both directions, and
+   01-plan.md section 4.5 requires this comment to be rewritten in the same ticket rather than left
+   standing to contradict the code beside it — a developer who found it and obeyed it would not
+   build AC-4.
+
+   WHY THE REVERSAL IS NOT ADR-LEVEL, which is the part worth keeping: the control adds no
+   permission and reveals nothing. /signup is ALREADY reachable by address in every membership state
+   (App.tsx:68, ADR-009 — somebody who signed up before being allow-listed has an auth user and no
+   member row), so this adds a second route to a destination that was never guarded. It is a static
+   link, rendered identically for everyone, before anybody is anybody, and it discloses no fact
+   about any address. The guard on /signin itself is untouched. */
