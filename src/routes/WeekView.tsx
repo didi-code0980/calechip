@@ -46,6 +46,12 @@ import { absentEntriesFor, addDays, eachDateInRange } from "@/lib/data/absence";
 import { dayStatusesFor, holidayReadRange } from "@/lib/data/day-status";
 import type { AbsenceDetail, DateRange, DayStatus, Entry, Holiday, Member } from "@/lib/domain/types";
 import { PORTION_LABELS, TYPE_LABELS } from "@/lib/labels";
+// UIE-02 § 4.5. `mondayIndex` and `isRealDay` were declared BELOW, in this file; the shell's top bar
+// needs both, and `mondayIndex` was DUPLICATED here and in MonthView.tsx character for character.
+// Moving each definition into one pure module deletes a copy rather than making a third. This import
+// and the two deletions under it are the whole of UIE-02's edit to this screen — no rendered output
+// changes here, which is what keeps `Out of scope` item 1 true and zero spec files in scope.
+import { currentDay, isRealDay, mondayIndex } from "@/lib/period";
 
 // ---------------------------------------------------------------------------
 // The week vocabulary. `yyyy-MM-dd` in the URL and everywhere below it.
@@ -62,43 +68,22 @@ const WEEKDAY_NAMES = [
   "Sunday",
 ];
 
-/**
- * The weekday of a `yyyy-MM-dd` date, 0 for Monday.
- *
- * Read in UTC and never locally. `new Date('2026-04-30')` parses as UTC midnight and a local weekday
- * read west of UTC yields the previous day — CAL-01 01-plan.md section 4.5 records the trap.
- *
- * **A COPY of the same three lines in MonthView.tsx, and the duplication is deliberate.** CAL-05
- * 01-plan.md section 7 gives that file ONE link and nothing else, so lifting the helper into
- * @/lib/data/absence and rewriting the month's import is scope this ticket does not have. Recorded
- * in 03-impl-log.md § Open questions so the next reader finds it rather than rediscovers it.
- */
-const mondayIndex = (date: string): number => (new Date(`${date}T00:00:00Z`).getUTCDay() + 6) % 7;
+/* `mondayIndex` and `isRealDay` STOOD HERE and are now in @/lib/period, imported above (UIE-02
+   § 4.5). The duplication CAL-05 recorded in this comment — the same three lines in MonthView.tsx,
+   left as a copy because that ticket had one link's worth of scope in that file — is paid here: the
+   shell's top bar needed the helper, so moving it deletes a copy instead of adding a third.
 
-/**
- * A `yyyy-MM-dd` that names a real date.
- *
- * The shape test alone is not enough: `Date.parse('2026-02-30T00:00:00Z')` does NOT return NaN, it
- * rolls over to 2 March — verified by running it rather than recalled. So the check is the round
- * trip through `addDays`, which is the same UTC conversion INV-04's module does and which returns a
- * different string for any date that rolled.
- */
-const DAY_PATTERN = /^\d{4}-(?:0[1-9]|1[0-2])-(?:0[1-9]|[12]\d|3[01])$/;
+   `isRealDay` MOVED WITH IT because the two are used together, and its one implementation detail
+   moved too: it checked the calendar roll-over with a round trip through `addDays`, and the new
+   module may not import @/lib/data (UIE-02 01-plan.md § 5), so it does the same arithmetic
+   directly. The rejected dates are the same ones — `2026-02-30` still fails. */
 
-const isRealDay = (day: string): boolean => DAY_PATTERN.test(day) && addDays(day, 0) === day;
-
-/**
- * The day `/week` with no anchor redirects to.
- *
- * This is the ONE place a LOCAL date read is correct, and the exception is worth naming because
- * every other date in this feature is deliberately UTC — MonthView.tsx's `currentMonth` records the
- * same one. It answers "what day is it for the person looking at the screen", which is a fact about
- * their clock and not a stored `yyyy-MM-dd`.
- */
-function today(): string {
-  const now = new Date();
-  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
-}
+/* `today()` STOOD HERE and is now `currentDay()` in @/lib/period, imported above (UIE-02 § 4.5,
+   added at PLAN rework 1). It is still the one place a LOCAL date read is correct and it still
+   carries that argument, at its new home: `/` now resolves the current week in place (AC-5), so the
+   shell needed the same answer this screen has always computed, and a second copy of it would be
+   two clocks that can disagree on the same screen. MonthView.tsx's `currentMonth` and
+   YearView.tsx's `currentYear` deliberately did NOT move — nothing outside those files needs them. */
 
 /* OPS-002 folded the two label maps that stood here into src/lib/labels.ts (AC-8). They were named
    in the singular and had already diverged: `full` read "All day" here and "Full day" on the two
@@ -121,21 +106,43 @@ type View =
   | { phase: "unavailable" } // a throw from either read, including the truncation assertion
   | { phase: "ready"; roster: Member[]; entries: Entry[]; holidays: Holiday[] };
 
-export default function WeekView() {
+interface WeekViewProps {
+  /**
+   * UIE-02 § 4.10, added at PLAN rework 1. **At `/` only.** Resolve the current week IN PLACE
+   * instead of redirecting to `/week/<today>`.
+   *
+   * Defaults to false, so `/week` and `/week/:day` behave exactly as CAL-05 shipped them — CAL-05
+   * AC-1 and AC-14 are untouched and `tests/e2e/cal-05-week-view.spec.ts` passes unedited.
+   *
+   * It exists because `/` must be an address the application COMES TO REST ON (UIE-02 AC-23): five
+   * shipped spec files walk browser history back to `/` in helpers, and a redirect makes `/` an
+   * address that is never in history. Rendering the week here rather than bouncing to `/week` is
+   * what makes Back work without making it a trap.
+   */
+  landing?: boolean;
+}
+
+export default function WeekView({ landing = false }: WeekViewProps) {
   const { day } = useParams<{ day: string }>();
 
   // AC-1 and AC-14. The anchor is the URL and nothing else, so `/week/2026-10-07` typed directly
   // produces the same screen as pressing "next" from the week before. An absent or malformed anchor
   // redirects to this week rather than rendering an error: there is no criterion about a mistyped
   // address, and the current week is the useful answer to somebody who mistyped one.
-  const valid = day !== undefined && isRealDay(day);
+  //
+  // AT `/` THERE IS NOTHING TO REDIRECT TO, so `landing` supplies the anchor instead.
+  // **Memoised on mount and not read per render**, so the anchor cannot change under a re-render —
+  // the same stability `/week/:day` gets for free from the URL. A bare `currentDay()` in the render
+  // body would re-resolve at midnight mid-session and move the week under the caller silently.
+  const landingDay = useMemo(() => currentDay(), []);
+  const anchorDay = day !== undefined && isRealDay(day) ? day : landing ? landingDay : null;
 
   // Any day of a week produces the SAME screen, so a link from any date works and `/week/2026-10-07`
   // is not redirected to `/week/2026-10-05` — the URL keeps the date the caller arrived with, and
   // `week-anchor` carries the Monday it resolved to.
   const weekStart = useMemo(
-    () => (valid && day ? addDays(day, -mondayIndex(day)) : null),
-    [valid, day],
+    () => (anchorDay ? addDays(anchorDay, -mondayIndex(anchorDay)) : null),
+    [anchorDay],
   );
 
   const range = useMemo<DateRange | null>(
@@ -219,7 +226,9 @@ export default function WeekView() {
     [view],
   );
 
-  if (!valid) return <Navigate to={`/week/${today()}`} replace />;
+  // Only reachable off `/`: at `/` the anchor is always resolved above, so this never fires there
+  // and `/` never moves on its own (AC-23).
+  if (anchorDay === null) return <Navigate to={`/week/${currentDay()}`} replace />;
 
   if (view.phase === "loading") {
     return (
@@ -260,7 +269,6 @@ export default function WeekView() {
     );
   }
 
-  const anchorDay = day as string;
   const start = weekStart as string;
   const end = addDays(start, 6);
   const dates = eachDateInRange({ start, end });

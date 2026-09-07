@@ -129,4 +129,24 @@
 
   --font-display: "Baloo 2", "Trebuchet MS", system-ui, sans-serif;
   --font-sans: "Nunito", system-ui, -apple-system, "Segoe UI", sans-serif;
+
+  /* UIE-02 § 4.9 — the three legend swatches, added BESIDE UIE-01's rather than in a block of
+     their own, because they are the same @theme and a second one would be a second place to look.
+
+     THE COLOURS ARE `CLAUDE.md` § Visual direction, which is the only place in the repository that
+     carries them: "PTO is peach, WFH is mint, holidays are lavender". They are named for what they
+     MEAN and not for what they look like — `--color-pto` and not `--color-peach` — so a later
+     decision to repaint PTO changes one value here and no class anywhere.
+
+     NO `--color-overload`. The overload legend row is out of scope (AC-11, AC-20): no calendar view
+     computes an overload state, `seam.getTeam()` is deliberately not called by any of them, and a
+     token with no consumer is a colour nobody can check against a screen.
+
+     LIKE UIE-01's, THESE VALUES HAVE NO DOCUMENT BEHIND THEM. § Colour in
+     .ai/standards/ui-design-system.md is still a bare `TODO(project)` and is human plane under
+     RULE-01 — a developer may write a token here and may not record it there. Each is picked to sit
+     on `--color-field` in the legend card and to read as the pastel the charter names. */
+  --color-pto: #ffcbaa; /* peach */
+  --color-wfh: #a9e2cd; /* mint */
+  --color-holiday: #c9bff0; /* lavender */
 }

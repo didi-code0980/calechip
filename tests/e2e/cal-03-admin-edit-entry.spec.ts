@@ -489,8 +489,16 @@ test.describe("CAL-03 edit or delete another member's entry, as an admin", () =>
     await expect(page.getByTestId("team-entries-refused")).toBeVisible();
     // It lists no entry, and it names nobody. A refusal that said what it was withholding would be
     // the read it is refusing.
+    //
+    // SCOPED TO THE REFUSAL AND NO LONGER PAGE-WIDE, by UIE-02 AC-24. Since UIE-02 the shell's
+    // sidebar names every active team-mate on every screen, so a page-wide `getByText(OWNER_NAME)`
+    // now matches the ROSTER rather than anything this screen leaked. That is not the intent stated
+    // one line above: the intent is about the refusal, and the refusal is the whole of what this
+    // component renders in this state (`src/routes/TeamEntries.tsx:124-136`), so the scope below IS
+    // the content pane here. The roster is a read `Read the member list` grants a member outright
+    // and `/members` already performs — it withholds nothing this assertion was protecting.
     await expect(teamRows(page)).toHaveCount(0);
-    await expect(page.getByText(OWNER_NAME)).toHaveCount(0);
+    await expect(page.getByTestId("team-entries-refused").getByText(OWNER_NAME)).toHaveCount(0);
   });
 
   test("AC-11: an admin's edit records when it happened, and nothing distinguishes it from the owner's", async ({
