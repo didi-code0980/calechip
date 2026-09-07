@@ -5,14 +5,24 @@ id: OPS-004
 title: "A password-free bootstrap file that creates the first team and the first admin"
 feature_ids: [TEA-01]   # see §5 — item 1 constrains THIS field, not the ticket `id`
 group: TEA              # single group, so Definition of Ready item 6 needs no split rationale
-state: BACKLOG
+state: DONE      # `orchestrator` at /ship, 2026-09-07, on 04-review.md `gate: PASS` /
+                 # `next_state: DONE`. ADR-022 removed the QA stage, so REVIEW -> DONE is the whole
+                 # remaining transition (.ai/01-operating-model.md:36).
+#
+# PREVIOUS VALUE, `REVIEW`, set by `developer` at /implement on 2026-09-07. The ticket went
+# BACKLOG -> REVIEW: no command owns PLAN -> READY and none owns READY -> IN_PROGRESS, so neither
+# was ever written here. SEVENTH TICKET RUNNING. Both the developer (03-impl-log.md:145-155) and the
+# reviewer (04-review.md § Verdict item 1) named it in their artifacts rather than editing this file,
+# which is correct — the board is the orchestrator's — and this ship is where it closes. The
+# Definition of Ready WAS graded, six of six, at /next-ticket on 2026-09-07.
 owner: ""
 branch: "feat/OPS-004"  # NOT `ops/<slug>`. See §7 — deliberate, and weaker here than on OPS-001/002.
-size_estimate: ""     # S|M - set by tech-lead-design at PLAN; gates DoR
-size: ""              # S|M|L|XL - set by tech-lead-design at PLAN; decides splitting
+size_estimate: "S"    # S|M - set by tech-lead-design at PLAN; gates DoR. 01-plan.md §1.
+size: "S"             # S|M|L|XL - counted from allowed_paths. 01-plan.md §7; agrees with size_estimate.
 depends_on: []        # MEASURED, NOT INHERITED. See §6.
-invariants_touched: []
-allowed_paths: []
+invariants_touched: [INV-07]   # 01-plan.md §2. The first team row and the first member's team_id.
+allowed_paths:
+  - "supabase/bootstrap.sql"   # the whole ticket. 01-plan.md §7.
 schema_delta: none    # DECIDED, NOT DEFAULTED. See §4.
 requires_adr: false   # The ADR EXISTS — ADR-030, written in the same /triage run. See §0.
 rework_count: 0
@@ -23,8 +33,12 @@ chat_budget:
   # ADR-022 removed the QA stage, and the `qa->tech-lead-design` edge with it.
 tracker: { provider: "", external_id: "", sync_enabled: false }
 gates:
-  plan:   { passed: false, at: null }   # ADR-019 merged the `spec` and `design` gates into one
-  review: { passed: false, at: null }
+  # BOTH ROWS TRANSCRIBED by `orchestrator` at /ship from the artifacts' own front-matter, because
+  # no stage before this one writes to this file. They are copies of gates somebody else reached,
+  # not gates claimed here — 01-plan.md `gate: PASS` / `produced_at: 2026-09-07T20:42:15+07:00`, and
+  # 04-review.md `gate: PASS` / `produced_at: 2026-09-07T22:17:26+07:00`.
+  plan:   { passed: true, at: "2026-09-07T20:42:15+07:00" }   # ADR-019 merged `spec` and `design`
+  review: { passed: true, at: "2026-09-07T22:17:26+07:00" }
   # There is no `qa` key. ADR-022 removed the stage, and this shell is created after that date.
   # /ship requires `plan` and `review`.
 

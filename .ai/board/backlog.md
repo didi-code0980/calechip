@@ -32,9 +32,8 @@ Under the current gate placement a ticket sits here until it has been planned �
 
 | # | Ticket | Title | State | Blocked on |
 |---|--------|-------|-------|------------|
-| 1 | OPS-004 | A password-free bootstrap file that creates the first team and the first admin | BACKLOG | — |
-| 2 | UIE-05 | The week column fills the viewport, and its header strip and entry chip are restacked | BACKLOG | — |
-| 3 | UIE-06 | The month grid becomes one ruled full-width card with taller cells, on the product's tokens | BACKLOG | — |
+| 1 | UIE-05 | The week column fills the viewport, and its header strip and entry chip are restacked | BACKLOG | — |
+| 2 | UIE-06 | The month grid becomes one ruled full-width card with taller cells, on the product's tokens | BACKLOG | — |
 
 **THE THREE ROWS ABOVE MET AT A MERGE, AND THE NUMBERS MOVED — NOTHING ELSE DID.** `OPS-004` and the
 two `UIE` rows were each written into an EMPTY table, on branches that did not see one another, so
@@ -637,26 +636,36 @@ Tickets that cannot proceed until a human decides something. Name the decision, 
 
 | # | Ticket | Title | Shipped | PR |
 |---|--------|-------|---------|-----|
-| 1 | CAL-01 | Create an entry for themselves, over a range of dates | 2026-09-03 | [#32](https://github.com/didi-code0980/calechip/pull/32); board and registry in [#34](https://github.com/didi-code0980/calechip/pull/34) |
-| 2 | CAL-02 | Edit or delete their own entry | 2026-09-03 | [#36](https://github.com/didi-code0980/calechip/pull/36) |
-| 3 | CAL-03 | Edit or delete another member's entry, as an admin | 2026-09-03 | [#38](https://github.com/didi-code0980/calechip/pull/38) |
-| 4 | OPS-001 | UI copy to English — chrome, account and team screens | 2026-09-03 | [#40](https://github.com/didi-code0980/calechip/pull/40) |
-| 5 | CAL-04 | Month view — a day grid showing who is away and which days are overloaded | 2026-09-04 | [#48](https://github.com/didi-code0980/calechip/pull/48) |
-| 6 | CAL-05 | Week view — per-person detail for one week, with half-days, notes and who approved | 2026-09-04 | [#49](https://github.com/didi-code0980/calechip/pull/49) |
-| 7 | CAL-06 | Year view — one row per member across 365 days | 2026-09-04 | [#51](https://github.com/didi-code0980/calechip/pull/51) |
-| 8 | ADM-01 | Set the overload threshold | 2026-09-05 | [#52](https://github.com/didi-code0980/calechip/pull/52) |
-| 9 | CAL-07 | Overload warning shown while choosing dates, before the entry is saved | 2026-09-05 | [#53](https://github.com/didi-code0980/calechip/pull/53) |
-| 10 | ADM-02 | The national holiday calendar, seeded and readable | 2026-09-05 | [#54](https://github.com/didi-code0980/calechip/pull/54) |
-| 11 | ADM-03 | Add, edit or delete a holiday or swap day | 2026-09-05 | [#55](https://github.com/didi-code0980/calechip/pull/55) |
-| 12 | CAL-08 | Holidays and bridge days shown in the calendar views | 2026-09-05 | [#56](https://github.com/didi-code0980/calechip/pull/56) |
-| 13 | ADM-04 | The worklist of entries awaiting a decision | 2026-09-05 | [#58](https://github.com/didi-code0980/calechip/pull/58), merged — corrected from `PENDING_PR` at ADM-05's ship |
-| 14 | ADM-05 | Approve or reject an entry, with a reason on rejection | 2026-09-05 | [#59](https://github.com/didi-code0980/calechip/pull/59) |
-| 15 | ADM-06 | Reject several entries at once, with one reason for the batch | 2026-09-06 | [#60](https://github.com/didi-code0980/calechip/pull/60) |
-| 16 | OPS-002 | UI copy to English — entry screens and the seam's error messages | 2026-09-07 | [#62](https://github.com/didi-code0980/calechip/pull/62) |
-| 17 | UIE-01 | Restyle the sign-in and sign-up screens to the product's visual direction | 2026-09-07 | [#63](https://github.com/didi-code0980/calechip/pull/63) |
-| 18 | UIE-02 | The application shell — a persistent sidebar and top bar | 2026-09-07 | [#64](https://github.com/didi-code0980/calechip/pull/64) |
-| 19 | UIE-03 | The calendar screens give up their own chrome to the shell | 2026-09-07 | [#65](https://github.com/didi-code0980/calechip/pull/65) |
-| 20 | UIE-04 | The week view as seven day columns | 2026-09-07 | [#66](https://github.com/didi-code0980/calechip/pull/66) |
+| 1 | CAL-02 | Edit or delete their own entry | 2026-09-03 | [#36](https://github.com/didi-code0980/calechip/pull/36) |
+| 2 | CAL-03 | Edit or delete another member's entry, as an admin | 2026-09-03 | [#38](https://github.com/didi-code0980/calechip/pull/38) |
+| 3 | OPS-001 | UI copy to English — chrome, account and team screens | 2026-09-03 | [#40](https://github.com/didi-code0980/calechip/pull/40) |
+| 4 | CAL-04 | Month view — a day grid showing who is away and which days are overloaded | 2026-09-04 | [#48](https://github.com/didi-code0980/calechip/pull/48) |
+| 5 | CAL-05 | Week view — per-person detail for one week, with half-days, notes and who approved | 2026-09-04 | [#49](https://github.com/didi-code0980/calechip/pull/49) |
+| 6 | CAL-06 | Year view — one row per member across 365 days | 2026-09-04 | [#51](https://github.com/didi-code0980/calechip/pull/51) |
+| 7 | ADM-01 | Set the overload threshold | 2026-09-05 | [#52](https://github.com/didi-code0980/calechip/pull/52) |
+| 8 | CAL-07 | Overload warning shown while choosing dates, before the entry is saved | 2026-09-05 | [#53](https://github.com/didi-code0980/calechip/pull/53) |
+| 9 | ADM-02 | The national holiday calendar, seeded and readable | 2026-09-05 | [#54](https://github.com/didi-code0980/calechip/pull/54) |
+| 10 | ADM-03 | Add, edit or delete a holiday or swap day | 2026-09-05 | [#55](https://github.com/didi-code0980/calechip/pull/55) |
+| 11 | CAL-08 | Holidays and bridge days shown in the calendar views | 2026-09-05 | [#56](https://github.com/didi-code0980/calechip/pull/56) |
+| 12 | ADM-04 | The worklist of entries awaiting a decision | 2026-09-05 | [#58](https://github.com/didi-code0980/calechip/pull/58), merged — corrected from `PENDING_PR` at ADM-05's ship |
+| 13 | ADM-05 | Approve or reject an entry, with a reason on rejection | 2026-09-05 | [#59](https://github.com/didi-code0980/calechip/pull/59) |
+| 14 | ADM-06 | Reject several entries at once, with one reason for the batch | 2026-09-06 | [#60](https://github.com/didi-code0980/calechip/pull/60) |
+| 15 | OPS-002 | UI copy to English — entry screens and the seam's error messages | 2026-09-07 | [#62](https://github.com/didi-code0980/calechip/pull/62) |
+| 16 | UIE-01 | Restyle the sign-in and sign-up screens to the product's visual direction | 2026-09-07 | [#63](https://github.com/didi-code0980/calechip/pull/63) |
+| 17 | UIE-02 | The application shell — a persistent sidebar and top bar | 2026-09-07 | [#64](https://github.com/didi-code0980/calechip/pull/64) |
+| 18 | UIE-03 | The calendar screens give up their own chrome to the shell | 2026-09-07 | [#65](https://github.com/didi-code0980/calechip/pull/65) |
+| 19 | UIE-04 | The week view as seven day columns | 2026-09-07 | [#66](https://github.com/didi-code0980/calechip/pull/66) |
+| 20 | OPS-004 | A password-free bootstrap file that creates the first team and the first admin | 2026-09-07 | PENDING_PR |
+
+**The window displaced `CAL-01` at this ship, the seventh row out and the sixth in six ships** —
+*CAL-01, Create an entry for themselves, over a range of dates, shipped 2026-09-03,*
+[#32](https://github.com/didi-code0980/calechip/pull/32)*; board and registry in*
+[#34](https://github.com/didi-code0980/calechip/pull/34). Reproduced on ADM-06's convention.
+**The row that just went is the first CAL row and the oldest capability this product has** — every
+TEA row has already left, so from the next ship the table starts eating the calendar. **Seven
+reproduction paragraphs now stand where this table used to be the record.** MD-026 carries the
+defect and names the two fixes; six ships have each chosen the prose rescue instead, which works
+only for as long as an agent keeps noticing.
 
 **The window displaced `TEA-05` at this ship, the sixth row out and the fifth in five ships** —
 *TEA-05, Sign in, sign out, and the member-less landing state, shipped 2026-09-03,*
