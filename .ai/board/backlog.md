@@ -486,7 +486,7 @@ Tickets that cannot proceed until a human decides something. Name the decision, 
 | 17 | UIE-01 | Restyle the sign-in and sign-up screens to the product's visual direction | 2026-09-07 | [#63](https://github.com/didi-code0980/calechip/pull/63) |
 | 18 | UIE-02 | The application shell — a persistent sidebar and top bar | 2026-09-07 | [#64](https://github.com/didi-code0980/calechip/pull/64) |
 | 19 | UIE-03 | The calendar screens give up their own chrome to the shell | 2026-09-07 | [#65](https://github.com/didi-code0980/calechip/pull/65) |
-| 20 | UIE-04 | The week view as seven day columns | 2026-09-07 | PENDING_PR |
+| 20 | UIE-04 | The week view as seven day columns | 2026-09-07 | [#66](https://github.com/didi-code0980/calechip/pull/66) |
 
 **The window displaced `TEA-05` at this ship, the sixth row out and the fifth in five ships** —
 *TEA-05, Sign in, sign out, and the member-less landing state, shipped 2026-09-03,*
