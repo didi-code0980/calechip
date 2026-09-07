@@ -445,7 +445,7 @@ Tickets that cannot proceed until a human decides something. Name the decision, 
 | 17 | ADM-06 | Reject several entries at once, with one reason for the batch | 2026-09-06 | [#60](https://github.com/didi-code0980/calechip/pull/60) |
 | 18 | OPS-002 | UI copy to English — entry screens and the seam's error messages | 2026-09-07 | [#62](https://github.com/didi-code0980/calechip/pull/62) |
 | 19 | UIE-01 | Restyle the sign-in and sign-up screens to the product's visual direction | 2026-09-07 | [#63](https://github.com/didi-code0980/calechip/pull/63) |
-| 20 | UIE-02 | The application shell — a persistent sidebar and top bar | 2026-09-07 | PENDING_PR |
+| 20 | UIE-02 | The application shell — a persistent sidebar and top bar | 2026-09-07 | [#64](https://github.com/didi-code0980/calechip/pull/64) |
 
 **The window displaced `TEA-04` at this ship, the fourth row out and the third in three ships** —
 *TEA-04, Remove a member, and promote a member to admin, shipped 2026-09-01,*
