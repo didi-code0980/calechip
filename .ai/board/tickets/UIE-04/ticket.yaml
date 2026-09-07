@@ -10,25 +10,68 @@ group: UIE           # ONE GROUP, ONE FEATURE ID. Definition of Ready item 6 is 
                      # spans two groups and owes a whole §5 to the second clause.
                      # CAL-05 IS DELIBERATELY NOT IN feature_ids. This ticket re-lays-out the screen
                      # that feature shipped; it delivers none of it. See §3 and §7.
-state: BACKLOG
+state: DONE           # `orchestrator` at /ship, 2026-09-07, on 04-review.md `gate: PASS` /
+                      # `next_state: DONE`. ADR-022 removed the QA stage, so REVIEW -> DONE is the
+                      # whole remaining transition (.ai/01-operating-model.md:36).
+#
+# PREVIOUS VALUE, `REVIEW`, comment reproduced below rather than deleted. TENTH AND LAST TICKET IN
+# THE PRODUCT TO CARRY IT — and this one states the mechanism correctly where the nine before it
+# did not: `/plan` sets neither `state` nor `gates.plan` BECAUSE .claude/commands/plan.md:114 leaves
+# both to the orchestrator, and no orchestrator run happens between PLAN and /implement. It is not
+# PLAN's omission, it is a loop step (.ai/01-operating-model.md:285) that NO COMMAND RUNS:
+# `/next-ticket` grades it and writes no file by design, `/ship` is where it lands at the end.
+#
+# THE GRADE WAS GIVEN: `/next-ticket` graded the full Definition of Ready in the orchestrator
+# session at 2026-09-07 16:02 +07, SIX OF SIX PASS, after `/plan` and before `/implement`.
+#
+# state: REVIEW       # Set by `developer` at /implement, 2026-09-07, on a PASS gate — the command
+#                     # file says so in those words. ***IT WAS STILL `BACKLOG` WHEN THIS STAGE
+#                     # STARTED***: `/plan` sets neither `state` nor `gates.plan`
+#                     # (.claude/commands/plan.md:114 leaves both to the orchestrator) and no
+#                     # orchestrator run happened between PLAN and here, so BACKLOG -> READY ->
+#                     # IN_PROGRESS was never walked. `gates.plan` below is DELIBERATELY LEFT
+#                     # `false` — it is not the developer's row to write — and /ship's Definition
+#                     # of Done needs it `true`. 03-impl-log.md Open question 5.
 owner: ""
 branch: "feat/UIE-04"   # .ai/standards/git-conventions.md:36 asks for feat/<FEATURE-ID>, and UIE-04
                         # IS a row in .ai/registry/features.md as of 2026-09-05. The convention
                         # followed; no trade-off to argue.
-size_estimate: ""     # S|M - set by tech-lead-design at PLAN; gates DoR. LEFT AS THE TEMPLATE SHIPS
-                      # IT. This is Definition of Ready item 5 and it is PLAN's. ***TRIAGE SIZED
-                      # NOTHING, AND THE TWO-OR-THREE FILES IN §2 ARE NOT A SIZE:*** which of the
-                      # three options in §3 is chosen changes what this ticket costs by more than
-                      # the file count suggests.
-size: ""              # S|M|L|XL - set by tech-lead-design at PLAN; decides splitting
+size_estimate: S      # 01-plan.md section 1. One component's layout. No new dependency, no seam
+                      # call, no selector renamed, no test file.
+size: S               # 01-plan.md section 7, counted from allowed_paths: ONE file outside the ticket
+                      # folder. S is up to 6 at .ai/01-operating-model.md:372. AGREES with
+                      # size_estimate, so ADR-012 never engages.
+                      # ***§2 SAYS TWO FILES, POSSIBLY FOUR, AND WARNS THE §3 OPTION MOVES THE COST
+                      # BY MORE THAN THE FILE COUNT SUGGESTS. IT DID — DOWNWARD.*** All three
+                      # candidate spec files are OUT, measured in 01-plan.md section 0:
+                      # cal-07 addresses NO week selector at all; cal-05 and cal-08 address this
+                      # screen only through ids, data attributes and DOM ORDER, every one of which
+                      # the chosen layout preserves. That property is part of WHY it was chosen —
+                      # §3 Option 2 would have deleted `week-row-note` and `week-row-approver` from
+                      # the resting view and pulled cal-05 in behind them.
 depends_on: [UIE-03]  # ***FAILS DEFINITION OF READY ITEM 3 TODAY, ON PURPOSE.*** See §5.
-invariants_touched: []   # LEFT AS THE TEMPLATE SHIPS IT. This is item 2 and belongs to
-                         # tech-lead-design at PLAN. `[]` here is the template's DEFAULT, NOT a
-                         # considered answer, and ***THIS IS THE ONE OF THE THREE TICKETS WHERE THE
-                         # QUESTION IS NOT RHETORICAL*** — INV-04 is one wrong decision away. See §6.
-allowed_paths: []     # LEFT EMPTY DELIBERATELY. guard-allowed-paths.mjs blocks every write outside
-                      # this ticket folder while it is empty. PLAN fills it. The file list in §2 is
-                      # the triage's scope statement and is NOT an allowed_paths list.
+invariants_touched: [INV-04]   # ***NOT `[]`, AND §6 WAS RIGHT THAT THIS IS THE EXCEPTION
+                         # ADR-028 PREDICTS FOR ALMOST NO UIE ROW.*** 01-plan.md section 2 carries
+                         # the reasoning. INV-04 is engaged TWICE and satisfied twice:
+                         #   1. The ticket ADDS NO COUNT (AC-13), so no second definition is created.
+                         #      01-plan.md § 4.1 declines even triage's chip-count recommendation:
+                         #      a day with one full-day and two half-day entries has THREE CHIPS and
+                         #      an absence count of TWO, so the footer would contradict the month
+                         #      grid for the same date — the forbidden second definition, reached
+                         #      without ever opening absence.ts.
+                         #   2. It REWRITES THE PRESENTATION OF THE SET THAT COUNT SUMS, which is why
+                         #      CAL-05's own row lists INV-04. The tempting space-saving at ~161px is
+                         #      merging a member's am and pm entries into ONE chip; AC-8 forbids it.
+                         # No other row is engaged: the rest are properties of STORED entries and
+                         # this ticket writes nothing, reads nothing new and changes no arithmetic.
+# FILLED BY tech-lead-design AT PLAN, from 01-plan.md section 7. ONE file outside the ticket folder.
+#
+# NO TEST FILE, AND THAT IS A MEASUREMENT RATHER THAN AN ASSUMPTION — see the `size` note above and
+# 01-plan.md section 0. src/index.css is NOT here either: every token the columns use was shipped by
+# UIE-01 and UIE-02, and the shell already grants the pane full width with `min-w-0 flex-1`.
+allowed_paths:
+  - ".ai/board/tickets/UIE-04/**"
+  - "src/routes/WeekView.tsx"
 schema_delta: none
 requires_adr: false   # ***RECORDED ON THE READING THAT §3's REGISTRY QUESTION IS ANSWERED "NO".***
                       # If PLAN concludes the week view must carry the mockup's absence count, that
@@ -44,8 +87,16 @@ chat_budget:
   # ADR-022 removed the QA stage, and the `qa->tech-lead-design` edge with it.
 tracker: { provider: "", external_id: "", sync_enabled: false }
 gates:
-  plan:   { passed: false, at: null }   # ADR-019 merged the `spec` and `design` gates into one
-  review: { passed: false, at: null }
+  # BOTH ROWS TRANSCRIBED BY `orchestrator` AT /ship ON 2026-09-07. Neither value is claimed here —
+  # each is a copy of a gate another stage reached, read from that artifact's own front-matter.
+  #
+  # From .ai/board/tickets/UIE-04/01-plan.md: `gate: PASS`, `blocking_reason: ""`,
+  # `produced_at: 2026-09-07T15:54:51+07:00`. ADR-019 merged the `spec` and `design` gates into one.
+  plan:   { passed: true, at: "2026-09-07T15:54:51+07:00" }
+  # From .ai/board/tickets/UIE-04/04-review.md: `gate: PASS`, `blocking_reason: ""`,
+  # `next_state: DONE`, `produced_at: 2026-09-07T16:17:25+07:00`. ONE review pass, `rework_count: 0`,
+  # no consultation, no amendment — the second such ticket in a row after UIE-03.
+  review: { passed: true, at: "2026-09-07T16:17:25+07:00" }
   # No `qa` key. ADR-022 removed the stage and this shell is created after that date, so the two
   # gates that decide anything are `plan` and `review`. /ship requires both.
 
