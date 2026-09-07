@@ -454,7 +454,7 @@ Tickets that cannot proceed until a human decides something. Name the decision, 
 | 17 | OPS-002 | UI copy to English — entry screens and the seam's error messages | 2026-09-07 | [#62](https://github.com/didi-code0980/calechip/pull/62) |
 | 18 | UIE-01 | Restyle the sign-in and sign-up screens to the product's visual direction | 2026-09-07 | [#63](https://github.com/didi-code0980/calechip/pull/63) |
 | 19 | UIE-02 | The application shell — a persistent sidebar and top bar | 2026-09-07 | [#64](https://github.com/didi-code0980/calechip/pull/64) |
-| 20 | UIE-03 | The calendar screens give up their own chrome to the shell | 2026-09-07 | PENDING_PR |
+| 20 | UIE-03 | The calendar screens give up their own chrome to the shell | 2026-09-07 | [#65](https://github.com/didi-code0980/calechip/pull/65) |
 
 **The window displaced `BUG-001` at this ship, the fifth row out and the fourth in four ships** —
 *BUG-001, The end-to-end suite does not pin which seam it drives, shipped 2026-09-03,*
