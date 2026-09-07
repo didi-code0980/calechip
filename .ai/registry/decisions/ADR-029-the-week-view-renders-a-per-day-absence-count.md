@@ -1,5 +1,5 @@
 ---
-doc_version: 1
+doc_version: 2
 last_updated: 2026-09-07
 governed_by: [RULE-01, RULE-09]
 ---
@@ -33,10 +33,10 @@ day column reading `n/8 vắng`. The screen refuses that number today, and the r
 three times:
 
 - **CAL-05's feature row** — this view *"may render no number"* and *"never counts names"*.
-- **`.ai/board/tickets/CAL-05/01-plan.md:95-97`**, which makes it an out-of-scope bullet.
+- **`.ai/board/tickets/CAL-05/01-plan.md:95`**, which makes it an out-of-scope bullet.
 - **UIE-04's AC-13**, with its supporting argument in that ticket's `01-plan.md` § 4.1.
 
-`src/routes/WeekView.tsx:11-17` records it in the file itself: *"IT COUNTS NOTHING"* — no absence
+`src/routes/WeekView.tsx:11` records it in the file itself: *"IT COUNTS NOTHING"* — no absence
 count, no overload state, no threshold, and `seam.getTeam()` deliberately not called.
 
 **Two of the three stated reasons do not survive re-examination, and that is what makes a decision
@@ -51,7 +51,7 @@ necessary now rather than a restatement of the refusal.**
   being in scope."* What UIE-04 refused was the **chip-count substitute** — a day holding one full-day
   and two half-day entries has three chips and an absence count of two — and **that refusal is correct
   and is preserved here unchanged**.
-- **No team read is required.** `src/routes/WeekView.tsx:11-13` treats *a count* and *a `seam.getTeam()`
+- **No team read is required.** `src/routes/WeekView.tsx:11` treats *a count* and *a `seam.getTeam()`
   read* as the same thing. They are not: `getTeam()` supplies `overloadThreshold`, which a bare `n/N`
   does not use. The denominator is `currentMemberCount(roster)` — `src/lib/data/absence.ts:348` — from
   the member list the screen already reads.
@@ -60,14 +60,14 @@ necessary now rather than a restatement of the refusal.**
 neither function takes a team or a threshold, and the roster and the entries are already in state.
 
 **One reason does survive, and it is a product judgement rather than a mechanism.**
-`.ai/board/tickets/CAL-05/01-plan.md:526-528` — a decimal beside a list of names invites a comparison
+`.ai/board/tickets/CAL-05/01-plan.md:526` — a decimal beside a list of names invites a comparison
 it does not explain. Three names under `1.5/4` reads as a contradiction to a reader who does not know
 that a half-day weighs 0.5 (INV-06). **The image cannot test this objection**: it shows two full-day
 chips and five empty days, so the case that decides the question is the one case it does not contain.
 
 **A fourth consideration is new and was raised in no prior refusal.** INV-04 counts PTO and WFH alike
 (`.ai/registry/invariants.md:36`), so a strip labelled *away* asserts that a member working from home
-is absent. That is the confusion `src/lib/labels.ts:24-29` calls the most costly in this domain, and
+is absent. That is the confusion `src/lib/labels.ts:24` calls the most costly in this domain, and
 the thing OPS-002 AC-7 exists to prevent. **The picture's own word, `vắng`, is wrong for the number it
 labels** — independently of the language question, which § *Language* already settles against it.
 
@@ -86,7 +86,7 @@ written as an acceptance criterion rather than as a comment:
 3. **No threshold, no overload state, no `seam.getTeam()`.** The screen still computes no overload, so
    the second clause of UIE-04's AC-13 survives intact and only its first clause is superseded.
 4. **The label may not say "away".** WFH is counted and a WFH member is working (OPS-002 AC-7,
-   `src/lib/labels.ts:24-29`). The strip names the absence count as the glossary names it, or it names
+   `src/lib/labels.ts:24`). The strip names the absence count as the glossary names it, or it names
    nothing at all. **It is English** — `.ai/standards/ui-design-system.md` § *Language*, the operator's
    own instruction of 2026-09-03 — so `vắng` is not available whatever noun is chosen.
 
@@ -102,7 +102,7 @@ Four options were considered. The recommendation is **option 2**.
 decimal-beside-names objection is never put in front of a real reader.
 *Against:* the operator has now asked for it directly, with a picture; and the standing refusal rests
 partly on an INV-04 argument that is **not correct**, so the reason written into
-`src/routes/WeekView.tsx:11-17` will keep being cited and will keep being wrong. **Choosing this option
+`src/routes/WeekView.tsx:11` will keep being cited and will keep being wrong. **Choosing this option
 still leaves that comment owing a correction** — the screen would be refusing the number for one good
 reason instead of three, two of which do not hold.
 
@@ -124,6 +124,42 @@ refusal stands unchanged. It is named here so that nobody re-derives it and reac
 and `overloadThreshold`, it drags in the sidebar's fourth legend row, and it is a larger decision that
 deserves to be taken on its own terms rather than as a side effect of a footer strip.
 
+## Interaction with ADR-030
+
+**Added by `product` at `/triage` on 2026-09-07, later the same day, `doc_version` 1 to 2. Nothing
+above or below this section was changed, and the decision, the clauses and the status are untouched.**
+This section exists because a second proposal reached the operator's desk hours after this one and the
+two are not readable alone.
+
+**The operator showed a second image the same day — of the month view — and it removes the per-day
+absence count from the month cell.** That went to
+[ADR-030](ADR-030-the-month-cell-renders-no-absence-count.md), also `PROPOSED — awaiting the operator`.
+**So one proposal adds this number to the screen that does not have it, and the other removes it from
+the screen that does.**
+
+- **No invariant and no clause is violated by the pair.** INV-04 requires the number to have **one
+  definition**; it never requires the number to be rendered anywhere. Clause 1 above is about which
+  function produces a displayed number, not about which screens must display one. Neither document
+  forbids the other.
+- **But this ADR argues for itself from the surface ADR-030 removes.** Option 2's *For* above reads:
+  *"the number **provably** agrees with the month grid because it is the same function over the same
+  rows"*, and option 3's rejection reads that a chip count *"would contradict the month grid for the
+  same date"*. **If both are accepted, the reference surface stops printing the number this decision is
+  justified by agreeing with.** The agreement stays true in code and is no longer visible anywhere.
+- **And ADR-030 asks the month cell to become what option 3 above is rejected for being.** A cell with
+  three avatars and a load of two would then say three, with nothing on the cell to correct it. That is
+  a second *impression* rather than a second definition — `absence.ts` is untouched either way — but it
+  is the same reading failure, arrived at by subtraction instead of by substitution.
+- **What accepting both would be: a swap of which screen carries INV-04's number.** This screen gains
+  it, with the decimal-beside-names objection accepted rather than answered; the month grid loses it,
+  after one glyph in a corner had carried it since 2026-09-04.
+
+**Nothing here changes this decision and nothing here couples the two.** They are separable, they can
+be signed in either order, and each stands or falls on its own merits. **The one thing that should not
+happen is each being signed without the other having been read**, which is why the same content is in
+both documents — ADR-030 § *Interaction with ADR-029* — so that whichever the operator opens first
+carries it.
+
 ## Consequences
 
 - **CAL-05's feature row is amended**: *"may render no number"* becomes *"renders the absence count for
@@ -131,7 +167,7 @@ deserves to be taken on its own terms rather than as a side effect of a footer s
   owed for the row itself.
 - **UIE-04's row gains a line**: **AC-13's first clause is superseded by this ADR**; its second clause,
   that the screen makes no team read, is not.
-- **`src/routes/WeekView.tsx:11-17` is rewritten.** *"IT COUNTS NOTHING"* stops being true, and the
+- **`src/routes/WeekView.tsx:11` is rewritten.** *"IT COUNTS NOTHING"* stops being true, and the
   replacement must carry the correction that a count never needed a team read — otherwise the next
   reader inherits the same wrong reason in new words.
 - **What gets worse, stated plainly.** A day with one full-day and two half-day entries shows three
@@ -182,7 +218,9 @@ oblige, in one pass, so the operator can see the whole cost before deciding.
 | `src/routes/WeekView.tsx` | the `:11-17` comment block rewritten; the footer strip added |
 | `tests/e2e/` | one new spec file or one new block, for the new selector |
 
-**No rule, no invariant and no other ADR is touched.** ADR-005, ADR-013, ADR-014 and ADR-028 are
+**No rule, no invariant and no other ADR is touched.** **ADR-030 is `PROPOSED` and is not superseded,
+amended or accepted by this document either** — it gains a cross-reference and nothing else, and
+§ *Interaction with ADR-030* is why. ADR-005, ADR-013, ADR-014 and ADR-028 are
 unaffected, `.ai/registry/invariants.md` is not edited, and **INV-04 is satisfied rather than amended**
 — which is the whole argument of clause 1 and the reason this ADR is about a feature row rather than
 about the ledger.

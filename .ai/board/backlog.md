@@ -33,6 +33,66 @@ Under the current gate placement a ticket sits here until it has been planned �
 | # | Ticket | Title | State | Blocked on |
 |---|--------|-------|-------|------------|
 | 1 | UIE-05 | The week column fills the viewport, and its header strip and entry chip are restacked | BACKLOG | — |
+| 2 | UIE-06 | The month grid becomes one ruled full-width card with taller cells, on the product's tokens | BACKLOG | — |
+
+**Row 2 was appended by `product` at /triage on 2026-09-07, later the same day, and `product` asserts
+nothing about its position.** Same stance as every paragraph in this file: the header says a human
+reorders, so placing it above row 1 would have moved a row that was already here. Nothing was
+renumbered and no row moved relative to another.
+
+It is from
+`.ai/board/ideas/2026-09-07-the-month-grid-is-the-only-calendar-surface-still-drawn-in-defaults.md`;
+that file's *Triage verdict* section is the reasoning, and
+`.ai/board/tickets/UIE-06/design/README.md` is the visual reference — **a hand transcription of the
+operator's second image of the day, shown in conversation and never on disk, and a different image
+again from UIE-05's and from the one UIE-02, UIE-03 and UIE-04 were built against.**
+
+**Four facts a human needs, and none of them is a priority question.**
+
+1. **`depends_on` is `[]` and Definition of Ready item 3 passes today.** UIE-01 through UIE-04 are
+   DONE. **UIE-05 is deliberately not named**: it owns `src/routes/WeekView.tsx` and this row owns
+   `src/routes/MonthView.tsx`, which are disjoint, and `allowed_paths` is `[]` on every ticket on the
+   board so nothing claims a path. **The one file that could collide is `src/index.css`** if both
+   tickets add a token, and both shells record that neither expects to. One working directory holds
+   one branch (ADR-006), so only one is ever in flight regardless.
+2. **This idea was cut in two at triage as well, and the other half is not a ticket.** The picture
+   **deletes the per-cell absence count** — `month-cell-count` — and that is a domain amendment rather
+   than a restyle: CAL-04 AC-3 states INV-04's formula in words, and `CAL-04/01-plan.md:192` grants the
+   Tech Lead the count's *position* while saying nothing about its *presence*. It went to
+   `.ai/board/ideas/2026-09-07-the-month-cell-number-is-what-stops-the-avatars-being-counted.md` on a
+   **NEEDS-ADR** verdict, with
+   [ADR-030](../registry/decisions/ADR-030-the-month-cell-renders-no-absence-count.md) drafted in full
+   and **`PROPOSED` — awaiting the operator**. **This row does not wait on that decision** and ships a
+   month grid matching the picture minus one small numeral per busy cell.
+3. **Much of the picture is already on screen**, which is the finding most likely to move this
+   ticket's size and is why no size is recorded here — the day numeral, the avatar chips and their two
+   colours, the overloaded day's whole-cell pink, Monday-first whole weeks and greyed out-of-month
+   days are all shipped. **What is genuinely missing is the full-pane width, the ruled single card,
+   the cell height, the weekday strip's position, the out-of-month tint and the badge's slot.** The
+   size will move on one thing that is not in that list: whether the plan also converts the grid onto
+   UIE-01's and UIE-02's tokens, which it uses none of today.
+4. **The load-bearing half of this ticket is what it does *not* do**, and `ticket.yaml` § 7 carries it
+   as ten negative requirements. The four worth reading before planning: **no Vietnamese copy** —
+   `CẦU` fails the build, not just review, because `eslint.config.js:84-92` lints JSX text for
+   diacritics and `Ầ` is U+1EA6; **`month-cell-count` and `month-threshold` both stay**; **the bridge
+   badge is not filled**, because pink is the overload colour and filling it paints a crowded-day
+   signal onto a working day; and **no shell edit at all**.
+
+**Two things a human may want to settle before it is planned, and neither is its position.**
+
+- **ADR-029 and ADR-030 are now both on the desk, from two pictures by the same person on the same
+  day, and neither is readable alone.** One adds a per-day absence count to the week view; the other
+  removes it from the month view. **Neither violates INV-04** — the invariant governs the number's
+  definition, not where it is rendered — but ADR-029 argues for itself by saying the week strip
+  *"provably agrees with the month grid"*, and ADR-030 removes the surface that agreement was ever
+  visible on. Both documents carry the interaction in a section of its own, so whichever is opened
+  first says so. **They are two signatures, not one.**
+- **`src/index.css:141-143` and `src/components/Sidebar.tsx:62-65` state something that is not true**
+  — that no calendar view computes an overload state and that `seam.getTeam()` is not called by any of
+  them. `MonthView.tsx:175` calls it and `:347` computes `isOverloaded`, and has since CAL-04 shipped
+  the day before those comments were written; verified independently against source at this triage.
+  **It is the recorded reason the sidebar has no overload legend row — the row both images draw.**
+  Correcting the comments is two lines; building the row is a shell change nobody has scoped.
 
 **Row 1 was appended by `product` at /triage on 2026-09-07, and `product` asserts nothing about its
 position — it is row 1 because the table was empty, not because anyone placed it there.** The
