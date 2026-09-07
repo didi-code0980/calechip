@@ -19,6 +19,9 @@ inputs_read:
   - ui-language.json
   - scripts/check-docs.mjs (D5 and D6 scoping only)
   - the transcription named under Evidence
+  - tech-lead-design's technical read of the same request, 2026-09-07 (read in full before the verdict)
+  - .ai/board/tickets/UIE-04/ticket.yaml
+  - .ai/registry/decisions/ADR-000-template.md
 consulted: []
 gate: PASS
 blocking_reason: ""
