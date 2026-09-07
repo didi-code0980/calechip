@@ -32,8 +32,17 @@ Under the current gate placement a ticket sits here until it has been planned �
 
 | # | Ticket | Title | State | Blocked on |
 |---|--------|-------|-------|------------|
-| 1 | UIE-03 | The calendar screens give up their own chrome to the shell | BACKLOG | — |
-| 2 | UIE-04 | The week view as seven day columns | BACKLOG | UIE-03 |
+| 1 | UIE-04 | The week view as seven day columns | BACKLOG | — |
+
+**Renumbered to 1 by `orchestrator` at /ship on 2026-09-07**, when UIE-03 left this table for
+`## ARCHIVE`. Bookkeeping, not a reordering. **`UIE-04`'s `Blocked on` is cleared in the same write**,
+because it named `UIE-03` and `UIE-03` is now DONE.
+
+***ONE ROW LEFT ON THE WHOLE BOARD.*** Every `CAL`, `TEA`, `ADM` and `OPS` row has shipped and three
+of the four `UIE` rows with them. `UIE-04` is the last link of the chain triage cut on 2026-09-05,
+and after it this table is empty — **which is a state nothing in this file describes, and it is worth
+a human deciding what happens then rather than discovering it at a `/next-ticket` that has nothing to
+report.**
 
 **Renumbered to 1–2 by `orchestrator` at /ship on 2026-09-07**, when UIE-02 left this table for
 `## ARCHIVE`. Bookkeeping, not a reordering. **`UIE-03`'s `Blocked on` is cleared in the same write**,
@@ -426,26 +435,66 @@ Tickets that cannot proceed until a human decides something. Name the decision, 
 
 | # | Ticket | Title | Shipped | PR |
 |---|--------|-------|---------|-----|
-| 1 | BUG-001 | The end-to-end suite does not pin which seam it drives | 2026-09-03 | [#27](https://github.com/didi-code0980/calechip/pull/27); board files in [#28](https://github.com/didi-code0980/calechip/pull/28) |
-| 2 | TEA-05 | Sign in, sign out, and the member-less landing state | 2026-09-03 | [#29](https://github.com/didi-code0980/calechip/pull/29); board and registry in [#30](https://github.com/didi-code0980/calechip/pull/30) |
-| 3 | CAL-01 | Create an entry for themselves, over a range of dates | 2026-09-03 | [#32](https://github.com/didi-code0980/calechip/pull/32); board and registry in [#34](https://github.com/didi-code0980/calechip/pull/34) |
-| 4 | CAL-02 | Edit or delete their own entry | 2026-09-03 | [#36](https://github.com/didi-code0980/calechip/pull/36) |
-| 5 | CAL-03 | Edit or delete another member's entry, as an admin | 2026-09-03 | [#38](https://github.com/didi-code0980/calechip/pull/38) |
-| 6 | OPS-001 | UI copy to English — chrome, account and team screens | 2026-09-03 | [#40](https://github.com/didi-code0980/calechip/pull/40) |
-| 7 | CAL-04 | Month view — a day grid showing who is away and which days are overloaded | 2026-09-04 | [#48](https://github.com/didi-code0980/calechip/pull/48) |
-| 8 | CAL-05 | Week view — per-person detail for one week, with half-days, notes and who approved | 2026-09-04 | [#49](https://github.com/didi-code0980/calechip/pull/49) |
-| 9 | CAL-06 | Year view — one row per member across 365 days | 2026-09-04 | [#51](https://github.com/didi-code0980/calechip/pull/51) |
-| 10 | ADM-01 | Set the overload threshold | 2026-09-05 | [#52](https://github.com/didi-code0980/calechip/pull/52) |
-| 11 | CAL-07 | Overload warning shown while choosing dates, before the entry is saved | 2026-09-05 | [#53](https://github.com/didi-code0980/calechip/pull/53) |
-| 12 | ADM-02 | The national holiday calendar, seeded and readable | 2026-09-05 | [#54](https://github.com/didi-code0980/calechip/pull/54) |
-| 13 | ADM-03 | Add, edit or delete a holiday or swap day | 2026-09-05 | [#55](https://github.com/didi-code0980/calechip/pull/55) |
-| 14 | CAL-08 | Holidays and bridge days shown in the calendar views | 2026-09-05 | [#56](https://github.com/didi-code0980/calechip/pull/56) |
-| 15 | ADM-04 | The worklist of entries awaiting a decision | 2026-09-05 | [#58](https://github.com/didi-code0980/calechip/pull/58), merged — corrected from `PENDING_PR` at ADM-05's ship |
-| 16 | ADM-05 | Approve or reject an entry, with a reason on rejection | 2026-09-05 | [#59](https://github.com/didi-code0980/calechip/pull/59) |
-| 17 | ADM-06 | Reject several entries at once, with one reason for the batch | 2026-09-06 | [#60](https://github.com/didi-code0980/calechip/pull/60) |
-| 18 | OPS-002 | UI copy to English — entry screens and the seam's error messages | 2026-09-07 | [#62](https://github.com/didi-code0980/calechip/pull/62) |
-| 19 | UIE-01 | Restyle the sign-in and sign-up screens to the product's visual direction | 2026-09-07 | [#63](https://github.com/didi-code0980/calechip/pull/63) |
-| 20 | UIE-02 | The application shell — a persistent sidebar and top bar | 2026-09-07 | [#64](https://github.com/didi-code0980/calechip/pull/64) |
+| 1 | TEA-05 | Sign in, sign out, and the member-less landing state | 2026-09-03 | [#29](https://github.com/didi-code0980/calechip/pull/29); board and registry in [#30](https://github.com/didi-code0980/calechip/pull/30) |
+| 2 | CAL-01 | Create an entry for themselves, over a range of dates | 2026-09-03 | [#32](https://github.com/didi-code0980/calechip/pull/32); board and registry in [#34](https://github.com/didi-code0980/calechip/pull/34) |
+| 3 | CAL-02 | Edit or delete their own entry | 2026-09-03 | [#36](https://github.com/didi-code0980/calechip/pull/36) |
+| 4 | CAL-03 | Edit or delete another member's entry, as an admin | 2026-09-03 | [#38](https://github.com/didi-code0980/calechip/pull/38) |
+| 5 | OPS-001 | UI copy to English — chrome, account and team screens | 2026-09-03 | [#40](https://github.com/didi-code0980/calechip/pull/40) |
+| 6 | CAL-04 | Month view — a day grid showing who is away and which days are overloaded | 2026-09-04 | [#48](https://github.com/didi-code0980/calechip/pull/48) |
+| 7 | CAL-05 | Week view — per-person detail for one week, with half-days, notes and who approved | 2026-09-04 | [#49](https://github.com/didi-code0980/calechip/pull/49) |
+| 8 | CAL-06 | Year view — one row per member across 365 days | 2026-09-04 | [#51](https://github.com/didi-code0980/calechip/pull/51) |
+| 9 | ADM-01 | Set the overload threshold | 2026-09-05 | [#52](https://github.com/didi-code0980/calechip/pull/52) |
+| 10 | CAL-07 | Overload warning shown while choosing dates, before the entry is saved | 2026-09-05 | [#53](https://github.com/didi-code0980/calechip/pull/53) |
+| 11 | ADM-02 | The national holiday calendar, seeded and readable | 2026-09-05 | [#54](https://github.com/didi-code0980/calechip/pull/54) |
+| 12 | ADM-03 | Add, edit or delete a holiday or swap day | 2026-09-05 | [#55](https://github.com/didi-code0980/calechip/pull/55) |
+| 13 | CAL-08 | Holidays and bridge days shown in the calendar views | 2026-09-05 | [#56](https://github.com/didi-code0980/calechip/pull/56) |
+| 14 | ADM-04 | The worklist of entries awaiting a decision | 2026-09-05 | [#58](https://github.com/didi-code0980/calechip/pull/58), merged — corrected from `PENDING_PR` at ADM-05's ship |
+| 15 | ADM-05 | Approve or reject an entry, with a reason on rejection | 2026-09-05 | [#59](https://github.com/didi-code0980/calechip/pull/59) |
+| 16 | ADM-06 | Reject several entries at once, with one reason for the batch | 2026-09-06 | [#60](https://github.com/didi-code0980/calechip/pull/60) |
+| 17 | OPS-002 | UI copy to English — entry screens and the seam's error messages | 2026-09-07 | [#62](https://github.com/didi-code0980/calechip/pull/62) |
+| 18 | UIE-01 | Restyle the sign-in and sign-up screens to the product's visual direction | 2026-09-07 | [#63](https://github.com/didi-code0980/calechip/pull/63) |
+| 19 | UIE-02 | The application shell — a persistent sidebar and top bar | 2026-09-07 | [#64](https://github.com/didi-code0980/calechip/pull/64) |
+| 20 | UIE-03 | The calendar screens give up their own chrome to the shell | 2026-09-07 | PENDING_PR |
+
+**The window displaced `BUG-001` at this ship, the fifth row out and the fourth in four ships** —
+*BUG-001, The end-to-end suite does not pin which seam it drives, shipped 2026-09-03,*
+[#27](https://github.com/didi-code0980/calechip/pull/27)*; board files in*
+[#28](https://github.com/didi-code0980/calechip/pull/28). Reproduced on ADM-06's convention. **This
+one is the costliest displacement yet**: BUG-001 is the pair of pull requests ADR-023 exists because
+of, and this table was the only file naming both. Five reproduction paragraphs now stand where the
+table used to be the record.
+
+**The cleanest run in the UIE chain, and the first ticket since ADM-06 to need no rework, no
+consultation and no amendment.** One review pass, and **all four commands were run at REVIEW on the
+final tree** — `tsc` 0, `eslint` 0, `vitest run` 186 in 10 files, `playwright test` 165 passed in
+23.8s. The reviewer states in its own words that a verification table copied from the artifact being
+judged is not evidence, and ran them itself.
+
+**PLAN overrode §7 of this ticket's own shell, on the authority of a later document, and that is the
+finding worth keeping.** §2 and §3 of the shell assume UIE-02 relocated the screens' selector ids
+onto the shell. **It did not** — UIE-02 shipped `shell-period-*` names and left `data-period-kind` on
+its anchor rather than `data-week-start` / `data-month` / `data-year`, deliberately, because while
+both copies existed a reused id resolved to two nodes and Playwright's strict mode fails rather than
+picking one. **UIE-02's `01-plan.md` § 4.8 handed the decision here in as many words**, so
+`src/components/TopBar.tsx` and `src/lib/period.ts` came into scope against §7. Without that grant,
+deleting four screen headers destroys **83 spec references**.
+
+**Six spec files in `allowed_paths` — the most of any ticket in this product — and twelve paths is
+M's ceiling exactly.** `tests/e2e/adm-01-threshold.spec.ts` is named in the shell specifically to be
+**excluded**: it references two touched ids and both survive, so a reader who counts seven files
+referencing a touched id knows why only six were edited. That is the shape of a scope statement that
+expects to be checked rather than believed.
+
+**`shell-period-prev`, `shell-period-next` and `shell-period-anchor` cease to exist three tickets
+after UIE-02 named them.** Nothing asserts them, so the cost is documentary rather than behavioural —
+but UIE-02's plan § 4.8 now reads as describing selectors that are gone. **That is what a superseded
+plan looks like, and it is deliberately not amended backwards**, on the same principle every
+corrected-in-place paragraph in this file follows.
+
+**One open consequence, recorded by PLAN rather than fixed:** the holidays screen is now the only
+period-shaped screen still carrying its own controls, which is a visible inconsistency inside a
+ticket whose purpose was consistency. Teaching `period.ts` a `holidays` kind would close it in one
+place, and that is a later ticket's.
 
 **The window displaced `TEA-04` at this ship, the fourth row out and the third in three ships** —
 *TEA-04, Remove a member, and promote a member to admin, shipped 2026-09-01,*

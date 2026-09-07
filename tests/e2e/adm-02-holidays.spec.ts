@@ -118,8 +118,8 @@ test.describe("ADM-02 the national holiday calendar", () => {
     const asMember = await drawnDates(page);
     expect(asMember).toEqual(DATES_2026);
 
-    // Back and out WITHOUT a document load, so the second half runs against the same page lifetime.
-    await page.getByTestId("holidays-back").click();
+    // Out WITHOUT a document load, so the second half runs against the same page lifetime. UIE-03
+    // AC-12 deleted the back-link step: sign-out is a SIDEBAR control and renders on this screen.
     await page.getByTestId("home-sign-out").click();
     await expect(page.getByTestId("sign-in-submit")).toBeVisible();
 
@@ -277,7 +277,7 @@ test.describe("ADM-02 the national holiday calendar", () => {
     await openHolidays(page, MEMBER_EMAIL);
     const onOurTeam = await drawnDates(page);
 
-    await page.getByTestId("holidays-back").click();
+    // UIE-03 AC-12. The back-link step is deleted; sign-out is in the sidebar, on this screen.
     await page.getByTestId("home-sign-out").click();
     await expect(page.getByTestId("sign-in-submit")).toBeVisible();
 

@@ -63,7 +63,11 @@ import type { DateRange, DayStatus, Entry, Failure, Holiday, Member, Team } from
 // module deletes a copy rather than making a third. This import and the deletions under it are the
 // whole of UIE-02's edit to this screen — no rendered output changes here, which is what keeps
 // `Out of scope` item 1 true and zero spec files in scope.
-import { isRealMonth, mondayIndex, monthLabel, shiftMonth } from "@/lib/period";
+//
+// UIE-03 § 4.4. `monthLabel` and `shiftMonth` LEAVE THIS IMPORT with the header that used them: the
+// label was the anchor's text and the shift was the previous/next target, and the top bar computes
+// both now. `mondayIndex` and `isRealMonth` stay — the grid and the route guard are untouched.
+import { isRealMonth, mondayIndex } from "@/lib/period";
 
 // ---------------------------------------------------------------------------
 // The month vocabulary. `yyyy-MM` in the URL, `yyyy-MM-dd` everywhere below it.
@@ -308,47 +312,18 @@ export default function MonthView() {
 
   return (
     <section className="mx-auto flex max-w-5xl flex-col gap-6">
+      {/* UIE-03 AC-2. **Everything this header carried except the threshold line is gone.**
+          Its link to the landing route is dead — UIE-02 deleted the home screen — and `month-prev`,
+          `month-anchor`, `month-next`, `month-week` and `month-year` are the top bar's now, under
+          those same names (01-plan.md § 4.3), so the specs addressing them keep passing unedited.
+          AC-5 is why the deleted id is described rather than named.
+
+          **The `<header>` element survives for the one child below.** § 4.4 permits deleting it and
+          this does not, for a layout reason: `ml-auto` on that `<p>` right-aligns it against a flex
+          ROW, and the section around it is a flex COLUMN — dropping the wrapper would move the
+          threshold line to the left edge, which is a visible change on a ticket whose AC-10 says the
+          content below the header is unchanged. */}
       <header className="flex items-center gap-4">
-        <Link data-testid="month-home" to="/" className="underline">
-          Home
-        </Link>
-
-        {/* AC-10. Links and not buttons: the month IS the address, so moving between months is
-            navigation, and a member can bookmark or share the month they are looking at. */}
-        <Link data-testid="month-prev" to={`/month/${shiftMonth(anchorMonth, -1)}`} className="underline">
-          Previous
-        </Link>
-        <h1 data-testid="month-anchor" data-month={anchorMonth} className="text-xl font-semibold">
-          {monthLabel(anchorMonth)}
-        </h1>
-        <Link data-testid="month-next" to={`/month/${shiftMonth(anchorMonth, 1)}`} className="underline">
-          Next
-        </Link>
-
-        {/* CAL-05 AC-14. The one link CAL-05 adds to this file, and the whole of its edit here
-            (CAL-05 01-plan.md section 7). Switching views KEEPS THE DATE, which CAL-04's own row
-            calls "a mechanism, not a preference" and which could not be built until a second view
-            existed — so it points at the FIRST of this month rather than at a fixed week.
-
-            IN THE HEADER AND NOT ON A CELL, deliberately: a cell already carries the mouse-down that
-            starts AC-13's drag, and a second click target there would put CAL-05's routing on top of
-            this ticket's shipped acceptance criteria. */}
-        <Link data-testid="month-week" to={`/week/${first}`} className="underline">
-          Week
-        </Link>
-
-        {/* CAL-06 AC-12. The one link CAL-06 adds to this file, and the whole of its edit here
-            (CAL-06 01-plan.md section 7). Switching views KEEPS THE DATE, so it points at the year
-            containing the displayed month rather than at the current one — a member reading April
-            2027 who follows this reaches 2027.
-
-            IN THE HEADER AND NOT ON A CELL, for the reason CAL-05 already recorded here: a cell
-            carries the mouse-down that starts AC-13's drag, and a second click target there would
-            put this ticket's routing on top of CAL-04's shipped acceptance criteria. */}
-        <Link data-testid="month-year" to={`/year/${anchorMonth.slice(0, 4)}`} className="underline">
-          Year
-        </Link>
-
         {/* AC-14. The threshold is READ and shown, and there is no control that changes it — for
             either role. It is displayed rather than hidden because an overloaded day is otherwise a
             colour with no explanation, and the two numbers behind it are the whole of INV-04. */}

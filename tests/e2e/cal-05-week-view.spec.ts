@@ -101,7 +101,8 @@ async function declare(
 ): Promise<void> {
   const path = new URL(page.url()).pathname;
 
-  await page.getByTestId("week-home").click();
+  // UIE-03 AC-12. The trip to the landing screen is deleted, not replaced: the create link is in
+  // the TOP BAR and renders on the week itself.
   await page.getByTestId("home-new-entry-link").click();
 
   await page.getByTestId("new-entry-start").fill(fields.start);

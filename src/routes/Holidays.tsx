@@ -466,11 +466,16 @@ export default function Holidays() {
         </p>
       )}
 
-      <p>
-        <Link data-testid="holidays-back" to="/" className="text-sm underline">
-          Home
-        </Link>
-      </p>
+      {/* UIE-03 AC-4. **The back-link that stood here is deleted and NOT replaced** — AC-5 is why
+          its id is not written out. It pointed at `/`, which UIE-02 made the current week rather
+          than a home screen, and the sidebar already carries every destination it offered.
+
+          **`holidays-prev`, `holidays-year` and `holidays-next` above are kept, deliberately.**
+          `periodNavFor` returns `null` for `/holidays`, so the top bar draws no period cluster on
+          this screen — there is no duplication here to remove, and deleting these three would leave
+          an admin no way to change year. That is a functional regression rather than a restyle, and
+          teaching `period.ts` a fourth period kind is an addition that belongs to another ticket
+          (01-plan.md § 1 item 3, § 8 alternative 2, and *Open questions* 4). */}
     </section>
   );
 }

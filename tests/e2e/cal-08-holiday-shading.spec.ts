@@ -180,7 +180,9 @@ async function addHoliday(
   // `holidays-added-elsewhere` — asserted, because a silent add would leave every check below
   // passing against the seeded calendar.
   await expect(page.getByTestId("holidays-row")).toHaveCount(expectedRows);
-  await page.getByTestId("holidays-back").click();
+  // UIE-03 AC-12. The back-link step is deleted and NOT replaced, so this helper now RETURNS ON THE
+  // HOLIDAYS SCREEN. Both callers follow it with `backTo`, which walks history until the pathname
+  // matches and is therefore indifferent to how many entries were pushed.
   await expect(page.getByTestId("home-sign-out")).toBeVisible();
 }
 
@@ -353,8 +355,8 @@ test.describe("CAL-08 — holidays and bridge days in the calendar views", () =>
     await expect(monthCell(page, "2026-09-15")).toHaveAttribute("data-count", "1");
     await expect(monthCell(page, "2026-09-15")).toHaveAttribute("data-overloaded", "false");
 
-    await page.getByTestId("month-home").click();
-
+    // UIE-03 AC-12. The step onto the landing screen is deleted; the threshold link below is a
+    // SIDEBAR control and renders on the grid.
     // ADM-01's control, used to make one person away crowded — moving three people through the
     // sign-in screen would test CAL-01 rather than this. THE FIELD IS A WHOLE PERCENT and the column
     // is a share: 10 here is the 0.1 that `isOverloaded` compares against (ADM-01 01-plan.md).
@@ -473,7 +475,8 @@ test.describe("CAL-08 — holidays and bridge days in the calendar views", () =>
 
     // A holiday on the last day of September, which is one of October's LEADING cells — the fixture
     // set has no row in any month's out-of-month week, so the criterion needs one added.
-    await page.getByTestId("month-home").click();
+    // UIE-03 AC-12. The step onto the landing screen is deleted; `addHoliday` opens with a SIDEBAR
+    // link, which renders on the grid.
     await addHoliday(page, "2026-09-30", "Ngay cuoi thang chin", 5);
 
     await backTo(page, "/month/2026-09");

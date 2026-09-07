@@ -134,7 +134,8 @@ async function declare(
 ): Promise<void> {
   const path = new URL(page.url()).pathname;
 
-  await page.getByTestId("year-home").click();
+  // UIE-03 AC-12. The trip to the landing screen is deleted, not replaced: the create link is in
+  // the TOP BAR and renders on the year itself.
   await page.getByTestId("home-new-entry-link").click();
 
   await page.getByTestId("new-entry-start").fill(fields.start);
@@ -331,9 +332,10 @@ test.describe("CAL-06 — year view", () => {
     await page.getByTestId("week-year").click();
     await expect(page.getByTestId("year-anchor")).toHaveAttribute("data-year", "2026");
 
-    // And from the landing screen, for both roles — the link is not an affordance over a policy,
-    // because nothing on this screen is refused.
-    await page.getByTestId("year-home").click();
+    // And from the sidebar, for both roles — the link is not an affordance over a policy, because
+    // nothing on this screen is refused. UIE-03 AC-12 deleted the step onto the landing screen that
+    // used to precede this click; the sidebar link renders everywhere inside the shell, so the
+    // assertion below is reached the same way.
     await page.getByTestId("home-year-link").click();
     await expect(page.getByTestId("year-grid")).toBeVisible();
   });
