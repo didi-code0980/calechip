@@ -10,24 +10,92 @@ group: UIE           # ONE GROUP, ONE FEATURE ID. Definition of Ready item 6 is 
                      # groups, `group: CAL` recording only the primary one, and a whole §5
                      # discharging the second clause. Nothing of that kind is needed here.
                      # TEA-01 AND TEA-05 ARE DELIBERATELY NOT IN feature_ids. See §10.
-state: BACKLOG
+state: DONE        # `orchestrator` at /ship, 2026-09-07, on 04-review.md `gate: PASS` /
+                  # `next_state: DONE`. ADR-022 removed the QA stage, so REVIEW -> DONE is the whole
+                  # remaining transition (.ai/01-operating-model.md:36).
+#
+# PREVIOUS VALUE, `REVIEW`, and the `developer`'s comment is reproduced below rather than deleted,
+# because it is the most careful statement any stage has made of a defect now on its SEVENTH
+# consecutive ticket: no command in `.claude/commands/` owns PLAN -> READY, so this shell went
+# BACKLOG -> REVIEW on disk while the work went through PLAN, IN_PROGRESS and REVIEW.
+#
+# ONE CORRECTION, and it is the same one OPS-002 needed. The comment says leaving `gates.plan`
+# false avoids recording "a DoR evaluation that never happened". THE EVALUATION HAPPENED:
+# `/next-ticket` graded the full Definition of Ready in the orchestrator session at
+# 2026-09-07 09:27 +07, SIX OF SIX PASS, after `/plan` and before `/implement` — including item 5,
+# where `size_estimate: S` against `size: M` is settled by ADR-012 rather than routed back. The
+# `developer` was right to refuse to write another stage's gate; what was missing was a writer for
+# a grade that had already been given, not the grade.
+#
+# state: REVIEW    # Set by `developer` at /implement, 2026-09-07, on the PASS in 03-impl-log.md.
+#                  # IT WAS `BACKLOG` WHEN /implement RAN, NOT `READY`. 01-plan.md's front-matter
+#                  # carries `gate: PASS` and `next_state: READY`, but the PLAN->READY transition
+#                  # and `gates.plan` belong to `orchestrator` (.ai/01-operating-model.md:82,:285),
+#                  # which was not run between the two commands. `gates.plan` is DELIBERATELY LEFT
+#                  # `false` below — flipping another stage's gate from here would record a DoR
+#                  # evaluation that never happened. /ship requires it (:349). See 03-impl-log.md
+#                  # Open questions item 4.
 owner: ""
 branch: "feat/UIE-01"   # The convention followed, not a trade-off. See §5.
-size_estimate: ""     # S|M - set by tech-lead-design at PLAN; gates DoR. LEFT AS THE TEMPLATE SHIPS
-                      # IT. This is Definition of Ready item 5 and it is PLAN's. Triage's own
-                      # reading is recorded in §2 as evidence for PLAN, NOT as an answer.
-size: ""              # S|M|L|XL - set by tech-lead-design at PLAN; decides splitting
+size_estimate: S      # 01-plan.md section 1. Two screens, one new presentational component, one
+                      # stylesheet, one class on App.tsx. No schema, no seam function, no permission,
+                      # no test file. Agrees with triage's reading recorded at §2.
+size: M               # 01-plan.md section 7, counted from allowed_paths. IT DISAGREES WITH
+                      # size_estimate AND THE VERDICT WINS — ADR-012, and PLAN proceeded.
+                      # THE WHOLE GAP IS THE THREE .woff2 FILES that `public/fonts/**` resolves to:
+                      # five source files is S (up to 6), eight is M (up to 12). An estimate that
+                      # counts SURFACES does not see font binaries. §2 of this shell predicted the
+                      # shape — "S as scoped, M if index.html and a font path are added".
+                      # NOT L, so nothing splits: the frozen-selector constraint at §2 is what keeps
+                      # the twelve spec files out of allowed_paths, and it is written as AC-10.
 depends_on: []        # VERIFIED IN THIS TREE AT TRIAGE, NOT ASSUMED. See §6.
-invariants_touched: []   # LEFT AS THE TEMPLATE SHIPS IT. This is item 2 and belongs to
-                         # tech-lead-design at PLAN. `[]` here is the template's DEFAULT, NOT a
-                         # considered answer, and PLAN must reach its own. See the note at §9.
-allowed_paths: []     # LEFT EMPTY DELIBERATELY. guard-allowed-paths.mjs blocks every write outside
-                      # this ticket folder while it is empty. PLAN fills it. The file list in §1 is
-                      # the triage's scope statement and is NOT an allowed_paths list.
+invariants_touched: []   # REACHED AT PLAN, and no longer the template's default. 01-plan.md
+                         # section 2 carries the row-by-row reasoning. All seven rows at
+                         # .ai/registry/invariants.md:33-39 constrain an `entry` row or the member it
+                         # belongs to; NO INVARIANT GOVERNS THE APPEARANCE OF A SCREEN. The
+                         # circularity invariants.md warns about is avoided by a STRUCTURAL fact
+                         # rather than by inspecting intent: every file in section 7 sits ABOVE THE
+                         # SEAM — no query, no policy, no migration, no arithmetic — and neither
+                         # route imports the Supabase client, which RULE-02's lint rule would refuse.
+                         # AC-18 is the observable form of that claim. ADR-028 records that `[]` will
+                         # be the answer on almost every UIE row, as a COST of the group rather than
+                         # as permission to skip the question.
+# FILLED BY tech-lead-design AT PLAN, from 01-plan.md section 7.
+#
+# src/App.tsx IS LINE 35 ONLY (01-plan.md section 4.4) — the className, so the ground colour and the
+# font stack resolve. It has appeared in the allowed_paths of NINE shipped tickets and it is the file
+# here most likely to attract an unrelated edit. data-testid="app-root" and the seam banner at
+# :41-50 are untouched; AC-13 keeps the banner whole.
+#
+# NO TEST FILE IS LISTED AND NONE IS NEEDED. That is the frozen-selector constraint at §2 holding:
+# rename one of the thirteen data-testids and this becomes 5 source + 12 spec = 17 files, which is L
+# and must split. It is written as AC-10, and AC-18 asserts the suite passes unedited.
+#
+# public/fonts/** IS A GLOB and every other entry is a file. The exact filenames depend on which
+# subsets the Developer can obtain (01-plan.md Open questions item 2); a wrong enumeration would
+# block the ticket at the guard over a naming detail. It is narrow — a directory that does not exist
+# today, holding nothing but font binaries.
+allowed_paths:
+  - ".ai/board/tickets/UIE-01/**"
+  - "src/index.css"
+  - "src/components/AuthCard.tsx"
+  - "src/routes/SignIn.tsx"
+  - "src/routes/SignUp.tsx"
+  - "src/App.tsx"
+  - "public/fonts/**"
 schema_delta: none
 requires_adr: false   # ON THE SELF-HOSTED @font-face READING ONLY. See §7 — this field flips on a
                       # question PLAN answers, and PLAN MUST STOP AND ASK rather than flip it.
-rework_count: 0
+rework_count: 1   # Set by `developer` at /implement, rework cycle 1, on the FAIL in 04-review.md
+                  # (R5, one finding, routed to `developer` and stated there as incrementing this).
+                  # `state` was NOT touched and still reads REVIEW: the REVIEW->REWORK transition is
+                  # `orchestrator`'s (.ai/01-operating-model.md:290) and it was not run between the
+                  # two commands, exactly as with `gates.plan` above. THE COUNT IS TREATED
+                  # DIFFERENTLY FROM THE STATE ON PURPOSE — it records a cycle this session was part
+                  # of and that the reviewer had already decided, whereas a state or a gate written
+                  # from here would record a judgement nobody made. RULE-06 escalates at >= 2, so a
+                  # count nobody increments is a budget that never runs out. 03-impl-log.md Open
+                  # questions item 5.
 chat_budget:
   # ADR-019 retired `ba` from the loop, so the two `->ba` edges are gone. They are not listed as
   # zeroes: an edge nobody can walk is not a budget, it is a row that invites someone to try.
@@ -35,8 +103,17 @@ chat_budget:
   # ADR-022 removed the QA stage, and the `qa->tech-lead-design` edge with it.
 tracker: { provider: "", external_id: "", sync_enabled: false }
 gates:
-  plan:   { passed: false, at: null }   # ADR-019 merged the `spec` and `design` gates into one
-  review: { passed: false, at: null }
+  # BOTH ROWS TRANSCRIBED BY `orchestrator` AT /ship ON 2026-09-07. Neither value is claimed here —
+  # each is a copy of a gate another stage reached, taken from that artifact's own front-matter.
+  #
+  # From .ai/board/tickets/UIE-01/01-plan.md: `gate: PASS`, `blocking_reason: ""`,
+  # `produced_at: 2026-09-07T09:05:00+07:00`. ADR-019 merged the `spec` and `design` gates into one.
+  plan:   { passed: true, at: "2026-09-07T09:05:00+07:00" }
+  # From .ai/board/tickets/UIE-01/04-review.md: `gate: PASS`, `blocking_reason: ""`,
+  # `next_state: DONE`, `produced_at: 2026-09-07T10:55:14+07:00`. THIS IS REVIEW PASS 2 — pass 1 at
+  # 09:52 was a FAIL on R5 and is recorded in that report's own § Review pass 1, not overwritten.
+  # `rework_count: 1` below is that cycle.
+  review: { passed: true, at: "2026-09-07T10:55:14+07:00" }
   # No `qa` key. ADR-022 removed the stage and this shell is created after that date, so the two
   # gates that decide anything are `plan` and `review`. /ship requires both.
 
