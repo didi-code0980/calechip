@@ -13,7 +13,7 @@ governed_by: [RULE-01, RULE-09]
 **It may not be accepted by an agent.** ADR-008's test is: decide inside an existing envelope, ask
 before changing the envelope. The envelope here is **CAL-04 AC-3**, a *domain* acceptance criterion
 that states INV-04's formula in words — *"the cell for 14 April carries an absence count of `1.5`"*
-(`.ai/board/tickets/CAL-04/01-plan.md:83`). `.ai/standards/ui-design-system.md:152` puts
+(`.ai/board/tickets/CAL-04/01-plan.md:83-87`). `.ai/standards/ui-design-system.md:152-155` puts
 behaviour, permissions and invariants explicitly outside the grant that lets `tech-lead-design`
 originate a layout. **`CAL-04/01-plan.md:192` marks the count's *position* as the Tech Lead's own and
 *"cheap to argue with"*; it says nothing about its *presence*.** Position is arrangement. Presence is
@@ -56,7 +56,7 @@ state, the create panel — which is silence, on the same terms as the holiday n
 removal. **`month-cell-count` is the only rendered fact this image positively removes**, and this
 document is about that one element and nothing else.
 
-**What the count is, and what it is not.** `month-cell-count` is `src/routes/MonthView.tsx:391`,
+**What the count is, and what it is not.** `month-cell-count` is `src/routes/MonthView.tsx:391-395`,
 rendered top-right of the cell when a day's count is above zero. Its value is a lookup into
 `absenceCountsFor(entries, range, roster)` — `src/lib/data/absence.ts:197`, INV-04's single
 implementation — computed once at `MonthView.tsx:225-231` and read at `:344`. The screen holds no
@@ -85,7 +85,7 @@ The surface on which it was ever observable is.**
 **One thing the picture gets right and it is worth saying.** The image is internally consistent with
 `>` and not `>=`: against its roster of eight, day 28 carries four avatars (50%) and is **not** pink,
 while day 17 carries five (62.5%) and day 29 six (75%) and both **are**. That agrees exactly with
-INV-04 and with CAL-04 AC-7 (`.ai/board/tickets/CAL-04/01-plan.md:111`). It is the one domain fact
+INV-04 and with CAL-04 AC-7 (`.ai/board/tickets/CAL-04/01-plan.md:111-118`). It is the one domain fact
 the picture states correctly, and it is evidence that the deletion was drawn deliberately rather than
 overlooked.
 
@@ -107,7 +107,7 @@ overlooked.
 4. **The freed slot is a layout question and is answered in the ticket, not here.**
    `MonthView.tsx:389-396` is a `justify-between` row holding the numeral left and the count right.
    If this decision is accepted the right half is empty; whether the bridge badge moves into it is
-   `tech-lead-design`'s at PLAN under `.ai/standards/ui-design-system.md:140`. **UIE-06 is planned
+   `tech-lead-design`'s at PLAN under `.ai/standards/ui-design-system.md:140-155`. **UIE-06 is planned
    on the assumption that this decision is not taken**, and must not anticipate it.
 
 ## Rationale
@@ -187,11 +187,11 @@ a reader counts three. It is **not** a second definition — `absence.ts` is unt
 
 **4. What accepting both would actually be: a swap of which screen carries INV-04's number.** The week
 view gains it — new, contested, with the decimal-beside-names objection recorded as accepted rather
-than answered (`.ai/board/tickets/CAL-05/01-plan.md:526`). The month view loses it — shipped
+than answered (`.ai/board/tickets/CAL-05/01-plan.md:526-528`). The month view loses it — shipped
 2026-09-04, one glyph, top-right, costing nothing. **And after both changes an overloaded month cell
 has no explanation inside it at all**: the cell is pink, the count is gone, and the sidebar legend has
-no overload row and no `--color-overload` token (`src/components/Sidebar.tsx:62`,
-`src/index.css:141`, UIE-02 AC-11). `month-threshold` is then the only thing on the whole screen
+no overload row and no `--color-overload` token (`src/components/Sidebar.tsx:62-66`,
+`src/index.css:141-143`, UIE-02 AC-11). `month-threshold` is then the only thing on the whole screen
 that says what pink means, which is why clause 3 above refuses to let it go quietly.
 
 **5. What is recommended, and it is a sequence rather than a coupling.** **Decide them separately, in
@@ -210,7 +210,7 @@ document the operator opens first carries it.*
 - **CAL-04's acceptance criteria are amended, and this is the substance of the decision.** AC-3's
   *"the cell for 14 April carries an absence count of `1.5`"* becomes observable only through
   `data-count`. **The plan must reword AC-3** rather than leave a criterion whose only witness is a
-  test hook — `.ai/standards/ui-design-system.md:137` requires an acceptance criterion to be
+  test hook — `.ai/standards/ui-design-system.md:137-138` requires an acceptance criterion to be
   observable from outside the system by a reader who cannot ask a question. RULE-01: human approval;
   the row amendment owes no separate ADR.
 - **CAL-04's registry row gains a line** recording that the month grid no longer displays the number

@@ -33,10 +33,10 @@ day column reading `n/8 vắng`. The screen refuses that number today, and the r
 three times:
 
 - **CAL-05's feature row** — this view *"may render no number"* and *"never counts names"*.
-- **`.ai/board/tickets/CAL-05/01-plan.md:95`**, which makes it an out-of-scope bullet.
+- **`.ai/board/tickets/CAL-05/01-plan.md:95-97`**, which makes it an out-of-scope bullet.
 - **UIE-04's AC-13**, with its supporting argument in that ticket's `01-plan.md` § 4.1.
 
-`src/routes/WeekView.tsx:11` records it in the file itself: *"IT COUNTS NOTHING"* — no absence
+`src/routes/WeekView.tsx:11-17` records it in the file itself: *"IT COUNTS NOTHING"* — no absence
 count, no overload state, no threshold, and `seam.getTeam()` deliberately not called.
 
 **Two of the three stated reasons do not survive re-examination, and that is what makes a decision
@@ -51,7 +51,7 @@ necessary now rather than a restatement of the refusal.**
   being in scope."* What UIE-04 refused was the **chip-count substitute** — a day holding one full-day
   and two half-day entries has three chips and an absence count of two — and **that refusal is correct
   and is preserved here unchanged**.
-- **No team read is required.** `src/routes/WeekView.tsx:11` treats *a count* and *a `seam.getTeam()`
+- **No team read is required.** `src/routes/WeekView.tsx:11-13` treats *a count* and *a `seam.getTeam()`
   read* as the same thing. They are not: `getTeam()` supplies `overloadThreshold`, which a bare `n/N`
   does not use. The denominator is `currentMemberCount(roster)` — `src/lib/data/absence.ts:348` — from
   the member list the screen already reads.
@@ -60,14 +60,14 @@ necessary now rather than a restatement of the refusal.**
 neither function takes a team or a threshold, and the roster and the entries are already in state.
 
 **One reason does survive, and it is a product judgement rather than a mechanism.**
-`.ai/board/tickets/CAL-05/01-plan.md:526` — a decimal beside a list of names invites a comparison
+`.ai/board/tickets/CAL-05/01-plan.md:526-528` — a decimal beside a list of names invites a comparison
 it does not explain. Three names under `1.5/4` reads as a contradiction to a reader who does not know
 that a half-day weighs 0.5 (INV-06). **The image cannot test this objection**: it shows two full-day
 chips and five empty days, so the case that decides the question is the one case it does not contain.
 
 **A fourth consideration is new and was raised in no prior refusal.** INV-04 counts PTO and WFH alike
 (`.ai/registry/invariants.md:36`), so a strip labelled *away* asserts that a member working from home
-is absent. That is the confusion `src/lib/labels.ts:24` calls the most costly in this domain, and
+is absent. That is the confusion `src/lib/labels.ts:24-29` calls the most costly in this domain, and
 the thing OPS-002 AC-7 exists to prevent. **The picture's own word, `vắng`, is wrong for the number it
 labels** — independently of the language question, which § *Language* already settles against it.
 
@@ -86,7 +86,7 @@ written as an acceptance criterion rather than as a comment:
 3. **No threshold, no overload state, no `seam.getTeam()`.** The screen still computes no overload, so
    the second clause of UIE-04's AC-13 survives intact and only its first clause is superseded.
 4. **The label may not say "away".** WFH is counted and a WFH member is working (OPS-002 AC-7,
-   `src/lib/labels.ts:24`). The strip names the absence count as the glossary names it, or it names
+   `src/lib/labels.ts:24-29`). The strip names the absence count as the glossary names it, or it names
    nothing at all. **It is English** — `.ai/standards/ui-design-system.md` § *Language*, the operator's
    own instruction of 2026-09-03 — so `vắng` is not available whatever noun is chosen.
 
@@ -102,7 +102,7 @@ Four options were considered. The recommendation is **option 2**.
 decimal-beside-names objection is never put in front of a real reader.
 *Against:* the operator has now asked for it directly, with a picture; and the standing refusal rests
 partly on an INV-04 argument that is **not correct**, so the reason written into
-`src/routes/WeekView.tsx:11` will keep being cited and will keep being wrong. **Choosing this option
+`src/routes/WeekView.tsx:11-17` will keep being cited and will keep being wrong. **Choosing this option
 still leaves that comment owing a correction** — the screen would be refusing the number for one good
 reason instead of three, two of which do not hold.
 
@@ -167,7 +167,7 @@ carries it.
   owed for the row itself.
 - **UIE-04's row gains a line**: **AC-13's first clause is superseded by this ADR**; its second clause,
   that the screen makes no team read, is not.
-- **`src/routes/WeekView.tsx:11` is rewritten.** *"IT COUNTS NOTHING"* stops being true, and the
+- **`src/routes/WeekView.tsx:11-17` is rewritten.** *"IT COUNTS NOTHING"* stops being true, and the
   replacement must carry the correction that a count never needed a team read — otherwise the next
   reader inherits the same wrong reason in new words.
 - **What gets worse, stated plainly.** A day with one full-day and two half-day entries shows three

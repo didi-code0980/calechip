@@ -1113,6 +1113,36 @@ test("D6 is scoped by path, not switched off: the same bytes under .ai/standards
   assert.match(d6[0], /src\/lib\/data\/nonexistent\.ts, which does not exist on disk/);
 });
 
+// --- D6 and the line-range citation, MD-019 ----------------------------------------------------
+//
+// Both directions, per .ai/standards/testing-standards.md, because a strip that is too greedy is a
+// worse defect than one that is too narrow: it stops reporting real typos in filenames. The pair
+// below is the boundary — an existing file cited as a range must PASS, a missing file cited as a
+// range must still FAIL, and the second assertion is the one that fails if anybody ever widens this
+// to `/:.*$/`.
+
+test("D6 accepts a line-range citation on a file that exists — MD-019", () => {
+  const r = run(project(LEDGER + UNISSUED, "x", {
+    "src/routes/Real.tsx": "export {};\n",
+    ".ai/standards/probe-d6-range.md": FRONT + "See `src/routes/Real.tsx:33-36`.\n",
+  }));
+  assert.deepEqual(
+    r.findings("D6").filter((l) => l.includes("probe-d6-range.md")),
+    [],
+    `a range citation to a file that exists must resolve to the file:\n${r.stdout}`
+  );
+});
+
+test("D6 still reports a missing file cited as a range — the strip is widened, not opened", () => {
+  const r = run(project(LEDGER + UNISSUED, "x", {
+    "src/.keep": "",
+    ".ai/standards/probe-d6-range-missing.md": FRONT + "See `src/routes/Nope.tsx:1-9`.\n",
+  }));
+  const d6 = r.findings("D6").filter((l) => l.includes("probe-d6-range-missing.md"));
+  assert.equal(d6.length, 1, `expected one D6 finding, got:\n${r.stdout}`);
+  assert.match(d6[0], /src\/routes\/Nope\.tsx, which does not exist on disk/);
+});
+
 test("D6 defers a path under a scaffold root that does not exist yet", () => {
   // Per root, not global. The origin project keyed this on package.json existing, which is wrong for
   // any repository that carries a package.json as tooling before it carries an implementation.
