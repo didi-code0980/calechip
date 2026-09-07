@@ -4,7 +4,7 @@ last_updated: 2026-09-07
 governed_by: [RULE-01, RULE-09]
 ---
 
-# ADR-030 — The month cell renders no absence count
+# ADR-031 — The month cell renders no absence count
 
 ## Status
 
@@ -41,6 +41,25 @@ that a view draws a member's avatar exactly when that member's entry is counted
 (`.ai/registry/invariants.md:125`) is not reversed either: avatars still follow the count exactly.
 **It does bear on ADR-029, which is `PROPOSED` and not accepted** — see § *Interaction with ADR-029*.
 It cannot supersede a proposal; it changes what accepting that proposal would mean.
+
+## Renumbered from ADR-030 on 2026-09-07
+
+**This document was drafted as `ADR-030` and is `ADR-031`, because two ADRs were written as 030 on
+the same afternoon by two sessions that could not see each other.** The other is
+[ADR-030](ADR-030-the-first-admin-arrives-by-a-password-free-bootstrap-file.md), the first-admin
+bootstrap; it reached `main` first in PR #68 and keeps the number it landed with. This one was
+renumbered at the merge, together with every reference to it in
+`.ai/board/ideas/`, `.ai/board/tickets/UIE-06/`, `.ai/board/backlog.md`, `.ai/registry/features.md`
+and ADR-029's *Interaction* section.
+
+**Git did not report this and could not have.** The two files have different names, so there was no
+conflict to resolve — the collision was in the ID, and it was found only because a human resolving a
+neighbouring conflict in `backlog.md` looked at what else had arrived. `.ai/board/model-debt.md`
+already records the same shape for its own register: *"There is no ID allocator. Two sessions
+appending in parallel will both reach the next number."* That paragraph was written about `MD-nnn`
+and is now demonstrated for `ADR-nnn`, in the plane where RULE-01 says the numbers matter most.
+
+**Nothing about the decision changed.** The number is the whole of the edit.
 
 ## Context
 
@@ -202,7 +221,7 @@ its own merits** — that costs one glyph and preserves the surface ADR-029's ow
 **This paragraph is a recommendation and binds nothing.** The two documents are not merged, because
 merging them would make one signature answer two questions.
 
-*This section is reproduced in substance in ADR-029 § Interaction with ADR-030, so that whichever
+*This section is reproduced in substance in ADR-029 § Interaction with ADR-031, so that whichever
 document the operator opens first carries it.*
 
 ## Consequences

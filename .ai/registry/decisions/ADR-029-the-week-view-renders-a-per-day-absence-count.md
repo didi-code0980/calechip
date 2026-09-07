@@ -124,7 +124,7 @@ refusal stands unchanged. It is named here so that nobody re-derives it and reac
 and `overloadThreshold`, it drags in the sidebar's fourth legend row, and it is a larger decision that
 deserves to be taken on its own terms rather than as a side effect of a footer strip.
 
-## Interaction with ADR-030
+## Interaction with ADR-031
 
 **Added by `product` at `/triage` on 2026-09-07, later the same day, `doc_version` 1 to 2. Nothing
 above or below this section was changed, and the decision, the clauses and the status are untouched.**
@@ -133,7 +133,7 @@ two are not readable alone.
 
 **The operator showed a second image the same day — of the month view — and it removes the per-day
 absence count from the month cell.** That went to
-[ADR-030](ADR-030-the-month-cell-renders-no-absence-count.md), also `PROPOSED — awaiting the operator`.
+[ADR-031](ADR-031-the-month-cell-renders-no-absence-count.md), also `PROPOSED — awaiting the operator`.
 **So one proposal adds this number to the screen that does not have it, and the other removes it from
 the screen that does.**
 
@@ -141,12 +141,12 @@ the screen that does.**
   definition**; it never requires the number to be rendered anywhere. Clause 1 above is about which
   function produces a displayed number, not about which screens must display one. Neither document
   forbids the other.
-- **But this ADR argues for itself from the surface ADR-030 removes.** Option 2's *For* above reads:
+- **But this ADR argues for itself from the surface ADR-031 removes.** Option 2's *For* above reads:
   *"the number **provably** agrees with the month grid because it is the same function over the same
   rows"*, and option 3's rejection reads that a chip count *"would contradict the month grid for the
   same date"*. **If both are accepted, the reference surface stops printing the number this decision is
   justified by agreeing with.** The agreement stays true in code and is no longer visible anywhere.
-- **And ADR-030 asks the month cell to become what option 3 above is rejected for being.** A cell with
+- **And ADR-031 asks the month cell to become what option 3 above is rejected for being.** A cell with
   three avatars and a load of two would then say three, with nothing on the cell to correct it. That is
   a second *impression* rather than a second definition — `absence.ts` is untouched either way — but it
   is the same reading failure, arrived at by subtraction instead of by substitution.
@@ -157,7 +157,7 @@ the screen that does.**
 **Nothing here changes this decision and nothing here couples the two.** They are separable, they can
 be signed in either order, and each stands or falls on its own merits. **The one thing that should not
 happen is each being signed without the other having been read**, which is why the same content is in
-both documents — ADR-030 § *Interaction with ADR-029* — so that whichever the operator opens first
+both documents — ADR-031 § *Interaction with ADR-029* — so that whichever the operator opens first
 carries it.
 
 ## Consequences
@@ -218,9 +218,9 @@ oblige, in one pass, so the operator can see the whole cost before deciding.
 | `src/routes/WeekView.tsx` | the `:11-17` comment block rewritten; the footer strip added |
 | `tests/e2e/` | one new spec file or one new block, for the new selector |
 
-**No rule, no invariant and no other ADR is touched.** **ADR-030 is `PROPOSED` and is not superseded,
+**No rule, no invariant and no other ADR is touched.** **ADR-031 is `PROPOSED` and is not superseded,
 amended or accepted by this document either** — it gains a cross-reference and nothing else, and
-§ *Interaction with ADR-030* is why. ADR-005, ADR-013, ADR-014 and ADR-028 are
+§ *Interaction with ADR-031* is why. ADR-005, ADR-013, ADR-014 and ADR-028 are
 unaffected, `.ai/registry/invariants.md` is not edited, and **INV-04 is satisfied rather than amended**
 — which is the whole argument of clause 1 and the reason this ADR is about a feature row rather than
 about the ledger.

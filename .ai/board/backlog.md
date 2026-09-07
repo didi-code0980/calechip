@@ -32,9 +32,72 @@ Under the current gate placement a ticket sits here until it has been planned �
 
 | # | Ticket | Title | State | Blocked on |
 |---|--------|-------|-------|------------|
-| 1 | UIE-05 | The week column fills the viewport, and its header strip and entry chip are restacked | BACKLOG | — |
-| 2 | UIE-06 | The month grid becomes one ruled full-width card with taller cells, on the product's tokens | BACKLOG | — |
+| 1 | OPS-004 | A password-free bootstrap file that creates the first team and the first admin | BACKLOG | — |
+| 2 | UIE-05 | The week column fills the viewport, and its header strip and entry chip are restacked | BACKLOG | — |
+| 3 | UIE-06 | The month grid becomes one ruled full-width card with taller cells, on the product's tokens | BACKLOG | — |
 
+**THE THREE ROWS ABOVE MET AT A MERGE, AND THE NUMBERS MOVED — NOTHING ELSE DID.** `OPS-004` and the
+two `UIE` rows were each written into an EMPTY table, on branches that did not see one another, so
+both sides produced a row 1. `OPS-004` reached `main` first (PR #68) and keeps the number it landed
+with; `UIE-05` and `UIE-06` were rows 1 and 2 on their branch and are now 2 and 3. **That is an
+artefact of two branches, not a statement about priority** — the header says a human reorders, and
+none of the three paragraphs below was rewritten to match its row's new number. Read each one
+against the ticket it names rather than the digit it opens with.
+**Row 1 was appended by `product` at /triage on 2026-09-07, and it is the row the paragraph
+immediately below was waiting for.** That paragraph says this table is empty and is **left standing
+rather than rewritten** — it was true when `UIE-04` shipped and it stopped being true when this row
+landed, which is exactly the door it describes: `/triage` turned a request into an idea and the idea
+produced a shell. `product` asserts nothing about position, on the same stance every paragraph in this
+file takes; it is row 1 because it is the only row, not because anybody placed it. It is from
+`.ai/board/ideas/2026-09-07-a-new-project-admits-nobody-and-has-no-way-in.md`, whose *Triage verdict*
+and *Re-triage verdict* sections are the reasoning.
+
+**Four facts a human needs, and the first is not a priority question.**
+
+1. ***THE VERDICT WAS `NEEDS-ADR`, NOT `PROMOTE`, AND ONLY HALF OF IT IS ON THIS TABLE.*** The idea
+   split into two decisions that were deliberately not bundled. **This row is the first**: the
+   first-admin deadlock, answered by a password-free bootstrap SQL file, `ACCEPTED by
+   tech-lead-design` under ADR-008 as
+   [ADR-030](../registry/decisions/ADR-030-the-first-admin-arrives-by-a-password-free-bootstrap-file.md)
+   because it supersedes nothing — it is ADR-009's own recorded exit, made runnable after ADR-024
+   closed the file that used to carry it. **The second has no row and must not get one**: the attached
+   image's `YÊU CẦU ĐĂNG KÝ MỚI` sign-up approval queue reverses ADR-009 decision points 1 and 3,
+   which carry `ACCEPTED by the operator`, so it stopped and went back as one question that is
+   **unanswered**. It is (a) the bootstrap file only, (b) the bootstrap now and the queue as its own
+   later ADR, or (c) both together — reproduced in full in the idea's verdict section.
+2. **This row does not wait for that answer, and that is the load-bearing part.** It is unblocked
+   under **all three** of (a), (b) and (c), because somebody has to be the first admin in every one of
+   them: a queue whose approve action inserts a `member` row still needs an admin to press it, and one
+   that files allow-list rows still needs an admin whose id goes in `added_by`. Answering the question
+   neither unblocks this row nor invalidates it.
+3. **`depends_on` is `[]` and it was measured rather than inherited.** Every ticket on this board is
+   `DONE` and this table was empty, so no live ticket claims a path. **Appendix A of
+   `.ai/board/tickets/TEA-01/02-design.md:840` — the disposable-test-database chore — is NOT a
+   prerequisite**, measured: while it is unlanded the Supabase SQL editor is the only surface
+   available on a hosted project, and that is precisely the surface this file is applied through.
+   Landing it would give this ticket somewhere to rehearse, which is a convenience. It also has no
+   ticket and no ID, so it could not go in that field in any case. `ticket.yaml` §6.
+4. **It is a chore, so no new feature row was written** — a deliberate departure from ADR-007's
+   PROMOTE default, the same one BUG-001, OPS-001 and OPS-002 took, and **unlike `UIE-01`, whose
+   version of this argument ADR-028 overruled by declaring a feature group**. There is no group for
+   operational bootstrap procedures and declaring one is an ADR and the operator's. The provenance is
+   one sentence appended to the `Notes` of `TEA-01` in `.ai/registry/features.md`, and nothing else.
+   **That row's `TODO(project)` is deliberately NOT marked closed**: it closes when the file reaches
+   `main`, not when a ticket points at it.
+
+**Two things a human may want to settle before it is planned, and neither is its position.**
+
+- **`.ai/standards/data-model.md` § *Seed data* will be one file out of date the moment this ships,
+  and this ticket may not fix it.** That file is human plane under RULE-01, so the paragraph
+  distinguishing the bootstrap file from the two things already described there belongs to `/thuki`
+  on an `ops/<slug>` branch. **It is the third item now waiting on that session**, beside § *Colour* /
+  § *Type* and the `PLAN -> READY` gap named below. `ticket.yaml` §8.
+- **`supabase/db.sql` § 9.1 and § 9.2 are stale**, found during this triage and out of scope here:
+  they say `public.team` has no select policy and no update policy, while
+  `20260904100000_cal04_team_select.sql` and `20260905000000_adm01_team_threshold.sql` both shipped.
+  Under ADR-026 that file is the target schema and is applied by hand to stand up a fresh project, so
+  a reader following § 9 will believe two screens are broken that are not. **It has no row**, and it
+  sits in the file whoever applies this ticket's bootstrap will be standing next to.
 **Row 2 was appended by `product` at /triage on 2026-09-07, later the same day, and `product` asserts
 nothing about its position.** Same stance as every paragraph in this file: the header says a human
 reorders, so placing it above row 1 would have moved a row that was already here. Nothing was
@@ -61,7 +124,7 @@ again from UIE-05's and from the one UIE-02, UIE-03 and UIE-04 were built agains
    Tech Lead the count's *position* while saying nothing about its *presence*. It went to
    `.ai/board/ideas/2026-09-07-the-month-cell-number-is-what-stops-the-avatars-being-counted.md` on a
    **NEEDS-ADR** verdict, with
-   [ADR-030](../registry/decisions/ADR-030-the-month-cell-renders-no-absence-count.md) drafted in full
+   [ADR-031](../registry/decisions/ADR-031-the-month-cell-renders-no-absence-count.md) drafted in full
    and **`PROPOSED` — awaiting the operator**. **This row does not wait on that decision** and ships a
    month grid matching the picture minus one small numeral per busy cell.
 3. **Much of the picture is already on screen**, which is the finding most likely to move this
@@ -84,7 +147,7 @@ again from UIE-05's and from the one UIE-02, UIE-03 and UIE-04 were built agains
   day, and neither is readable alone.** One adds a per-day absence count to the week view; the other
   removes it from the month view. **Neither violates INV-04** — the invariant governs the number's
   definition, not where it is rendered — but ADR-029 argues for itself by saying the week strip
-  *"provably agrees with the month grid"*, and ADR-030 removes the surface that agreement was ever
+  *"provably agrees with the month grid"*, and ADR-031 removes the surface that agreement was ever
   visible on. Both documents carry the interaction in a section of its own, so whichever is opened
   first says so. **They are two signatures, not one.**
 - **`src/index.css:141-143` and `src/components/Sidebar.tsx:62-65` state something that is not true**

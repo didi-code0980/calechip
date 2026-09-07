@@ -27,7 +27,7 @@ size: ""              # S|M|L|XL - set by tech-lead-design at PLAN; decides spli
 depends_on: []        # DEFINITION OF READY ITEM 3, AND IT PASSES TODAY.
                       # UIE-01 through UIE-04 are DONE. UIE-05 is BACKLOG and is NOT named here:
                       # it owns src/routes/WeekView.tsx and this ticket owns src/routes/MonthView.tsx,
-                      # which are disjoint, and NOTHING IS WAITING ON ADR-030 EITHER — see §5.
+                      # which are disjoint, and NOTHING IS WAITING ON ADR-031 EITHER — see §5.
                       # `allowed_paths` is [] on UIE-05 and on every other ticket on the board, so
                       # no live ticket claims a path. That is a measurement taken on 2026-09-07, not
                       # a standing guarantee. ***THE ONE FILE THAT COULD COLLIDE IS src/index.css***
@@ -47,7 +47,7 @@ schema_delta: none    # DEFINITION OF READY ITEM 4. Every file in scope sits abo
                       # does not engage, because there is no policy change to mistake for "none".
 requires_adr: false   # ***RECORDED ON THE READING THAT THIS TICKET BUILDS ARRANGEMENT ONLY.***
                       # The per-cell absence count DOES need a decision and it is NOT this ticket's:
-                      # ADR-030 is drafted and PROPOSED, awaiting the operator, against the second
+                      # ADR-031 is drafted and PROPOSED, awaiting the operator, against the second
                       # idea file. ***IF PLAN CONCLUDES IT MUST REMOVE month-cell-count, OR REMOVE
                       # month-threshold, OR DROP ANY OF THE FIVE FACTS IN §4, IT STOPS AND ASKS
                       # RATHER THAN FLIPPING THIS FIELD QUIETLY.*** Each is an amendment to CAL-04's
@@ -73,7 +73,7 @@ gates:
 # absence count the image deletes — is
 # .ai/board/ideas/2026-09-07-the-month-cell-number-is-what-stops-the-avatars-being-counted.md, ruled
 # NEEDS-ADR, with
-# .ai/registry/decisions/ADR-030-the-month-cell-renders-no-absence-count.md drafted and PROPOSED,
+# .ai/registry/decisions/ADR-031-the-month-cell-renders-no-absence-count.md drafted and PROPOSED,
 # awaiting the operator. ***THIS TICKET DOES NOT WAIT ON THAT DECISION AND MUST NOT ANTICIPATE IT.***
 # See §5.
 #
@@ -274,9 +274,9 @@ gates:
 #     invariants outside the § Visual specification grant. CAL-04/01-plan.md:192 marks the count's
 #     POSITION as the Tech Lead's own and "cheap to argue with" and says NOTHING about its PRESENCE.
 #     ***POSITION IS ARRANGEMENT. PRESENCE IS DOMAIN.***
-#     Triage split it into its own idea and drafted ADR-030, PROPOSED and awaiting the operator.
+#     Triage split it into its own idea and drafted ADR-031, PROPOSED and awaiting the operator.
 #     ***THIS TICKET IS PLANNED ON THE ASSUMPTION THE DECISION IS NOT TAKEN. PLAN DOES NOT DELETE
-#     month-cell-count AND DOES NOT ANTICIPATE THE DECISION.*** If ADR-030 is accepted later, the
+#     month-cell-count AND DOES NOT ANTICIPATE THE DECISION.*** If ADR-031 is accepted later, the
 #     removal is a one-line diff on a screen this ticket has just rebuilt — which is cheaper than the
 #     reverse and is why the two were split rather than folded.
 #
@@ -315,7 +315,7 @@ gates:
 #     gets lost against a new one. §4.
 #   - ***INV-06.*** A half day weighs 0.5 and its avatar looks identical to a full day's. On this
 #     screen the numeral in the corner is the only thing that says so — which is §5.1's argument and
-#     ADR-030's, and it is why this ticket must not take that numeral out.
+#     ADR-031's, and it is why this ticket must not take that numeral out.
 # ***PLAN ANSWERS ITEM 2 BY LOOKING AT THOSE, NOT BY COPYING THIS PARAGRAPH.***
 #
 # ---------------------------------------------------------------------------------------------

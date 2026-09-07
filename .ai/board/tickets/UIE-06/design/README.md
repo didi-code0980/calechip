@@ -29,7 +29,7 @@ UIE-03 and UIE-04 were built against. **Do not read any two of them as one docum
 on a PROMOTE verdict on the arrangement half of that idea. **The other half is
 `.ai/board/ideas/2026-09-07-the-month-cell-number-is-what-stops-the-avatars-being-counted.md`**, ruled
 NEEDS-ADR, with
-[ADR-030](../../../../registry/decisions/ADR-030-the-month-cell-renders-no-absence-count.md) drafted
+[ADR-031](../../../../registry/decisions/ADR-031-the-month-cell-renders-no-absence-count.md) drafted
 and `PROPOSED — awaiting the operator`. See § 4.
 
 ---
@@ -165,7 +165,7 @@ this image positively removes** — § 1.3 says *nothing else is written in the 
 amendment, not arrangement**: CAL-04 AC-3 states INV-04's formula in words, and the
 § *Visual specification* grant reaches arrangement only. It went to a second idea at the same triage
 and the decision is drafted as
-[ADR-030](../../../../registry/decisions/ADR-030-the-month-cell-renders-no-absence-count.md), status
+[ADR-031](../../../../registry/decisions/ADR-031-the-month-cell-renders-no-absence-count.md), status
 `PROPOSED — awaiting the operator`. **UIE-06 is planned on the assumption that decision is NOT taken:
 the count keeps its top-right slot and the bridge badge goes elsewhere.** Do not delete it, and do not
 anticipate the decision.

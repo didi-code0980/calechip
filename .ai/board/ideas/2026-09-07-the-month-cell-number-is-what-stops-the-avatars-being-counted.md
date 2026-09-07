@@ -33,12 +33,12 @@ next_state: TRIAGE
 carved out at `/triage` on 2026-09-07 so that each half could get the one verdict the gate requires.**
 That file states the month-view request in full; the arrangement half of it is **PROMOTE** and is now
 `UIE-06`. This half is **NEEDS-ADR**, and the ADR is drafted at
-[ADR-030](../../registry/decisions/ADR-030-the-month-cell-renders-no-absence-count.md), status
+[ADR-031](../../registry/decisions/ADR-031-the-month-cell-renders-no-absence-count.md), status
 `PROPOSED — awaiting the operator`.
 
 **This is the same split, on the same day, for the same reason as this morning's.** The week-view
 image produced `UIE-05` and `.ai/board/ideas/2026-09-07-a-day-does-not-say-how-full-it-is.md`; that
-second file went to ADR-029 because *a number on a screen is behaviour*. **This one goes to ADR-030
+second file went to ADR-029 because *a number on a screen is behaviour*. **This one goes to ADR-031
 because the removal of a number from a screen is behaviour too**, and the symmetry is not a
 coincidence — see § *Constraints already known*.
 
@@ -155,14 +155,14 @@ Cited, not chosen.
   **made unobservable by it.**
 - **ADR-029, `PROPOSED — awaiting the operator`.** It proposes adding `n/N` to the week view and names
   the month grid three times as the surface its number agrees with. **Neither proposal violates
-  anything and the pair is a swap of which screen carries INV-04's number.** ADR-030 § *Interaction
+  anything and the pair is a swap of which screen carries INV-04's number.** ADR-031 § *Interaction
   with ADR-029* is where that is written out; it is not settled here and an idea may not settle it.
 - **`month-threshold` is silence, not deletion, and the parent idea said otherwise before being
   corrected.** The transcription's § 5 lists the threshold readout among the things the image does not
   show, beside the holiday and the tentative border. `tests/e2e/adm-01-threshold.spec.ts:222-224` is
   ADM-01's only proof that a saved threshold reaches the calendar, and
   `src/routes/MonthView.tsx:327-329` records why the line exists at all. **Nothing in this idea
-  proposes removing it, and ADR-030 clause 3 forbids it.**
+  proposes removing it, and ADR-031 clause 3 forbids it.**
 - **`CLAUDE.md` § *Visual direction*, as an argument in both directions.** *"Information density wins
   there every time"* is an argument for spending the cell's space on avatars, and equally an argument
   against removing a fact from it — density is about how much a screen says, not how little.
@@ -172,7 +172,7 @@ Cited, not chosen.
 - **Everything `UIE-06` promotes** — the full-width grid, the ruled single card, the ~170px cells, the
   weekday strip on the page ground, the out-of-month tint and the bridge badge's position. **That
   ticket ships whatever this idea does**, and it is planned on the assumption that this decision is
-  *not* taken (ADR-030 clause 4).
+  *not* taken (ADR-031 clause 4).
 - **`month-threshold`.** § *Constraints already known*. It stays either way.
 - **The week view's footer count.** That is ADR-029's, from the other image. This idea observes the
   interaction and decides nothing about it.
@@ -224,13 +224,13 @@ silent on its **presence**. Position is arrangement. Presence is domain. **An id
 boundary and neither may a plan.**
 
 **The ADR is drafted in full** at
-`.ai/registry/decisions/ADR-030-the-month-cell-renders-no-absence-count.md` — context, four options
+`.ai/registry/decisions/ADR-031-the-month-cell-renders-no-absence-count.md` — context, four options
 with their trade-offs, four clauses that bound the decision, a full section on the ADR-029
 interaction, consequences including what gets worse, and a revert condition. **No homework was handed
 to the operator**: every ADR in this repository was written by an agent from a sentence a human said,
 and this one is ready to be accepted, rejected or corrected in one reading.
 
-**ADR-030 § *Decision* states the operator's request and § *Rationale* recommends against it, and that
+**ADR-031 § *Decision* states the operator's request and § *Rationale* recommends against it, and that
 is deliberate rather than a defect in the document.** It means a `REJECTED` on that ADR is an answer
 and not a misunderstanding: **it means the numeral stays**. Writing it the other way round — proposing
 to keep the count and making the operator override their own picture to get what they drew — would
@@ -278,7 +278,7 @@ It is a recommendation and it does not bind this verdict. Three departures:
   it. The technical read put it in a bullet list at the end of one of the two.
 - **The `month-threshold` question is closed rather than left open.** The technical read's § 0 is
   right and the parent idea was wrong: the transcription lists the readout under *silence*, not under
-  *deletion*. The parent idea has been corrected in place and ADR-030 clause 3 makes the threshold's
+  *deletion*. The parent idea has been corrected in place and ADR-031 clause 3 makes the threshold's
   survival part of the decision rather than an assumption about it.
 
 Everything else in the technical read is adopted, including the finding the dispatching session
@@ -295,7 +295,7 @@ rather than to inherit; it is not this idea's.
   does not apply to a NEEDS-ADR verdict, and a row with nothing behind it is worse than no row.
 - **Nothing is blocked in the loop.** `UIE-06` is unblocked, does not depend on this, and ships a
   month grid matching the picture minus one small numeral per busy cell.
-- **If the operator accepts ADR-030**, this idea is re-triaged — the door is `/triage` with this
+- **If the operator accepts ADR-031**, this idea is re-triaged — the door is `/triage` with this
   filename as the argument — and it promotes into a `UIE` row of its own, carrying the ADR's four
   clauses as the substance of its acceptance criteria, plus the CAL-04 AC-3 rewording and the line on
   CAL-04's registry row.

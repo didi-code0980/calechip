@@ -215,7 +215,7 @@ Cited, not chosen. The first three are why this may not be a straight PROMOTE.
   threshold readout. It is SILENT about it, which is not the same thing** — see the correction in
   § *Problem*. The bullet is left standing because everything in it after the first sentence is true and
   is the reason the readout must survive: it is the only explanation the pink cell has anywhere on the
-  screen. **ADR-030 clause 3 makes that survival part of the decision rather than an assumption about
+  screen. **ADR-031 clause 3 makes that survival part of the decision rather than an assumption about
   it.** The original wording follows.
   `MonthView.tsx:330-332` renders `month-threshold`; the transcription's § 5 lists *"the
   overload threshold readout"* among the things the image does not show, and its § 2 top bar has no room
@@ -357,7 +357,7 @@ Real ones. A verdict turns on the first three.
    the confusion ADR-029 rejects for the week view in its own § *Rationale*.
 2. ~~**Does the threshold readout go, and if it does, what explains the soft pink cell?**~~
    **CLOSED at the verdict, same day, and not by an assumption: the image never asked for it to go.**
-   § 5 of the transcription files it under silence. It stays, and ADR-030 clause 3 says so in the
+   § 5 of the transcription files it under silence. It stays, and ADR-031 clause 3 says so in the
    decision rather than in a comment. The question as written follows, because the second half of it is
    the reason the answer matters. Deleting
    `month-threshold` breaks `tests/e2e/adm-01-threshold.spec.ts:222-224` — ADM-01's only proof that a
@@ -412,10 +412,10 @@ hostage to a decision only the operator can take.**
 | Half | Where it now lives | Verdict |
 |---|---|---|
 | *The month grid is drawn in defaults, capped, and small* — § *Problem* items 1, 2 and 3 | **this file** | **PROMOTE**, below, as `UIE-06` |
-| *The picture deletes the per-day count* — § *Constraints already known*, first bullet | `.ai/board/ideas/2026-09-07-the-month-cell-number-is-what-stops-the-avatars-being-counted.md` | **NEEDS-ADR**, with [ADR-030](../../registry/decisions/ADR-030-the-month-cell-renders-no-absence-count.md) drafted there |
+| *The picture deletes the per-day count* — § *Constraints already known*, first bullet | `.ai/board/ideas/2026-09-07-the-month-cell-number-is-what-stops-the-avatars-being-counted.md` | **NEEDS-ADR**, with [ADR-031](../../registry/decisions/ADR-031-the-month-cell-renders-no-absence-count.md) drafted there |
 
 **They are separable in fact and not only on paper.** `UIE-06` ships and the screen looks like the
-picture except for one small numeral per busy cell; ADR-030 removes that numeral or does not. Neither
+picture except for one small numeral per busy cell; ADR-031 removes that numeral or does not. Neither
 needs the other to be coherent, and only the second needs a human.
 
 **Nothing above this line was deleted.** The first bullet of § *Constraints already known* still stands
@@ -549,7 +549,7 @@ It is a recommendation and it does not bind this verdict.
   in the shell:
   1. **Top-right is occupied.** `MonthView.tsx:389-396` is a `justify-between` row holding the numeral
      left and the count right. If the bridge badge takes top-right while the count is still there, they
-     compete. **`UIE-06` is planned on the assumption ADR-030 is not accepted**, so the count keeps the
+     compete. **`UIE-06` is planned on the assumption ADR-031 is not accepted**, so the count keeps the
      slot and the badge goes beside the holiday name or below. A layout call, but a **stated** one.
   2. **The comment refusing a `--color-overload` token is false.** `src/index.css:141-143` and
      `src/components/Sidebar.tsx:62-65` both say no calendar view computes an overload state and that
