@@ -4,12 +4,12 @@
 // scaffold smoke test in tests/e2e/smoke.spec.ts keeps passing without being edited — which is why
 // that file is deliberately absent from allowed_paths. `seam-banner` keeps its name and position for
 // the same reason.
-import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
+import { BrowserRouter, Navigate, Outlet, Route, Routes } from "react-router-dom";
 import { seamName } from "./lib/data";
 import { useSession } from "./hooks/useSession";
+import AppShell from "./components/AppShell";
 import AllowList from "./routes/AllowList";
 import Holidays from "./routes/Holidays";
-import Home from "./routes/Home";
 import MemberList from "./routes/MemberList";
 import MonthView from "./routes/MonthView";
 import WeekView from "./routes/WeekView";
@@ -23,6 +23,36 @@ import NotOnATeam from "./routes/NotOnATeam";
 import SignIn from "./routes/SignIn";
 import SignUp from "./routes/SignUp";
 
+/**
+ * UIE-02 § 4.6 and § 4.7 — the non-member arm of the shell layout route, and the home of the `p-8`
+ * that `app-root` gave up.
+ *
+ * It is the centred, padded container that shipped before this ticket, unchanged in effect: a
+ * signed-out or member-less caller sees exactly the screen they see today, in exactly the same
+ * gutter, with no chrome (AC-2). `AuthCard.tsx:54` names that gutter as what satisfies UIE-01's
+ * AC-16, so it had to land somewhere and this is where.
+ *
+ * USED IN TWO PLACES, AND THE SECOND ONE IS REVIEW REWORK 1. `/signin` and `/signup` stay outside
+ * the SHELL layout route (§ 4.6, `ticket.yaml` § 3) — but "outside the shell" is not "outside every
+ * container", and the first cycle read it as though it were: the two auth routes sat directly under
+ * <Routes>, so the `p-8` that moved here never reached them and `AuthCard`'s own root carries no
+ * padding (`AuthCard.tsx:60`). Measured at 360px the card had 2.5px either side and at 320px none,
+ * where `app-root`'s `p-8` gave 32px before this ticket — UIE-01 AC-16 requires a gutter on both
+ * sides, and the comment on `app-root` below says out loud that breaking it is what must not happen.
+ *
+ * The fix is a second `<Route element={<BareLayout />}>` parent over just those two routes. They are
+ * still not children of the shell layout route, they still get no sidebar and no top bar, and no
+ * membership condition is evaluated for them — the only thing they gain is the gutter § 4.7 says
+ * they must have.
+ */
+function BareLayout() {
+  return (
+    <div className="p-8">
+      <Outlet />
+    </div>
+  );
+}
+
 export default function App() {
   // TEA-05 01-plan.md section 4.3: `useSession()` is called EXACTLY ONCE, here, and the result is
   // passed to the screens that need it as props. Section 9 records why this is a hook and not the
@@ -33,7 +63,23 @@ export default function App() {
 
   return (
     <BrowserRouter>
-      <main data-testid="app-root" className="min-h-screen bg-bg p-8 font-sans">
+      {/* UIE-02 § 4.7 — THE `TODO(project)` IN THE FEATURE ROW, ANSWERED RATHER THAN DISCOVERED.
+          `app-root` KEEPS its name and its position on the element wrapping <Routes>, and
+          `seam-banner` KEEPS its name and its position as that element's FIRST child — one spec
+          file depends on the first and two on the second, and none is in scope here (AC-17).
+
+          What changes is one class list. It gives up `p-8` and becomes a full-height flex COLUMN,
+          so the banner is a full-width strip across the top of the viewport, above BOTH panes on
+          every route including those inside the shell, and the shell takes the remaining height.
+          It is a warning that the whole application is running on a fake datastore: inside the
+          content pane it would be a property of the screen rather than of the build, and it would
+          scroll away.
+
+          THE `p-8` IT GAVE UP MOVES TO `BareLayout`, and that is not tidying. AuthCard.tsx:54
+          names this element's `p-8` as the gutter that satisfies UIE-01's AC-16, so a shell that
+          quietly removed it would break a criterion shipped one ticket ago. The `resolving`
+          spinner below sits outside <Routes> and carries its own margin for the same reason. */}
+      <main data-testid="app-root" className="flex min-h-screen flex-col bg-bg font-sans">
         {/* Design section 6.2 rule 2. A build with no VITE_SUPABASE_URL resolves to the in-memory
             seam rather than to a screen that throws — but a SILENT fallback to a fake datastore is
             worse than the crash it replaces: a deployment that forgets one environment variable
@@ -57,224 +103,294 @@ export default function App() {
           <p
             data-testid="app-session-loading"
             role="status"
-            className="mx-auto max-w-md rounded-2xl bg-white p-8 text-center text-sm opacity-70 shadow-sm"
+            className="mx-auto my-8 max-w-md rounded-2xl bg-white p-8 text-center text-sm opacity-70 shadow-sm"
           >
             Loading…
           </p>
         ) : (
           <Routes>
-            {/* TEA-01. Reachable in EVERY membership state: it is the only route a person who has
-                not signed up can use, and it ends on its own notice (AC-13) rather than routing. */}
-            <Route path="/signup" element={<SignUp />} />
+            {/* THE TWO AUTH ROUTES, OUTSIDE THE SHELL LAYOUT ROUTE AND INSIDE A `BareLayout` OF
+                THEIR OWN — UIE-02 § 4.6 and § 4.7 together, and REVIEW REWORK 1 is the second half.
 
-            {/* AC-1, AC-2, AC-3, AC-5, AC-9. A caller with a session is sent to the landing address
-                instead — a sign-in screen offered to somebody already signed in is a second way to
-                reach a state they are already in. */}
-            <Route
-              path="/signin"
-              element={
-                membership.state === "signed-out" ? (
-                  <SignIn signIn={signIn} />
-                ) : (
-                  <Navigate to="/" replace />
-                )
-              }
-            />
+                § 4.6 requires these two to stay outside the layout route below, and they do: they
+                are not its children, no membership condition is evaluated for them, and neither
+                gets a sidebar or a top bar. § 4.7 requires the `p-8` that `app-root` gave up to
+                land where the auth screens' gutter is, and until this parent existed it did not —
+                `BareLayout` was reachable only as the shell layout's non-member arm, which /signin
+                and /signup never render inside. UIE-01 AC-16 is the criterion that turns on it, and
+                it is one ticket old. See the comment on `BareLayout` for the measurement. */}
+            <Route element={<BareLayout />}>
+              {/* TEA-01. Reachable in EVERY membership state: it is the only route a person who has
+                  not signed up can use, and it ends on its own notice (AC-13) rather than routing. */}
+              <Route path="/signup" element={<SignUp />} />
 
-            {/* The landing address, and the three memberships land in three different places.
-                AC-1 and AC-10 for a member, AC-4 for somebody with no member row, and AC-5 and AC-9
-                for a caller with no session: the sign-in screen, and nothing that says whether any
-                address has an account or is on the allow-list. */}
+              {/* AC-1, AC-2, AC-3, AC-5, AC-9. A caller with a session is sent to the landing
+                  address instead — a sign-in screen offered to somebody already signed in is a
+                  second way to reach a state they are already in. */}
+              <Route
+                path="/signin"
+                element={
+                  membership.state === "signed-out" ? (
+                    <SignIn signIn={signIn} />
+                  ) : (
+                    <Navigate to="/" replace />
+                  )
+                }
+              />
+            </Route>
+
+            {/* UIE-02 AC-1, AC-2, AC-3, AC-4 — THE SHELL, AS A LAYOUT ROUTE WITH ONE CONDITIONAL
+                ELEMENT AND AN <Outlet />. Every route below is a child of it, and none of their
+                own elements or guards changed.
+
+                NOT A WRAPPER AROUND <Routes>. 01-plan.md § 8, rejected alternative 1: a wrapper
+                paints the sidebar on /signin and /signup too, and the only escape is a
+                useLocation() conditional inside the shell — this route table re-expressed as an
+                if-statement, in a file that already uses the router for exactly this distinction
+                six times over. The condition would then have to be extended by hand every time a
+                route is added, and the failure is SILENT: a new auth-adjacent route simply appears
+                with a sidebar. The layout route puts the decision where the router enforces it.
+
+                THE NON-MEMBER ARM IS A BARE LAYOUT AND NOT A REDIRECT, AND THAT IS THE TRAP THIS
+                TICKET EXISTS AROUND (AC-3). Six of the routes below are deliberately unguarded and
+                each renders its OWN refusal — `allow-list-refused`, `member-list-not-on-a-team`,
+                `month-not-on-a-team`, `week-not-on-a-team`, `year-not-on-a-team`, and for
+                /holidays the calendar itself. A shell that rendered only for a member and
+                redirected otherwise would convert six documented refusals into redirects and
+                delete the reason each one records. `BareLayout` is the container those screens
+                render in today, so a member-less caller reaches exactly the screen they reach now.
+
+                THE FIVE MEMBERSHIP GUARDS BELOW ARE UNTOUCHED (AC-4). They are on the children,
+                where they were, and the layout adds none of its own. */}
             <Route
-              path="/"
               element={
                 membership.state === "member" ? (
-                  <Home member={membership.member} signOut={signOut} />
-                ) : membership.state === "member-less" ? (
-                  <NotOnATeam user={membership.user} signOut={signOut} />
+                  <AppShell member={membership.member} signOut={signOut} />
                 ) : (
-                  <Navigate to="/signin" replace />
+                  <BareLayout />
                 )
               }
-            />
+            >
+              {/* THE LANDING ADDRESS, AS THIS LAYOUT'S INDEX ROUTE. Amended at PLAN rework 1 —
+                  it was outside the layout, and it redirected a member to `/week`.
 
-            {/* TEA-02. Reachable by address only: 02-design.md section 2 satisfies AC-9 with the
-                absence of a link plus the screen's own refusal. TEA-05 adds the one link the feature
-                row permits, on the landing screen and only for an admin — not here.
+                  UIE-02 AC-5 and AC-23. The three memberships still land in three different places
+                  and TEA-05's AC-4, AC-5 and AC-9 are unchanged for the two with no member row.
+                  What changed is the member's arm: `src/routes/Home.tsx` does not survive this
+                  ticket (the feature row says so) and its twelve `home-*` ids are now in the shell,
+                  so a member arriving at `/` sees THE CURRENT WEEK, IN PLACE. Week is the active
+                  segment in the transcription.
 
-                NOT GUARDED, deliberately (TEA-05 01-plan.md section 9). This screen already fails
-                safe with no session: it calls getCurrentMember(), gets null, and renders
-                `allow-list-refused`. A guard here would add no protection and would put this
-                ticket's routing decisions on top of another ticket's acceptance criteria. */}
-            <Route path="/allow-list" element={<AllowList />} />
-            {/* TEA-03. Reachable by address only, and not guarded, for the same two reasons: it
-                renders `member-list-not-on-a-team` when getCurrentMember() returns null. */}
-            <Route path="/members" element={<MemberList />} />
+                  IN PLACE, AND NOT A REDIRECT, AND THAT IS THE WHOLE OF PLAN REWORK 1. A redirect
+                  makes `/` an address the application never rests on, and five shipped spec files
+                  walk browser history back to it in helpers — a `page.goto` there would reset the
+                  mock seam's module state and lose entries an earlier step created. Twenty-five
+                  acceptance tests measured the difference.
 
-            {/* CAL-01. GUARDED, unlike the two above, and the difference is not a change of mind:
-                an entry needs a member row to belong to (INV-07, `member_id` not-null against
-                `member(id)`), so a caller with no member row has nothing this screen could create.
-                /allow-list and /members each render a refusal of their own for that case; this one
-                would render a form whose every submission is refused by the policy.
+                  AND NOT A REDIRECT WITHOUT `replace` EITHER, which is the other way to keep `/` in
+                  history: arriving at `/` by popstate would fire the redirect again and forward the
+                  caller onward for ever, which is the Back-button trap AC-23's second clause names.
 
-                A caller who is signed out or member-less lands on `/`, which then resolves by
-                membership — the sign-in screen or the member-less screen. The guard is an affordance
-                either way: `entry_insert_own` is the control and it refuses the write whoever
-                reaches it. */}
-            <Route
-              path="/entries/new"
-              element={membership.state === "member" ? <NewEntry /> : <Navigate to="/" replace />}
-            />
+                  `NotOnATeam` renders inside `BareLayout`, because this layout's ELEMENT is chosen
+                  on membership above — so it is still outside the shell, exactly as `ticket.yaml`
+                  § 3 requires. */}
+              <Route
+                index
+                element={
+                  membership.state === "member" ? (
+                    <WeekView landing />
+                  ) : membership.state === "member-less" ? (
+                    <NotOnATeam user={membership.user} signOut={signOut} />
+                  ) : (
+                    <Navigate to="/signin" replace />
+                  )
+                }
+              />
 
-            {/* CAL-02. Guarded exactly as /entries/new is, and for the same reason: an entry belongs
-                to a member row (INV-07), so a caller with no member row has nothing this screen
-                could edit. The guard is an affordance either way — `entry_update_own` is the control
-                and it refuses the write whoever reaches it, and the screen itself answers
-                `edit-entry-not-found` for an entry that is not the caller's.
+              {/* TEA-02. Reachable by address only: 02-design.md section 2 satisfies AC-9 with the
+                  absence of a link plus the screen's own refusal. TEA-05 adds the one link the feature
+                  row permits, on the landing screen and only for an admin — not here.
 
-                No route for a DELETE. There is no screen to delete from: the control lives on the
-                own-entry list beside the row it removes, where the row's dates are on screen at the
-                moment the confirmation is pressed. */}
-            <Route
-              path="/entries/:id/edit"
-              element={membership.state === "member" ? <EditEntry /> : <Navigate to="/" replace />}
-            />
+                  NOT GUARDED, deliberately (TEA-05 01-plan.md section 9). This screen already fails
+                  safe with no session: it calls getCurrentMember(), gets null, and renders
+                  `allow-list-refused`. A guard here would add no protection and would put this
+                  ticket's routing decisions on top of another ticket's acceptance criteria. */}
+              <Route path="/allow-list" element={<AllowList />} />
+              {/* TEA-03. Reachable by address only, and not guarded, for the same two reasons: it
+                  renders `member-list-not-on-a-team` when getCurrentMember() returns null. */}
+              <Route path="/members" element={<MemberList />} />
 
-            {/* CAL-03. Guarded exactly as /entries/new and /entries/:id/edit are, and for the same
-                reason: this screen lists and writes ENTRIES, and an entry belongs to a member row
-                (INV-07), so a caller with no member row has nothing here to reach.
+              {/* CAL-01. GUARDED, unlike the two above, and the difference is not a change of mind:
+                  an entry needs a member row to belong to (INV-07, `member_id` not-null against
+                  `member(id)`), so a caller with no member row has nothing this screen could create.
+                  /allow-list and /members each render a refusal of their own for that case; this one
+                  would render a form whose every submission is refused by the policy.
 
-                THE GUARD IS `member` AND NOT `admin`, deliberately. A member who types this address
-                must reach the component and be refused BY IT (`team-entries-refused`, AC-10) rather
-                than be bounced to `/` — the refusal is what says why, and a redirect would leave
-                somebody who mistyped nothing to read. The guard is an affordance either way:
-                `entry_update_admin` and `entry_delete_admin` are the controls and they refuse the
-                write whoever reaches them. */}
-            <Route
-              path="/entries/team"
-              element={membership.state === "member" ? <TeamEntries /> : <Navigate to="/" replace />}
-            />
+                  A caller who is signed out or member-less lands on `/`, which then resolves by
+                  membership — the sign-in screen or the member-less screen. The guard is an affordance
+                  either way: `entry_insert_own` is the control and it refuses the write whoever
+                  reaches it. */}
+              <Route
+                path="/entries/new"
+                element={membership.state === "member" ? <NewEntry /> : <Navigate to="/" replace />}
+              />
 
-            {/* ADM-04. The worklist of entries awaiting a decision, at its own address — ADM-01's
-                `TODO(project):` was answered at its own PLAN with *its own screen at /threshold*,
-                and .ai/registry/features.md:103 says the later admin rows inherit that answer rather
-                than re-asking it. `/entries/pending` sits in the family `/entries/team` and
-                `/entries/new` already established.
+              {/* CAL-02. Guarded exactly as /entries/new is, and for the same reason: an entry belongs
+                  to a member row (INV-07), so a caller with no member row has nothing this screen
+                  could edit. The guard is an affordance either way — `entry_update_own` is the control
+                  and it refuses the write whoever reaches it, and the screen itself answers
+                  `edit-entry-not-found` for an entry that is not the caller's.
 
-                A STATIC SEGMENT ABOVE `/entries/:id/edit`, and it cannot be shadowed by it: react
-                router v7 ranks a static segment above a dynamic one regardless of declaration order,
-                so `/entries/pending` never resolves to EditEntry with an id of "pending".
+                  No route for a DELETE. There is no screen to delete from: the control lives on the
+                  own-entry list beside the row it removes, where the row's dates are on screen at the
+                  moment the confirmation is pressed. */}
+              <Route
+                path="/entries/:id/edit"
+                element={membership.state === "member" ? <EditEntry /> : <Navigate to="/" replace />}
+              />
 
-                GUARDED ON `member` AND NOT ON `admin`, which is the choice /entries/team and
-                /threshold already record: a member who types this address must reach the component
-                and be refused BY IT (`pending-entries-refused`, AC-10) rather than be bounced to
-                `/`, because the refusal is what says why. The guard is an affordance either way —
-                and here there is no control behind it at all: `entry_select_team` admits these rows
-                to both roles, so a member who got past the refusal would see what they can already
-                read at /entries/team (01-plan.md section 3). */}
-            <Route
-              path="/entries/pending"
-              element={membership.state === "member" ? <PendingEntries /> : <Navigate to="/" replace />}
-            />
+              {/* CAL-03. Guarded exactly as /entries/new and /entries/:id/edit are, and for the same
+                  reason: this screen lists and writes ENTRIES, and an entry belongs to a member row
+                  (INV-07), so a caller with no member row has nothing here to reach.
 
-            {/* CAL-04. The month grid, and the anchor is the URL — `/month/2026-04` typed directly
-                produces the same screen as pressing "next" from March (AC-10). `/month` with no
-                anchor redirects to the current month, and so does a malformed one; the component
-                does that itself rather than a second route doing it here, because "which month is
-                it" is a fact about the caller's clock and this file holds no clock.
+                  THE GUARD IS `member` AND NOT `admin`, deliberately. A member who types this address
+                  must reach the component and be refused BY IT (`team-entries-refused`, AC-10) rather
+                  than be bounced to `/` — the refusal is what says why, and a redirect would leave
+                  somebody who mistyped nothing to read. The guard is an affordance either way:
+                  `entry_update_admin` and `entry_delete_admin` are the controls and they refuse the
+                  write whoever reaches them. */}
+              <Route
+                path="/entries/team"
+                element={membership.state === "member" ? <TeamEntries /> : <Navigate to="/" replace />}
+              />
 
-                NOT GUARDED, unlike /entries/new and /entries/team, and the difference is the same
-                one /allow-list and /members already record: this screen READS, it renders
-                `month-not-on-a-team` for a caller with no member row, and that refusal is what says
-                why. A redirect would leave somebody who followed a shared month link with nothing to
-                read. The guard would be an affordance either way — `entry_select_team`,
-                `member_select_team` and `team_select_own` are the controls. */}
-            <Route path="/month" element={<MonthView />} />
-            <Route path="/month/:month" element={<MonthView />} />
+              {/* ADM-04. The worklist of entries awaiting a decision, at its own address — ADM-01's
+                  `TODO(project):` was answered at its own PLAN with *its own screen at /threshold*,
+                  and .ai/registry/features.md:103 says the later admin rows inherit that answer rather
+                  than re-asking it. `/entries/pending` sits in the family `/entries/team` and
+                  `/entries/new` already established.
 
-            {/* CAL-05. The week view, and the anchor is the URL exactly as the month's is —
-                `/week/2026-10-07` typed directly produces the same screen as pressing "next" from
-                the week before (AC-1, AC-14). ANY day of a week produces the same seven sections,
-                which is what makes a link from any date work; the component resolves the Monday
-                itself. `/week` with no anchor redirects to the current week, and so does a malformed
-                one, and the component does that rather than a second route here — "what day is it"
-                is a fact about the caller's clock and this file holds no clock.
+                  A STATIC SEGMENT ABOVE `/entries/:id/edit`, and it cannot be shadowed by it: react
+                  router v7 ranks a static segment above a dynamic one regardless of declaration order,
+                  so `/entries/pending` never resolves to EditEntry with an id of "pending".
 
-                NOT GUARDED, for the reason /month already records: this screen READS, it renders
-                `week-not-on-a-team` for a caller with no member row, and that refusal is what says
-                why. A redirect would leave somebody who followed a shared week link with nothing to
-                read. `entry_select_team` and `member_select_team` are the controls, and this ticket
-                adds no policy — every read it makes was already permitted. */}
-            <Route path="/week" element={<WeekView />} />
-            <Route path="/week/:day" element={<WeekView />} />
+                  GUARDED ON `member` AND NOT ON `admin`, which is the choice /entries/team and
+                  /threshold already record: a member who types this address must reach the component
+                  and be refused BY IT (`pending-entries-refused`, AC-10) rather than be bounced to
+                  `/`, because the refusal is what says why. The guard is an affordance either way —
+                  and here there is no control behind it at all: `entry_select_team` admits these rows
+                  to both roles, so a member who got past the refusal would see what they can already
+                  read at /entries/team (01-plan.md section 3). */}
+              <Route
+                path="/entries/pending"
+                element={membership.state === "member" ? <PendingEntries /> : <Navigate to="/" replace />}
+              />
 
-            {/* CAL-06. The year view, and the anchor is the URL exactly as the month's and the
-                week's are — `/year/2026` typed directly produces the same screen as pressing "next"
-                from 2025 (AC-1, AC-11). `/year` with no anchor redirects to the current year, and so
-                does a malformed one, and the component does that rather than a second route here —
-                "which year is it" is a fact about the caller's clock and this file holds no clock.
+              {/* CAL-04. The month grid, and the anchor is the URL — `/month/2026-04` typed directly
+                  produces the same screen as pressing "next" from March (AC-10). `/month` with no
+                  anchor redirects to the current month, and so does a malformed one; the component
+                  does that itself rather than a second route doing it here, because "which month is
+                  it" is a fact about the caller's clock and this file holds no clock.
 
-                NOT GUARDED, for the reason /month and /week already record: this screen READS, it
-                renders `year-not-on-a-team` for a caller with no member row, and that refusal is
-                what says why. A redirect would leave somebody who followed a shared year link with
-                nothing to read. `entry_select_team` and `member_select_team` are the controls, and
-                this ticket adds no policy — every read it makes was already permitted. */}
-            <Route path="/year" element={<YearView />} />
-            <Route path="/year/:year" element={<YearView />} />
+                  NOT GUARDED, unlike /entries/new and /entries/team, and the difference is the same
+                  one /allow-list and /members already record: this screen READS, it renders
+                  `month-not-on-a-team` for a caller with no member row, and that refusal is what says
+                  why. A redirect would leave somebody who followed a shared month link with nothing to
+                  read. The guard would be an affordance either way — `entry_select_team`,
+                  `member_select_team` and `team_select_own` are the controls. */}
+              <Route path="/month" element={<MonthView />} />
+              <Route path="/month/:month" element={<MonthView />} />
 
-            {/* ADM-01. The threshold setting, at its own address (01-plan.md Open question 1: the
-                registry row leaves the surface open and recommends its own screen, so ADM-02,
-                ADM-03 and ADM-04 inherit this answer rather than inventing an admin area here).
+              {/* CAL-05. The week view, and the anchor is the URL exactly as the month's is —
+                  `/week/2026-10-07` typed directly produces the same screen as pressing "next" from
+                  the week before (AC-1, AC-14). ANY day of a week produces the same seven sections,
+                  which is what makes a link from any date work; the component resolves the Monday
+                  itself. `/week` with no anchor redirects to the current week, and so does a malformed
+                  one, and the component does that rather than a second route here — "what day is it"
+                  is a fact about the caller's clock and this file holds no clock.
 
-                GUARDED ON `member` AND NOT ON `admin`, which is the choice /entries/team already
-                records: a member who types this address must reach the component and be refused BY
-                IT (`threshold-refused`, AC-4) rather than be bounced to `/`, because the refusal is
-                what says why. A caller with no session or no member row lands on `/`, which then
-                resolves by membership. The guard is an affordance either way — `team_update_admin`
-                and `grant update (overload_threshold)` are the controls and they refuse the write
-                whoever reaches them. */}
-            <Route
-              path="/threshold"
-              element={membership.state === "member" ? <Threshold /> : <Navigate to="/" replace />}
-            />
+                  NOT GUARDED, for the reason /month already records: this screen READS, it renders
+                  `week-not-on-a-team` for a caller with no member row, and that refusal is what says
+                  why. A redirect would leave somebody who followed a shared week link with nothing to
+                  read. `entry_select_team` and `member_select_team` are the controls, and this ticket
+                  adds no policy — every read it makes was already permitted. */}
+              <Route path="/week" element={<WeekView />} />
+              <Route path="/week/:day" element={<WeekView />} />
 
-            {/* ADM-02. The national holiday calendar, and the anchor is the URL exactly as the
-                month's, the week's and the year's are — `/holidays/2026` typed directly produces the
-                same screen as pressing *next* from 2025 (AC-8). `/holidays` with no anchor resolves
-                to the current year, and so does a malformed one, and the component does that rather
-                than a second route here — "which year is it" is a fact about the caller's clock and
-                this file holds no clock (AC-9).
+              {/* CAL-06. The year view, and the anchor is the URL exactly as the month's and the
+                  week's are — `/year/2026` typed directly produces the same screen as pressing "next"
+                  from 2025 (AC-1, AC-11). `/year` with no anchor redirects to the current year, and so
+                  does a malformed one, and the component does that rather than a second route here —
+                  "which year is it" is a fact about the caller's clock and this file holds no clock.
 
-                GUARDED ON A SESSION AND NOT ON A ROLE, which is unlike every guard above it. Both
-                signed-in states render: `holiday_select_all` is `using (true)` and a holiday belongs
-                to no team, so a caller with no member row reads the calendar exactly as a member
-                does (AC-7) — there is no "you are not on a team" to say about a national calendar,
-                and no role to check either, because `Read the holiday calendar` is checked for both
-                roles in .ai/standards/rbac-and-security.md (AC-1, AC-2).
+                  NOT GUARDED, for the reason /month and /week already record: this screen READS, it
+                  renders `year-not-on-a-team` for a caller with no member row, and that refusal is
+                  what says why. A redirect would leave somebody who followed a shared year link with
+                  nothing to read. `entry_select_team` and `member_select_team` are the controls, and
+                  this ticket adds no policy — every read it makes was already permitted. */}
+              <Route path="/year" element={<YearView />} />
+              <Route path="/year/:year" element={<YearView />} />
 
-                A SIGNED-OUT CALLER GOES TO `/`, which resolves by membership to the sign-in screen.
-                That guard exists for one specific reason rather than for symmetry: with no session
-                the read returns nothing, and an unguarded screen would then render AC-10's
-                past-the-horizon notice and tell a stranger the calendar is short (AC-6). It is an
-                affordance either way — `grant select … to authenticated` is the control. */}
-            <Route
-              path="/holidays"
-              element={
-                membership.state === "signed-out" ? <Navigate to="/" replace /> : <Holidays />
-              }
-            />
-            <Route
-              path="/holidays/:year"
-              element={
-                membership.state === "signed-out" ? <Navigate to="/" replace /> : <Holidays />
-              }
-            />
+              {/* ADM-01. The threshold setting, at its own address (01-plan.md Open question 1: the
+                  registry row leaves the surface open and recommends its own screen, so ADM-02,
+                  ADM-03 and ADM-04 inherit this answer rather than inventing an admin area here).
 
-            {/* AC-9. Every address the application does not route lands on `/`, which then resolves
-                by membership — so a caller with no session reaches the sign-in screen. This replaced
-                TEA-01's temporary `→ /signup`, which existed only because that half of the feature
-                had one screen and no landing address to send anybody to. */}
-            <Route path="*" element={<Navigate to="/" replace />} />
+                  GUARDED ON `member` AND NOT ON `admin`, which is the choice /entries/team already
+                  records: a member who types this address must reach the component and be refused BY
+                  IT (`threshold-refused`, AC-4) rather than be bounced to `/`, because the refusal is
+                  what says why. A caller with no session or no member row lands on `/`, which then
+                  resolves by membership. The guard is an affordance either way — `team_update_admin`
+                  and `grant update (overload_threshold)` are the controls and they refuse the write
+                  whoever reaches them. */}
+              <Route
+                path="/threshold"
+                element={membership.state === "member" ? <Threshold /> : <Navigate to="/" replace />}
+              />
+
+              {/* ADM-02. The national holiday calendar, and the anchor is the URL exactly as the
+                  month's, the week's and the year's are — `/holidays/2026` typed directly produces the
+                  same screen as pressing *next* from 2025 (AC-8). `/holidays` with no anchor resolves
+                  to the current year, and so does a malformed one, and the component does that rather
+                  than a second route here — "which year is it" is a fact about the caller's clock and
+                  this file holds no clock (AC-9).
+
+                  GUARDED ON A SESSION AND NOT ON A ROLE, which is unlike every guard above it. Both
+                  signed-in states render: `holiday_select_all` is `using (true)` and a holiday belongs
+                  to no team, so a caller with no member row reads the calendar exactly as a member
+                  does (AC-7) — there is no "you are not on a team" to say about a national calendar,
+                  and no role to check either, because `Read the holiday calendar` is checked for both
+                  roles in .ai/standards/rbac-and-security.md (AC-1, AC-2).
+
+                  A SIGNED-OUT CALLER GOES TO `/`, which resolves by membership to the sign-in screen.
+                  That guard exists for one specific reason rather than for symmetry: with no session
+                  the read returns nothing, and an unguarded screen would then render AC-10's
+                  past-the-horizon notice and tell a stranger the calendar is short (AC-6). It is an
+                  affordance either way — `grant select … to authenticated` is the control. */}
+              <Route
+                path="/holidays"
+                element={
+                  membership.state === "signed-out" ? <Navigate to="/" replace /> : <Holidays />
+                }
+              />
+              <Route
+                path="/holidays/:year"
+                element={
+                  membership.state === "signed-out" ? <Navigate to="/" replace /> : <Holidays />
+                }
+              />
+              {/* AC-9. Every address the application does not route lands on `/`, which then
+                  resolves by membership — so a caller with no session reaches the sign-in screen and
+                  a member reaches the current week. This replaced TEA-01's temporary `→ /signup`,
+                  which existed only because that half of the feature had one screen and no landing
+                  address to send anybody to. The eleven back-links pointing at `/` keep working.
+
+                  INSIDE THE LAYOUT ROUTE since PLAN rework 1, where § 4.6 puts every route that is
+                  not /signin or /signup. It was outside in the previous cycle to avoid painting a
+                  shell in order to leave it one tick later; `/` is now a screen inside this same
+                  layout, so the layout does not remount on the way there and there is nothing left
+                  to avoid. */}
+              <Route path="*" element={<Navigate to="/" replace />} />
+            </Route>
           </Routes>
         )}
       </main>

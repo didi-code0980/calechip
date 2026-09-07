@@ -10,38 +10,137 @@ group: UIE           # ONE GROUP, ONE FEATURE ID. Definition of Ready item 6 is 
                      # spans two groups and owes a whole §5 to the second clause.
                      # NO CAL, ADM OR TEA ROW IS IN feature_ids. This ticket restyles the surfaces
                      # those features shipped; it delivers none of them. See §11.
-state: BACKLOG
+state: DONE           # `orchestrator` at /ship, 2026-09-07, on 04-review.md pass 2 `gate: PASS` /
+                      # `next_state: DONE`. ADR-022 removed the QA stage, so REVIEW -> DONE is the
+                      # whole remaining transition (.ai/01-operating-model.md:36).
+#
+# PREVIOUS VALUE, `REVIEW`, and the `developer`'s two comments are reproduced below rather than
+# deleted. They are the most complete account this board has of a defect now on its EIGHTH
+# consecutive ticket: no command in `.claude/commands/` owns PLAN -> READY, and none owns
+# REVIEW -> REWORK either, so BOTH transitions went unwritten here while the work went through them.
+#
+# ONE CORRECTION, the same one OPS-002 and UIE-01 needed. Nothing above says the DoR was not graded,
+# and that is right: `/next-ticket` graded it in the orchestrator session at 2026-09-07 11:21 +07,
+# SIX OF SIX PASS, after PLAN rework 1 and before `/implement`. The Developer was correct to refuse
+# to write another stage's gate. What is missing is a WRITER for a grade already given.
+#
+# state: REVIEW       # Set by `developer` at /implement, 2026-09-07, cycle 2, on a PASS gate in
+#                     # 03-impl-log.md. NOTE FOR THE ORCHESTRATOR: this row read BACKLOG until now.
+#                     # 01-plan.md's front-matter carries `gate: PASS` and `next_state: READY` from
+#                     # both PLAN runs, and `gates.plan` below is still `passed: false` — PLAN did
+#                     # not write either field in either cycle. That is PLAN's to set and the
+#                     # Developer has not touched it; /ship requires both gates.
+#                     #
+#                     # RE-SET BY `developer` AT /implement, 2026-09-07, REVIEW REWORK CYCLE 1, on a
+#                     # PASS gate in 03-impl-log.md. The value is unchanged because the row still
+#                     # read REVIEW: 04-review.md's `next_state: REWORK` was never applied here —
+#                     # the reviewer says in as many words that ticket.yaml is the orchestrator's to
+#                     # move, and no orchestrator ran between the FAIL and this rework. `rework_count`
+#                     # below is incremented regardless, because RULE-08 charges the failure and not
+#                     # the bookkeeping. One question is open to `tech-lead-design` in
+#                     # 99-questions.md; it is 04-review.md finding 2 and it gates nothing.
 owner: ""
 branch: "feat/UIE-02"   # .ai/standards/git-conventions.md:36 asks for feat/<FEATURE-ID>, and UIE-02
                         # IS a row in .ai/registry/features.md as of 2026-09-05. The convention
                         # followed; no trade-off to argue. Same as UIE-01 §5.
-size_estimate: ""     # S|M - set by tech-lead-design at PLAN; gates DoR. LEFT AS THE TEMPLATE SHIPS
-                      # IT. This is Definition of Ready item 5 and it is PLAN's. TRIAGE SIZED
-                      # NOTHING HERE AND THE SPLIT INTO THREE TICKETS IS NOT A SIZE CLAIM — it is a
-                      # scope boundary, which is triage's under ADR-010. See §2.
-size: ""              # S|M|L|XL - set by tech-lead-design at PLAN; decides splitting
+size_estimate: M      # Set by `tech-lead-design` at /plan, 2026-09-07, from 01-plan.md section 1.
+                      # Three new components, one new hook, one new pure module, the route table, the
+                      # stylesheet, one deletion, and an import swap in each of the three period
+                      # screens. TRIAGE SIZED NOTHING HERE and the split into three tickets is a
+                      # scope boundary rather than a size claim (ADR-010).
+size: M               # Counted from allowed_paths below: TWELVE source paths after PLAN rework 1
+                      # (eleven at the first issue), and .ai/01-operating-model.md:373 puts 7-12 at
+                      # M. NOT L, so nothing splits — BUT IT IS M BY ONE FILE.
+                      # 03-impl-log.md's option 1 proposed SIXTEEN paths and called them "still M".
+                      # SIXTEEN IS L, and L MUST SPLIT AT PLAN — with no legitimate split available,
+                      # since shell-on-one-side/test-helpers-on-the-other is the split :380 forbids
+                      # by name. That arithmetic is why option 1 was not taken. 01-plan.md section 7.
+                      # IT AGREES WITH size_estimate, which is worth recording because the estimate
+                      # was made before the count — ADR-012 is not engaged. See 01-plan.md section 7.
+                      # NOT XL: :375's triggers are a schema change, a changed signature on an
+                      # EXISTING seam function, or a change to a shared TYPE module. src/lib/period.ts
+                      # is a NEW module and src/lib/domain/types.ts is untouched.
 depends_on: [UIE-01]  # ***FAILS DEFINITION OF READY ITEM 3 TODAY, ON PURPOSE.*** See §6.
-invariants_touched: []   # LEFT AS THE TEMPLATE SHIPS IT. This is item 2 and belongs to
-                         # tech-lead-design at PLAN. `[]` here is the template's DEFAULT, NOT a
-                         # considered answer. See §10.
-allowed_paths: []     # LEFT EMPTY DELIBERATELY. guard-allowed-paths.mjs blocks every write outside
-                      # this ticket folder while it is empty. PLAN fills it. The file list in §1 is
-                      # the triage's scope statement and is NOT an allowed_paths list.
+invariants_touched: []   # REACHED AT PLAN ON 2026-09-07 AND NO LONGER THE TEMPLATE'S DEFAULT.
+                         # 01-plan.md section 2 carries the reasoning. All seven rows at
+                         # .ai/registry/invariants.md:33-39 constrain an `entry` row or the member it
+                         # belongs to; NO INVARIANT GOVERNS THE PRESENCE OF A SIDEBAR. The
+                         # circularity invariants.md warns about is avoided STRUCTURALLY rather than
+                         # by inspecting intent: every file in section 7 sits ABOVE THE SEAM — no
+                         # query, no policy, no migration, no arithmetic over entries — and the one
+                         # file that reads anything makes a single call, seam.listMembers(), which
+                         # src/routes/MemberList.tsx:54 already makes. Nothing is written on any path.
+                         # ADR-028 records that `[]` will be the answer on almost every UIE row, as a
+                         # COST of the group rather than as permission to skip the question.
+# FILLED BY `tech-lead-design` AT PLAN ON 2026-09-07, from 01-plan.md section 7.
+#
+# ***THREE PATHS HERE ARE NOT IN §1'S SEVEN, AND EACH IS FORCED RATHER THAN CHOSEN.***
+# src/routes/MonthView.tsx and src/routes/YearView.tsx hold the DEFINITIONS of `shiftMonth` (:104)
+# and `shiftYear` (:85), and §7 above requires both to move to a shared module — a move edits the
+# file it moves out of. src/routes/WeekView.tsx joins them because `mondayIndex` is DUPLICATED at
+# WeekView.tsx:76 and MonthView.tsx:93, and the top bar needs it; moving one definition and leaving
+# two copies would be worse than the duplication that exists today. ALL THREE EDITS ARE IMPORT SWAPS
+# AND DELETIONS OF NOW-SHARED DEFINITIONS — no rendered output on any of the three screens changes,
+# which is what keeps the "screens keep their own headers" scope true and ZERO spec files in scope.
+#
+# NO TEST FILE IS LISTED AND NONE IS NEEDED. The twelve `home-*` ids relocate UNRENAMED, and every
+# assertion on them is a visibility, click or text check that passes wherever the node lives.
+# AC-6, AC-7 and AC-8 in 01-plan.md are the three criteria that keep that true.
+allowed_paths:
+  - ".ai/board/tickets/UIE-02/**"
+  - "src/App.tsx"
+  - "src/components/AppShell.tsx"
+  - "src/components/Sidebar.tsx"
+  - "src/components/TopBar.tsx"
+  - "src/hooks/useRoster.ts"
+  - "src/lib/period.ts"
+  - "src/index.css"
+  - "src/routes/Home.tsx"
+  - "src/routes/WeekView.tsx"
+  - "src/routes/MonthView.tsx"
+  - "src/routes/YearView.tsx"
+  # ADDED AT PLAN REWORK 1, AND IT IS THE ONLY SPEC FILE THIS TICKET WILL EVER TOUCH.
+  # NOT the `/` problem 03-impl-log.md reports — that one is fixed in src/ by AC-5 and costs no spec
+  # file at all. THIS one is the sidebar roster: it names every active member on EVERY screen, and
+  # :493 asserts PAGE-WIDE that an entry owner's display name is absent from a refusal screen. The
+  # assertion is scoped to the content pane; its stated intent — "a refusal that said what it was
+  # withholding would be the read it is refusing" — is preserved exactly, because the roster is a
+  # read `Read the member list` grants a member outright. 01-plan.md AC-24 and section 7.
+  - "tests/e2e/cal-03-admin-edit-entry.spec.ts"
 schema_delta: none
 requires_adr: false   # Nothing here reaches a registry, a schema or a dependency. IF PLAN CONCLUDES
                       # OTHERWISE IT MUST STOP AND ASK RATHER THAN FLIP THE FIELD QUIETLY — same
                       # clause and same reason as OPS-002 §2's localisation-library question and
                       # UIE-01 §7's font question. The one candidate is named at §9.
-rework_count: 0
+rework_count: 1       # Incremented by `developer` at /implement, 2026-09-07, REVIEW rework cycle 1.
+                      # 04-review.md finding 1 is R5 implementable, which the routing table at
+                      # .ai/01-operating-model.md:144 charges to the Developer (RULE-08). The PLAN
+                      # rework recorded at `state` above charged nothing and is not counted here.
+                      # ONE MORE DEVELOPER-CAUSED FAILURE ESCALATES — RULE-06.
 chat_budget:
   # ADR-019 retired `ba` from the loop, so the two `->ba` edges are gone. They are not listed as
   # zeroes: an edge nobody can walk is not a budget, it is a row that invites someone to try.
-  developer->tech-lead-design: { used: 0, max: 6 }
+  # `used` INCREMENTED BY HAND, 2026-09-07, and that is not the hook failing. chat-guard.mjs:250
+  # exits early when `payload.agent_type` is not a pipeline agent, which is the case for every write
+  # made from the operator's own session rather than from a dispatched subagent — it fails open by
+  # design. The 99-questions.md entry to `tech-lead-design` is real and RULE-15 counts it either way.
+  developer->tech-lead-design: { used: 1, max: 6 }
   # ADR-022 removed the QA stage, and the `qa->tech-lead-design` edge with it.
 tracker: { provider: "", external_id: "", sync_enabled: false }
 gates:
-  plan:   { passed: false, at: null }   # ADR-019 merged the `spec` and `design` gates into one
-  review: { passed: false, at: null }
+  # BOTH ROWS TRANSCRIBED BY `orchestrator` AT /ship ON 2026-09-07. Neither value is claimed here —
+  # each is a copy of a gate another stage reached, read from that artifact's own front-matter.
+  #
+  # From .ai/board/tickets/UIE-02/01-plan.md: `gate: PASS`, `blocking_reason: ""`,
+  # `produced_at: 2026-09-07T12:07:00+07:00` — THE AMENDED ISSUE (PLAN rework 1), which is the one
+  # `/implement` cycle 3 and both review passes were run against. The 11:15:03 issue is named in that
+  # file's own front-matter comment and is not the current artifact. ADR-019 merged `spec`+`design`.
+  plan:   { passed: true, at: "2026-09-07T12:07:00+07:00" }
+  # From .ai/board/tickets/UIE-02/04-review.md: `gate: PASS`, `blocking_reason: ""`,
+  # `next_state: DONE`, `produced_at: 2026-09-07T14:42:19+07:00`, `cycle: 2`. PASS 1 (13:45:35) was a
+  # FAIL carrying two findings; finding 1 was fixed by the `developer` at REWORK cycle 3 and finding 2
+  # was closed by `tech-lead-design` at 14:20. `rework_count: 1` below is that cycle.
+  review: { passed: true, at: "2026-09-07T14:42:19+07:00" }
   # No `qa` key. ADR-022 removed the stage and this shell is created after that date, so the two
   # gates that decide anything are `plan` and `review`. /ship requires both.
 
@@ -89,6 +188,36 @@ gates:
 # was re-checked against the rebased file rather than assumed: src/routes/WeekView.tsx:11 STILL
 # reads *"IT COUNTS NOTHING"* and `seam.getTeam()` is STILL deliberately not called. CAL-08 drew
 # holidays; it brought no threshold, no team read and no overload state with it.
+#
+# ---------------------------------------------------------------------------------------------
+# 0ter. ***AMENDED BY `tech-lead-design` AT /plan ON 2026-09-07. FOUR MORE STATEMENTS IN THIS FILE
+#       WENT STALE BETWEEN TRIAGE AND PLAN. NOTHING BELOW IS DELETED — 01-plan.md SECTION 2
+#       *PREMISE CORRECTIONS* CARRIES EACH ONE MEASURED, AND IT IS THE COPY TO READ.***
+#
+#   1. ***ADM-04, ADM-05 AND ADM-06 ARE `DONE`, NOT `BACKLOG`*** (.ai/registry/features.md:115-117).
+#      /entries/pending is a registered route (src/App.tsx:175-178), src/routes/PendingEntries.tsx
+#      exists, and src/routes/Home.tsx:203-213 carries a FOURTH admin-only link. ***§9.2's FACTUAL
+#      PREMISE IS GONE.*** Its conclusion — ship no `Duyệt phép` button — SURVIVES for a different
+#      reason, which 01-plan.md § Out of scope item 3 states: ADM-04 shipped its own link, and that
+#      link relocates into the sidebar with the other eleven. A second control to the same address
+#      is §5's duplication problem wearing a new name.
+#
+#   2. ***THERE ARE TWELVE `home-*` IDS, NOT ELEVEN.*** The twelfth is `home-pending-entries-link`.
+#      01-plan.md AC-6 lists all twelve.
+#
+#   3. ***FIFTEEN SPEC FILES ADDRESS A `home-*` ID, NOT TWELVE.*** The three §5 does not name are
+#      adm-04-worklist, adm-05-approve-reject and adm-06-bulk-reject. §5 also names
+#      `cal-03-team-entries.spec.ts`, WHICH DOES NOT EXIST — the file is cal-03-admin-edit-entry.
+#      ***THIS CHANGES NO SCOPE***; the number is the size of the crater, not a list of files.
+#
+#   4. ***THERE ARE FIVE MEMBERSHIP GUARDS ON ROUTES, NOT FOUR, AND EVERY LINE NUMBER IN §3 IS
+#      STALE.*** The fifth is /entries/pending. 01-plan.md section 2 carries the re-measured table
+#      for all eleven <Route> elements. ***DO NOT NAVIGATE BY §3'S NUMBERS.***
+#
+# ***WHAT THIS DOES NOT SWEEP UP.*** §9.4 (`Quá tải (>50%)`), §9.5 (the palette icon), §9.6 (the `?`
+# button) and §9.7 (dark mode) are UNCHANGED and still deferred; §9.4 was re-checked rather than
+# assumed — src/routes/WeekView.tsx:11 still opens *"IT COUNTS NOTHING"*. §9.3's holiday-legend
+# withdrawal stands and is built. §0.1 through §0.4 stand.
 #
 # ---------------------------------------------------------------------------------------------
 # 0. FOUR PREMISES CORRECTED AT TRIAGE. CARRY THEM; DO NOT RE-DERIVE THEM.

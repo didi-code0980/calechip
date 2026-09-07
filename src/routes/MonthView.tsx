@@ -57,41 +57,26 @@ import {
 // the second definition .ai/registry/features.md:95 forbids.
 import { dayStatusesFor, holidayReadRange } from "@/lib/data/day-status";
 import type { DateRange, DayStatus, Entry, Failure, Holiday, Member, Team } from "@/lib/domain/types";
+// UIE-02 § 4.5. `MONTH_NAMES`, `mondayIndex`, `shiftMonth`, `monthLabel` and the month shape test
+// were declared BELOW, in this file; the shell's top bar needs all of them, and `mondayIndex` was
+// DUPLICATED here and in WeekView.tsx character for character. Moving each definition into one pure
+// module deletes a copy rather than making a third. This import and the deletions under it are the
+// whole of UIE-02's edit to this screen — no rendered output changes here, which is what keeps
+// `Out of scope` item 1 true and zero spec files in scope.
+import { isRealMonth, mondayIndex, monthLabel, shiftMonth } from "@/lib/period";
 
 // ---------------------------------------------------------------------------
 // The month vocabulary. `yyyy-MM` in the URL, `yyyy-MM-dd` everywhere below it.
 // ---------------------------------------------------------------------------
 
-const MONTH_PATTERN = /^\d{4}-(?:0[1-9]|1[0-2])$/;
-
-const MONTH_NAMES = [
-  "January",
-  "February",
-  "March",
-  "April",
-  "May",
-  "June",
-  "July",
-  "August",
-  "September",
-  "October",
-  "November",
-  "December",
-];
+/* `MONTH_PATTERN` and `MONTH_NAMES` STOOD HERE and are now in @/lib/period as `isRealMonth` and
+   `MONTH_NAMES` (UIE-02 § 4.5). The names in that module are this file's spelling, in full —
+   YearView.tsx's twelve are the three-letter abbreviations it draws as column headings, which are a
+   different list and moved separately. */
 
 // Monday first. `.ai/standards/ui-design-system.md` § Components is `TODO(project)` and specifies no
 // week start, so this is 01-plan.md § 2b's layout decision, marked there as the Tech Lead's own.
 const WEEKDAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
-
-/**
- * The weekday of a `yyyy-MM-dd` date, 0 for Monday.
- *
- * Read in UTC and never locally. `new Date('2026-04-30')` parses as UTC midnight and a local
- * weekday read west of UTC yields the previous day — CAL-01 01-plan.md section 4.5 records the trap,
- * and @/lib/data/absence does its arithmetic the same way for the same reason.
- */
-const mondayIndex = (date: string): number =>
-  (new Date(`${date}T00:00:00Z`).getUTCDay() + 6) % 7;
 
 /** The last date of a `yyyy-MM`, without a calendar table: day 1 of the next month, minus one. */
 function lastDateOf(month: string): string {
@@ -101,14 +86,9 @@ function lastDateOf(month: string): string {
   return addDays(next, -1);
 }
 
-const shiftMonth = (month: string, by: number): string => {
-  const total = Number(month.slice(0, 4)) * 12 + Number(month.slice(5, 7)) - 1 + by;
-  const year = Math.floor(total / 12);
-  return `${String(year).padStart(4, "0")}-${String((total % 12) + 1).padStart(2, "0")}`;
-};
-
-const monthLabel = (month: string): string =>
-  `${MONTH_NAMES[Number(month.slice(5, 7)) - 1]} ${month.slice(0, 4)}`;
+/* `mondayIndex`, `shiftMonth` and `monthLabel` STOOD HERE and are now in @/lib/period, imported
+   above. `lastDateOf` above did NOT move: nothing outside this screen needs it, and the top bar
+   steps months rather than walking their days. */
 
 /**
  * The month `/month` with no anchor redirects to.
@@ -153,7 +133,7 @@ export default function MonthView() {
   // same screen as pressing "next" from April. An invalid or absent anchor redirects to the current
   // month rather than rendering an error: there is no criterion about a malformed address, and a
   // grid for "this month" is the useful answer to somebody who mistyped one.
-  const valid = month !== undefined && MONTH_PATTERN.test(month);
+  const valid = month !== undefined && isRealMonth(month);
 
   const [view, setView] = useState<View>({ phase: "loading" });
 

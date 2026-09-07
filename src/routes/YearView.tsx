@@ -56,34 +56,27 @@ import {
 import { dayStatusesFor, holidayReadRange } from "@/lib/data/day-status";
 import type { DateRange, DayStatus, Entry, Holiday, Member } from "@/lib/domain/types";
 import { TYPE_LABELS } from "@/lib/labels";
+// UIE-02 § 4.5. `shiftYear`, the year shape test and the twelve abbreviated month names were
+// declared BELOW, in this file; the shell's top bar needs `shiftYear` and `isRealYear`, and its week
+// label needs the abbreviations. Moving each definition into one pure module leaves one copy rather
+// than two. This import and the deletions under it are the whole of UIE-02's edit to this screen —
+// no rendered output changes here, which is what keeps `Out of scope` item 1 true and zero spec
+// files in scope. `MONTH_ABBR` holds the SAME twelve strings this file drew before.
+import { MONTH_ABBR, isRealYear, shiftYear } from "@/lib/period";
 
 // ---------------------------------------------------------------------------
 // The year vocabulary. `yyyy` in the URL, `yyyy-MM-dd` everywhere below it.
 // ---------------------------------------------------------------------------
 
-const YEAR_PATTERN = /^\d{4}$/;
-
-const MONTH_NAMES = [
-  "Jan",
-  "Feb",
-  "Mar",
-  "Apr",
-  "May",
-  "Jun",
-  "Jul",
-  "Aug",
-  "Sep",
-  "Oct",
-  "Nov",
-  "Dec",
-];
+/* `YEAR_PATTERN` and this file's twelve `MONTH_NAMES` STOOD HERE and are now in @/lib/period as
+   `isRealYear` and `MONTH_ABBR` (UIE-02 § 4.5). The name changed because MonthView.tsx's list is
+   ALSO called `MONTH_NAMES` there and holds the months spelled in FULL — the two were never the
+   same strings, so one module cannot carry both under one name. The twelve headings this screen
+   draws are unchanged. */
 
 /** AC-1 and AC-2. January 1st to December 31st, inclusive — so a leap year is 366 days and no
  *  calendar table is consulted to know it: `eachDateInRange` walks UTC instants. */
 const yearRange = (year: string): DateRange => ({ start: `${year}-01-01`, end: `${year}-12-31` });
-
-const shiftYear = (year: string, by: number): string =>
-  String(Number(year) + by).padStart(4, "0");
 
 /**
  * The year `/year` with no anchor redirects to.
@@ -135,7 +128,7 @@ export default function YearView() {
   // the same screen as pressing "next" from 2025. An absent or malformed anchor redirects to the
   // current year rather than rendering an empty grid: there is no criterion about a mistyped
   // address, and this year is the useful answer to somebody who mistyped one.
-  const valid = year !== undefined && YEAR_PATTERN.test(year);
+  const valid = year !== undefined && isRealYear(year);
 
   const range = useMemo<DateRange | null>(() => (valid && year ? yearRange(year) : null), [valid, year]);
 
@@ -368,7 +361,7 @@ export default function YearView() {
                 className="overflow-hidden pb-1 font-medium opacity-60"
                 style={{ gridColumn: `span ${days}` }}
               >
-                {MONTH_NAMES[Number(month.slice(5, 7)) - 1]}
+                {MONTH_ABBR[Number(month.slice(5, 7)) - 1]}
               </div>
             ))}
           </div>
