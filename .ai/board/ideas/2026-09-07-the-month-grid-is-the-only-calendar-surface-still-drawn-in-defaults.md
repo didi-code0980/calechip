@@ -388,3 +388,206 @@ Real ones. A verdict turns on the first three.
    nobody can reopen — which is a different thing from an image the operator supplied, and
    `.ai/standards/ui-design-system.md:140-150` then places the layout under the Tech Lead's grant, **with
    the obligation that `01-plan.md` § 2b says so in a line.**
+
+---
+
+# Triage verdict — PROMOTE
+
+**Written by `product` at `/triage` on 2026-09-07, in a second dispatch, after `tech-lead-design`'s
+technical read of the same request.** The sections above are the problem as it was written before any
+verdict existed; nothing in them was edited to fit what follows, except the two factual corrections
+marked in place in § *Problem*, § *Constraints already known* and § *Open questions* — and those were
+corrections, not adjustments to suit a verdict.
+
+## 0. This file was split, and the verdict below rules on one half of it
+
+**The gate is exactly one verdict per idea file.** The technical read recommended three outcomes at
+once — promote the arrangement, take the count deletion to an ADR, reject the rest. Three outcomes on
+one file is not a verdict, it is a summary. **Rounding it to a single PROMOTE would smuggle a domain
+amendment through a restyle; rounding it to a single NEEDS-ADR would hold a clean layout change
+hostage to a decision only the operator can take.**
+
+**So the file was split, on the same terms and for the same reason as this morning's week-view idea.**
+
+| Half | Where it now lives | Verdict |
+|---|---|---|
+| *The month grid is drawn in defaults, capped, and small* — § *Problem* items 1, 2 and 3 | **this file** | **PROMOTE**, below, as `UIE-06` |
+| *The picture deletes the per-day count* — § *Constraints already known*, first bullet | `.ai/board/ideas/2026-09-07-the-month-cell-number-is-what-stops-the-avatars-being-counted.md` | **NEEDS-ADR**, with [ADR-030](../../registry/decisions/ADR-030-the-month-cell-renders-no-absence-count.md) drafted there |
+
+**They are separable in fact and not only on paper.** `UIE-06` ships and the screen looks like the
+picture except for one small numeral per busy cell; ADR-030 removes that numeral or does not. Neither
+needs the other to be coherent, and only the second needs a human.
+
+**Nothing above this line was deleted.** The first bullet of § *Constraints already known* still stands
+where it was written — the second idea file quotes it rather than moving it, and says so. **The
+filename still names only one problem and was not changed**, because renaming is deleting and this
+paragraph is cheaper than a lost reference.
+
+## 1. The verdict, and the reason
+
+**PROMOTE.** The operator looked at the month grid CAL-04 shipped on 2026-09-04 and drew a different
+one. **The half of that picture that is arrangement is inside the grant
+`.ai/standards/ui-design-system.md:140-155` gives `tech-lead-design`**, reverses no invariant, needs no
+registry amendment, deletes no rendered fact, renames no selector, and answers three defects this file
+states against source:
+
+- the month grid is **the only calendar surface the product's own tokens never reached**, so the
+  sidebar legend and the cells it explains are painted from two different palettes (§ *Problem* 1);
+- it is **the only calendar view still capping its own width** — `MonthView.tsx:314` is
+  `mx-auto max-w-5xl` where `YearView.tsx:322` is `max-w-full` and `WeekView.tsx:304-305` records the
+  identical cap being deleted by UIE-04 (§ *Problem* 2);
+- and its cells are `min-h-24` against the picture's ~170px, on the screen `CLAUDE.md` § *Visual
+  direction* names as the one where density wins every time (§ *Problem* 2, 3).
+
+**It is promoted as `UIE-06`** — `.ai/registry/features.md`, `## UIE`, `Status: PLANNED`, citing this
+filename in `Notes`. The ticket shell is `.ai/board/tickets/UIE-06/ticket.yaml` and the transcription
+is at `.ai/board/tickets/UIE-06/design/README.md`.
+
+**Under ADR-028's four-step test this is `UIE` at step 3**, the same place `UIE-05` landed. Step 1
+fails — no acceptance criterion and no standard says a month cell must be 170px or that the grid must
+fill the pane. Step 2 fails — after this ticket the product can do nothing it could not do before.
+**Step 3 answers yes: more than one output would be acceptable and somebody has to look at the result
+and judge it.**
+
+## 2. What is promoted
+
+Six things, all of them arrangement, and the technical read's `L1`–`L6`:
+
+1. **The grid fills the pane's full width.** `mx-auto max-w-5xl` goes. `AppShell.tsx:40-42` already
+   grants the width and `YearView.tsx` already takes it.
+2. **The weekday strip lifts out of the grid and onto the page ground.** It is free: **no test in this
+   repository asserts on `month-weekday` at all**, and `month-grid` is used only as a readiness signal.
+   **The labels stay English** (§ 3).
+3. **One white rounded card holding a ruled grid** — rectangular cells separated by hairlines edge to
+   edge, only the card's outer corners rounded, in place of 35 `rounded-xl` tiles with `gap-1` gutters.
+   `--color-line: #e4e0f4` already exists at `src/index.css:104`, so the hairline is free.
+4. **Taller cells — and the criterion is written as *at least*, never as *fills the viewport*.** § 5.
+5. **The out-of-month tint, with one clause that must be written and may not be left to a comment.**
+   § 5.
+6. **The bridge badge moves to the cell's top-right — outlined, unfilled, still reading `Bridge`.**
+   The position is taken; the fill and the word are refused (§ 3).
+
+**And the token conversion.** The month view uses **none** of UIE-01's and UIE-02's tokens today —
+`bg-white`, `bg-slate-100/60`, `bg-violet-100`, `bg-rose-100`, `bg-emerald-100`, `bg-orange-100` are
+all Tailwind defaults — while the legend beside it uses `bg-pto`, `bg-wfh` and `bg-holiday`. Moving the
+grid onto the tokens stays inside the grant, because CAL-04's criteria cite *lavender*, *peach* and
+*mint* generically. **It is a second thing and the plan must say whether it did it**, because it is the
+most likely reason a size of S comes back as M.
+
+**No size is recorded and none is implied.** The technical read proposes S; `size_estimate` is
+Definition of Ready item 5 and is `tech-lead-design`'s at PLAN, so the field is left empty and the
+recommendation is deliberately not copied into the shell. Same for `invariants_touched`, item 2.
+
+## 3. What is rejected, said plainly rather than deferred in silence
+
+**These are refusals, not deferrals. Nothing downstream will pick them up.**
+
+- **Vietnamese interface copy — `CẦU`, `T2`…`CN`, `Tháng 04, 2026`, `Hôm nay` and every other string
+  in the picture.** Refused on exactly the terms UIE-01 set and this morning's week-view triage
+  repeated: it reverses `.ai/standards/ui-design-system.md:46-48`, **the operator's own instruction of
+  2026-09-03**; `ui-language.json:21` has `copyDebt: []` and that list only ever shrinks. **And `CẦU`
+  fails the build rather than review** — `eslint.config.js:84-92` lints `JSXText` against
+  `[À-ɏḀ-ỿ]` and `Ầ` is U+1EA6. If a Vietnamese interface is wanted, that is its own request with an
+  ADR superseding § *Language*, product-wide, and not a property of the month grid.
+- **The filled pink bridge badge.** **Pink is the overload fill** (`MonthView.tsx:379`,
+  `CLAUDE.md` § *Visual direction*), and the image's own sidebar legend says so with a pink dot reading
+  `Quá tải (>50%)`. Filling the badge paints the crowded-day colour onto a working day and reverses the
+  reason written at `MonthView.tsx:403-404` — *"the bridge badge is OUTLINED and carries no fill:
+  lavender means not working, and a bridge day is a working day."* **The position is taken; the fill
+  and the word are not.** No test catches either, which is why it is written here.
+- **Lavender for out-of-month days.** `CLAUDE.md` § *Visual direction* spends lavender on holidays,
+  CAL-08 spends it there and nowhere else, and the image's own legend still says `Ngày lễ` beside a
+  violet dot — so the picture contradicts itself as well as the registry. **What is promoted instead is
+  in § 5**, and it is a reading of the picture rather than a refusal of it.
+- **The sidebar and the top bar entirely** — the `TEAM (8)` roster, the fourth legend row, the `▾`
+  after the period title, the palette and sign-out buttons, the `Quản trị & Duyệt` pill, and the
+  floating `?`. The operator said *month view*, and UIE-02 and UIE-03 shipped that chrome. **The trap is
+  the one UIE-05 named:** this ticket owns the grid, so adjusting a sidebar swatch to match a cell it
+  has just restyled will feel like finishing the job. It is still a shell edit.
+- **`Quá tải (>50%)` specifically, and this one is a finding rather than an inherited refusal.**
+  **The threshold is per-team and admin-settable** — ADM-01 shipped it, and
+  `tests/e2e/adm-01-threshold.spec.ts:222-224` proves the month screen follows a saved 60%.
+  `MonthView.tsx:331` renders it as `Crowded above {Math.round(team.overloadThreshold * 100)}% of
+  {active} people` precisely so it tracks the stored value. **A legend row reading `>50%` is correct
+  only while the fixture value is 0.5 and becomes a lie the moment an admin uses the feature.** If that
+  row is ever built it reads the team's threshold, or it says nothing.
+- **Making the fixtures match the picture's roster of eight.** `src/lib/fixtures.ts` is § *Language*'s
+  permanent `userContent` exception and holds **four** unremoved members of the main team.
+
+## 4. One thing said to the operator once, plainly, because it belongs to no ticket
+
+**The sidebar in both of today's images shows eight members carrying five different team subtitles** —
+Core Engineering, Frontend Team, Backend Team, QA / Testing, Design / Product. **That contradicts
+INV-07 — every entry belongs to exactly one member and is counted only against that member's team —
+and the charter's one-team scope. It is not a restyle; it is a different product.**
+
+It is now recorded in four places: `UIE-05`'s shell § 8, `UIE-05`'s `design/README.md` § 4.1, and both
+of `UIE-06`'s. **It has been shown twice and acted on nowhere**, and the sidebar is out of scope in
+both tickets, so nothing in the loop will raise it again. If the picture's eight names across five
+teams are a requirement rather than mockup filler, that is a product change and needs its own request.
+
+## 5. Where I depart from the technical read, and what the ticket must carry
+
+It is a recommendation and it does not bind this verdict.
+
+- **The out-of-month tint is promoted, with a clause, rather than refused.** The technical read is
+  right and the reading is the transcription's own: its § 3 calls the **page ground** *"a pale lavender
+  off-white"*, which is `--color-bg: #f1effa` (`src/index.css:102`), and the tint in the picture is
+  almost certainly that ground reading through the card rather than the holiday swatch at `#c9bff0`.
+  **The clause is written into the ticket as an acceptance criterion and may not be left to a comment:**
+  *the out-of-month tint is `--color-bg` and is never `--color-holiday`, and an out-of-month cell and a
+  non-working holiday cell must remain distinguishable side by side.* Without it, CAL-08 AC-14 keeps
+  out-of-month cells stateless, so an untinted out-of-month 30th and an in-month non-working holiday
+  would differ only by the greyed numeral.
+- **The cell height criterion is *at least*, and the six-row month is named in the ticket.** *"Fills the
+  viewport"* is **unsatisfiable half the year**: six rows at ~170px is ~1020px before the strip. Same
+  `min-height`-not-`height` answer `UIE-05` § 3.1 reached, and the same inherited `TODO(verify)` —
+  whether a percentage min-height resolves through the `min-h-screen` → `flex min-h-0 flex-1` →
+  `flex-1` chain or needs `calc(...)`. **It needs a rendered viewport, which triage has no way to
+  produce**, and it changes one declaration rather than the conclusion.
+- **The two collisions are handed to PLAN as things to resolve rather than to inherit**, and both are
+  in the shell:
+  1. **Top-right is occupied.** `MonthView.tsx:389-396` is a `justify-between` row holding the numeral
+     left and the count right. If the bridge badge takes top-right while the count is still there, they
+     compete. **`UIE-06` is planned on the assumption ADR-030 is not accepted**, so the count keeps the
+     slot and the badge goes beside the holiday name or below. A layout call, but a **stated** one.
+  2. **The comment refusing a `--color-overload` token is false.** `src/index.css:141-143` and
+     `src/components/Sidebar.tsx:62-65` both say no calendar view computes an overload state and that
+     `seam.getTeam()` is not called by any of them. **`MonthView.tsx:175` calls it and `:347` computes
+     `isOverloaded`, and has since CAL-04 shipped the day before those comments were written.**
+     Verified independently against source by the dispatching session. **It is the recorded reason the
+     sidebar has no overload legend row — the row both of the operator's images draw.** Correcting the
+     two comments is a two-line fix inside § *Autonomy*'s small-defect grant and a plan may take it;
+     **adding the token, the row and the `getTeam()` read is a shell edit and is not this ticket's.**
+- **`size: S` is not recorded.** § 2.
+
+## 6. Findings carried into the ticket, because PLAN would otherwise lose them
+
+Each is in `.ai/board/tickets/UIE-06/ticket.yaml` in full; listed here so that the verdict and the
+shell cannot drift apart.
+
+1. **Much of the picture is already true today and is describing rather than requesting** — the day
+   numeral top-left, the wrapping row of small filled circular avatar chips, mint for WFH and peach for
+   PTO, the overloaded day's whole-cell soft pink background, Monday-first whole weeks, greyed
+   out-of-month days, and five rows for April 2026. **A plan that does not know this rewrites working
+   code to arrive where it already is.**
+2. **Silence is not removal, and five things the image omits are drawn today**, each with a spec file
+   behind it: the holiday name `month-cell-holiday` — **asserted by text** in
+   `tests/e2e/cal-08-holiday-shading.spec.ts` — the lavender holiday tint and `data-day-status`, the
+   outlined bridge badge, the tentative dashed border at reduced opacity, and the approved star. **A
+   sixth of a different kind: the drag-select gesture** (CAL-04 AC-13), which is the only creation path
+   on this screen — a grid rebuilt as one ruled card must still carry `onMouseDown` and `onMouseEnter`
+   per in-month cell — and the empty-month sentence `month-empty`.
+3. **The `month-threshold` readout survives**, and after the restyle it is the only thing on the screen
+   that explains the pink.
+4. **The picture cannot contain the case the layout has to survive.** Its busiest cell holds six
+   avatars at ~170px and the fixtures hold four members, so nothing in the picture and nothing in this
+   repository exercises a day with more avatars than fit on one line. **The same objection was made of
+   the week image this morning and it is the same objection.**
+5. **The month grid has no breakpoint** — `:335` is a bare `grid grid-cols-7 gap-1` — and the image is
+   desktop-only, so this is a gap in both. UIE-04 originated the product's only breakpoint at 1280px.
+   Whether the month grid gets one is PLAN's, and **silence in the image is not an answer either way**.
+
+*`consulted` is `[]` in the front-matter and that is deliberate: `tech-lead-design` was
+**co-dispatched by the same `/triage` run**, not consulted under RULE-11. Its technical read is listed
+as an input, which is what it is, and no chat budget was spent.*
