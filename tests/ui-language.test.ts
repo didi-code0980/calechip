@@ -43,17 +43,22 @@ describe("§ Language — the exception is alive", () => {
 });
 
 describe("§ Language — the ratchet only shrinks", () => {
-  it.each(each(copyDebt))("%s still exists", (path) => {
-    // A stale entry silences the rule for a path nothing occupies, and the next file created at that
-    // name inherits the exemption without anyone deciding to grant it.
-    expect(existsSync(repoRoot + path)).toBe(true);
-  });
+  it("every copyDebt entry exists and still has copy to translate", () => {
+    // ONE case rather than two `it.each` calls, because `it.each([])` registers no test and Vitest 4
+    // fails the enclosing suite with "No test found in suite" — which is precisely the state this
+    // list is meant to reach. The ratchet is most worth asserting when it is EMPTY, and the shape
+    // this file had until OPS-002 asserted nothing exactly then. The path moved from the test NAME
+    // into the assertion MESSAGE, which is the only thing `it.each` was buying here.
+    for (const path of copyDebt) {
+      // A stale entry silences the rule for a path nothing occupies, and the next file created at
+      // that name inherits the exemption without anyone deciding to grant it.
+      expect(existsSync(repoRoot + path), `${path} is listed but does not exist`).toBe(true);
 
-  it.each(each(copyDebt))("%s still has copy to translate", (path) => {
-    // The self-cleaning half, and the reason this list is a better record than a ticket marked DONE:
-    // once OPS-001 or OPS-002 translates a file, this fails until the entry is removed from
-    // `copyDebt` — so the list cannot claim a debt that is already paid, and the sweep is complete
-    // exactly when the list is empty rather than when somebody says it is.
-    expect(diacritic.test(read(path))).toBe(true);
+      // The self-cleaning half, and the reason this list is a better record than a ticket marked
+      // DONE: once OPS-001 or OPS-002 translates a file, this fails until the entry is removed from
+      // `copyDebt` — so the list cannot claim a debt that is already paid, and the sweep is complete
+      // exactly when the list is empty rather than when somebody says it is.
+      expect(diacritic.test(read(path)), `${path} is listed but has no copy left`).toBe(true);
+    }
   });
 });

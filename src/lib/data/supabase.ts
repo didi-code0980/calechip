@@ -255,23 +255,24 @@ function toSession(session: SupabaseSession): Session {
 }
 
 // Expected failures are returned, not thrown (.ai/standards/coding-standards.md, Error handling).
-// The message is what the sign-up screen renders, so it is in the product's language; the code is
-// what a caller branches on.
+// The message is what the sign-up screen renders, so it is English — `.ai/standards/ui-design-system.md`
+// § Language covers the `message` half of every refusal that crosses the seam; the code is what a
+// caller branches on and never moves (OPS-002 AC-6).
 function toFailure(error: AuthError): Failure {
   if (isAuthRetryableFetchError(error)) {
-    return { code: "network", message: "Không kết nối được máy chủ. Thử lại giúp mình nhé." };
+    return { code: "network", message: "Could not reach the server. Please try again." };
   }
   switch (error.code) {
     case "email_exists":
     case "user_already_exists":
-      return { code: "email_already_registered", message: "Địa chỉ này đã có tài khoản rồi." };
+      return { code: "email_already_registered", message: "That address already has an account." };
     case "weak_password":
-      return { code: "weak_password", message: "Mật khẩu quá yếu. Đặt dài hơn giúp mình nhé." };
+      return { code: "weak_password", message: "That password is too weak. Please choose a longer one." };
     case "over_request_rate_limit":
     case "over_email_send_rate_limit":
-      return { code: "rate_limited", message: "Thử hơi nhiều lần rồi. Chờ một chút rồi thử lại." };
+      return { code: "rate_limited", message: "Too many attempts. Please wait a moment and try again." };
     case "invalid_credentials":
-      return { code: "invalid_credentials", message: "Email hoặc mật khẩu không đúng." };
+      return { code: "invalid_credentials", message: "That email or password is not correct." };
     // TEA-05 AC-3. Deliberately NOT folded into the line above. GoTrue returns this code whatever
     // this file renders, so the account-existence signal is already at the API and hiding it here
     // would buy nothing while sending somebody to reset a password that is correct. What ADR-009
@@ -279,10 +280,10 @@ function toFailure(error: AuthError): Failure {
     case "email_not_confirmed":
       return {
         code: "email_not_confirmed",
-        message: "Bạn cần mở liên kết xác nhận trong email trước khi đăng nhập.",
+        message: "Open the confirmation link in your email before signing in.",
       };
     default:
-      return { code: "unknown", message: "Có lỗi không rõ. Thử lại giúp mình nhé." };
+      return { code: "unknown", message: "Something went wrong. Please try again." };
   }
 }
 
@@ -296,12 +297,12 @@ function toFailure(error: AuthError): Failure {
 function toPostgrestFailure(error: PostgrestError): Failure {
   switch (error.code) {
     case "23505":
-      return { code: "already_allow_listed", message: "Địa chỉ này đã có trong danh sách rồi." };
+      return { code: "already_allow_listed", message: "That address is already on the list." };
     case "42501":
     case "PGRST301": // JWT missing or expired: the request reaches the policy as nobody
-      return { code: "not_permitted", message: "Bạn không có quyền thực hiện việc này." };
+      return { code: "not_permitted", message: "You do not have permission to do this." };
     default:
-      return { code: "unknown", message: "Có lỗi không rõ. Thử lại giúp mình nhé." };
+      return { code: "unknown", message: "Something went wrong. Please try again." };
   }
 }
 
@@ -317,7 +318,7 @@ function toPostgrestFailure(error: PostgrestError): Failure {
 //
 // CAL-02 TAKES THE `entry_not_permitted` SENTENCE AS A PARAMETER, and the codes are unchanged. The
 // three SQLSTATE mappings are 01-plan.md section 4.2's, identical to CAL-01's; what could not stay
-// identical is the one sentence that names a verb. "Không thể tạo đăng ký này." on a screen where a
+// identical is the one sentence that names a verb. "This entry could not be created." on a screen where a
 // member just pressed save on an EDIT is the wrong message, which is the exact failure the paragraph
 // above records for `toPostgrestFailure` — one function answering two screens with one sentence.
 // Callers branch on the CODE and it is the same code, so nothing downstream changes.
@@ -328,15 +329,15 @@ function toEntryFailure(error: PostgrestError, refusal: string): Failure {
       return {
         code: "overlapping_entry",
         message:
-          "Bạn đã có một đăng ký trùng với khoảng ngày và buổi này. " +
-          "Hãy sửa đăng ký cũ hoặc chọn khoảng khác.",
+          "You already have an entry covering these dates and this portion. " +
+          "Edit the existing entry, or choose a different range.",
       };
     // The `entry_end_after_start` check. AC-9's SECOND lock - the seam refuses an inverted range
     // before the request is sent, so reaching this case means a caller that is not this application.
     case "23514":
       return {
         code: "invalid_date_range",
-        message: "Ngày kết thúc phải bằng hoặc sau ngày bắt đầu.",
+        message: "The end date must be the same as, or after, the start date.",
       };
     // AC-10 and AC-11. The insert policy filtered the row, or a withheld column privilege refused
     // the statement before any policy ran. The two are deliberately one message: a caller who
@@ -345,7 +346,7 @@ function toEntryFailure(error: PostgrestError, refusal: string): Failure {
     case "PGRST301": // JWT missing or expired: the request reaches the policy as nobody
       return { code: "entry_not_permitted", message: refusal };
     default:
-      return { code: "unknown", message: "Có lỗi không rõ. Thử lại giúp mình nhé." };
+      return { code: "unknown", message: "Something went wrong. Please try again." };
   }
 }
 
@@ -400,9 +401,9 @@ const HOLIDAY_DELETE_REFUSED = "Only an admin can remove a day from the holiday 
 // The three refusal sentences, one per verb, held here so the two implementations of the seam can
 // carry the same words — mock.ts repeats these literals for the same reason src/lib/fixtures.ts and
 // supabase/seed.sql repeat theirs.
-const CREATE_REFUSED = "Không thể tạo đăng ký này.";
-const UPDATE_REFUSED = "Không sửa được đăng ký này.";
-const DELETE_REFUSED = "Không xoá được đăng ký này.";
+const CREATE_REFUSED = "This entry could not be created.";
+const UPDATE_REFUSED = "This entry could not be edited.";
+const DELETE_REFUSED = "This entry could not be deleted.";
 
 // ---------------------------------------------------------------------------
 // ADM-05. 01-plan.md sections 4.1 and 4.2.
@@ -498,7 +499,7 @@ function toDecisionFailure(error: PostgrestError): Failure {
 // String comparison is correct for `yyyy-MM-dd` (CAL-01 plan section 4.5) and no Date is constructed.
 const invertedRange = (startDate: string, endDate: string): Failure | null =>
   endDate < startDate
-    ? { code: "invalid_date_range", message: "Ngày kết thúc phải bằng hoặc sau ngày bắt đầu." }
+    ? { code: "invalid_date_range", message: "The end date must be the same as, or after, the start date." }
     : null;
 
 export const seam: DataSeam = {
@@ -582,7 +583,7 @@ export const seam: DataSeam = {
     if (!me) {
       return {
         ok: false,
-        error: { code: "not_permitted", message: "Bạn cần đăng nhập bằng tài khoản quản trị." },
+        error: { code: "not_permitted", message: "You need to sign in with an admin account." },
       };
     }
 
@@ -628,14 +629,15 @@ export const seam: DataSeam = {
         ok: false,
         error: {
           code: "already_consumed",
-          message: "Địa chỉ này đã có người dùng để vào nhóm, không gỡ được.",
+          message:
+            "Someone has already used that address to join the team, so it cannot be removed.",
         },
       };
     }
 
     return {
       ok: false,
-      error: { code: "not_permitted", message: "Không gỡ được địa chỉ này." },
+      error: { code: "not_permitted", message: "That address could not be removed." },
     };
   },
 
@@ -724,7 +726,7 @@ export const seam: DataSeam = {
     if (!row) {
       return {
         ok: false,
-        error: { code: "not_permitted", message: "Không gỡ được thành viên này." },
+        error: { code: "not_permitted", message: "That member could not be removed." },
       };
     }
 
@@ -753,7 +755,7 @@ export const seam: DataSeam = {
     if (!row) {
       return {
         ok: false,
-        error: { code: "not_permitted", message: "Không thăng quyền cho người này được." },
+        error: { code: "not_permitted", message: "That person could not be promoted." },
       };
     }
 

@@ -25,26 +25,17 @@
 import { useState } from "react";
 import OverloadWarning from "@/components/OverloadWarning";
 import type { EntryPortion, EntryType, Failure } from "@/lib/domain/types";
+// OPS-002. The two label sets moved to src/lib/labels.ts, which is now their ONE declaration
+// (AC-8). They were exported from here because the own-entry list rendered the same two maps; five
+// screens ended up declaring them, so the shared home is a module rather than a component.
+import { PORTION_LABELS, TYPE_LABELS } from "@/lib/labels";
 
 // CAL-01 AC-4. WFH is a TYPE and not a second feature: one control, two values, and everything
-// downstream of it is identical. A WFH member IS working — the glossary calls this the single most
-// costly confusion in the domain, which is why the label says so rather than saying "vắng".
+// downstream of it is identical. CAL-01 AC-5 and INV-06 do the same for the portion: one value for
+// the WHOLE range, and deliberately no per-date control.
 //
-// Exported because the own-entry list renders the same two labels for the same two columns. Held
-// once here rather than twice, which is what the extraction is for.
-export const TYPE_LABELS: Record<EntryType, string> = {
-  pto: "Nghỉ phép",
-  wfh: "Làm ở nhà",
-};
-
-// CAL-01 AC-5, and INV-06. One portion for the WHOLE range, and there is deliberately no per-date
-// control: a trip leaving Wednesday afternoon and returning Monday morning is up to three entries,
-// and this form does not pretend otherwise.
-export const PORTION_LABELS: Record<EntryPortion, string> = {
-  full: "Cả ngày",
-  am: "Buổi sáng",
-  pm: "Buổi chiều",
-};
+// The two maps themselves are in src/lib/labels.ts as of OPS-002 — the reasoning that used to sit
+// here, about a WFH member being at work, moved with them.
 
 /** The six substantive fields, and exactly the six both grants carry. It is deliberately NOT
  *  `CreateEntryInput` or `UpdateEntryInput`: this is what a form holds, and the seam decides what a
@@ -156,7 +147,7 @@ export default function EntryForm({
       // still raises on an unusable configuration before any request leaves.
       setState({
         phase: "editing",
-        error: { code: "unknown", message: "Không lưu được đăng ký. Thử lại giúp mình nhé." },
+        error: { code: "unknown", message: "This entry could not be saved. Please try again." },
       });
     }
   }
@@ -170,7 +161,7 @@ export default function EntryForm({
       <h1 className="text-xl font-semibold">{title}</h1>
 
       <label className="flex flex-col gap-1 text-sm">
-        Loại
+        Type
         <select
           data-testid={`${testIdPrefix}-type`}
           value={type}
@@ -186,7 +177,7 @@ export default function EntryForm({
       </label>
 
       <label className="flex flex-col gap-1 text-sm">
-        Buổi
+        Portion
         <select
           data-testid={`${testIdPrefix}-portion`}
           value={portion}
@@ -203,7 +194,7 @@ export default function EntryForm({
 
       <div className="flex gap-4">
         <label className="flex flex-1 flex-col gap-1 text-sm">
-          Từ ngày
+          From
           <input
             data-testid={`${testIdPrefix}-start`}
             type="date"
@@ -220,7 +211,7 @@ export default function EntryForm({
             its own sentence, and a browser control that silently prevented it would leave that
             criterion unobservable through the interface. */}
         <label className="flex flex-1 flex-col gap-1 text-sm">
-          Đến ngày
+          To
           <input
             data-testid={`${testIdPrefix}-end`}
             type="date"
@@ -243,11 +234,11 @@ export default function EntryForm({
           onChange={(e) => setTentative(e.target.checked)}
           className="rounded"
         />
-        Chưa chắc chắn
+        Not certain
       </label>
 
       <label className="flex flex-col gap-1 text-sm">
-        Ghi chú (không bắt buộc)
+        Note (optional)
         <textarea
           data-testid={`${testIdPrefix}-note`}
           rows={2}
