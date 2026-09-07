@@ -31,6 +31,28 @@
 // day, gets no lavender, and carries an outlined badge instead (glossary.md, CAL-08 01-plan.md
 // § 2b). 01-plan.md § 2b records that no image was attached at either stage and that the arrangement
 // below is the Tech Lead's own.
+//
+// UIE-04 — **the seven days are a GRID above 1280px and the shipped stack below it, and nothing else
+// on this screen changed.** 01-plan.md § 4.2, § 4.3 and § 4.4. Two properties below are decisions
+// rather than defaults, and both are worth knowing before editing the layout.
+//
+// **THE COLUMNS DO NOT FILL THE VIEWPORT AND NO COLUMN SCROLLS ON ITS OWN** (AC-4, AC-5). The
+// transcription shows seven columns with a crisp bottom edge — on an EMPTY week, which is the one
+// case in which that property costs nothing. At ~161px a column a chip is 90-110px tall, and one
+// member may hold an `am` AND a `pm` entry on one date, so sixteen chips on one day is ~1520px of
+// content in ~910px of body. Seven independent scrollers would put the days out of horizontal
+// register, and a day whose entries all sat below its own fold would read as a quiet day — the
+// opposite of what this screen is for. The pane scrolls once instead, and a column is as tall as
+// the busiest day.
+//
+// **IT STILL COUNTS NOTHING, AND AFTER THIS TICKET THAT IS A DECISION TAKEN THREE TIMES.** The
+// transcription draws an absence-count footer strip under every column. 01-plan.md § 4.1 refuses
+// it, and refuses triage's cheaper suggestion with it — the day's own CHIP count — because a day
+// holding one full-day and two half-day entries has three chips and an absence count of two, so
+// the number would contradict the month grid for the same date. That is INV-04's forbidden second
+// definition, reached without ever opening `absence.ts`. Without a count the strip holds nothing
+// the transcription put there, so there is no footer strip either: a column ends where its content
+// ends.
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Link, Navigate, useParams } from "react-router-dom";
 // The seam, through its one door. Nothing above the seam names an implementation, and this file must
@@ -273,8 +295,15 @@ export default function WeekView({ landing = false }: WeekViewProps) {
   const end = addDays(start, 6);
   const dates = eachDateInRange({ start, end });
 
+  // AC-11. A week nobody has booked, which is the only week the mascot card is drawn over — and the
+  // only one with room to draw it over. It reads the SAME `absent` map the columns render from, so
+  // the card cannot disagree with the seven `week-day-empty` states beneath it.
+  const weekIsEmpty = dates.every((date) => (absent.get(date) ?? []).length === 0);
+
   return (
-    <section className="mx-auto flex max-w-3xl flex-col gap-6">
+    // § 4.4. `mx-auto max-w-3xl` STOOD HERE and is gone: seven columns need the pane's full width,
+    // which AppShell.tsx already grants with `min-w-0 flex-1`. Nothing was added to the shell.
+    <section className="flex flex-col gap-6">
       {/* UIE-03 AC-1. **The week screen's own header is gone, and nothing replaces it here.** It
           carried a link to the landing route, then `week-prev`, `week-anchor`, `week-next`,
           `week-month` and `week-year`. The landing link is dead — UIE-02 deleted the home screen and
@@ -285,166 +314,219 @@ export default function WeekView({ landing = false }: WeekViewProps) {
 
           The day list below is untouched, CAL-08's cell selectors included (AC-10). */}
 
-      {/* AC-13. Seven sections, always. A week that hid its quiet days would make "nobody is away on
-          Sunday" and "Sunday is missing" the same screen. */}
-      <div className="flex flex-col gap-3">
-        {dates.map((date) => {
-          const people = absent.get(date) ?? [];
-          // CAL-08. Every date of the week is a key — the contract `dayStatusesFor` keeps — so the
-          // fallback below is for the loading and failure phases and never for a drawn day.
-          const status = dayStatuses.get(date);
-          const holiday = status?.holiday ?? null;
+      {/* CAL-05 AC-13. Seven sections, always. A week that hid its quiet days would make "nobody is
+          away on Sunday" and "Sunday is missing" the same screen. UIE-04 AC-3 restates it for the
+          grid: seven at EVERY width, and the same seven. */}
+      {/* AC-1, AC-2, AC-3 and AC-15. ONE list of seven, laid out two ways by ONE container, so
+          the DOM order is Monday-to-Sunday at every width and no day exists at one width and not
+          the other. `xl` is Tailwind's 1280px and is the breakpoint 01-plan.md § 4.2 originates —
+          nothing in the repository stated one before (`.ai/standards/ui-design-system.md:165` is a
+          bare `TODO(project)` for exactly this), which 01-plan.md Open question 1 records.
 
-          return (
-            <section
-              key={date}
-              data-testid="week-day"
-              data-date={date}
-              // CAL-08 AC-6 and AC-11. The same two attributes the month cell carries, with the same
-              // three values and the same separate `data-bridge` — a bridge day IS a working day.
-              data-day-status={status ? (status.nonWorkingReason ?? "working") : ""}
-              data-bridge={status?.bridge ?? false}
-              className="rounded-2xl bg-white p-4 shadow-sm"
-            >
-              <h2
-                data-testid="week-day-label"
-                className={[
-                  "-mx-4 -mt-4 mb-2 flex flex-wrap items-baseline gap-2 rounded-t-2xl px-4 py-2 text-sm font-semibold",
-                  // CAL-08 AC-6. Lavender (CLAUDE.md § Visual direction) tints the HEADING and only
-                  // for a NON-WORKING holiday. The rows below are untouched, a mandated `working`
-                  // Saturday is named but not tinted, and a bridge day gets no lavender at all.
-                  status?.nonWorkingReason === "holiday" ? "bg-violet-100" : "",
-                ].join(" ")}
+          `grid-cols-7` is `repeat(7, minmax(0, 1fr))`, so the seven tracks are EQUAL and each may
+          shrink below its content — that `minmax(0, ...)`, with `min-w-0` on the day itself, is
+          what keeps a long note inside its column instead of widening the pane (AC-15). `gap-2` is
+          the transcription's ~8px gutter. Nothing here sets a height and nothing sets `overflow`:
+          a column is as tall as the busiest day and the PANE scrolls, once, for all seven (AC-4,
+          AC-5). */}
+      <div className="relative">
+        <div className="flex flex-col gap-3 xl:grid xl:grid-cols-7 xl:gap-2">
+          {dates.map((date) => {
+            const people = absent.get(date) ?? [];
+            // CAL-08. Every date of the week is a key — the contract `dayStatusesFor` keeps — so the
+            // fallback below is for the loading and failure phases and never for a drawn day.
+            const status = dayStatuses.get(date);
+            const holiday = status?.holiday ?? null;
+
+            return (
+              <section
+                key={date}
+                data-testid="week-day"
+                data-date={date}
+                // CAL-08 AC-6 and AC-11. The same two attributes the month cell carries, with the same
+                // three values and the same separate `data-bridge` — a bridge day IS a working day.
+                data-day-status={status ? (status.nonWorkingReason ?? "working") : ""}
+                data-bridge={status?.bridge ?? false}
+                // § 4.3. The tokens UIE-01 and UIE-02 shipped, in place of the three Tailwind
+                // defaults CAL-05 had to use before they existed — `bg-white` -> `bg-card`,
+                // `rounded-2xl` -> `rounded-card` (26px), `shadow-sm` -> `shadow-soft`. No token is
+                // added and src/index.css is not opened. `flex flex-col` makes the header strip sit
+                // above the entries in a grid track that stretches to the tallest day, and `min-w-0`
+                // is the other half of AC-15 — without it the day refuses to shrink below its
+                // content and a long note widens the pane rather than wrapping.
+              className="flex min-w-0 flex-col rounded-card bg-card p-4 shadow-soft"
               >
-                {WEEKDAY_NAMES[mondayIndex(date)]}
-                <span className="font-normal opacity-60">{date}</span>
+                <h2
+                  data-testid="week-day-label"
+                  className={[
+                    "-mx-4 -mt-4 mb-2 flex flex-wrap items-baseline gap-2 rounded-t-card px-4 py-2 text-sm font-semibold",
+                    // CAL-08 AC-6. Lavender (CLAUDE.md § Visual direction) tints the HEADING and only
+                    // for a NON-WORKING holiday. The rows below are untouched, a mandated `working`
+                    // Saturday is named but not tinted, and a bridge day gets no lavender at all.
+                    status?.nonWorkingReason === "holiday" ? "bg-violet-100" : "",
+                  ].join(" ")}
+                >
+                  {WEEKDAY_NAMES[mondayIndex(date)]}
+                  <span className="font-normal opacity-60">{date}</span>
 
-                {/* CAL-08 AC-6. Named whenever a row exists, of EITHER kind, and the badge is
-                    outlined rather than filled — lavender means not working. */}
-                {holiday !== null ? (
-                  <span
-                    data-testid="week-day-holiday"
-                    data-kind={holiday.kind}
-                    className="font-normal opacity-80"
-                  >
-                    {holiday.name}
-                  </span>
-                ) : null}
-                {status?.bridge ? (
-                  <span
-                    data-testid="week-day-bridge"
-                    className="rounded-full border border-current px-2 py-0.5 text-xs font-normal opacity-70"
-                  >
-                    Bridge
-                  </span>
-                ) : null}
-              </h2>
+                  {/* CAL-08 AC-6. Named whenever a row exists, of EITHER kind, and the badge is
+                      outlined rather than filled — lavender means not working. */}
+                  {holiday !== null ? (
+                    <span
+                      data-testid="week-day-holiday"
+                      data-kind={holiday.kind}
+                      className="font-normal opacity-80"
+                    >
+                      {holiday.name}
+                    </span>
+                  ) : null}
+                  {status?.bridge ? (
+                    <span
+                      data-testid="week-day-bridge"
+                      className="rounded-full border border-current px-2 py-0.5 text-xs font-normal opacity-70"
+                    >
+                      Bridge
+                    </span>
+                  ) : null}
+                </h2>
 
-              {people.length === 0 ? (
-                <p data-testid="week-day-empty" className="mt-2 text-sm opacity-60">
-                  Everybody is in.
-                </p>
-              ) : (
-                <ul className="mt-2 flex flex-col gap-2">
-                  {people.map(({ entry, member }) => {
-                    // AC-7. `approvedBy` is resolved, never rendered raw: a uuid on the row would be
-                    // the opposite of naming who approved.
-                    //
-                    // BOTH halves are tested, and the `status` half is not redundant. INV-02's
-                    // trigger clears `approved_by` when an approval is revoked, so today the two
-                    // agree — but the selector contract says `week-row-approver` is present only
-                    // when the entry is APPROVED, and reading the status is what makes that true of
-                    // this file rather than true of a trigger one layer down.
-                    const approver =
-                      entry.status === "approved" && entry.approvedBy !== null
-                        ? byId.get(entry.approvedBy)
-                        : undefined;
+                {people.length === 0 ? (
+                  <p data-testid="week-day-empty" className="mt-2 text-sm opacity-60">
+                    Everybody is in.
+                  </p>
+                ) : (
+                  <ul className="mt-2 flex flex-col gap-2">
+                    {people.map(({ entry, member }) => {
+                      // AC-7. `approvedBy` is resolved, never rendered raw: a uuid on the row would be
+                      // the opposite of naming who approved.
+                      //
+                      // BOTH halves are tested, and the `status` half is not redundant. INV-02's
+                      // trigger clears `approved_by` when an approval is revoked, so today the two
+                      // agree — but the selector contract says `week-row-approver` is present only
+                      // when the entry is APPROVED, and reading the status is what makes that true of
+                      // this file rather than true of a trigger one layer down.
+                      const approver =
+                        entry.status === "approved" && entry.approvedBy !== null
+                          ? byId.get(entry.approvedBy)
+                          : undefined;
 
-                    return (
-                      <li
-                        // One member may hold an `am` AND a `pm` entry on one date, so the key is the
-                        // entry and not the member — that pair is two rows here and one avatar on
-                        // the month grid, which is the same fact told two ways.
-                        key={entry.id}
-                        data-testid="week-row"
-                        data-member-id={member.id}
-                        data-entry-id={entry.id}
-                        className={[
-                          "flex flex-wrap items-center gap-2 rounded-xl px-3 py-2 text-sm",
-                          // PTO peach, WFH mint (CLAUDE.md § Visual direction), matching the month
-                          // grid's chips so one person reads the same on both screens.
-                          entry.type === "wfh" ? "bg-emerald-100" : "bg-orange-100",
-                          // AC-9. Tentative is a dashed border at reduced opacity, so that "is
-                          // listed" and "is settled" stay visually separate: a tentative entry is
-                          // listed on exactly the same terms as any other (INV-05) and drawn so
-                          // nobody reads the list as certainty.
-                          entry.tentative
-                            ? "border border-dashed border-current opacity-70"
-                            : "border border-transparent",
-                        ].join(" ")}
-                      >
-                        <span data-testid="week-row-avatar" aria-hidden="true" className="text-lg">
-                          {member.avatar}
-                        </span>
-                        <span data-testid="week-row-name" className="font-medium">
-                          {member.displayName}
-                        </span>
-
-                        <span data-testid="week-row-type" data-type={entry.type} className="opacity-70">
-                          {TYPE_LABELS[entry.type]}
-                        </span>
-
-                        {/* AC-3 and AC-4. `data-portion` is the attribute the criteria turn on, and
-                            it is read off the entry on EVERY date the entry covers — which is why a
-                            five-day `pm` entry renders five afternoons and cannot render a whole day
-                            in the middle (INV-06). */}
-                        <span
-                          data-testid="week-row-portion"
-                          data-portion={entry.portion}
-                          className="rounded-full bg-white/70 px-2 py-0.5"
+                      return (
+                        <li
+                          // One member may hold an `am` AND a `pm` entry on one date, so the key is the
+                          // entry and not the member — that pair is two rows here and one avatar on
+                          // the month grid, which is the same fact told two ways.
+                          key={entry.id}
+                          data-testid="week-row"
+                          data-member-id={member.id}
+                          data-entry-id={entry.id}
+                          className={[
+                            "flex flex-wrap items-center gap-2 rounded-xl px-3 py-2 text-sm",
+                            // PTO peach, WFH mint (CLAUDE.md § Visual direction), matching the month
+                            // grid's chips so one person reads the same on both screens.
+                            entry.type === "wfh" ? "bg-emerald-100" : "bg-orange-100",
+                            // AC-9. Tentative is a dashed border at reduced opacity, so that "is
+                            // listed" and "is settled" stay visually separate: a tentative entry is
+                            // listed on exactly the same terms as any other (INV-05) and drawn so
+                            // nobody reads the list as certainty.
+                            entry.tentative
+                              ? "border border-dashed border-current opacity-70"
+                              : "border border-transparent",
+                          ].join(" ")}
                         >
-                          {PORTION_LABELS[entry.portion]}
-                        </span>
-
-                        {/* AC-9's marking. The dashed border above says it visually; this says it in
-                            words, because a border is not readable to somebody who cannot see it. */}
-                        {entry.tentative ? (
-                          <span data-testid="week-row-tentative" className="opacity-70">
-                            Tentative
+                          <span data-testid="week-row-avatar" aria-hidden="true" className="text-lg">
+                            {member.avatar}
                           </span>
-                        ) : null}
-
-                        {/* AC-6. Present only when there is a note — an empty note element is a row
-                            that claims something was said. The note is readable by the whole team,
-                            which follows from `entry_select_team` being a row-level select policy
-                            (ADR-005) and is a consequence to be aware of rather than a decision this
-                            screen takes. */}
-                        {entry.note !== null && entry.note !== "" ? (
-                          <span data-testid="week-row-note" className="basis-full opacity-80">
-                            {entry.note}
+                          <span data-testid="week-row-name" className="font-medium">
+                            {member.displayName}
                           </span>
-                        ) : null}
 
-                        {/* AC-7 and AC-8. DISPLAYING who approved, and nothing else: this is a name
-                            and a star, not a control. A pending entry renders no approver at all
-                            rather than an empty one. */}
-                        {approver ? (
+                          <span data-testid="week-row-type" data-type={entry.type} className="opacity-70">
+                            {TYPE_LABELS[entry.type]}
+                          </span>
+
+                          {/* AC-3 and AC-4. `data-portion` is the attribute the criteria turn on, and
+                              it is read off the entry on EVERY date the entry covers — which is why a
+                              five-day `pm` entry renders five afternoons and cannot render a whole day
+                              in the middle (INV-06). */}
                           <span
-                            data-testid="week-row-approver"
-                            data-approver-id={approver.id}
-                            className="basis-full text-xs opacity-70"
+                            data-testid="week-row-portion"
+                            data-portion={entry.portion}
+                            className="rounded-full bg-white/70 px-2 py-0.5"
                           >
-                            <span aria-hidden="true">★</span> Approved by {approver.displayName}
+                            {PORTION_LABELS[entry.portion]}
                           </span>
-                        ) : null}
-                      </li>
-                    );
-                  })}
-                </ul>
-              )}
-            </section>
-          );
-        })}
+
+                          {/* AC-9's marking. The dashed border above says it visually; this says it in
+                              words, because a border is not readable to somebody who cannot see it. */}
+                          {entry.tentative ? (
+                            <span data-testid="week-row-tentative" className="opacity-70">
+                              Tentative
+                            </span>
+                          ) : null}
+
+                          {/* AC-6. Present only when there is a note — an empty note element is a row
+                              that claims something was said. The note is readable by the whole team,
+                              which follows from `entry_select_team` being a row-level select policy
+                              (ADR-005) and is a consequence to be aware of rather than a decision this
+                              screen takes. */}
+                          {entry.note !== null && entry.note !== "" ? (
+                            <span data-testid="week-row-note" className="basis-full break-words opacity-80">
+                              {entry.note}
+                            </span>
+                          ) : null}
+
+                          {/* AC-7 and AC-8. DISPLAYING who approved, and nothing else: this is a name
+                              and a star, not a control. A pending entry renders no approver at all
+                              rather than an empty one. */}
+                          {approver ? (
+                            <span
+                              data-testid="week-row-approver"
+                              data-approver-id={approver.id}
+                              className="basis-full text-xs opacity-70"
+                            >
+                              <span aria-hidden="true">★</span> Approved by {approver.displayName}
+                            </span>
+                          ) : null}
+                        </li>
+                      );
+                    })}
+                  </ul>
+                )}
+              </section>
+            );
+          })}
+        </div>
+
+        {/* AC-11 and AC-12. The mascot, and it is the whole of what UIE-04 adds to this screen's
+            content. It floats OVER the columns rather than inside one — the transcription puts it
+            across the fourth — so it is a sibling of the grid, absolutely positioned over it, and
+            `pointer-events-none` keeps it from being a target on a screen that has none.
+
+            `hidden xl:flex` is AC-11's "in the seven-column layout": below the breakpoint the seven
+            per-day empty states ARE the screen and a card has nothing to float over.
+
+            IT CARRIES NO LINK AND NO BUTTON (AC-12). The transcription's create link is refused in
+            01-plan.md § 1 item 10: `home-new-entry-link` already sits in the top bar on every
+            route, so a second control to `/entries/new` either duplicates an id or gives the
+            product two names for one destination. The sentence is ENGLISH (§ Language, AC-16) —
+            the transcription's is Vietnamese and this is the one string on this screen a developer
+            would copy from it rather than from the file.
+
+            The seven `week-day-empty` states below are untouched and all seven still render
+            (AC-10), which `tests/e2e/cal-05-week-view.spec.ts:266` asserts by count. */}
+        {weekIsEmpty ? (
+          <div className="pointer-events-none absolute inset-0 hidden items-center justify-center xl:flex">
+            <div
+              data-testid="week-empty-card"
+              className="flex items-center gap-3 rounded-card bg-card px-5 py-4 shadow-soft"
+            >
+              <span aria-hidden="true" className="text-2xl leading-none">
+                🐭
+              </span>
+              <p className="text-[13px] text-ink">Nobody has booked this week yet.</p>
+            </div>
+          </div>
+        ) : null}
       </div>
     </section>
   );
