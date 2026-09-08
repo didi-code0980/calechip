@@ -852,7 +852,7 @@ Tickets that cannot proceed until a human decides something. Name the decision, 
 | 17 | OPS-004 | A password-free bootstrap file that creates the first team and the first admin | 2026-09-07 | [#71](https://github.com/didi-code0980/calechip/pull/71) |
 | 18 | UIE-05 | The week column fills the viewport, and its header strip and entry chip are restacked | 2026-09-08 | [#72](https://github.com/didi-code0980/calechip/pull/72) |
 | 19 | UIE-06 | The month grid becomes one ruled full-width card with taller cells, on the product's tokens | 2026-09-08 | [#73](https://github.com/didi-code0980/calechip/pull/73) |
-| 20 | BUG-002 | Two row limits sit above the datastore cap, so four truncation assertions can never fire | 2026-09-08 | PENDING_PR |
+| 20 | BUG-002 | Two row limits sit above the datastore cap, so four truncation assertions can never fire | 2026-09-08 | [#76](https://github.com/didi-code0980/calechip/pull/76) |
 
 **The window displaced `OPS-001` at this ship** — *OPS-001, UI copy to English — chrome, account and
 team screens, shipped 2026-09-03,* [#40](https://github.com/didi-code0980/calechip/pull/40).
