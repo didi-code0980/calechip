@@ -151,6 +151,39 @@ export const AVATAR_CHOICES: readonly string[] = [
 ];
 
 // ---------------------------------------------------------------------------
+// BUG-002. 01-plan.md section 4.2.
+//
+// The cap the five ceilings below are all written against. It sits ABOVE the first of them because
+// each one's validity is a statement about this number, and until BUG-002 the number appeared
+// nowhere in the tree — which is how two ceilings drifted above it with nothing to notice.
+// ---------------------------------------------------------------------------
+
+/**
+ * The most rows a single request may return, whatever a query asks for.
+ *
+ * NOT a choice this repository makes, and not a threshold anyone here may tune: PostgREST caps a
+ * response and Supabase projects ship that cap at 1000. The figure is documented in the installed
+ * client's own types — @supabase/postgrest-js, the `select()` remarks: "By default, Supabase
+ * projects return a maximum of 1,000 rows."
+ *
+ * CITED BY PACKAGE AND NOT BY LINE NUMBER. The declaration file lives at a pnpm store path carrying
+ * the package version, so a line citation goes stale at the next dependency bump — the same class of
+ * staleness this ticket exists to fix.
+ *
+ * A ceiling ABOVE this cannot be reached, so its `rows.length >= LIMIT` assertion is unreachable and
+ * the server's silent truncation happens first. A ceiling EQUAL to it is reached exactly when the cap
+ * is — which is why `HOLIDAY_LIMIT` is correct at 1000 and why tests/row-limits.test.ts asserts `<=`
+ * rather than `<`.
+ *
+ * The limit of what this constant buys is recorded rather than papered over: it is a figure this
+ * repository asserts, not the value the project actually serves. Nothing in the tree can read the
+ * real setting — the anon key cannot, and ADR-024 declined a drift detector. Lowering the project's
+ * own `max-rows` below 1000 puts the ceilings wrong again with this test still passing. 01-plan.md
+ * section 2, Open questions item 3.
+ */
+export const DATASTORE_MAX_ROWS = 1000;
+
+// ---------------------------------------------------------------------------
 // TEA-03. 02-design.md section 1.1.
 // ---------------------------------------------------------------------------
 
@@ -166,9 +199,9 @@ export const AVATAR_CHOICES: readonly string[] = [
  * This module imports nothing from src/lib/data/.
  *
  * The constant's validity has one external dependency, cited rather than re-raised: the assertion
- * only fires if this number sits BELOW the datastore's own `max-rows` cap. That unknown cap is the
- * `TODO(verify):` already carried by CAL-04, ADM-02 and ADM-04 in .ai/registry/features.md. If it
- * turns out to be lower, the fix is this one number.
+ * only fires if this number does not EXCEED the datastore's own `max-rows` cap. That cap is no
+ * longer unknown — BUG-002 named it as DATASTORE_MAX_ROWS above, and tests/row-limits.test.ts holds
+ * this ceiling and the four below it against it. 500 is far under it and was never at risk.
  */
 export const ROSTER_LIMIT = 500;
 
@@ -219,13 +252,12 @@ export interface Entry {
 
 /**
  * The explicit row limit `listOwnEntries` asks for, and the count at which it refuses to answer.
- * Same shape and same reasoning as ROSTER_LIMIT (TEA-03): it must sit BELOW the datastore's own
- * `max-rows` cap so that this assertion fires before the server's silent one does. A truncated read
- * here is a member being told an entry they created does not exist.
+ * Same shape and same reasoning as ROSTER_LIMIT (TEA-03): it must not EXCEED the datastore's own
+ * `max-rows` cap, or the server's silent truncation happens before this assertion can fire. A
+ * truncated read here is a member being told an entry they created does not exist.
  *
- * TODO(verify): the datastore's default `max-rows`. The same unknown is already carried by CAL-04,
- * ADM-02 and ADM-04 in .ai/registry/features.md. If it turns out lower than this, the fix is this
- * one number.
+ * The cap it is written against is DATASTORE_MAX_ROWS, named above by BUG-002 and asserted by
+ * tests/row-limits.test.ts. 500 is far under it and was never at risk.
  */
 export const OWN_ENTRY_LIMIT = 500;
 
@@ -241,14 +273,24 @@ export const OWN_ENTRY_LIMIT = 500;
  * reasons. One constant serving both would be raised for whichever pressed first and would silently
  * move the other.
  *
- * It must sit BELOW the datastore's own `max-rows` cap or the assertion never fires and the server's
- * silent truncation happens first. A short list here hides entries from the one person able to
- * correct them, which is worse than an error and is what this limit exists to turn into one.
+ * It must not EXCEED the datastore's own `max-rows` cap or the assertion never fires and the
+ * server's silent truncation happens first. A short list here hides entries from the one person able
+ * to correct them, which is worse than an error and is what this limit exists to turn into one.
  *
- * TODO(verify): the datastore's default `max-rows`. The same unknown is carried by CAL-04, ADM-02,
- * ADM-04 and OWN_ENTRY_LIMIT above. If it is lower than this, the fix is this one number.
+ * IT WAS 2000, AND 2000 IS ABOVE THE CAP — BUG-002. The read asked for 2000, the datastore returned
+ * at most 1000, so `rows.length >= 2000` at the call site could never be true: the read came back
+ * short, came back as a SUCCESS, and was summed. Lowering it to DATASTORE_MAX_ROWS costs no row that
+ * was ever being fetched — the datastore never returned more than 1000 anyway — and turns a silent
+ * truncation into the error this limit exists to raise. 1000 is not a guess about a real team's row
+ * count; it is the LARGEST value this ceiling can take and still be reachable.
+ *
+ * WRITTEN AS A LITERAL AND NOT AS DATASTORE_MAX_ROWS, deliberately. The two numbers are equal today
+ * for a reason, not by definition: this is a product ceiling that happens to sit at the largest
+ * reachable value, and binding it to the cap would make a future change to the cap silently move a
+ * product threshold while tests/row-limits.test.ts passed vacuously. Kept separate, that same change
+ * makes the test NAME this constant — which is the whole mechanism BUG-002 adds.
  */
-export const TEAM_ENTRY_LIMIT = 2000;
+export const TEAM_ENTRY_LIMIT = 1000;
 
 // ---------------------------------------------------------------------------
 // CAL-04. 01-plan.md section 4.
@@ -282,7 +324,7 @@ export interface DateRange {
  * The explicit row limit `listTeamEntriesOverlapping` asks for, and the count at which it refuses to
  * answer.
  *
- * Same shape and same reasoning as TEAM_ENTRY_LIMIT: it must sit BELOW the datastore's own
+ * Same shape and same reasoning as TEAM_ENTRY_LIMIT: it must not EXCEED the datastore's own
  * `max-rows` cap so a truncated read is detectable here rather than invisible. A month of one team
  * cannot approach it; the number exists so AC-11 has something to assert against, and AC-11 matters
  * more here than on any earlier read — a capped read SUMS what it was given and produces a
@@ -293,11 +335,22 @@ export interface DateRange {
  * month's — and one constant serving both would be raised for whichever pressed first and would
  * silently move the other.
  *
- * TODO(verify): the datastore's default `max-rows`. The same unknown is carried by ROSTER_LIMIT,
- * OWN_ENTRY_LIMIT and TEAM_ENTRY_LIMIT above, and by CAL-04, ADM-02 and ADM-04 in
- * .ai/registry/features.md. If it turns out to be lower, the fix is this one number.
+ * IT WAS 2000, AND IT GOVERNS THREE OF THE FOUR CALENDAR SCREENS — BUG-002. `YearView`, `MonthView`
+ * and `WeekView` all read through `listTeamEntriesOverlapping`, so this constant and not
+ * TEAM_ENTRY_LIMIT is the one the year read runs against, and the year read is the largest
+ * legitimate row count in the product. Above the cap its assertion could never fire; at
+ * DATASTORE_MAX_ROWS it fires, and no read loses a row it was previously getting.
+ *
+ * ONE CONSEQUENCE IS RECORDED RATHER THAN HIDDEN: a large team's year view CAN legitimately exceed
+ * 1000 rows, and after this change it sees a refusal instead of a silently short year. That is what
+ * CAL-06 AC-14 requires and is strictly better than a believable wrong calendar, but it is a
+ * refusal, not a calendar. The answer is explicit paging with `range()` — pre-authorised by CAL-04's
+ * plan and ADR-015, and the ticket that follows this one. 01-plan.md section 2, Open questions
+ * item 2.
+ *
+ * A LITERAL AND NOT DATASTORE_MAX_ROWS, for the reason recorded on TEAM_ENTRY_LIMIT above.
  */
-export const MONTH_ENTRY_LIMIT = 2000;
+export const MONTH_ENTRY_LIMIT = 1000;
 
 /**
  * The absence count for each date in a range. Keys are `yyyy-MM-dd`; EVERY date in the range is
@@ -363,16 +416,22 @@ export interface Holiday {
 /**
  * The explicit row limit `listHolidays` asks for, and the count at which it refuses to answer. Same
  * shape and same reasoning as ROSTER_LIMIT, OWN_ENTRY_LIMIT, TEAM_ENTRY_LIMIT and
- * MONTH_ENTRY_LIMIT: it must sit BELOW the datastore's own `max-rows` cap so this assertion fires
+ * MONTH_ENTRY_LIMIT: it must not EXCEED the datastore's own `max-rows` cap so this assertion fires
  * before the server's silent one does.
  *
  * ADR-015 asks for "an explicit limit above the widest possible range (366 plus margin)". A
  * Vietnamese year carries on the order of fifteen rows, so 1000 is roughly sixty years of calendar
  * and comfortably above any range this screen can request.
  *
- * TODO(verify): the datastore's default `max-rows`. The same unknown is carried by the four limits
- * above and by CAL-04, ADM-02 and ADM-04 in .ai/registry/features.md. If it is lower than this, the
- * fix is this one number.
+ * IT IS AT THE CAP, AND IT IS CORRECT THERE — BUG-002 changed it not at all. A ceiling EQUAL to
+ * DATASTORE_MAX_ROWS is reached exactly when the cap is reached, and the comparison at the call site
+ * is `>=` and not `>`, so its assertion already fires. That is why tests/row-limits.test.ts asserts
+ * `<=` rather than `<`: a strictly-below test would force this working threshold down, and changing
+ * a working threshold inside a bug fix is what 01-plan.md section 1 item 9 puts out of scope.
+ *
+ * ITS 1000 IS ALSO NOT THE CAP'S 1000. ADR-015 asks for a limit above the widest possible range —
+ * 366 plus margin — and roughly sixty years of Vietnamese calendar is the reason this number is what
+ * it is. That it coincides with DATASTORE_MAX_ROWS is a coincidence worth not encoding.
  */
 export const HOLIDAY_LIMIT = 1000;
 
@@ -490,9 +549,9 @@ export interface PendingEntryPage {
  * (@supabase/postgrest-js@2.112.4/dist/index.d.mts:3522). 50 is far below it, and the short-page
  * assertion in both implementations detects a LOWERED cap without needing to know its value — which
  * is what the `TODO(verify)` markers on ROSTER_LIMIT, OWN_ENTRY_LIMIT, TEAM_ENTRY_LIMIT,
- * MONTH_ENTRY_LIMIT and HOLIDAY_LIMIT were waiting for. 01-plan.md section 2, Open questions item 4
- * records that two of those five sit ABOVE the cap and are therefore not held; fixing them is not
- * this ticket's, and it wants a BUG row of its own.
+ * MONTH_ENTRY_LIMIT and HOLIDAY_LIMIT were waiting for. This note asked for the BUG row that two of
+ * those five needed; that row was BUG-002, all five markers are discharged above, and the figure now
+ * has a name — DATASTORE_MAX_ROWS — and a test.
  */
 export const PENDING_PAGE_SIZE = 50;
 
