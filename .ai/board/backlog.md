@@ -1000,7 +1000,7 @@ Tickets that cannot proceed until a human decides something. Name the decision, 
 | 17 | UIE-06 | The month grid becomes one ruled full-width card with taller cells, on the product's tokens | 2026-09-08 | [#73](https://github.com/didi-code0980/calechip/pull/73) |
 | 18 | BUG-002 | Two row limits sit above the datastore cap, so four truncation assertions can never fire | 2026-09-08 | [#76](https://github.com/didi-code0980/calechip/pull/76) |
 | 19 | UIE-07 | The week view renders a per-day absence count | 2026-09-08 | [#77](https://github.com/didi-code0980/calechip/pull/77) |
-| 20 | CAL-09 | The calendar reads serve a year larger than one datastore page | 2026-09-08 | PENDING_PR |
+| 20 | CAL-09 | The calendar reads serve a year larger than one datastore page | 2026-09-08 | [#79](https://github.com/didi-code0980/calechip/pull/79) |
 
 **The window displaced `CAL-05` at this ship** — *CAL-05, Week view — per-person detail for one week,
 with half-days, notes and who approved, shipped 2026-09-04,*
