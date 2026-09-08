@@ -5,25 +5,99 @@ id: UIE-07
 title: "The week view renders a per-day absence count"
 feature_ids: [UIE-07]
 group: UIE
-state: BACKLOG
+state: DONE     # `orchestrator` at /ship, 2026-09-08, on 04-review.md `gate: PASS` /
+                # `next_state: DONE`. ADR-022 removed the QA stage, so REVIEW -> DONE is the whole
+                # remaining transition (.ai/01-operating-model.md:36).
+#
+# PREVIOUS VALUE, `REVIEW`, set by `developer` at /implement. FIFTEENTH TICKET TO GO BACKLOG ->
+# REVIEW ON DISK. BUG-002 broke that run once and only because the operator instructed the gate by
+# hand; the hole itself is unchanged — no command owns PLAN -> READY, `/next-ticket` grades it and
+# writes no file by design, and `/ship` is where both rows land at the end.
+#
+# THE GRADE BEHIND IT: `/next-ticket` graded the full Definition of Ready in the orchestrator session
+# at 2026-09-08 12:03 +07, SIX OF SIX PASS — after `/plan` (11:54) and before `/implement`.
 owner: ""
 branch: "feat/UIE-07"
-size_estimate: ""     # S|M - set by tech-lead-design at PLAN; gates DoR. LEFT EXACTLY AS THE
-                      # TEMPLATE SHIPS IT. Definition of Ready item 5 is PLAN's and this triage
-                      # states no opinion on it — §9 below carries a paths SIGNAL, not this value.
-size: ""              # S|M|L|XL - set by tech-lead-design at PLAN; decides splitting.
+size_estimate: S      # 01-plan.md section 1. One route file and one new spec file. No new module,
+                      # no new state, no new seam call, no new token, and NO NEW ARITHMETIC.
+                      # Set by `tech-lead-design` at /plan, 2026-09-08. The triage left this empty
+                      # deliberately and §9.1's `S` was a SIGNAL, not this value; the two agree.
+size: S               # 01-plan.md section 7, counted from allowed_paths: TWO files outside the
+                      # ticket folder. S is up to 6 at .ai/01-operating-model.md:372. AGREES with
+                      # size_estimate, so ADR-012 never engages and nothing is owed under it.
+                      # §9.2 SIGNALLED UP TO FOUR PATHS; THIS IS TWO, AND BOTH SUBTRACTIONS ARE
+                      # DECISIONS RECORDED IN 01-plan.md §8 rather than omissions.
+                      # - src/hooks/useRoster.ts is OUT: §13.3's "one line, number-preserving, in
+                      #   one file" is not available on disk. `currentMemberCount` returns a NUMBER
+                      #   and the filter's product is the `Member[]` the sidebar RENDERS AS A LIST
+                      #   (Sidebar.tsx:174), so the swap breaks RosterState and the typecheck; and
+                      #   the same filter appears a THIRD time at MemberList.tsx:179. §8 alt 2
+                      #   carries the measurement; 01-plan.md Out of scope item 10 names it.
+                      # - tests/e2e/cal-05-week-view.spec.ts is OUT because §4's open decision was
+                      #   taken the way §14 recommends: "Everybody is in." STAYS. §8 alt 1.
 depends_on: []        # MEASURED AT THIS TRIAGE RATHER THAN ASSUMED — §5 below is the measurement,
                       # including why BUG-002 is not in this list.
-invariants_touched: []   # THE TEMPLATE'S SHIPPED DEFAULT, LEFT UNTOUCHED — AND IT IS *NOT* THIS
-                         # TRIAGE'S ANSWER. Definition of Ready item 2 is tech-lead-design's at
-                         # PLAN. The template warns that `[]` must mean "considered, none engaged"
-                         # and never "nobody looked"; here it means the latter, so PLAN MUST
-                         # replace it. §6 names what to look at and deliberately does not settle
-                         # it. Note the registry row for this feature carries `[INV-04]` in its
-                         # own `Invariants touched` column — that is a statement about what the
-                         # ROW is answerable to, and it does not fill this field for PLAN.
-allowed_paths: []     # [] is a control, not a placeholder — guard-allowed-paths.mjs blocks every
-                      # write outside this ticket folder while it is empty. PLAN fills it.
+                      # RE-CHECKED AT /plan ON 2026-09-08 AS §5 REQUIRES, AND THE VALUE IS UNCHANGED.
+                      # UIE-04 and UIE-05 are still DONE. BUG-002 IS NOW DONE AND MERGED (PR #76),
+                      # which strengthens §5's reasoning rather than changing it: the truncated-read
+                      # exposure CAL-05 AC-15 records is repaired AHEAD of this work instead of being
+                      # inherited by it. It was never a dependency and it is not one now.
+invariants_touched: [INV-04, INV-06]
+                         # DECIDED AT PLAN from the three §6 names, WITH THE MECHANISM STATED per
+                         # invariant rather than the conclusion. 01-plan.md section 2 carries it in
+                         # full, and its Changelog carries the distinction the decision turns on.
+                         #
+                         # INV-04 — ENGAGED, AND IT IS THE WHOLE CONTENT OF THE TICKET. ADR-029
+                         # :133-134 says it is SATISFIED by this decision rather than amended, and
+                         # satisfied is NOT unengaged: this ticket puts INV-04's number on a second
+                         # screen, so the only thing between the permitted number and a forbidden
+                         # second definition is that AC-5 is a CRITERION and not a comment. The
+                         # cheapest wrong path is no longer the chip count — clause 1 and UIE-04
+                         # closed that — it is the LOCAL SUM over the `absent` map already in scope
+                         # three lines away (§9.3). AC-3 and AC-4 are what catch it.
+                         #
+                         # INV-06 — ENGAGED AS A DISPLAY, AND §6 IS RIGHT THAT IT IS THE ONE MOST
+                         # LIKELY TO BE MISSED. A half day weighs 0.5, so the number is a DECIMAL on
+                         # some days, rendered directly beneath chips carrying `week-row-portion` —
+                         # INV-06's only visible surface in the product. THE MECHANISM IS AC-8's
+                         # "no rounding": the risk is not a second definition, it is a DISPLAY
+                         # decision — Math.round, toFixed(0), an integer format chosen for tidiness
+                         # — taken ENTIRELY INSIDE clause 1, where the count is still INV-04's and
+                         # the screen still lies about the half day. A failure mode this ticket
+                         # creates and no other surface has.
+                         #
+                         # INV-05 — CONSIDERED AND DELIBERATELY NOT LISTED. THAT IS A DECISION AND
+                         # NOT AN OMISSION, which is what §6 asked for. A column showing a
+                         # `week-row-tentative` chip over a count that excluded it WOULD be a
+                         # visible contradiction, and the first in the product — but it is
+                         # UNREACHABLE WITHOUT FIRST BREAKING INV-04: `absenceCountsFor` never
+                         # consults `tentative` (absence.ts:194-195), so the only way to exclude one
+                         # is the local sum AC-5 already forbids. INV-05 has no display-only failure
+                         # mode of INV-06's kind, and listing an invariant held entirely by another
+                         # invariant's mechanism is the over-declaration that makes this field stop
+                         # meaning anything.
+                         #
+                         # INV-01/02/03/07 are properties of stored entries and their members.
+                         # Nothing is written, nothing new is read, no comparison is added.
+                         #
+                         # THE TRIAGE'S SHIPPED `[]` IS REPLACED, NOT REINTERPRETED — §6 said it
+                         # meant "nobody looked" and required PLAN to replace it. Original comment:
+                         # invariants_touched: []   # THE TEMPLATE'S SHIPPED DEFAULT, LEFT UNTOUCHED
+                         #                          # — AND IT IS *NOT* THIS TRIAGE'S ANSWER. §6
+                         #                          # names what to look at and settles nothing.
+# FILLED BY tech-lead-design AT /plan, 2026-09-08, from 01-plan.md section 7. TWO files outside the
+# ticket folder. EXACT PATHS, NO GLOBS ON THE SOURCE FILES, AND NO INLINE COMMENTS ON THE ITEMS —
+# §9's `readYamlList` warning is honoured: it strips only a leading and a trailing quote, so a
+# trailing `# ...` is swallowed into the pattern and the glob then matches nothing.
+#
+# src/index.css IS NOT HERE. `--color-line` (:104) and `--color-ink-3` (:109) already exist, so the
+# footer strip adds no token and UIE-06's collision note at :117-123 is not reopened.
+# src/hooks/useRoster.ts and tests/e2e/cal-05-week-view.spec.ts ARE NOT HERE EITHER — see `size`
+# above and 01-plan.md §8 alternatives 1 and 2.
+allowed_paths:
+  - ".ai/board/tickets/UIE-07/**"
+  - "src/routes/WeekView.tsx"
+  - "tests/e2e/uie-07-week-absence-count.spec.ts"
 schema_delta: none    # §7. Both functions are pure and the screen already holds their arguments.
 requires_adr: false   # AND UNUSUALLY THIS IS A FACT RATHER THAN A FIRST READING — §1. ADR-029
                       # already carries the decision this ticket would otherwise stop for.
@@ -36,8 +110,17 @@ chat_budget:
   # triaged after that date, so no `qa` key appears here and none may be added.
 tracker: { provider: "", external_id: "", sync_enabled: false }
 gates:
-  plan:   { passed: false, at: null }   # ADR-019 merged the `spec` and `design` gates into one
-  review: { passed: false, at: null }
+  # BOTH ROWS TRANSCRIBED BY `orchestrator` AT /ship ON 2026-09-08. Neither value is claimed here —
+  # each is a copy of a gate another stage reached, read from that artifact's own front-matter.
+  # `at` values quoted, as on every ticket but BUG-002, whose unquoted row was corrected at its ship.
+  #
+  # From .ai/board/tickets/UIE-07/01-plan.md: `gate: PASS`, `blocking_reason: ""`,
+  # `produced_at: 2026-09-08T11:54:35+07:00`. ADR-019 merged the `spec` and `design` gates into one.
+  plan:   { passed: true, at: "2026-09-08T11:54:35+07:00" }
+  # From .ai/board/tickets/UIE-07/04-review.md: `gate: PASS`, `blocking_reason: ""`,
+  # `next_state: DONE`, `produced_at: 2026-09-08T14:30:38+07:00`. ONE review pass, `rework_count: 0`,
+  # no consultation, no amendment — the sixth in a row.
+  review: { passed: true, at: "2026-09-08T14:30:38+07:00" }
   # No `qa` gate — ADR-022 removed the stage. /ship requires `plan` and `review`.
 
 # Created by `product` at /triage on 2026-09-08, on a PROMOTE verdict, from
