@@ -269,3 +269,32 @@ it is, and no chat budget was spent.*
   rather than for three, and two of the three it currently states are wrong. That correction is a chore
   against shipped surface, not a feature.
 - **Nothing is committed.** This file and the ADR travel to the operator under CODEOWNERS.
+
+---
+
+## Outcome — 2026-09-08
+
+**[ADR-029](../../registry/decisions/ADR-029-the-week-view-renders-a-per-day-absence-count.md) is
+`ACCEPTED by orchestrator`.** The week view renders `n/N` per day column, under the four clauses in
+that document's § *Decision*.
+
+**The operator delegated the decision rather than making it** — *"tưj quyết đi"*, 2026-09-08. That
+lifted the envelope gate § *Why I did not accept the ADR myself* describes; it did not say which way.
+The status is `ACCEPTED by orchestrator` and not `ACCEPTED by the operator` for exactly that reason,
+and CODEOWNERS review at merge is the approval.
+
+**Decided in the same pass as its pair.**
+[ADR-031](../../registry/decisions/ADR-031-the-month-cell-renders-no-absence-count.md) is `REJECTED`,
+so **the month cell keeps its numeral**. The reference surface this idea's argument leans on — the
+month grid the week count provably agrees with — stays visible, which is the outcome ADR-031
+§ *Interaction with ADR-029* item 5 recommended.
+
+**This idea is now owed a re-triage and a `UIE` row**, per ADR-029 § *Consequences*: *"This decision
+does not create a ticket."* The four clauses become the substance of that row's criteria. `/triage`
+issues it; nothing is built from the ADR alone.
+
+**What the acceptance already obliged, done in the same pull request:** `.ai/registry/features.md`
+CAL-05's row amended and UIE-04's row given its superseding line. **What it did not:**
+`src/routes/WeekView.tsx:11-17` still says *"IT COUNTS NOTHING"* and still states the two wrong
+reasons. That correction belongs to the ticket, and until the ticket runs the comment is stale in the
+tree — recorded here rather than left for its next reader to trip over.

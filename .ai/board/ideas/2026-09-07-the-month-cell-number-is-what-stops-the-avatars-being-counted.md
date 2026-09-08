@@ -308,3 +308,36 @@ rather than to inherit; it is not this idea's.
 *`consulted` is `[]` above and that is deliberate: `tech-lead-design` was **co-dispatched by the same
 `/triage` run**, not consulted under RULE-11. Its technical read is listed as an input, which is what
 it is, and no chat budget was spent.*
+
+---
+
+## Outcome — 2026-09-08
+
+**[ADR-031](../../registry/decisions/ADR-031-the-month-cell-renders-no-absence-count.md) is
+`REJECTED by orchestrator`. The numeral stays.** That is option 1 of that document's § *Rationale*,
+which is what both agents at this triage recommended and what its own § *Status* said a `REJECTED`
+would mean — not a failure, and not a sign the request was misunderstood.
+
+**The operator delegated the decision rather than making it** — *"tưj quyết đi"*, 2026-09-08 — so
+this is not the operator withdrawing the request in the image. Declining to merge the pull request
+carrying this edit is how the numeral goes after all.
+
+**The argument that settled it is § *Interaction with ADR-029* item 3**, not a preference about
+density: ADR-029 rejects its own option 3 because a reader who counts three chips against a load of
+two gets the wrong number, and deleting this numeral asks the month cell to become exactly that. One
+document refusing a reading failure by substitution while its pair produced the same failure by
+subtraction, two hours apart, from the same desk.
+
+**Evidence that arrived after this file was written, and it is why the call was not close.** UIE-06
+shipped on 2026-09-08 and its `ticket.yaml` reaches `invariants_touched: [INV-04, INV-05, INV-06]` —
+the only three-invariant row in the product — **without setting out to argue with this ADR**, purely
+by working out what the month cell's restyle touches. Two of its three findings are this document's
+§ *Consequences* reached from the other end.
+
+**The rest of the operator's month-view image shipped and is unaffected**: UIE-06 delivered the ruled
+full-width card, the taller cells and the token migration. **This rejection costs exactly one glyph
+per busy cell**, which is the whole remaining distance between the shipped screen and the picture.
+
+**Nothing is owed.** A `REJECTED` obliges none of the edits in § *Affected documents* — that list was
+what acceptance would have cost. `CAL-04` AC-3, `CAL-04/01-plan.md:192`, `MonthView.tsx:391-395` and
+the feature row are all untouched and stay true. **This idea does not promote.**

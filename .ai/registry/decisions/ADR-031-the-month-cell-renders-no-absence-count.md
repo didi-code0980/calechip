@@ -1,6 +1,6 @@
 ---
-doc_version: 2
-last_updated: 2026-09-07
+doc_version: 3
+last_updated: 2026-09-08
 governed_by: [RULE-01, RULE-09]
 ---
 
@@ -8,26 +8,72 @@ governed_by: [RULE-01, RULE-09]
 
 ## Status
 
-`PROPOSED` — **awaiting the operator**, 2026-09-07.
+`REJECTED by orchestrator` — 2026-09-08. **The numeral stays.** That is option 1 below, which is what
+both agents at this triage recommended and what § *Status* already said a `REJECTED` would mean: not a
+failure, and not a sign the request was misunderstood.
 
-**It may not be accepted by an agent.** ADR-008's test is: decide inside an existing envelope, ask
-before changing the envelope. The envelope here is **CAL-04 AC-3**, a *domain* acceptance criterion
-that states INV-04's formula in words — *"the cell for 14 April carries an absence count of `1.5`"*
-(`.ai/board/tickets/CAL-04/01-plan.md:83-87`). `.ai/standards/ui-design-system.md:152-155` puts
-behaviour, permissions and invariants explicitly outside the grant that lets `tech-lead-design`
-originate a layout. **`CAL-04/01-plan.md:192` marks the count's *position* as the Tech Lead's own and
-*"cheap to argue with"*; it says nothing about its *presence*.** Position is arrangement. Presence is
-domain.
+**The operator delegated the decision rather than making it.** Their instruction, verbatim,
+2026-09-08: *"tưj quyết đi"* — *decide it yourself*. That is the human step the quoted paragraph below
+required, and it is what lifts the envelope gate. **It is not a decision about the substance**: the
+operator did not say which way, and nothing here may be read as their having withdrawn the request in
+the image. Reviewed at merge under CODEOWNERS, like any other registry change (ADR-008 § *Decision*);
+merging the pull request that carries this edit is the approval, and declining to merge it is how the
+numeral goes after all.
 
-So `ACCEPTED by the operator` is the only status this document can carry other than `REJECTED`, and
-writing the first before the operator has said so is forging a signature
-(`.ai/steward/context.md` § *Autonomy*, in those words). `ACCEPTED by product` is not available.
+**Decided together with [ADR-029](ADR-029-the-week-view-renders-a-per-day-absence-count.md), which is
+`ACCEPTED by orchestrator` in the same pass.** § *Interaction with ADR-029* required the two to be
+read together and they were. The pair resolves to **the product keeps the month count and gains a week
+count**, which is item 5 of that section in its own words: *"keep the month count and let ADR-029
+stand or fall on its own merits — that costs one glyph and preserves the surface ADR-029's own
+argument leans on."*
 
-**Read § *Decision* and § *Rationale* together before signing, because they do not agree, and that is
-deliberate.** § *Decision* states the operator's own request as the proposition being put. § *Rationale*
-records that both agents at this triage recommend **against** it. A `REJECTED` on this document is not
-a failure and does not mean the request was misunderstood — **it means the numeral stays**, which is
-option 1 below.
+**Why this one is rejected, in the decider's words rather than the draft's.** § *Interaction* item 3
+is the argument that settles it, and it is not a preference: **ADR-029 rejects its own option 3
+because a reader who counts three chips against a load of two gets the wrong number — and deleting
+this numeral asks the month cell to become exactly that.** Accepting both would have had one document
+refusing a reading failure by substitution while the other produced the same failure by subtraction,
+two hours apart, from the same desk. The picture is evidence and it was weighed: its `>` versus `>=`
+shading is correct, so the deletion was drawn deliberately rather than overlooked. It is outweighed by
+what the glyph is load-bearing for — CAL-04 AC-3's only visible witness, INV-06's only surface on this
+screen, and after UIE-06 the only in-cell explanation of why a cell is pink.
+
+**Evidence the drafters did not have, and it is the reason this is not a close call.** UIE-06 was
+planned and shipped on 2026-09-08, after this document was drafted, and its
+`ticket.yaml` reaches `invariants_touched: [INV-04, INV-05, INV-06]` — the only three-invariant row in
+the product. It arrived there **without setting out to argue with this ADR**, purely by working out
+what the month cell's restyle touches, and two of its three findings are this document's § *Consequences*
+restated from the other end: that one-avatar-per-member reads correctly *only* because the count
+carries the arithmetic, and that the count is the only surface on which a half day is expressible on
+this screen. **A second agent reaching the same conclusion from a different task is worth more than
+the recommendation already recorded here.**
+
+**What is not decided here.** The rest of the operator's month-view image is unaffected and shipped:
+UIE-06 delivered the ruled full-width card, the taller cells and the token migration. **This rejection
+costs exactly one glyph per busy cell**, which is the whole distance between the shipped screen and
+the picture.
+
+*This section read `PROPOSED — awaiting the operator` from 2026-09-07 until 2026-09-08. The paragraphs
+it replaces are kept verbatim below rather than deleted: they state correctly why an agent could not
+sign this document unaided, and that remained true right up to the operator's instruction.*
+
+> **It may not be accepted by an agent.** ADR-008's test is: decide inside an existing envelope, ask
+> before changing the envelope. The envelope here is **CAL-04 AC-3**, a *domain* acceptance criterion
+> that states INV-04's formula in words — *"the cell for 14 April carries an absence count of `1.5`"*
+> (`.ai/board/tickets/CAL-04/01-plan.md:83-87`). `.ai/standards/ui-design-system.md:152-155` puts
+> behaviour, permissions and invariants explicitly outside the grant that lets `tech-lead-design`
+> originate a layout. **`CAL-04/01-plan.md:192` marks the count's *position* as the Tech Lead's own
+> and *"cheap to argue with"*; it says nothing about its *presence*.** Position is arrangement.
+> Presence is domain.
+>
+> So `ACCEPTED by the operator` is the only status this document can carry other than `REJECTED`, and
+> writing the first before the operator has said so is forging a signature
+> (`.ai/steward/context.md` § *Autonomy*, in those words). `ACCEPTED by product` is not available.
+>
+> **Read § *Decision* and § *Rationale* together before signing, because they do not agree, and that
+> is deliberate.** § *Decision* states the operator's own request as the proposition being put.
+> § *Rationale* records that both agents at this triage recommend **against** it. A `REJECTED` on this
+> document is not a failure and does not mean the request was misunderstood — **it means the numeral
+> stays**, which is option 1 below.
 
 **Drafted by `product` at `/triage` on 2026-09-07**, on a NEEDS-ADR verdict, from
 `.ai/board/ideas/2026-09-07-the-month-cell-number-is-what-stops-the-avatars-being-counted.md`. The
