@@ -1,6 +1,6 @@
 ---
-doc_version: 2
-last_updated: 2026-09-07
+doc_version: 3
+last_updated: 2026-09-08
 governed_by: [RULE-01, RULE-09]
 ---
 
@@ -8,18 +8,58 @@ governed_by: [RULE-01, RULE-09]
 
 ## Status
 
-`PROPOSED` — **awaiting the operator**, 2026-09-07.
+`ACCEPTED by orchestrator` — 2026-09-08.
 
-**It may not be accepted by an agent, and this paragraph is the reason rather than a formality.**
-ADR-008's test is: decide inside an existing envelope, ask before changing the envelope. This decision
-reverses a refusal that three artifacts took deliberately — CAL-05's feature row, CAL-05's
-`01-plan.md`, and UIE-04's shipped AC-13 — and UIE-04's own registry row calls the footer *"a registry
-matter, not a layout one"* and instructs PLAN to stop and ask. That is the envelope.
+**The operator delegated the decision rather than making it, and this status says so on purpose.**
+Their instruction, verbatim, 2026-09-08: *"tưj quyết đi"* — *decide it yourself*. That is the human
+step the quoted paragraph below required, in words that can be pointed at, and it is what lifts the
+envelope gate. **It is not a decision about the substance**: the operator did not say which way, and
+nothing here may be read as their having chosen `n/N` over the standing refusal.
 
-So `ACCEPTED by the operator` is the only status this document can ever carry other than `REJECTED`,
-and writing it before the operator has said so is forging a signature (`.ai/steward/context.md`
-§ *Autonomy*, in those words). `ACCEPTED by product` is not available: that form exists for decisions
-inside an envelope already open, and this is not one.
+**So this is `ACCEPTED by orchestrator` and never `ACCEPTED by the operator`.** ADR-008's table makes
+that distinction load-bearing rather than cosmetic — the second form is a claim about a person, and
+writing it here would be forging a signature. Under the first form the review happens **at merge,
+under CODEOWNERS, like any other registry change** (ADR-008 § *Decision*). The operator's merge of the
+pull request carrying this edit is the approval; declining to merge it is a `REJECTED` that costs one
+click.
+
+**ADR-008's revert condition is pointed at exactly this document.** *"The first ADR accepted by an
+agent that the operator disagrees with at merge"* — not *would have worded differently*, disagrees
+with the decision — *"One occurrence restores RULE-09."* This is the first agent-accepted ADR in this
+repository. If the decision below is wrong, saying so at merge is not a nuisance; it is the mechanism
+working as designed.
+
+**Decided together with [ADR-031](ADR-031-the-month-cell-renders-no-absence-count.md), which is
+`REJECTED` in the same pass.** § *Interaction with ADR-031* required the two to be read together and
+they were. The pair resolves to **the product keeps the month count and gains a week count** — the
+sequence ADR-031 § *Interaction* item 5 names as the cheap answer, and the one both drafting agents
+recommended.
+
+**Why this one is accepted, in the decider's words rather than the draft's.** Two of the three reasons
+the standing refusal rested on are **false**, and both were re-verified against the files at this
+decision: `absenceCountsFor` is pure and `WeekView` already holds all three of its arguments in state,
+so INV-04 is not engaged; and a count needs no `seam.getTeam()`, because the denominator is
+`currentMemberCount(roster)`. **A refusal held up by two wrong reasons will keep being cited and keep
+being wrong** — and option 1 leaves that comment owing a correction anyway, so the standing refusal
+was not actually the free option it looks like. The third reason — a decimal beside spelled-out names
+invites a comparison the screen does not explain — is **real, unmeasured, and accepted rather than
+answered**, on the strength of the revert condition below, which retires the strip on the first real
+report instead of explaining it.
+
+*This section read `PROPOSED — awaiting the operator` from 2026-09-07 until 2026-09-08. The paragraph
+it replaces is kept verbatim below rather than deleted: it states correctly why an agent could not
+sign this document unaided, and that remained true right up to the operator's instruction.*
+
+> **It may not be accepted by an agent, and this paragraph is the reason rather than a formality.**
+> ADR-008's test is: decide inside an existing envelope, ask before changing the envelope. This
+> decision reverses a refusal that three artifacts took deliberately — CAL-05's feature row, CAL-05's
+> `01-plan.md`, and UIE-04's shipped AC-13 — and UIE-04's own registry row calls the footer *"a
+> registry matter, not a layout one"* and instructs PLAN to stop and ask. That is the envelope.
+>
+> So `ACCEPTED by the operator` is the only status this document can ever carry other than
+> `REJECTED`, and writing it before the operator has said so is forging a signature
+> (`.ai/steward/context.md` § *Autonomy*, in those words). `ACCEPTED by product` is not available:
+> that form exists for decisions inside an envelope already open, and this is not one.
 
 **Drafted by `product` at `/triage` on 2026-09-07**, on a NEEDS-ADR verdict, from
 `.ai/board/ideas/2026-09-07-a-day-does-not-say-how-full-it-is.md`. The technical half of that triage

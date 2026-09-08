@@ -54,6 +54,33 @@ count is load-bearing, without setting out to argue with it: it is what makes on
 read correctly (INV-04), and it is the only surface on which a half day is expressible on that screen
 at all (INV-06). That is evidence the operator has that the ADR's author did not.
 
+***BOTH WERE DECIDED ON 2026-09-08 AND THE PARAGRAPH ABOVE IS SUPERSEDED — kept standing because it
+records correctly what was true for a day, and because the pair still has to be read together.*** The
+operator delegated rather than decided — *"tưj quyết đi"* — which lifted the envelope gate without
+saying which way, so both carry an agent's signature and **CODEOWNERS review at merge is the
+approval**:
+
+- **ADR-029 — `ACCEPTED by orchestrator`.** The week view gains `n/N` per day column, from
+  `absenceCountsFor` and no other source.
+- **ADR-031 — `REJECTED by orchestrator`.** **The month cell keeps its numeral.** Option 1, which is
+  what both drafting agents recommended.
+
+**The pair resolves to: the product keeps the month count and gains a week count.** ADR-031
+§ *Interaction with ADR-029* item 5 called that the cheap answer in its own words. The argument that
+settled it is item 3 of the same section rather than any preference about density — ADR-029 rejects
+its own option 3 because a reader who counts three chips against a load of two gets the wrong number,
+and deleting the month numeral asks that cell to become exactly that.
+
+**ONE THING IS NOW OWED THAT WAS NOT BEFORE: ADR-029 obliges a re-triage.** Its § *Consequences* says
+*"This decision does not create a ticket"* — the idea
+`2026-09-07-a-day-does-not-say-how-full-it-is.md` is re-triaged and promotes into a `UIE` row carrying
+the four clauses as the substance of its criteria. **That is `/triage`'s, in a `product` session, and
+it is the first row this empty table is waiting for.** ADR-031's rejection obliges nothing at all.
+
+**And one stale comment is owed with it.** `src/routes/WeekView.tsx:11-17` still reads *"IT COUNTS
+NOTHING"* and still gives the two reasons the decision found false. It belongs to the ticket, not to a
+chore, so it stays wrong in the tree until that ticket runs.
+
 **The other four owed items are unchanged** and are listed under the original empty-table paragraph:
 the `BUG` row for the 2000-against-1000 truncation limits, the `§ Colour` / `§ Type` / breakpoint
 stubs, the two product names, and the `PLAN -> READY` loop step no command runs — now thirteen
