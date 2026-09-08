@@ -32,6 +32,77 @@ Under the current gate placement a ticket sits here until it has been planned �
 
 | # | Ticket | Title | State | Blocked on |
 |---|--------|-------|-------|------------|
+| 1 | CAL-09 | The calendar reads serve a year larger than one datastore page | BACKLOG | — |
+
+**Row 1 was appended by `product` at /triage on 2026-09-08, and it is the row item 1 of the list
+below has been waiting for since BUG-002 shipped earlier the same day.** It is from
+`.ai/board/ideas/2026-09-08-the-year-view-refuses-a-team-of-the-size-the-brief-targets.md`, whose
+`# Verdict — PROMOTE, as CAL-09` section is the reasoning. **`product` asserts nothing about its
+position** — it is row 1 because the table was empty, not because anybody placed it there; the header
+of this file says a human reorders. **The paragraph immediately below says this table is empty and is
+left standing rather than rewritten**, on this file's convention: it was true when `UIE-07` shipped,
+and it stopped being true when this row landed — which is exactly the door it describes.
+
+**Four facts a human needs, and none of them is a priority question.**
+
+1. ***IT IS A CAPABILITY AND NOT A DEFECT, AND THAT WAS THE WHOLE QUESTION AT TRIAGE.*** Four places
+   in this repository call this *"the ticket that follows BUG-002"*, phrasing that reads as continuing
+   a defect. **BUG-002 discharged its defect completely**; what remains is a limitation the product
+   was always specified to have. ADR-028's four-step test decides it: **step 1 answers no** — CAL-06
+   AC-14 (`.ai/board/tickets/CAL-06/01-plan.md:203-207`) *requires* the refusal that shipped, and
+   CAL-04 AC-11's gloss, CAL-05 AC-15 and the CAL-07 row's sentence are all disjunctions of the form
+   *assert completeness **or** page* whose first disjunct holds. **The two contradictions that CAN be
+   pointed at were tested rather than waved through, and the verdict section carries both**: the
+   brief's *"View năm chịu được 30 người"* (`product_brief.md:110`) names a **member count** while the
+   failure is keyed to a **row count**, and no file anywhere states entries per member; and CAL-06's
+   AC-1 and AC-14 disagree above the cap, which is a clash between two criteria rather than between a
+   criterion and the surface. **Step 2 then answers yes** — afterwards a team above one page can see
+   its year — so `CAL`, by area. `tech-lead-design` reached the same prefix independently on the
+   disjunction argument alone; the two contradictions above are `product`'s and are why that argument
+   was not sufficient on its own.
+2. ***THIS TICKET MAKES FOUR SHIPPED ACCEPTANCE CRITERIA VACUOUSLY TRUE, AND THAT IS DELIBERATE.***
+   CAL-04 AC-11, CAL-05 AC-15, CAL-06 AC-14 and the CAL-07 row's sentence are each conditioned on the
+   read *"coming back at the row limit"*. After paging that `Given` never occurs. **Paging does not
+   fix them — it retires their preconditions**, and a reviewer who finds four criteria that can no
+   longer fail should find this sentence first. It is also what closes the AC-1/AC-14 clash in item 1.
+   **Nothing weakens CAL-06 AC-14**: anything rendering a partial year without saying it is partial
+   reintroduces the defect BUG-002 closed. `ticket.yaml` § 3.
+3. ***THE TICKET SHELL FENCES OFF ONE FIX SHAPE AND CARRIES ONE UNRESOLVED SCHEMA QUESTION.***
+   `requires_adr: false` is scoped: **raising the Supabase project's `max-rows` API setting is out of
+   bounds inside this ticket**, the same fence BUG-002 carried
+   (`.ai/board/tickets/BUG-002/01-plan.md:100-103`) and more tempting here because it is the one shape
+   that makes the whole ticket unnecessary. **If PLAN concludes it is the answer, the correct verdict
+   from PLAN is `BLOCKED` with `requires_adr: true`**, not a quiet configuration change.
+   `schema_delta: none` is correct for offset paging over the order that already exists, **and may not
+   survive a keyset predicate wanting an index on `(start_date, id)`** — ADR-014 names policies,
+   triggers and constraints and not indexes, so the literal reading says `none` and the literal
+   reading is what ADR-014 exists to distrust. Deliberately unresolved at triage. `ticket.yaml` § 6
+   and § 7.
+4. **`depends_on` is `[]` and it was measured.** Every ticket on the board is `DONE` and this table
+   was empty, so nothing claims a path. **`BUG-002` is deliberately not named**: it is DONE and merged
+   (PR #76), so it is a predecessor in fact rather than a dependency in the field, which names
+   something still to happen. All of `feature_ids` is one group, so Definition of Ready item 6 passes.
+   `ticket.yaml` § 10.
+
+**Two things a human may want to know before it is planned, and neither is its position.**
+
+- ***THE SHIPPED PRECEDENT IS PARTIAL AND THE MISSING HALF IS THE HARD HALF.*** ADM-04's
+  `listPendingEntries` (`src/lib/data/supabase.ts:1373-1433`) gives the ingredients — `count: "exact"`,
+  `.range()`, and a short-page assertion that detects a lowered cap **without knowing its value**
+  (`:1417-1420`). **It is not a walk.** It fetches one page whose index the caller supplies, `.range(`
+  occurs exactly once in the whole seam, and there is no loop of any kind in that file — checked at
+  this triage rather than recalled, correcting the technical half's description of it. A year view
+  needs a **complete** result assembled from several requests, because `absenceCountsFor` must be
+  handed every row before it is called. **The loop, its termination and its bound are new work with no
+  precedent in this tree**, which is why the shell records no size and no size signal. `ticket.yaml`
+  § 5 and § 9.
+- ***NO RUNNER IN THIS REPOSITORY CAN PROVE THIS FIXES ANYTHING, AND THAT MUST BE DECLARED RATHER
+  THAN GLOSSED.*** `playwright.config.ts:49-51` pins the acceptance suite to the mock, so a test
+  proves the loop is *implemented*, not that it repairs a truncation the mock cannot produce; the real
+  implementation's count-against-assembled check cannot fire there. `tests/pending-entries.test.ts` is
+  the shipped precedent for declaring exactly that in a test header. **And the page size constrains
+  the test directly** — `PENDING_PAGE_SIZE` is 50 (`src/lib/domain/types.ts:556`) because crossing a
+  boundary at 1000 would mean creating 1001 entries. `ticket.yaml` § 8.
 
 ***THIS TABLE IS EMPTY FOR THE THIRD TIME.*** `UIE-07` left it for `## ARCHIVE` on 2026-09-08. All
 thirty-one tickets on the board are `DONE`.
@@ -44,10 +115,28 @@ has now shipped**, so that obligation is discharged rather than pending. **The `
 
 **What is left is four items, none of which is a ticket yet, and only one of which is `/triage`'s:**
 
-1. **Paging for a large team's year view** — BUG-002 fix shape (c), pre-authorised by CAL-04's plan
+1. ~~**Paging for a large team's year view** — BUG-002 fix shape (c), pre-authorised by CAL-04's plan
    and ADR-015 and deliberately out of that ticket's scope. **After BUG-002 a year read that
    legitimately exceeds 1000 now REFUSES rather than silently shortening**, which is better and is
-   still not a calendar. This is the one that wants `/triage`.
+   still not a calendar. This is the one that wants `/triage`.~~
+   ***DISCHARGED 2026-09-08 BY `product` AT /triage — the row is `CAL-09`, at row 1 of the table
+   above.*** Struck rather than deleted, on this file's convention. Everything it states about the
+   tree is still true: nothing is fixed yet, and what changed is only that the work is on the board.
+   **Two corrections it needs, both established at that triage rather than inherited.** It is **not**
+   a fix shape carried over from a defect — the verdict is `CAL-09`, a **capability row**, and the
+   reasoning is in the idea file. And ***"pre-authorised by CAL-04's plan and ADR-015" is half
+   false***: `grep -n "pag\|range("` over
+   `.ai/registry/decisions/ADR-015-the-holiday-calendar-is-national-and-carries-a-kind.md` returns
+   **zero matches**, and its `:379-381` offers two **non-paging** mitigations scoped to the **holiday**
+   read. **Cite `.ai/board/tickets/CAL-04/01-plan.md:176-180` and nothing else.** The same false half
+   sits in `.ai/registry/features.md:102`, which is human plane under RULE-01 and `/thuki`'s to
+   correct — recorded here as a finding, not fixed by this triage.
+   **One further item was named at that triage and deliberately given no row**: `listTeamEntries`
+   reaches the cap sooner than the year read and has no date filter at all
+   (`src/lib/data/supabase.ts:1027-1034`), but `src/lib/data/index.ts:418-423` forbids it growing a
+   range parameter in words, and what it actually wants is a paged **screen** like ADM-04's worklist —
+   a different surface with its own criteria. **It wants its own `/triage`**, and no row was written
+   for it because no idea file states that problem as its own.
 2. **`§ Colour`, `§ Type` and a breakpoint have no standard behind them.** Still bare
    `TODO(project)` stubs while `src/index.css` carries the real palette and type scale, and `1280px`
    was originated at UIE-04. `/thuki`'s, on an `ops/<slug>` branch — transcription from what shipped,
