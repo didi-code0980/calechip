@@ -33,6 +33,43 @@
 // an overloaded holiday is pink AND named — a colour that hid the crowded-day signal would be the
 // suppression ADR-015 forbids (CAL-08 AC-10). There is no density toggle: it is named in CLAUDE.md,
 // specified nowhere, and originating one would be inventing a control rather than a layout (§ 2b).
+//
+// UIE-06 — **THE GRID BECOMES ONE RULED FULL-WIDTH CARD WITH TALLER CELLS, PAINTED FROM THE
+// PRODUCT'S OWN TOKENS.** Five changes, every one of them arrangement:
+//
+//   - the `mx-auto max-w-5xl` cap is gone (AC-1). AppShell.tsx:40-42 already grants the width,
+//     YearView never capped itself, and UIE-04 deleted the identical cap from the week view. This
+//     was the last calendar surface still drawing itself 1024px wide inside a ~1563px pane.
+//   - the seven weekday labels LEFT `month-grid` and sit on the page ground above the card (AC-2).
+//     They keep `month-weekday` and they keep reading Mon…Sun — `T2`…`CN` is Vietnamese and
+//     .ai/standards/ui-design-system.md:46-48 is the operator's own instruction against it.
+//   - 35 `rounded-xl` tiles separated by `gap-1` gutters became ONE `rounded-card` surface whose
+//     cells are separated by 1px `--color-line` hairlines (AC-3). `overflow-hidden` is what rounds
+//     the four outer corners and leaves every cell rectangular.
+//   - cells are at least 170px tall and the card fills the pane on a five-row month (AC-4). **A
+//     MINIMUM, never a height** — a six-row month is ~1020px of cells against a ~1010px viewport, so
+//     a card that FILLED the viewport would clip a week roughly half the year (01-plan.md § 4.4).
+//   - **THE SIX FRAMEWORK DEFAULTS BECAME TOKENS** (AC-7, AC-8). `bg-white` -> `bg-card`,
+//     `bg-slate-100/60` -> `bg-bg`, `bg-violet-100` -> `bg-holiday`, `bg-orange-100` -> `bg-pto`,
+//     `bg-emerald-100` -> `bg-wfh`, `bg-rose-100` -> `bg-overload`. The last token did not exist;
+//     UIE-06 § 4.6 adds it at exactly `rose-100`'s value, so no pixel changes colour. This closes
+//     the defect § 1 names: Sidebar.tsx:68-70 draws the legend from `bg-pto`/`bg-wfh`/`bg-holiday`,
+//     so **the legend and the grid it explains were painted from two different palettes, side by
+//     side, permanently.**
+//
+// **THE OUT-OF-MONTH TINT IS `--color-bg` AND IS NEVER `--color-holiday`** (AC-5). The image tints
+// those cells pale lavender, and lavender is spent: CLAUDE.md § Visual direction fixes it to
+// holidays and CAL-08 spends `--color-holiday` there and nowhere else. CAL-08 AC-14 keeps
+// out-of-month cells stateless, so an out-of-month holiday is not tinted — take the image literally
+// and an out-of-month 30th and an in-month non-working holiday become the same colour with only a
+// greyed numeral between them. The transcription's own § 1.3 calls the page ground "a pale lavender
+// off-white", which is `--color-bg` and is not `#c9bff0`.
+//
+// **AND FOUR THINGS THE IMAGE ASKS FOR THAT ARE REFUSED**, each in 01-plan.md § 1: deleting
+// `month-cell-count` (it is INV-04's agreement with the faces and INV-06's ONLY surface on this
+// screen — ADR-031 is PROPOSED and this ticket neither waits on it nor anticipates it), deleting
+// `month-threshold`, filling the bridge badge with pink (pink is the overload fill, and a second
+// meaning for it on one grid is worse than an outline), and translating any copy into Vietnamese.
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Link, Navigate, useParams } from "react-router-dom";
 import EntryForm from "@/components/EntryForm";
@@ -310,8 +347,40 @@ export default function MonthView() {
 
   const selection = drag ? ordered(drag.anchor, drag.over) : null;
 
+  // UIE-06 AC-1 and AC-4. **`mx-auto max-w-5xl` DELETED** — the same cap UIE-04 deleted from
+  // WeekView.tsx:304, and the last one left on a calendar view. AppShell.tsx:40-42 already grants
+  // the width at `min-w-0 flex-1`; nothing was added to the shell.
+  //
+  // **`h-full`, AND 01-plan.md OPEN QUESTION 1 IS ANSWERED BY MEASUREMENT RATHER THAN BY READING.**
+  // The plan left this declaration to this stage because it needs a rendered viewport, and it was
+  // rendered. **THE PERCENTAGE RESOLVES.** The chain is App.tsx:82 `flex min-h-screen flex-col` ->
+  // AppShell.tsx:33 `flex min-h-0 flex-1` -> :40 the pane `flex min-w-0 flex-1 flex-col
+  // overflow-y-auto` -> :42 `min-w-0 flex-1 px-6 pb-6` -> this screen. That last div is a flex ITEM
+  // whose height the flex algorithm resolves, which is what a percentage below it resolves against
+  // — the same chain and the same answer UIE-05 measured for the week column, and no
+  // `calc(100vh - 70px - 1.5rem)` is needed. A calc would be wrong here for UIE-05's reason too:
+  // App.tsx:88 renders `seam-banner` ABOVE the shell on every mock build, which is every build the
+  // acceptance suite drives, so this screen's top edge is 80px down rather than the top bar's 70px.
+  // A percentage absorbs that offset without knowing it exists.
+  //
+  // **`min-h-full` WAS WRITTEN FIRST AND MEASURING IS WHAT REJECTED IT.** A percentage MINIMUM on a
+  // box whose own height is indefinite resolves to `auto`, so the flex column below had no free
+  // space to hand out and `auto-rows-[minmax(170px,1fr)]` never reached its `1fr`: measured at
+  // 1563x1440 a five-row April stopped at 854px of cells with 244px of empty pane under it, which
+  // is AC-4's first clause failing. With `h-full` the same month measures 218.8px cells and a card
+  // bottom of 1324px in a 1360px pane — the 36px left is `month-empty`, which is a sibling below
+  // the card. September, which HAS entries and so draws no empty sentence, measures a card bottom
+  // of 1416px against a pane bottom of 1440px, which is exactly the pane's own `pb-6`.
+  //
+  // **AND THE CLIPPING THIS COMMENT ONCE FEARED FROM `h-full` DOES NOT HAPPEN**, which is the other
+  // half of what was measured. `h-full` is a hard height and the card below carries
+  // `overflow-hidden` — but the card is a flex ITEM whose `min-height: auto` is its content, so a
+  // six-row month makes the CARD 1025px tall and it overflows this section rather than being cut by
+  // it. Probed at 1563x1010 and at 1280x800: `card.scrollHeight === card.clientHeight` on every
+  // five- and six-row month tried, cells hold their 170px, and the page scrolls (AC-4's second
+  // clause). Nothing scrolls inside the card.
   return (
-    <section className="mx-auto flex max-w-5xl flex-col gap-6">
+    <section className="flex h-full flex-col gap-6">
       {/* UIE-03 AC-2. **Everything this header carried except the threshold line is gone.**
           Its link to the landing route is dead — UIE-02 deleted the home screen — and `month-prev`,
           `month-anchor`, `month-next`, `month-week` and `month-year` are the top bar's now, under
@@ -332,78 +401,159 @@ export default function MonthView() {
         </p>
       </header>
 
-      <div data-testid="month-grid" className="grid grid-cols-7 gap-1 select-none">
-        {WEEKDAYS.map((day) => (
-          <div key={day} data-testid="month-weekday" className="px-2 py-1 text-xs font-medium opacity-60">
-            {day}
-          </div>
-        ))}
+      {/* UIE-06 AC-2, AC-3 and AC-4 — the strip, the card and the height, in one flex column.
 
-        {cells.map((date) => {
-          const inMonth = date >= first && date <= last;
-          const count = inMonth ? (counts.get(date) ?? 0) : 0;
-          const people = inMonth ? (absent.get(date) ?? []) : [];
-          // AC-7. Strictly greater, decided in one place. Out-of-month cells are never evaluated.
-          const overloaded = inMonth && isOverloaded(count, active, team.overloadThreshold);
-          const selected = Boolean(selection && inMonth && date >= selection.start && date <= selection.end);
-          // CAL-08. Absent on an out-of-month cell, which is the whole of CAL-08 AC-14.
-          const status = inMonth ? dayStatuses.get(date) : undefined;
-          const holiday = status?.holiday ?? null;
+          `flex-1` AND NOT A SECOND `h-full`: this wrapper is a flex ITEM of the section above, so
+          the flex algorithm hands it whatever height is left after the header — which is the
+          subtraction a percentage cannot do. Its default `min-height: auto` is what stops it
+          shrinking below the card inside it, and it is why a six-row month grows the section rather
+          than being clipped by it. The same reasoning puts `flex-1` on the card and on the grid. */}
+      <div className="flex flex-1 flex-col gap-2">
+        {/* UIE-06 AC-2. **THE SEVEN LABELS LEFT `month-grid`.** They were its first seven children;
+            they are now a sibling row on the page ground, above the card, which is what puts the
+            card's top edge under the labels rather than around them.
 
-          return (
-            <div
-              key={date}
-              data-testid="month-cell"
-              data-date={date}
-              data-in-month={inMonth}
-              data-count={inMonth ? count : ""}
-              data-overloaded={overloaded}
-              // CAL-08 AC-1, AC-2, AC-3, AC-11 and AC-14. THREE values and not four: `bridge` is a
-              // separate attribute because a bridge day IS a working day, and folding it in here
-              // would rebuild the flat union .ai/registry/features.md:95 forbids. Empty on an
-              // out-of-month cell.
-              data-day-status={status ? (status.nonWorkingReason ?? "working") : ""}
-              data-bridge={status?.bridge ?? false}
-              // AC-13. `onMouseDown` starts the drag and `onMouseEnter` extends it; the release is
-              // handled on `window` above, so letting go outside the grid still produces a range.
-              // A press and a release on one cell is a one-day range, which is the same gesture a
-              // person uses to declare a single day.
-              onMouseDown={inMonth ? () => { setDraft(null); setDrag({ anchor: date, over: date }); } : undefined}
-              onMouseEnter={inMonth && drag ? () => setDrag({ anchor: drag.anchor, over: date }) : undefined}
-              className={[
-                "flex min-h-24 flex-col gap-1 rounded-xl p-2 text-xs",
-                inMonth ? "" : "bg-slate-100/60 text-slate-400",
-                // The soft pink CLAUDE.md § Visual direction reserves for an overloaded day, and
-                // describes as deliberately not an alarming red. It is the cell's BACKGROUND rather
-                // than a badge, because a crowded day has to be findable by scanning (§ 2b).
-                inMonth && overloaded ? "bg-rose-100" : "",
-                // CAL-08 AC-1. Lavender (CLAUDE.md § Visual direction) for a NON-WORKING holiday and
-                // for nothing else. A mandated `working` Saturday is named but not tinted (AC-2), a
-                // bridge day is a working day and gets no lavender at all (AC-3), and the overloaded
-                // pink above still wins the background (AC-10).
-                inMonth && !overloaded && status?.nonWorkingReason === "holiday" ? "bg-violet-100" : "",
-                inMonth && !overloaded && status?.nonWorkingReason !== "holiday" ? "bg-white" : "",
-                selected ? "ring-2 ring-slate-400" : "",
-              ].join(" ")}
-            >
-              <div className="flex items-baseline justify-between">
-                <span className="font-medium">{date.slice(8)}</span>
-                {inMonth && count > 0 ? (
-                  <span data-testid="month-cell-count" className="opacity-70">
-                    {count}
-                  </span>
-                ) : null}
-              </div>
+            `gap-px` AND NOT `gap-1`, and it is the only reason this row is a grid at all: it has to
+            share the cell grid's column geometry exactly, or every label drifts left of the column
+            it names — by 7px across the row at `gap-1`. `px-2` matches the cells' `p-2`.
 
-              {/* CAL-08 AC-1, AC-2, AC-3 and AC-10. The name is drawn whenever a row exists, of
-                  EITHER kind — a mandated working Saturday is named so an admin can see the swap day
-                  they entered — and it is drawn on an overloaded cell too, because a signal hidden
-                  by a colour is the suppression ADR-015 forbids.
+            **Mon…Sun stays English** (01-plan.md § 1 item 4). `T2`…`CN` is what the image shows and
+            it reverses .ai/standards/ui-design-system.md:46-48, the operator's own instruction of
+            2026-09-03; `copyDebt` is empty and only ever shrinks. **No test in this repository
+            addresses `month-weekday`**, which is what makes this move free. */}
+        <div className="grid grid-cols-7 gap-px">
+          {WEEKDAYS.map((day) => (
+            <div key={day} data-testid="month-weekday" className="px-2 py-1 text-xs font-medium opacity-60">
+              {day}
+            </div>
+          ))}
+        </div>
 
-                  The bridge badge is OUTLINED and carries no fill: lavender means not working, and a
-                  bridge day is a working day that everybody is about to request. */}
-              {holiday !== null || status?.bridge ? (
-                <div className="flex flex-wrap items-center gap-1">
+        {/* UIE-06 AC-3 and AC-4 — **ONE CARD, RULED, WITH ONLY ITS FOUR OUTER CORNERS ROUNDED.**
+
+            `overflow-hidden` is what does the corners: the cells stay rectangular and the card clips
+            them, so no cell needs a corner radius of its own and the four that show are the card's.
+            `overflow-hidden` is safe against AC-4's "no cell clipped" BECAUSE this card is a flex
+            ITEM with `min-height: auto`: the section above it IS a hard `h-full`, but a flex item
+            never shrinks below its content, so a six-row month makes the CARD 1025px and overflows
+            the section instead of being cut by it. Probed at three viewports and two month shapes:
+            `card.scrollHeight === card.clientHeight` every time. */}
+        <div className="flex flex-1 flex-col overflow-hidden rounded-card bg-card shadow-soft">
+          {/* **THE HAIRLINES ARE THE GAPS.** `gap-px` over `bg-line` lets 1px of `--color-line`
+              show between neighbouring cells, and every cell paints its own opaque background over
+              the rest. That draws rules BETWEEN cells and none around the outside, which is what
+              AC-3 asks for, and it costs no border on any cell — a `border-r border-b` scheme
+              doubles every interior rule to 2px and needs a last-column and last-row exception.
+
+              `auto-rows-[minmax(170px,1fr)]` is AC-4 in one declaration. The `170px` is the minimum
+              the criterion names; the `1fr` is what makes a five-row month FILL the pane instead of
+              stopping at 850px of cells with white space under it — extra height is shared out
+              across the rows rather than left at the bottom. A six-row month exceeds the pane, the
+              rows stay at 170px, and the page scrolls. */}
+          <div
+            data-testid="month-grid"
+            className="grid flex-1 auto-rows-[minmax(170px,1fr)] grid-cols-7 gap-px bg-line select-none"
+          >
+            {cells.map((date) => {
+              const inMonth = date >= first && date <= last;
+              const count = inMonth ? (counts.get(date) ?? 0) : 0;
+              const people = inMonth ? (absent.get(date) ?? []) : [];
+              // AC-7. Strictly greater, decided in one place. Out-of-month cells are never evaluated.
+              const overloaded = inMonth && isOverloaded(count, active, team.overloadThreshold);
+              const selected = Boolean(selection && inMonth && date >= selection.start && date <= selection.end);
+              // CAL-08. Absent on an out-of-month cell, which is the whole of CAL-08 AC-14.
+              const status = inMonth ? dayStatuses.get(date) : undefined;
+              const holiday = status?.holiday ?? null;
+
+              return (
+                <div
+                  key={date}
+                  data-testid="month-cell"
+                  data-date={date}
+                  data-in-month={inMonth}
+                  data-count={inMonth ? count : ""}
+                  data-overloaded={overloaded}
+                  // CAL-08 AC-1, AC-2, AC-3, AC-11 and AC-14. THREE values and not four: `bridge` is a
+                  // separate attribute because a bridge day IS a working day, and folding it in here
+                  // would rebuild the flat union .ai/registry/features.md:95 forbids. Empty on an
+                  // out-of-month cell.
+                  data-day-status={status ? (status.nonWorkingReason ?? "working") : ""}
+                  data-bridge={status?.bridge ?? false}
+                  // AC-13. `onMouseDown` starts the drag and `onMouseEnter` extends it; the release is
+                  // handled on `window` above, so letting go outside the grid still produces a range.
+                  // A press and a release on one cell is a one-day range, which is the same gesture a
+                  // person uses to declare a single day.
+                  onMouseDown={inMonth ? () => { setDraft(null); setDrag({ anchor: date, over: date }); } : undefined}
+                  onMouseEnter={inMonth && drag ? () => setDrag({ anchor: drag.anchor, over: date }) : undefined}
+                  className={[
+                    // UIE-06 AC-3 and AC-4. `min-h-24` and `rounded-xl` are BOTH GONE. The height is
+                    // the grid's `auto-rows-[minmax(170px,1fr)]` and belongs to the ROW rather than to
+                    // the cell, and the only rounded corners on this screen are now the card's four
+                    // outer ones — a rounded cell inside a ruled card reads as a tile again.
+                    "flex flex-col gap-1 p-2 text-xs",
+                    // UIE-06 AC-5 and AC-7. **The out-of-month tint is the PAGE GROUND and never the
+                    // holiday lavender** — the UIE-06 block at the top of this file carries the whole
+                    // argument. `text-slate-400` became `text-ink-3` in the same pass: it is the other
+                    // half of this one treatment and it was the other framework default in this list.
+                    inMonth ? "" : "bg-bg text-ink-3",
+                    // The soft pink CLAUDE.md § Visual direction reserves for an overloaded day, and
+                    // describes as deliberately not an alarming red. It is the cell's BACKGROUND rather
+                    // than a badge, because a crowded day has to be findable by scanning (§ 2b).
+                    // UIE-06 AC-7: `--color-overload` is #ffe4e6, which is exactly what `bg-rose-100`
+                    // resolved to — this line changes the NAME of the colour and not the colour.
+                    inMonth && overloaded ? "bg-overload" : "",
+                    // CAL-08 AC-1. Lavender (CLAUDE.md § Visual direction) for a NON-WORKING holiday and
+                    // for nothing else. A mandated `working` Saturday is named but not tinted (AC-2), a
+                    // bridge day is a working day and gets no lavender at all (AC-3), and the overloaded
+                    // pink above still wins the background (AC-10).
+                    // UIE-06 AC-8: `bg-holiday` is the token Sidebar.tsx:70 draws the legend swatch
+                    // from, so the swatch and the day it explains are finally the same colour.
+                    inMonth && !overloaded && status?.nonWorkingReason === "holiday" ? "bg-holiday" : "",
+                    inMonth && !overloaded && status?.nonWorkingReason !== "holiday" ? "bg-card" : "",
+                    // UIE-06 § 4.9 and AC-17. The selection ring now sits against 1px hairlines rather
+                    // than against `gap-1` gutters, so it is INSET: Tailwind's default ring is drawn
+                    // OUTSIDE the border box and would spill across the hairline onto the neighbouring
+                    // cell, which reads as two selected cells. `ring-ink-3` replaces `ring-slate-400`,
+                    // the last framework default in the grid — #8f89b3 against the #e4e0f4 hairlines.
+                    selected ? "ring-2 ring-inset ring-ink-3" : "",
+                  ].join(" ")}
+                >
+                  <div className="flex items-baseline justify-between">
+                    <span className="font-medium">{date.slice(8)}</span>
+                    {inMonth && count > 0 ? (
+                      <span data-testid="month-cell-count" className="opacity-70">
+                        {count}
+                      </span>
+                    ) : null}
+                  </div>
+
+                  {/* UIE-06 AC-10. **THE BADGE LEFT THE HOLIDAY'S ROW AND TOOK A LINE OF ITS OWN,
+                      RIGHT-ALIGNED.** The image puts it in the cell's top-right; 01-plan.md § 5.1 says
+                      `month-cell-count` keeps that slot because the count is the domain fact and the
+                      badge is decoration on a day's meaning. § 4.8 satisfies both: the numeral-and-count
+                      line above is untouched, and the badge sits on the NEXT line at the right edge,
+                      which reads as the corner without competing for the line the count owns.
+
+                      **STILL OUTLINED AND STILL UNFILLED**, and 01-plan.md § 1 item 3 is why the image's
+                      filled pink pill is refused: pink is the overload fill, and painting the
+                      crowded-day colour onto a working day gives one colour two meanings on one grid. */}
+                  {status?.bridge ? (
+                    <div className="flex justify-end">
+                      <span
+                        data-testid="month-cell-bridge"
+                        className="rounded-full border border-current px-1.5 py-0.5 text-[10px] opacity-70"
+                      >
+                        Bridge
+                      </span>
+                    </div>
+                  ) : null}
+
+                  {/* CAL-08 AC-1, AC-2, AC-3 and AC-10, and UIE-06 AC-11 keeps all four. The name is
+                      drawn whenever a row exists, of EITHER kind — a mandated working Saturday is named
+                      so an admin can see the swap day they entered — and it is drawn on an overloaded
+                      cell too, because a signal hidden by a colour is the suppression ADR-015 forbids.
+                      The image is silent about this name, and UIE-06 § 2b is the standing answer:
+                      silence is not removal. */}
                   {holiday !== null ? (
                     <span
                       data-testid="month-cell-holiday"
@@ -414,57 +564,53 @@ export default function MonthView() {
                       {holiday.name}
                     </span>
                   ) : null}
-                  {status?.bridge ? (
-                    <span
-                      data-testid="month-cell-bridge"
-                      className="rounded-full border border-current px-1.5 py-0.5 text-[10px] opacity-70"
-                    >
-                      Bridge
-                    </span>
-                  ) : null}
+
+                  {/* INV-04: a view shows a member's avatar exactly when that member's entry is counted.
+                      These come from `absentMembersFor`, which walks the same pass as the counts — a
+                      second filter here would be a second chance to disagree (AC-2, AC-4, AC-6).
+
+                      A member holding an `am` and a `pm` entry on one date appears ONCE and the count is
+                      1, which is the same fact told two ways. */}
+                  <div className="flex flex-wrap gap-1">
+                    {people.map((person) => {
+                      const entry = entryFor(view.entries, person.id, date);
+                      return (
+                        <span
+                          key={person.id}
+                          data-testid="month-avatar"
+                          data-member-id={person.id}
+                          data-type={entry?.type ?? ""}
+                          data-tentative={entry?.tentative ?? false}
+                          data-status={entry?.status ?? ""}
+                          title={person.displayName}
+                          className={[
+                            "inline-flex items-center rounded-full px-1.5 py-0.5",
+                            // PTO peach, WFH mint (CLAUDE.md § Visual direction). A WFH member IS
+                            // working — glossary.md calls that the single most costly confusion in the
+                            // domain — so the two are different colours even though they weigh the same
+                            // in the count.
+                            // UIE-06 AC-7 and AC-8. `bg-emerald-100` and `bg-orange-100` were the two
+                            // framework defaults a person could actually catch: Sidebar.tsx:68-69 draws
+                            // the PTO and WFH legend swatches from `bg-pto` and `bg-wfh`, permanently
+                            // beside this grid, and the two palettes did not match.
+                            entry?.type === "wfh" ? "bg-wfh" : "bg-pto",
+                            // AC-5. Tentative is a dashed border at reduced opacity, so that "counts"
+                            // and "is settled" stay visually separate: it is counted like any other
+                            // entry (INV-05) and drawn so nobody reads the count as certainty.
+                            entry?.tentative ? "border border-dashed border-current opacity-60" : "",
+                          ].join(" ")}
+                        >
+                          {person.avatar}
+                          {entry?.status === "approved" ? <span aria-hidden="true">★</span> : null}
+                        </span>
+                      );
+                    })}
+                  </div>
                 </div>
-              ) : null}
-
-              {/* INV-04: a view shows a member's avatar exactly when that member's entry is counted.
-                  These come from `absentMembersFor`, which walks the same pass as the counts — a
-                  second filter here would be a second chance to disagree (AC-2, AC-4, AC-6).
-
-                  A member holding an `am` and a `pm` entry on one date appears ONCE and the count is
-                  1, which is the same fact told two ways. */}
-              <div className="flex flex-wrap gap-1">
-                {people.map((person) => {
-                  const entry = entryFor(view.entries, person.id, date);
-                  return (
-                    <span
-                      key={person.id}
-                      data-testid="month-avatar"
-                      data-member-id={person.id}
-                      data-type={entry?.type ?? ""}
-                      data-tentative={entry?.tentative ?? false}
-                      data-status={entry?.status ?? ""}
-                      title={person.displayName}
-                      className={[
-                        "inline-flex items-center rounded-full px-1.5 py-0.5",
-                        // PTO peach, WFH mint (CLAUDE.md § Visual direction). A WFH member IS
-                        // working — glossary.md calls that the single most costly confusion in the
-                        // domain — so the two are different colours even though they weigh the same
-                        // in the count.
-                        entry?.type === "wfh" ? "bg-emerald-100" : "bg-orange-100",
-                        // AC-5. Tentative is a dashed border at reduced opacity, so that "counts"
-                        // and "is settled" stay visually separate: it is counted like any other
-                        // entry (INV-05) and drawn so nobody reads the count as certainty.
-                        entry?.tentative ? "border border-dashed border-current opacity-60" : "",
-                      ].join(" ")}
-                    >
-                      {person.avatar}
-                      {entry?.status === "approved" ? <span aria-hidden="true">★</span> : null}
-                    </span>
-                  );
-                })}
-              </div>
-            </div>
-          );
-        })}
+              );
+            })}
+          </div>
+        </div>
       </div>
 
       {/* AC-9. An empty month is empty, not an error and not a loading state that never ends. The

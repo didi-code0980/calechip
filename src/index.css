@@ -138,9 +138,28 @@
      MEAN and not for what they look like — `--color-pto` and not `--color-peach` — so a later
      decision to repaint PTO changes one value here and no class anywhere.
 
-     NO `--color-overload`. The overload legend row is out of scope (AC-11, AC-20): no calendar view
-     computes an overload state, `seam.getTeam()` is deliberately not called by any of them, and a
-     token with no consumer is a colour nobody can check against a screen.
+     UIE-06 § 4.7 — THIS BLOCK USED TO REFUSE `--color-overload`, ON THREE CLAUSES THAT WERE ALL
+     FALSE THE DAY THEY WERE WRITTEN. It said no calendar view computes an overload state, that
+     `seam.getTeam()` is deliberately not called by any of them, and that the token would have no
+     consumer. `src/routes/MonthView.tsx` has called `seam.getTeam()` and computed `isOverloaded`
+     since CAL-08's ticket shipped this screen on 2026-09-04 — the day BEFORE these lines were
+     written. The overload LEGEND ROW is still out of scope and UIE-02's AC-11 and AC-20 still
+     stand; UIE-06 § 1 item 7 re-states why, and adds one: a row would have to state a threshold
+     that ADM-01 lets an admin change, so `>50%` becomes a lie the moment somebody uses the
+     feature. THE TOKEN IS A DIFFERENT QUESTION, and it is answered below.
+
+     `--color-overload` IS EXACTLY TODAY'S `bg-rose-100`, #ffe4e6. UIE-06 § 4.6: this is
+     TOKENISATION AND NOT A COLOUR DECISION — no pixel changes value. Re-picking the hex is a
+     charter-level choice (`CLAUDE.md` § Visual direction: "a soft pink that is deliberately not an
+     alarming red") and it is not this ticket's. Without the token the month grid's ONE
+     domain-bearing colour would be its only raw framework default while six neighbours became
+     tokens, which is the defect UIE-06 § 1 exists to close rather than to relocate.
+
+     `src/components/Sidebar.tsx`:63-64 carries the same false claim and is LEFT STANDING. UIE-06
+     § 4.7: correcting it would put a shell file in `allowed_paths` and RULE-03's guard does not
+     distinguish a comment from a rewrite. Its CONCLUSION is still right for a reason that is still
+     true — the shell makes no team read — so what is wrong there is the stated reason, not the
+     decision. UIE-06 01-plan.md Open question 2 reports the line.
 
      LIKE UIE-01's, THESE VALUES HAVE NO DOCUMENT BEHIND THEM. § Colour in
      .ai/standards/ui-design-system.md is still a bare `TODO(project)` and is human plane under
@@ -149,4 +168,8 @@
   --color-pto: #ffcbaa; /* peach */
   --color-wfh: #a9e2cd; /* mint */
   --color-holiday: #c9bff0; /* lavender */
+
+  /* UIE-06 § 4.6 and AC-7. The whole cell background of an overloaded day, drawn by
+     MonthView.tsx — not a legend swatch. Same value as the `bg-rose-100` it replaces. */
+  --color-overload: #ffe4e6; /* soft pink */
 }

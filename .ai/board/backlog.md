@@ -32,7 +32,37 @@ Under the current gate placement a ticket sits here until it has been planned �
 
 | # | Ticket | Title | State | Blocked on |
 |---|--------|-------|-------|------------|
-| 1 | UIE-06 | The month grid becomes one ruled full-width card with taller cells, on the product's tokens | BACKLOG | — |
+
+***THIS TABLE IS EMPTY AGAIN — THE SECOND TIME, AND THE FIRST TIME IT HAPPENED THE ROWS CAME BACK
+WITHIN THE HOUR.*** `UIE-06` left it for `## ARCHIVE` on 2026-09-08. **All twenty-nine tickets on the board are
+`DONE`** — counted, not recalled — and every `CAL`, `TEA`, `ADM`, `OPS`, `BUG` and `UIE` row with them.
+
+**What reopens the loop is unchanged and is written where it was written the first time**, under the
+`## BACKLOG` heading's original empty-table paragraph further down: nothing in the loop produces work
+on its own, and `/triage` is the door. **What is different this time is that the queue behind that
+door is no longer hypothetical — TWO ADRs are drafted, PROPOSED, and waiting on the operator, and
+they are a matched pair pointing in opposite directions:**
+
+- **[ADR-029](../registry/decisions/ADR-029-the-week-view-renders-a-per-day-absence-count.md)** —
+  the week view **gains** a per-day absence count.
+- **[ADR-031](../registry/decisions/ADR-031-the-month-cell-renders-no-absence-count.md)** —
+  the month cell **loses** its absence count.
+
+**Both change an envelope rather than deciding inside one, so under ADR-008 no agent may accept
+either.** And UIE-06's own plan — written after ADR-031 was drafted — records three reasons the month
+count is load-bearing, without setting out to argue with it: it is what makes one-avatar-per-member
+read correctly (INV-04), and it is the only surface on which a half day is expressible on that screen
+at all (INV-06). That is evidence the operator has that the ADR's author did not.
+
+**The other four owed items are unchanged** and are listed under the original empty-table paragraph:
+the `BUG` row for the 2000-against-1000 truncation limits, the `§ Colour` / `§ Type` / breakpoint
+stubs, the two product names, and the `PLAN -> READY` loop step no command runs — now thirteen
+tickets old.
+
+**One smaller item was added by this ship.** `src/components/Sidebar.tsx:63-64` carries a comment
+whose three clauses are false, the same ones UIE-06 corrected in `src/index.css`. It was left in place
+deliberately: correcting it would have put a shell file in `allowed_paths`, and RULE-03's guard cannot
+tell a comment from a rewrite.
 
 **Renumbered to 1 by `orchestrator` at /ship on 2026-09-08**, when UIE-05 left this table for
 `## ARCHIVE`. Bookkeeping, not a reordering — `UIE-06` was already `depends_on: []` and blocked on
@@ -639,26 +669,63 @@ Tickets that cannot proceed until a human decides something. Name the decision, 
 
 | # | Ticket | Title | Shipped | PR |
 |---|--------|-------|---------|-----|
-| 1 | CAL-03 | Edit or delete another member's entry, as an admin | 2026-09-03 | [#38](https://github.com/didi-code0980/calechip/pull/38) |
-| 2 | OPS-001 | UI copy to English — chrome, account and team screens | 2026-09-03 | [#40](https://github.com/didi-code0980/calechip/pull/40) |
-| 3 | CAL-04 | Month view — a day grid showing who is away and which days are overloaded | 2026-09-04 | [#48](https://github.com/didi-code0980/calechip/pull/48) |
-| 4 | CAL-05 | Week view — per-person detail for one week, with half-days, notes and who approved | 2026-09-04 | [#49](https://github.com/didi-code0980/calechip/pull/49) |
-| 5 | CAL-06 | Year view — one row per member across 365 days | 2026-09-04 | [#51](https://github.com/didi-code0980/calechip/pull/51) |
-| 6 | ADM-01 | Set the overload threshold | 2026-09-05 | [#52](https://github.com/didi-code0980/calechip/pull/52) |
-| 7 | CAL-07 | Overload warning shown while choosing dates, before the entry is saved | 2026-09-05 | [#53](https://github.com/didi-code0980/calechip/pull/53) |
-| 8 | ADM-02 | The national holiday calendar, seeded and readable | 2026-09-05 | [#54](https://github.com/didi-code0980/calechip/pull/54) |
-| 9 | ADM-03 | Add, edit or delete a holiday or swap day | 2026-09-05 | [#55](https://github.com/didi-code0980/calechip/pull/55) |
-| 10 | CAL-08 | Holidays and bridge days shown in the calendar views | 2026-09-05 | [#56](https://github.com/didi-code0980/calechip/pull/56) |
-| 11 | ADM-04 | The worklist of entries awaiting a decision | 2026-09-05 | [#58](https://github.com/didi-code0980/calechip/pull/58), merged — corrected from `PENDING_PR` at ADM-05's ship |
-| 12 | ADM-05 | Approve or reject an entry, with a reason on rejection | 2026-09-05 | [#59](https://github.com/didi-code0980/calechip/pull/59) |
-| 13 | ADM-06 | Reject several entries at once, with one reason for the batch | 2026-09-06 | [#60](https://github.com/didi-code0980/calechip/pull/60) |
-| 14 | OPS-002 | UI copy to English — entry screens and the seam's error messages | 2026-09-07 | [#62](https://github.com/didi-code0980/calechip/pull/62) |
-| 15 | UIE-01 | Restyle the sign-in and sign-up screens to the product's visual direction | 2026-09-07 | [#63](https://github.com/didi-code0980/calechip/pull/63) |
-| 16 | UIE-02 | The application shell — a persistent sidebar and top bar | 2026-09-07 | [#64](https://github.com/didi-code0980/calechip/pull/64) |
-| 17 | UIE-03 | The calendar screens give up their own chrome to the shell | 2026-09-07 | [#65](https://github.com/didi-code0980/calechip/pull/65) |
-| 18 | UIE-04 | The week view as seven day columns | 2026-09-07 | [#66](https://github.com/didi-code0980/calechip/pull/66) |
-| 19 | OPS-004 | A password-free bootstrap file that creates the first team and the first admin | 2026-09-07 | [#71](https://github.com/didi-code0980/calechip/pull/71) |
-| 20 | UIE-05 | The week column fills the viewport, and its header strip and entry chip are restacked | 2026-09-08 | [#72](https://github.com/didi-code0980/calechip/pull/72) |
+| 1 | OPS-001 | UI copy to English — chrome, account and team screens | 2026-09-03 | [#40](https://github.com/didi-code0980/calechip/pull/40) |
+| 2 | CAL-04 | Month view — a day grid showing who is away and which days are overloaded | 2026-09-04 | [#48](https://github.com/didi-code0980/calechip/pull/48) |
+| 3 | CAL-05 | Week view — per-person detail for one week, with half-days, notes and who approved | 2026-09-04 | [#49](https://github.com/didi-code0980/calechip/pull/49) |
+| 4 | CAL-06 | Year view — one row per member across 365 days | 2026-09-04 | [#51](https://github.com/didi-code0980/calechip/pull/51) |
+| 5 | ADM-01 | Set the overload threshold | 2026-09-05 | [#52](https://github.com/didi-code0980/calechip/pull/52) |
+| 6 | CAL-07 | Overload warning shown while choosing dates, before the entry is saved | 2026-09-05 | [#53](https://github.com/didi-code0980/calechip/pull/53) |
+| 7 | ADM-02 | The national holiday calendar, seeded and readable | 2026-09-05 | [#54](https://github.com/didi-code0980/calechip/pull/54) |
+| 8 | ADM-03 | Add, edit or delete a holiday or swap day | 2026-09-05 | [#55](https://github.com/didi-code0980/calechip/pull/55) |
+| 9 | CAL-08 | Holidays and bridge days shown in the calendar views | 2026-09-05 | [#56](https://github.com/didi-code0980/calechip/pull/56) |
+| 10 | ADM-04 | The worklist of entries awaiting a decision | 2026-09-05 | [#58](https://github.com/didi-code0980/calechip/pull/58), merged — corrected from `PENDING_PR` at ADM-05's ship |
+| 11 | ADM-05 | Approve or reject an entry, with a reason on rejection | 2026-09-05 | [#59](https://github.com/didi-code0980/calechip/pull/59) |
+| 12 | ADM-06 | Reject several entries at once, with one reason for the batch | 2026-09-06 | [#60](https://github.com/didi-code0980/calechip/pull/60) |
+| 13 | OPS-002 | UI copy to English — entry screens and the seam's error messages | 2026-09-07 | [#62](https://github.com/didi-code0980/calechip/pull/62) |
+| 14 | UIE-01 | Restyle the sign-in and sign-up screens to the product's visual direction | 2026-09-07 | [#63](https://github.com/didi-code0980/calechip/pull/63) |
+| 15 | UIE-02 | The application shell — a persistent sidebar and top bar | 2026-09-07 | [#64](https://github.com/didi-code0980/calechip/pull/64) |
+| 16 | UIE-03 | The calendar screens give up their own chrome to the shell | 2026-09-07 | [#65](https://github.com/didi-code0980/calechip/pull/65) |
+| 17 | UIE-04 | The week view as seven day columns | 2026-09-07 | [#66](https://github.com/didi-code0980/calechip/pull/66) |
+| 18 | OPS-004 | A password-free bootstrap file that creates the first team and the first admin | 2026-09-07 | [#71](https://github.com/didi-code0980/calechip/pull/71) |
+| 19 | UIE-05 | The week column fills the viewport, and its header strip and entry chip are restacked | 2026-09-08 | [#72](https://github.com/didi-code0980/calechip/pull/72) |
+| 20 | UIE-06 | The month grid becomes one ruled full-width card with taller cells, on the product's tokens | 2026-09-08 | PENDING_PR |
+
+**The window displaced `CAL-03` at this ship** — *CAL-03, Edit or delete another member's entry, as an
+admin, shipped 2026-09-03,* [#38](https://github.com/didi-code0980/calechip/pull/38). Reproduced on
+ADM-06's convention.
+
+**No rework, no consultation, no amendment, one review pass — the fourth such ticket in a row.** Two
+files outside the ticket folder, no spec file opened, and `playwright test` returns 165 passed with
+none modified.
+
+***THIS ROW CARRIES THREE INVARIANTS — `[INV-04, INV-05, INV-06]`, the most of any ticket in this
+product — AND EACH IS ENGAGED BY A DIFFERENT MECHANISM.*** None of them because the ticket changes any
+arithmetic; `src/lib/data/absence.ts` is never opened.
+
+- **INV-04.** The cell already shows one avatar **per member**, and that reads correctly *only*
+  because the count beside them carries the arithmetic: an am+pm pair is one face and one whole day
+  of count. Remove the count and the faces become the only reading available — a second, wrong
+  definition of exactly the thing INV-04 exists to keep single.
+- **INV-05.** The dashed reduced-opacity border is what shows an entry is tentative **while still
+  being counted** — and **a ruled grid is precisely where a border treatment gets lost**, because the
+  hairlines between cells are also thin lines. AC-14 states it as an outcome rather than a rule.
+- **INV-06.** A half day's avatar is identical to a full day's on this screen, so **the count is the
+  only surface on which INV-06 is visible here at all.** Distinct from INV-04: that one is the count
+  *agreeing with* the faces; this one is the count being the only place a portion can be expressed.
+
+**PLAN found a comment in `src/index.css:141-143` that refused a `--color-overload` token on three
+clauses that were all false the day they were written.** `src/routes/MonthView.tsx:175` calls
+`seam.getTeam()` and `:347` computes `isOverloaded` — verified at PLAN and again at REVIEW. The token
+ships at `#ffe4e6`, **exactly today's `rose-100`**, so nothing changes visually: this is tokenisation,
+not a colour decision. Without it the screen's one domain-bearing colour would have remained a raw
+Tailwind default while six neighbours became tokens. The false comment is corrected in the same edit,
+under the small-defect grant in `.ai/steward/context.md` § *Autonomy*.
+
+***AND THE SAME FALSE CLAIM AT `src/components/Sidebar.tsx:63-64` WAS DELIBERATELY LEFT ALONE.***
+Correcting a comment there would have put a **shell** file in `allowed_paths`, and RULE-03's guard
+cannot distinguish a comment from a rewrite — the whole file becomes writable for the rest of the
+ticket. §7.4 keeps the shell shut and `01-plan.md` *Open questions* reports the line instead. **It is
+owed to a later ticket**, and it is the one item this ship added to the list under `## BACKLOG`.
 
 **The window displaced `CAL-02` at this ship** —
 *CAL-02, Edit or delete their own entry, shipped 2026-09-03,*
