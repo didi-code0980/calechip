@@ -11,19 +11,42 @@ group: UIE           # ONE GROUP, ONE FEATURE ID. Definition of Ready item 6 is 
                      # CAL-05 out: this ticket re-lays-out the screen that feature shipped and
                      # delivers none of it. Listing it would claim otherwise. The link is prose in
                      # both directions and §4 is where it does the work.
-state: BACKLOG
+state: DONE        # `orchestrator` at /ship, 2026-09-08, on 04-review.md `gate: PASS` /
+                   # `next_state: DONE`. ADR-022 removed the QA stage, so REVIEW -> DONE is the whole
+                   # remaining transition (.ai/01-operating-model.md:36).
+#
+# PREVIOUS VALUE, `REVIEW`, comment reproduced below. THIRTEENTH CONSECUTIVE TICKET, and this one
+# states it in the fewest words any stage has managed: *that row is not the Developer's to write*.
+# Correct, and the same refusal UIE-01, UIE-02 and UIE-05 made.
+#
+# THE ROW IT WAITED FOR: `/next-ticket` graded the full Definition of Ready in the orchestrator
+# session at 2026-09-08 08:57 +07, SIX OF SIX PASS — after `/plan` (08:49) and before `/implement`.
+# `/next-ticket` writes no file by design, so that grading leaves no trace any later stage can read.
+# Thirteen tickets in, the missing piece is still a WRITER for a grade already given, not the grade.
+#
+# state: REVIEW    # IN_PROGRESS passed. Set by `developer` at /implement, 03-impl-log.md
+#                  # front-matter `next_state: REVIEW`. NOTE: gates.plan below is still
+#                  # { passed: false } although 01-plan.md front-matter reads `gate: PASS` —
+#                  # 03-impl-log.md Open question 4. That row is not the Developer's to write.
 owner: ""
 branch: "feat/UIE-06"   # .ai/standards/git-conventions.md:36 asks for feat/<FEATURE-ID>, and UIE-06
                         # IS a row in .ai/registry/features.md as of 2026-09-07. The convention
                         # followed; no trade-off to argue. It also means
                         # scripts/check-allowed-paths.mjs resolves the branch to this file and
                         # RULE-03 is enforced in CI rather than exiting 0 with "nothing to check".
-size_estimate: ""     # DEFINITION OF READY ITEM 5. tech-lead-design's at PLAN. LEFT EMPTY ON PURPOSE.
-                      # `tech-lead-design`'s technical read at triage proposed S. THAT PROPOSAL IS
-                      # DELIBERATELY NOT COPIED HERE — a number written at triage is one PLAN
-                      # inherits instead of measuring, and §2's finding (much of the cell is already
-                      # shipped) and §3.7's token migration both move it in opposite directions.
-size: ""              # S|M|L|XL - set by tech-lead-design at PLAN; decides splitting
+size_estimate: S      # 01-plan.md section 1. One component's layout plus one token, with much of the
+                      # cell already shipped. MEASURED AT PLAN, not inherited: the triage proposal was
+                      # withheld from this file on purpose and was not read back into it.
+size: S               # 01-plan.md section 7, counted from allowed_paths: TWO files outside the ticket
+                      # folder. S is up to 6 at .ai/01-operating-model.md:372. AGREES with
+                      # size_estimate, so ADR-012 never engages. §3.7 warned that the token conversion
+                      # is "a second thing" and that an S coming back M is almost certainly why — it
+                      # did not, because the conversion is a substitution inside a file already open
+                      # plus ONE token in a second.
+                      # NO SPEC FILE, and that is MEASURED (01-plan.md section 0): no test addresses
+                      # `month-weekday`; none asserts a class, a colour or a bounding box on this
+                      # screen; every toBeVisible() is on an element that survives; and every count
+                      # and status assertion reads a data-* attribute the plan preserves.
 depends_on: []        # DEFINITION OF READY ITEM 3, AND IT PASSES TODAY.
                       # UIE-01 through UIE-04 are DONE. UIE-05 is BACKLOG and is NOT named here:
                       # it owns src/routes/WeekView.tsx and this ticket owns src/routes/MonthView.tsx,
@@ -35,13 +58,44 @@ depends_on: []        # DEFINITION OF READY ITEM 3, AND IT PASSES TODAY.
                       # one, and §3.7 below records the same for this ticket. PLAN re-checks.
                       # One working directory holds one branch (ADR-006), so only one is ever in
                       # flight regardless.
-invariants_touched: []   # DEFINITION OF READY ITEM 2. tech-lead-design's at PLAN. LEFT AS THE
-                         # TEMPLATE SHIPS IT, WHICH IS THE DEFAULT AND NOT AN ANSWER — see §6, which
-                         # is the argument for looking rather than concluding "none" because a
-                         # restyle feels safe.
-allowed_paths: []     # [] is a control, not a placeholder. guard-allowed-paths.mjs blocks every write
-                      # outside this ticket folder while it is empty. PLAN fills it. §2 names the one
-                      # file that is certainly in it and the one that is conditionally in it.
+invariants_touched: [INV-04, INV-05, INV-06]   # REACHED AT PLAN BY LOOKING AT THE THREE §6 NAMES,
+                         # not by copying that paragraph. All three are engaged, each by a DIFFERENT
+                         # mechanism, and none because this ticket changes any arithmetic.
+                         #   INV-04 — the month cell ALREADY shows one avatar PER MEMBER, not per
+                         #     entry, and that is only correct because the count beside them carries
+                         #     the arithmetic: an am+pm pair is ONE face and ONE whole day of count.
+                         #     Remove the count and the faces become the only reading available — a
+                         #     second, wrong definition. AC-13 forbids it; §7.2 keeps the count.
+                         #   INV-05 — the dashed border at reduced opacity is what shows an entry is
+                         #     tentative WHILE STILL BEING COUNTED. A RULED GRID IS EXACTLY WHERE A
+                         #     BORDER TREATMENT GETS LOST AGAINST A NEW ONE: the hairlines between
+                         #     cells are also thin lines. AC-14 states it as an outcome.
+                         #   INV-06 — a half day's avatar is IDENTICAL to a full day's here, so the
+                         #     count is THE ONLY SURFACE ON WHICH INV-06 IS VISIBLE ON THIS SCREEN AT
+                         #     ALL. Distinct from INV-04: that one is the count AGREEING with the
+                         #     faces, this one is the count being the only place a portion can be
+                         #     expressed.
+                         # INV-01/02/03/07 are properties of stored entries; nothing is written,
+                         # nothing new is read, and src/lib/data/absence.ts is not opened.
+# FILLED BY tech-lead-design AT PLAN, from 01-plan.md section 7. TWO files outside the ticket folder.
+#
+# ***src/index.css IS IN, AND §2 PREDICTED IT PROBABLY WOULD NOT BE. THE REASON IS §5.2 CARRIED ONE
+# STEP FURTHER.*** Every token §3.7's conversion needs already exists EXCEPT the one for the
+# overloaded cell — and src/index.css:141-143 refused that token on three clauses that are ALL FALSE
+# (MonthView.tsx:175 calls seam.getTeam() and :347 computes isOverloaded, verified again at PLAN).
+# Without `--color-overload` the conversion leaves the screen's ONE DOMAIN-BEARING COLOUR as its only
+# raw Tailwind default while six neighbours become tokens. Its value is #ffe4e6 — EXACTLY today's
+# rose-100 — so nothing changes visually; this is tokenisation, not a colour decision. The false
+# comment is corrected in the same edit, under .ai/steward/context.md § Autonomy's small-defect grant.
+#
+# ***src/components/Sidebar.tsx IS DELIBERATELY OUT*** although it carries the SAME false claim at
+# :63-64. Correcting a comment there would put a SHELL file in allowed_paths, and RULE-03's guard does
+# not distinguish a comment from a rewrite — the whole file becomes writable for the rest of the
+# ticket. §7.4 keeps the shell shut; 01-plan.md Open questions item 2 reports the line instead.
+allowed_paths:
+  - ".ai/board/tickets/UIE-06/**"
+  - "src/routes/MonthView.tsx"
+  - "src/index.css"
 schema_delta: none    # DEFINITION OF READY ITEM 4. Every file in scope sits above the data seam: no
                       # query, no policy, no migration, no arithmetic and no new seam call. ADR-014
                       # does not engage, because there is no policy change to mistake for "none".
@@ -60,8 +114,17 @@ chat_budget:
   # ADR-022 removed the QA stage, and the `qa->tech-lead-design` edge with it.
 tracker: { provider: "", external_id: "", sync_enabled: false }
 gates:
-  plan:   { passed: false, at: null }   # ADR-019 merged the `spec` and `design` gates into one
-  review: { passed: false, at: null }
+  # BOTH ROWS TRANSCRIBED BY `orchestrator` AT /ship ON 2026-09-08. Neither value is claimed here —
+  # each is a copy of a gate another stage reached, read from that artifact's own front-matter.
+  #
+  # From .ai/board/tickets/UIE-06/01-plan.md: `gate: PASS`, `blocking_reason: ""`,
+  # `produced_at: 2026-09-08T08:49:36+07:00`. ADR-019 merged the `spec` and `design` gates into one.
+  # The Definition of Ready behind it was graded at `/next-ticket`, 08:57 +07, six of six PASS.
+  plan:   { passed: true, at: "2026-09-08T08:49:36+07:00" }
+  # From .ai/board/tickets/UIE-06/04-review.md: `gate: PASS`, `blocking_reason: ""`,
+  # `next_state: DONE`, `produced_at: 2026-09-08T09:19:04+07:00`. ONE review pass, `rework_count: 0`,
+  # no consultation, no amendment — the fourth such ticket in a row.
+  review: { passed: true, at: "2026-09-08T09:19:04+07:00" }
   # No `qa` key. ADR-022 removed the stage and this shell is created after that date, so the two
   # gates that decide anything are `plan` and `review`. /ship requires both.
 
