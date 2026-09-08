@@ -8,13 +8,30 @@
 // `entry_insert_own`. AC-8 is held by ABSENCE, which 01-plan.md section 3 names as the weakest
 // mechanism in the plan: a reviewer checks it by reading the imports below and finding no write.
 //
-// **IT COUNTS NOTHING.** No absence count, no overload state, no threshold, and `seam.getTeam()` is
-// deliberately not called (01-plan.md section 4.2) — it exists to supply `overloadThreshold`, and
-// calling it would be the first step toward the number the feature row says this screen does not
-// have. Every row drawn comes from `absentEntriesFor`, which is the third derivation from INV-04's
-// one pass; a `.filter(e => e.status !== ...)` written anywhere in this file would be the second
-// definition INV-04 exists to forbid, and the divergence the row names — four names against 3.5 —
-// is invisible on either screen alone.
+// **IT COUNTS, SINCE UIE-07 — AND THE TWO REASONS THIS PARAGRAPH USED TO GIVE FOR REFUSING WERE
+// BOTH WRONG.** It said the count needed `seam.getTeam()` and that INV-04 stood in the way. Neither
+// was true, and saying so is the point of this rewrite: ADR-029 requires the correction rather than
+// a fresh description of the footer, so the next reader does not inherit the same wrong reason in
+// new words.
+//
+// - **A count never needed a team read.** `getTeam()` supplies `overloadThreshold`, and a bare
+//   `n/N` does not use it. The denominator is `currentMemberCount(roster)` over the roster this
+//   screen ALREADY reads, so the fourth read the old sentence feared was never on the path.
+// - **INV-04 was never the obstacle.** CAL-05's own plan says so at its `01-plan.md:528-531`. The
+//   invariant forbids a SECOND DEFINITION, not a second SCREEN — `absenceCountsFor` is the same
+//   function the month grid calls, so putting its answer here is reuse and not divergence. ADR-029
+//   records INV-04 as SATISFIED by this decision rather than amended.
+//
+// **WHAT DOES NOT CHANGE, AND CLAUSE 3 KEEPS IT THAT WAY: this screen computes no overload state,
+// reads no threshold, and does not call `seam.getTeam()`.** The strip is two numbers and a slash;
+// it divides nothing and carries no colour that means a state.
+//
+// **AND THE WARNING BELOW IS NOW MORE LOAD-BEARING, NOT LESS.** Every row drawn comes from
+// `absentEntriesFor` and every count from `absenceCountsFor`, two derivations from INV-04's one
+// pass; a `.filter(e => e.status !== ...)` — or a local sum over `absent` — written anywhere in this
+// file would be the second definition INV-04 exists to forbid. It used to be the reason for a
+// refusal. It is now the guard rail on UIE-07 AC-5, and the divergence the feature row names — four
+// names against 3.5 — is invisible on either screen alone.
 //
 // **INV-06 IS VISIBLE HERE AND NOWHERE ELSE.** A five-day `pm` entry is five afternoons, not a
 // half-day at one end, because `portion` is one value applying to every date in the range. This view
@@ -47,14 +64,19 @@
 // opposite of what this screen is for. The pane scrolls once instead, and a column is as tall as
 // the busiest day.
 //
-// **IT STILL COUNTS NOTHING, AND AFTER THIS TICKET THAT IS A DECISION TAKEN THREE TIMES.** The
-// transcription draws an absence-count footer strip under every column. 01-plan.md § 4.1 refuses
-// it, and refuses triage's cheaper suggestion with it — the day's own CHIP count — because a day
-// holding one full-day and two half-day entries has three chips and an absence count of two, so
-// the number would contradict the month grid for the same date. That is INV-04's forbidden second
-// definition, reached without ever opening `absence.ts`. Without a count the strip holds nothing
-// the transcription put there, so there is no footer strip either: a column ends where its content
-// ends.
+// **THE FOOTER STRIP THIS TICKET REFUSED IS NOW BUILT — UIE-07 — BUT ITS REFUSAL OF THE CHIP COUNT
+// STANDS AND IS THE ARGUMENT THE STRIP RESTS ON.** The transcription draws an absence-count footer
+// under every column; UIE-04 refused it, and refused triage's cheaper suggestion with it — the
+// day's own CHIP count — because a day holding one full-day and two half-day entries has three
+// chips and an absence count of two, so the number would contradict the month grid for the same
+// date. That is INV-04's forbidden second definition, reached without ever opening `absence.ts`.
+// **THAT SENTENCE IS STILL TRUE AND IS WHY UIE-07 AC-5 EXISTS**: the number in the strip comes from
+// `absenceCountsFor` and from nothing on this screen — not the chip count, not the number of
+// people, not a sum over `absent`.
+//
+// What is no longer true is the conclusion UIE-04 drew from it. It ended *a column ends where its
+// content ends*; a column now ends with `week-day-count`, pinned by `mt-auto`, on every one of the
+// seven days including a day with nobody away.
 //
 // UIE-05 — **the column FILLS the viewport, and the header strip and the entry chip are restacked.**
 // 01-plan.md § 4.2 to § 4.5. A second image was drawn hours after UIE-04 merged; three of its four
@@ -71,8 +93,10 @@
 // are untouched** — seven independently scrolling columns are still refused, for the reason above.
 //
 // **THE COST, ACCEPTED: on a busy week anything pinned to the bottom of a column goes below the fold
-// with that column.** Nothing is pinned there today, and pinning to the VIEWPORT is a different
-// feature that is not proposed anywhere.
+// with that column.** **UIE-07 IS WHAT PINS SOMETHING THERE** — `week-day-count` sits on the
+// column's bottom edge via `mt-auto`, so on a busy week it goes below the fold with the rest of that
+// column, exactly as this paragraph predicted. That cost was accepted again by ADR-029, and pinning
+// to the VIEWPORT is still a different feature that is not proposed anywhere.
 //
 // **THE CHIP KEEPS ALL FIVE OF THE FACTS THE IMAGE DROPS, AND THAT IS THE TICKET'S ONE REAL
 // DECISION.** The image's chip is a ~44px two-line stack carrying an avatar, a name, a star and a
@@ -92,12 +116,23 @@
 // simultaneously satisfiable and 01-plan.md Open question 2 records the choice as made rather than
 // missed.
 //
-// **AND IT STILL COUNTS NOTHING — a decision now taken FOUR times.** The second image draws
-// `n/8 vắng` under every column. That is behaviour rather than arrangement, ADR-029 is PROPOSED and
-// awaiting the operator, and this ticket neither builds it nor approximates it with the day's chip
-// count. `week-day-empty` therefore keeps its element, its selector and its SENTENCE: the sentence
-// and the count are coupled, since a footer reading `0/4` is what would make deleting the sentence
-// defensible, so the two are decided together in ADR-029's ticket or not at all.
+// **THE COUNT UIE-05 DEFERRED IS BUILT, AND SO IS THE COUPLING IT RECORDED — UIE-07.** The second
+// image draws `n/8 vắng` under every column. ADR-029 was ACCEPTED on 2026-09-08 and UIE-07 builds
+// the strip, but **not that label and not that denominator**: the denominator is COMPUTED and the
+// fixtures give 4, and the word is refused on clause 4 and on § Language, so the visible strip is
+// `n/N` with the glossary's English term in the accessible reading only. UIE-05's refusal of the
+// chip count as an approximation is untouched and is now AC-5.
+//
+// **THE COUPLING IS RESOLVED, AND `"Everybody is in."` STAYS.** This paragraph recorded that the
+// sentence and the count are decided together, since a footer reading `0/4` is what would make
+// deleting the sentence defensible. UIE-07's 01-plan.md § 8 alternative 1 took that decision and
+// declined the deletion, on geometry rather than test cost: the sentence renders only when a column
+// is empty, and the strip pins to the bottom of a column at least a viewport tall, so **the two are
+// only ever co-visible on a column with nothing else in it** — the redundancy costs a row exactly
+// where there is spare room. So `week-day-empty` keeps its element, its selector and its SENTENCE,
+// and `tests/e2e/cal-05-week-view.spec.ts` is unedited. The middle path — keeping the element and
+// emptying it — was refused for this file's own recorded reason further down: an empty third row is
+// a line of padding that claims a fact exists.
 //
 // **THE RADIUS IS `rounded-2xl` AND NOT A CHANGE TO `--radius-card`.** `rounded-card` (26px) is
 // SHARED with AuthCard.tsx and Sidebar.tsx, both out of scope, so moving the token would repaint two
@@ -112,12 +147,12 @@ import { seam } from "@/lib/data";
 // INV-04's module, imported DIRECTLY rather than through the seam — the same import MonthView.tsx
 // makes, for the same reason: neither seam implementation counts or derives anything, so there is no
 // second answer for tests/seam-parity.test.ts to miss.
-import { absentEntriesFor, addDays, eachDateInRange } from "@/lib/data/absence";
+import { absenceCountsFor, absentEntriesFor, addDays, currentMemberCount, eachDateInRange } from "@/lib/data/absence";
 // CAL-08's derivation, imported the same way and for the same reason. The weekend rule lives inside
 // that module and is not exported — a `isSaturday(d)` written here would be the second definition
 // .ai/registry/features.md:95 forbids, and this file draws no weekend distinction anyway.
 import { dayStatusesFor, holidayReadRange } from "@/lib/data/day-status";
-import type { AbsenceDetail, DateRange, DayStatus, Entry, Holiday, Member } from "@/lib/domain/types";
+import type { AbsenceCounts, AbsenceDetail, DateRange, DayStatus, Entry, Holiday, Member } from "@/lib/domain/types";
 import { PORTION_LABELS, TYPE_LABELS } from "@/lib/labels";
 // UIE-02 § 4.5. `mondayIndex` and `isRealDay` were declared BELOW, in this file; the shell's top bar
 // needs both, and `mondayIndex` was DUPLICATED here and in MonthView.tsx character for character.
@@ -282,6 +317,25 @@ export default function WeekView({ landing = false }: WeekViewProps) {
     [view, range],
   );
 
+  // UIE-07 AC-1, AC-2, AC-5. INV-04's COUNT, from the same module, over the same three arguments
+  // and in the same pass shape as `absent` directly above. Nothing in this file sums, filters or
+  // narrows `entries` — a local sum over `absent` is the cheapest wrong path and it is wrong twice:
+  // one member's `am` and `pm` on one date would read 1.5 rather than 1, and the day's chip count
+  // would read 2. `absenceCountsFor` is total over its range (`zeroed(range)`, absence.ts:202), so
+  // the fallback below is for the loading and failure phases and never for a drawn day.
+  const counts = useMemo<AbsenceCounts>(
+    () =>
+      view.phase === "ready" && range
+        ? absenceCountsFor(view.entries, range, view.roster)
+        : new Map<string, number>(),
+    [view, range],
+  );
+
+  // UIE-07 AC-6, AC-9. The denominator, from INV-04's module — never a literal and never a filter
+  // written here. The roster is the UNFILTERED one `seam.listMembers()` returns (ADR-013), which is
+  // the shape both functions require and the same shape MonthView.tsx feeds them.
+  const activeMembers = view.phase === "ready" ? currentMemberCount(view.roster) : 0;
+
   // CAL-08 AC-6 and AC-11. The day status of the seven days, from the same module the month grid
   // reads — which is what makes the two screens unable to disagree about a date (CAL-08 AC-11).
   const dayStatuses = useMemo(
@@ -428,12 +482,19 @@ export default function WeekView({ landing = false }: WeekViewProps) {
             // fallback below is for the loading and failure phases and never for a drawn day.
             const status = dayStatuses.get(date);
             const holiday = status?.holiday ?? null;
+            // UIE-07 AC-1, AC-2. Read beside `people` and `status`, from INV-04's map and not from
+            // `people.length` — the two differ on exactly the days this ticket exists for.
+            const count = counts.get(date) ?? 0;
 
             return (
               <section
                 key={date}
                 data-testid="week-day"
                 data-date={date}
+                // UIE-07 AC-2. Borrowed verbatim from the month cell (MonthView.tsx), so the two
+                // screens' attributes agree by name rather than by luck. Every day of the week is
+                // in range, so there is no out-of-range empty-string case as the month has.
+                data-count={count}
                 // CAL-08 AC-6 and AC-11. The same two attributes the month cell carries, with the same
                 // three values and the same separate `data-bridge` — a bridge day IS a working day.
                 data-day-status={status ? (status.nonWorkingReason ?? "working") : ""}
@@ -689,6 +750,67 @@ export default function WeekView({ landing = false }: WeekViewProps) {
                     })}
                   </ul>
                 )}
+
+                {/* UIE-07 AC-1, AC-7, AC-8, AC-10, AC-11. THE MIRROR OF THE HEADER STRIP above —
+                    same full-bleed negative margin, same hairline token, same centred small type,
+                    `border-t` and `rounded-b-2xl` where the header has `border-b` and
+                    `rounded-t-2xl`. No token is added: `--color-line` and `--color-ink-3` both
+                    already exist (src/index.css:104, :109), so src/index.css is not opened.
+
+                    `mt-auto` IS THE PIN AND IT NEEDS NO WRAPPER. UIE-05 shipped `xl:grid
+                    xl:min-h-full` on the grid with each day a `flex min-w-0 flex-col` section, so
+                    grid items stretch and the auto margin eats the slack — the strip sits on the
+                    column's bottom edge whatever the tallest day is. Below `xl` the stack is
+                    content-height and `mt-auto` is inert, which is the correct behaviour there.
+
+                    IT RENDERS ALWAYS, INCLUDING `0/N`, and that is a decision rather than the
+                    month's default: `month-cell-count` renders only when `count > 0`, and following
+                    that here would make the strip vanish on all seven columns of an empty week
+                    (AC-7). On a quiet week a column therefore reads label / "Everybody is in." / a
+                    gap / `0/4`, which is the accepted cost of keeping that sentence.
+
+                    NO NOUN IS VISIBLE (AC-10). ADR-029 clause 4 forbids `vắng`, and its other half —
+                    the glossary's own English term — carries the same claim about a member working
+                    from home that the clause exists to prevent (glossary.md, "Absence count"; and
+                    src/lib/labels.ts calls that the most costly confusion in this domain). So the
+                    visible strip is two numbers and a slash, which also spends the least density on
+                    the screen CLAUDE.md § Visual direction is written about, and the glossary's
+                    exact English term is in the ACCESSIBLE reading only. An `aria-label` on the `<p>`
+                    is deliberately not used: the sr-only span adds the name to the reading order
+                    without overriding the numbers.
+
+                    TWO NUMBERS AND A SLASH, NEVER A PERCENTAGE, AND NO SPECIAL CASE AT `N = 0`
+                    (AC-8, AC-9). Under ADR-013 the numerator is DATE-SENSITIVE while the denominator
+                    is READ-TIME, a consequence INV-04 records as accepted, so on a past week after a
+                    removal `n` can exceed `N`, and `N` can be 0 while `n` is not. THIS IS THE FIRST
+                    SURFACE THAT JUXTAPOSES THEM. Nothing here divides, so it is a display oddity and
+                    not a defect — and dividing is exactly where an oddity becomes a NaN on screen,
+                    which is why `isOverloaded` guards `currentMembers <= 0` before it and why this
+                    element does not need to.
+
+                    NO ROUNDING, AND THAT IS INV-06 (AC-3, AC-8). A half day weighs 0.5, so `{count}`
+                    renders `0.5` and `1` — never `1.0`, never `Math.round(count)`, never `toFixed`.
+                    The chip above carries `week-row-portion`, INV-06's only visible surface in the
+                    product (UIE-05), and a strip reading `1` beside a pill reading `Morning` would
+                    make the screen contradict itself about the invariant on the one screen that
+                    shows it.
+
+                    IT IS NOT THE OVERLOAD STATE (AC-11). No threshold, no `seam.getTeam()`, no
+                    overload attribute, and no pink — pink is `--color-overload`, and UIE-06 already
+                    refused painting it on a working day for giving one colour two meanings on one
+                    grid. ADR-029 clause 3 forbids anything overload-shaped here independently.
+
+                    IT ADDS NO CONTROL (AC-12). A `<p>` holding two `<span>`s is none of the five
+                    elements cal-05-week-view.spec.ts forbids inside a `week-day`, so CAL-05 AC-8's
+                    absence mechanism survives untouched and that spec file stays unedited. */}
+                <p
+                  data-testid="week-day-count"
+                  data-current-members={activeMembers}
+                  className="-mx-4 -mb-4 mt-auto rounded-b-2xl border-t border-line px-4 py-2 text-center text-sm text-ink-3"
+                >
+                  <span className="sr-only">Absence count: </span>
+                  {count}/{activeMembers}
+                </p>
               </section>
             );
           })}
