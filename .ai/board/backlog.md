@@ -56,6 +56,14 @@ same triage that produced `CAL-09`.
    files — 4 pass, 6 fail*, while it has run **165 then 171 passing** across the four ships since.
    Both were cited, correctly in form and wrongly in fact, as the reason not to run `playwright` on
    this ticket.
+
+   **DONE by `steward` on 2026-09-08, and the numbers were measured rather than copied from this
+   row.** MD-021 carries a `RESOLVED 2026-09-03 by BUG-001` banner in MD-015's existing form, and
+   `testing-standards.md`'s table now reads the run of 2026-09-08 — typecheck 0, lint 0, unit 12
+   files / 202 tests, end-to-end 171 tests in 18 spec files, all green. **The defect underneath was
+   recorded as MD-029**, because marking one row does not stop the next fixed row from sitting
+   unmarked: nothing connects a shipped ticket to the debt row it closes, and a stale `fail` is a
+   standing permission to skip a gate command in a way a stale `pass` is not.
 5. **`src/components/Sidebar.tsx:63-64`** carries the three false clauses UIE-06 corrected in
    `src/index.css`, left alone because correcting a comment there would put a shell file in
    `allowed_paths`. And **six end-to-end spec headers still carry the figure `2000`** after BUG-002

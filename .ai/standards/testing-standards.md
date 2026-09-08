@@ -28,17 +28,26 @@ condition.** This paragraph read *"none of the first four commands runs yet"* un
 true when written and became false without anyone noticing — which is the failure the sentence it
 replaces was warning about.
 
-| Role | Result on 2026-09-01 |
+| Role | Result on 2026-09-08 |
 |---|---|
 | typecheck | exit 0 |
 | lint | exit 0 |
-| unit | 1 file, 2 tests, all pass |
-| end-to-end | 10 tests in 2 files — **4 pass, 6 fail** |
+| unit | 12 files, 202 tests, all pass |
+| end-to-end | 171 tests in 18 spec files, all pass |
 
-**The six end-to-end failures are one defect and it is in the harness, not in shipped behaviour.**
-The suite does not pin which seam it drives, so `src/lib/data/index.ts` resolves to Supabase whenever a
-`.env` carrying `VITE_SUPABASE_URL` is present, TEA-01's `seam-banner` assertions fail, and the run
-drives the live project. MD-021, and a bug ticket owed ahead of CAL-01 — ADR-021.
+**The six end-to-end failures this table recorded are fixed and the suite is green.** The row above
+read *"10 tests in 2 files — 4 pass, 6 fail"* from 2026-09-01 until 2026-09-08, and the paragraph
+under it blamed MD-021: the suite did not pin which seam it drove, so `src/lib/data/index.ts`
+resolved to Supabase whenever a `.env` carrying `VITE_SUPABASE_URL` was present. **BUG-001 fixed that
+on 2026-09-03** — `playwright.config.ts:49-51` now pins `VITE_DATA_SEAM: "mock"` and
+`VITE_SUPABASE_URL: ""` in `webServer.env`, which is exactly the fix MD-021 asked for, and MD-021 is
+marked RESOLVED in `.ai/board/model-debt.md`.
+
+**This is the second time this table went stale in the direction that costs something, and the cost
+was paid on 2026-09-08.** CAL-09 is the first ticket to cite these two documents as a reason to skip
+the end-to-end command at both `/implement` and `/review`; both stages declared the skip rather than
+hiding it, which is the right instinct, and both were reading a table that had been wrong for five
+days. A stale *pass* would merely be untrue; a stale *fail* is an excuse a later stage can lean on.
 
 Re-run each command and correct this table the moment the tooling changes. A command table that has
 never been executed is a claim, and the Definition of Done treats it as a fact.
