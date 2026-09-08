@@ -658,7 +658,7 @@ Tickets that cannot proceed until a human decides something. Name the decision, 
 | 17 | UIE-03 | The calendar screens give up their own chrome to the shell | 2026-09-07 | [#65](https://github.com/didi-code0980/calechip/pull/65) |
 | 18 | UIE-04 | The week view as seven day columns | 2026-09-07 | [#66](https://github.com/didi-code0980/calechip/pull/66) |
 | 19 | OPS-004 | A password-free bootstrap file that creates the first team and the first admin | 2026-09-07 | [#71](https://github.com/didi-code0980/calechip/pull/71) |
-| 20 | UIE-05 | The week column fills the viewport, and its header strip and entry chip are restacked | 2026-09-08 | PENDING_PR |
+| 20 | UIE-05 | The week column fills the viewport, and its header strip and entry chip are restacked | 2026-09-08 | [#72](https://github.com/didi-code0980/calechip/pull/72) |
 
 **The window displaced `CAL-02` at this ship** —
 *CAL-02, Edit or delete their own entry, shipped 2026-09-03,*
