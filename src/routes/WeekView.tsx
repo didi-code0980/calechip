@@ -36,7 +36,9 @@
 // on this screen changed.** 01-plan.md § 4.2, § 4.3 and § 4.4. Two properties below are decisions
 // rather than defaults, and both are worth knowing before editing the layout.
 //
-// **THE COLUMNS DO NOT FILL THE VIEWPORT AND NO COLUMN SCROLLS ON ITS OWN** (AC-4, AC-5). The
+// **THE COLUMNS DO NOT FILL THE VIEWPORT AND NO COLUMN SCROLLS ON ITS OWN** (AC-4, AC-5).
+// **UIE-05 REVERSED THE FIRST HALF OF THAT SENTENCE AND NOT THE SECOND — see the UIE-05 block
+// below.** The
 // transcription shows seven columns with a crisp bottom edge — on an EMPTY week, which is the one
 // case in which that property costs nothing. At ~161px a column a chip is 90-110px tall, and one
 // member may hold an `am` AND a `pm` entry on one date, so sixteen chips on one day is ~1520px of
@@ -53,6 +55,55 @@
 // definition, reached without ever opening `absence.ts`. Without a count the strip holds nothing
 // the transcription put there, so there is no footer strip either: a column ends where its content
 // ends.
+//
+// UIE-05 — **the column FILLS the viewport, and the header strip and the entry chip are restacked.**
+// 01-plan.md § 4.2 to § 4.5. A second image was drawn hours after UIE-04 merged; three of its four
+// asks are built here and four are refused. Nothing outside this file is opened.
+//
+// **THE FILL IS `min-height` AND NEVER `height`, AND THAT IS THE WHOLE OF WHY UIE-04's TWO
+// ACCEPTANCE CRITERIA SURVIVE IT.** UIE-04's PROSE, four paragraphs up, said the columns do not fill
+// the viewport; this ticket reverses that prose deliberately and says so rather than quietly doing
+// the opposite of a shipped decision. It reverses NEITHER AC-4 (every entry reachable by scrolling
+// the PAGE, no column scrollbar, nothing clipped) NOR AC-5 (the seven stay in horizontal register):
+// a column at LEAST the pane tall and free to grow past it renders the image on a quiet week and
+// behaves exactly as those two require on a busy one. A fixed `height` would clip a busy column or
+// introduce a second scroller, which is why it is not used. **UIE-04's three rejected alternatives
+// are untouched** — seven independently scrolling columns are still refused, for the reason above.
+//
+// **THE COST, ACCEPTED: on a busy week anything pinned to the bottom of a column goes below the fold
+// with that column.** Nothing is pinned there today, and pinning to the VIEWPORT is a different
+// feature that is not proposed anywhere.
+//
+// **THE CHIP KEEPS ALL FIVE OF THE FACTS THE IMAGE DROPS, AND THAT IS THE TICKET'S ONE REAL
+// DECISION.** The image's chip is a ~44px two-line stack carrying an avatar, a name, a star and a
+// type code, and nothing else. Each of the five it drops is load-bearing: the portion pill is
+// INV-06's only visible surface in the product; the note is CAL-05 AC-6; the word `Tentative` is
+// AC-9's ACCESSIBLE half, said in words for somebody who cannot see the dashed border;
+// `Approved by <name>` is what CAL-05's registry row is actually about, since a bare star says only
+// that SOMEBODY approved and `approved_by` is v1's only audit trail; and `Leave` / `Working from
+// home` is OPS-002 AC-7, which requires every screen naming a type to state that the member is
+// WORKING — a bare `WFH` states nothing. **UIE-04 refused this same deletion as its Option 2, even
+// behind an expand where the information still existed; the image deletes it outright.** So the
+// SILHOUETTE is reproduced — a three-row stack with a circular avatar bubble and the star beside the
+// name — and the five facts are DEMOTED to a third line at reduced size rather than removed. Every
+// one of them renders AT REST: no hover, no click, no expansion.
+//
+// **IT IS THEREFORE TWO OR THREE LINES TALL AND NOT THE IMAGE'S ~44px.** Those two are not
+// simultaneously satisfiable and 01-plan.md Open question 2 records the choice as made rather than
+// missed.
+//
+// **AND IT STILL COUNTS NOTHING — a decision now taken FOUR times.** The second image draws
+// `n/8 vắng` under every column. That is behaviour rather than arrangement, ADR-029 is PROPOSED and
+// awaiting the operator, and this ticket neither builds it nor approximates it with the day's chip
+// count. `week-day-empty` therefore keeps its element, its selector and its SENTENCE: the sentence
+// and the count are coupled, since a footer reading `0/4` is what would make deleting the sentence
+// defensible, so the two are decided together in ADR-029's ticket or not at all.
+//
+// **THE RADIUS IS `rounded-2xl` AND NOT A CHANGE TO `--radius-card`.** `rounded-card` (26px) is
+// SHARED with AuthCard.tsx and Sidebar.tsx, both out of scope, so moving the token would repaint two
+// screens this ticket may not touch — the same collision src/index.css:117-123 already records one
+// token over. A `--radius-day` token was rejected for having exactly one consumer. The consequence,
+// accepted: the day column and the sign-in card now have different corner radii.
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Link, Navigate, useParams } from "react-router-dom";
 // The seam, through its one door. Nothing above the seam names an implementation, and this file must
@@ -303,7 +354,11 @@ export default function WeekView({ landing = false }: WeekViewProps) {
   return (
     // § 4.4. `mx-auto max-w-3xl` STOOD HERE and is gone: seven columns need the pane's full width,
     // which AppShell.tsx already grants with `min-w-0 flex-1`. Nothing was added to the shell.
-    <section className="flex flex-col gap-6">
+    // `xl:h-full` is UIE-05 AC-1's, not CAL-05's or UIE-04's: it is what carries a definite height
+    // from AppShell.tsx:42's flex item down to the grid, so that `xl:min-h-full` below has something
+    // to be a percentage OF. It is a height and not a min-height on purpose — this element is the
+    // measuring stick, and the grid inside it is the thing allowed to outgrow the pane.
+    <section className="flex flex-col gap-6 xl:h-full">
       {/* UIE-03 AC-1. **The week screen's own header is gone, and nothing replaces it here.** It
           carried a link to the landing route, then `week-prev`, `week-anchor`, `week-next`,
           `week-month` and `week-year`. The landing link is dead — UIE-02 deleted the home screen and
@@ -326,11 +381,47 @@ export default function WeekView({ landing = false }: WeekViewProps) {
           `grid-cols-7` is `repeat(7, minmax(0, 1fr))`, so the seven tracks are EQUAL and each may
           shrink below its content — that `minmax(0, ...)`, with `min-w-0` on the day itself, is
           what keeps a long note inside its column instead of widening the pane (AC-15). `gap-2` is
-          the transcription's ~8px gutter. Nothing here sets a height and nothing sets `overflow`:
-          a column is as tall as the busiest day and the PANE scrolls, once, for all seven (AC-4,
-          AC-5). */}
-      <div className="relative">
-        <div className="flex flex-col gap-3 xl:grid xl:grid-cols-7 xl:gap-2">
+          the transcription's ~8px gutter. Nothing here sets `overflow`: a column is as tall as the
+          busiest day and the PANE scrolls, once, for all seven (UIE-04 AC-4, AC-5). */}
+      {/* UIE-05 AC-1 and AC-3. **`xl:min-h-full`, and it is a MINIMUM.** The sentence above used to
+          read "nothing here sets a height"; a minimum is what lets a quiet week reach the bottom of
+          the pane without taking the busy week's freedom to grow past it, which is why UIE-04's AC-4
+          and AC-5 survive the reversal of its prose (see the UIE-05 block at the top of this file).
+
+          **01-plan.md OPEN QUESTION 1 ASKED WHETHER A PERCENTAGE RESOLVES THROUGH THIS CHAIN OR
+          NEEDS AN EXPLICIT `calc(...)`, AND LEFT IT TO THIS STAGE BECAUSE IT NEEDS A RENDERED
+          VIEWPORT. IT WAS RENDERED AND MEASURED, AND THE ANSWER IS THAT THE PERCENTAGE RESOLVES.**
+          The chain is App.tsx:82 `<main class="flex min-h-screen flex-col">` -> AppShell.tsx:33
+          `flex min-h-0 flex-1` -> :40 the pane, `flex min-w-0 flex-1 flex-col overflow-y-auto` ->
+          :42 `min-w-0 flex-1 px-6 pb-6` -> this screen. That last div is a flex ITEM whose height
+          the flex algorithm resolves, which is what a percentage below it resolves against — so
+          `xl:h-full` on the section and on the positioning wrapper carries a definite height down to
+          this grid, and `min-h-full` here is the pane minus the top bar and the pane's own `pb-6`.
+
+          **THE `calc(100vh - 70px - 1.5rem)` THE PLAN NAMED AS THE FALLBACK WAS WRITTEN FIRST, AND
+          MEASURING IT IS WHAT REJECTED IT.** It is right only when this grid's top edge is exactly
+          the top bar's height, and it is not: App.tsx:88 renders `seam-banner` ABOVE the shell on
+          every build resolving to the mock seam, which is every build the acceptance suite drives.
+          Measured at 1280x800 the calc put the columns' bottom edge at 856px against an 800px
+          viewport — 56px BELOW the fold, with the document scrolling 80px on a week where nobody is
+          away, which is the opposite of AC-1. **A percentage is offset-independent and absorbs that
+          banner without knowing it exists**: the same measurement gives a bottom edge of 776px, plus
+          the pane's 24px of `pb-6`, which is exactly 800.
+
+          Measured with the same probe, and these are AC-2 and AC-3: at a viewport short enough to
+          overflow, the seven columns are 533px inside a 270px pane — they grow past it, the PAGE
+          scrolls, no column scrolls itself, and all seven keep one top and one height.
+
+          **`xl:` AND NOT BARE**, because below 1280px there are no columns to fill — the stacked
+          layout UIE-04 originated is untouched, and a min-height there would push a two-entry week
+          onto a page that scrolls for nothing. Measured at 1024px: the seven stack at their content
+          height and nothing fills. */}
+      {/* `xl:h-full` for the reason on the section above — the second link in the chain. On a busy
+          week this wrapper is SHORTER than the grid it holds, which is intended and costs nothing:
+          nothing here sets `overflow`, and the only thing positioned against it is the mascot, which
+          is drawn on empty weeks only, where the two heights are the same. */}
+      <div className="relative xl:h-full">
+        <div className="flex flex-col gap-3 xl:grid xl:min-h-full xl:grid-cols-7 xl:gap-2">
           {dates.map((date) => {
             const people = absent.get(date) ?? [];
             // CAL-08. Every date of the week is a key — the contract `dayStatusesFor` keeps — so the
@@ -349,28 +440,59 @@ export default function WeekView({ landing = false }: WeekViewProps) {
                 data-bridge={status?.bridge ?? false}
                 // § 4.3. The tokens UIE-01 and UIE-02 shipped, in place of the three Tailwind
                 // defaults CAL-05 had to use before they existed — `bg-white` -> `bg-card`,
-                // `rounded-2xl` -> `rounded-card` (26px), `shadow-sm` -> `shadow-soft`. No token is
+                // `shadow-sm` -> `shadow-soft`. **UIE-05 § 4.4 TOOK THE THIRD ONE BACK**: the day
+                // column is `rounded-2xl` (16px) again, because the image's corner is smaller and
+                // `rounded-card` (26px) is SHARED with AuthCard.tsx and Sidebar.tsx — moving
+                // `--radius-card` would repaint the sign-in card and the sidebar, which AC-16
+                // forbids and which src/index.css:117-123 already records as a collision one token
+                // over. A Tailwind built-in on the one element that wants it means src/index.css is
+                // never opened. No token is
                 // added and src/index.css is not opened. `flex flex-col` makes the header strip sit
                 // above the entries in a grid track that stretches to the tallest day, and `min-w-0`
                 // is the other half of AC-15 — without it the day refuses to shrink below its
                 // content and a long note widens the pane rather than wrapping.
-              className="flex min-w-0 flex-col rounded-card bg-card p-4 shadow-soft"
+              className="flex min-w-0 flex-col rounded-2xl bg-card p-4 shadow-soft"
               >
                 <h2
                   data-testid="week-day-label"
                   className={[
-                    "-mx-4 -mt-4 mb-2 flex flex-wrap items-baseline gap-2 rounded-t-card px-4 py-2 text-sm font-semibold",
+                    // UIE-05 AC-4. A CENTRED STACK, not a wrapping baseline row: at ~161px a
+                    // centred two-part label only reads as one label when the parts are stacked.
+                    // `border-b border-line` is the hairline — `--color-line` is the token UIE-01
+                    // shipped for exactly this and TopBar.tsx:38 already uses it, so no token is
+                    // added. `rounded-t-2xl` matches the column's own corner (§ 4.4).
+                    "-mx-4 -mt-4 mb-2 flex flex-col items-center gap-0.5 rounded-t-2xl border-b border-line px-4 py-2 text-center text-sm font-semibold",
                     // CAL-08 AC-6. Lavender (CLAUDE.md § Visual direction) tints the HEADING and only
                     // for a NON-WORKING holiday. The rows below are untouched, a mandated `working`
                     // Saturday is named but not tinted, and a bridge day gets no lavender at all.
                     status?.nonWorkingReason === "holiday" ? "bg-violet-100" : "",
                   ].join(" ")}
                 >
-                  {WEEKDAY_NAMES[mondayIndex(date)]}
-                  <span className="font-normal opacity-60">{date}</span>
+                  {/* UIE-05 AC-5. **THE FULL WEEKDAY NAME, IN ENGLISH**, and both halves of that are
+                      decisions rather than defaults. `T2`/`CN` is Vietnamese and is refused —
+                      .ai/standards/ui-design-system.md § Language, the operator's own instruction of
+                      2026-09-03, lint-enforced, and `ui-language.json` has `copyDebt: []`, a list
+                      that only ever shrinks. `Mon` IS layout and IS available, but
+                      tests/e2e/cal-05-week-view.spec.ts:145-146 assert `toContainText("Monday")`,
+                      which a substring test fails against `Mon`; keeping the full name is free and
+                      is what keeps every spec file out of `allowed_paths`. */}
+                  <span>{WEEKDAY_NAMES[mondayIndex(date)]}</span>
+
+                  {/* UIE-05 AC-6. `dd/MM` — `14/09` — sliced out of the `yyyy-MM-dd` this component
+                      already holds. No date library, no locale and no new import: § Language governs
+                      STRINGS, and a numeric format is outside it. It stays inside `week-day-label`,
+                      which is where AC-6 puts it and what keeps the selector contract intact. */}
+                  <span className="font-normal opacity-60">
+                    {`${date.slice(8, 10)}/${date.slice(5, 7)}`}
+                  </span>
 
                   {/* CAL-08 AC-6. Named whenever a row exists, of EITHER kind, and the badge is
-                      outlined rather than filled — lavender means not working. */}
+                      outlined rather than filled — lavender means not working. **UIE-05 § 4.3 KEEPS
+                      BOTH, on their own line beneath the date.** The image draws no room for either
+                      because it shows neither a holiday nor a bridge day, and silence is not
+                      removal: dropping the bridge badge because a 161px column has no room for it
+                      would reverse CAL-08's own decision that a bridge day is a WORKING day, which
+                      is a feature-row amendment and not a layout call. */}
                   {holiday !== null ? (
                     <span
                       data-testid="week-day-holiday"
@@ -410,6 +532,11 @@ export default function WeekView({ landing = false }: WeekViewProps) {
                           ? byId.get(entry.approvedBy)
                           : undefined;
 
+                      // UIE-05 AC-9. Row 3 renders only when it would hold something, so the same
+                      // question the note element already asked is asked once and named — an empty
+                      // third row is a line of padding that claims a fact exists.
+                      const hasNote = entry.note !== null && entry.note !== "";
+
                       return (
                         <li
                           // One member may hold an `am` AND a `pm` entry on one date, so the key is the
@@ -420,7 +547,11 @@ export default function WeekView({ landing = false }: WeekViewProps) {
                           data-member-id={member.id}
                           data-entry-id={entry.id}
                           className={[
-                            "flex flex-wrap items-center gap-2 rounded-xl px-3 py-2 text-sm",
+                            // UIE-05 AC-7. **A DELIBERATE THREE-ROW STACK, not a wrapping row.**
+                            // Same element, same seven children, same selectors — what changes is
+                            // that the name and the type no longer share a line and the three
+                            // secondary facts are demoted rather than wrapped.
+                            "flex flex-col gap-1 rounded-xl px-3 py-2 text-sm",
                             // PTO peach, WFH mint (CLAUDE.md § Visual direction), matching the month
                             // grid's chips so one person reads the same on both screens.
                             entry.type === "wfh" ? "bg-emerald-100" : "bg-orange-100",
@@ -433,59 +564,125 @@ export default function WeekView({ landing = false }: WeekViewProps) {
                               : "border border-transparent",
                           ].join(" ")}
                         >
-                          <span data-testid="week-row-avatar" aria-hidden="true" className="text-lg">
-                            {member.avatar}
-                          </span>
-                          <span data-testid="week-row-name" className="font-medium">
-                            {member.displayName}
-                          </span>
+                          {/* UIE-05 AC-7 and AC-8. **ROW 1 — the avatar bubble, the name, the star.**
 
-                          <span data-testid="week-row-type" data-type={entry.type} className="opacity-70">
-                            {TYPE_LABELS[entry.type]}
-                          </span>
-
-                          {/* AC-3 and AC-4. `data-portion` is the attribute the criteria turn on, and
-                              it is read off the entry on EVERY date the entry covers — which is why a
-                              five-day `pm` entry renders five afternoons and cannot render a whole day
-                              in the middle (INV-06). */}
-                          <span
-                            data-testid="week-row-portion"
-                            data-portion={entry.portion}
-                            className="rounded-full bg-white/70 px-2 py-0.5"
-                          >
-                            {PORTION_LABELS[entry.portion]}
-                          </span>
-
-                          {/* AC-9's marking. The dashed border above says it visually; this says it in
-                              words, because a border is not readable to somebody who cannot see it. */}
-                          {entry.tentative ? (
-                            <span data-testid="week-row-tentative" className="opacity-70">
-                              Tentative
-                            </span>
-                          ) : null}
-
-                          {/* AC-6. Present only when there is a note — an empty note element is a row
-                              that claims something was said. The note is readable by the whole team,
-                              which follows from `entry_select_team` being a row-level select policy
-                              (ADR-005) and is a consequence to be aware of rather than a decision this
-                              screen takes. */}
-                          {entry.note !== null && entry.note !== "" ? (
-                            <span data-testid="week-row-note" className="basis-full break-words opacity-80">
-                              {entry.note}
-                            </span>
-                          ) : null}
-
-                          {/* AC-7 and AC-8. DISPLAYING who approved, and nothing else: this is a name
-                              and a star, not a control. A pending entry renders no approver at all
-                              rather than an empty one. */}
-                          {approver ? (
+                              **THE STAR IS INLINE WITH THE NAME AND IS NOT A THIRD FLEX CHILD, AND
+                              THAT IS A MEASURED CORRECTION RATHER THAN A PREFERENCE.** Written as
+                              three flex children with a `shrink-0` star, the rendered column at
+                              1280px left the name about 24px and `Đã duyệt` broke MID-WORD, as
+                              `Đã / du / yệt` — a Vietnamese name pulled apart across three lines on
+                              the screen CLAUDE.md § Visual direction asks to set the diacritics
+                              correctly on. Inline, the star flows after the last word instead of
+                              reserving a column of its own, and the name wraps between words. */}
+                          <div className="flex min-w-0 items-start gap-2">
+                            {/* UIE-05 AC-7. A CIRCULAR BUBBLE rather than a bare glyph, which is the
+                                one thing the image's chip does that this file did not. `shrink-0`
+                                keeps it round when the name beside it wraps; `h-6 w-6` rather than
+                                `h-7 w-7` for the same reason the star moved — at ~137px of column
+                                every 4px of bubble is 4px the name does not get. */}
                             <span
-                              data-testid="week-row-approver"
-                              data-approver-id={approver.id}
-                              className="basis-full text-xs opacity-70"
+                              data-testid="week-row-avatar"
+                              aria-hidden="true"
+                              className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-white/70 text-sm leading-none"
                             >
-                              <span aria-hidden="true">★</span> Approved by {approver.displayName}
+                              {member.avatar}
                             </span>
+
+                            <span className="min-w-0 flex-1 leading-snug">
+                              {/* `break-words` is a LAST RESORT and not the normal case: it breaks a
+                                  word only when the word cannot fit a line of its own, so with the
+                                  width above it wraps between words and clips nothing. `truncate`
+                                  was rejected outright — a clipped name is a person the screen has
+                                  stopped naming. */}
+                              <span data-testid="week-row-name" className="break-words font-medium">
+                                {member.displayName}
+                              </span>
+
+                              {/* UIE-05 AC-8. **THE STAR MOVED HERE; IT WAS NOT ADDED.** It stood
+                                  inside `week-row-approver`, which rendered `★ Approved by <name>`.
+                                  CLAUDE.md § Visual direction asks that an approved entry carry a
+                                  small star, and beside the name is where it is legible at a glance.
+                                  **THE NAME OF THE APPROVER STAYS ON ROW 3** — a bare star says only
+                                  that somebody approved, and CAL-05's registry row is about WHO,
+                                  which is the whole of v1's audit answer. */}
+                              {approver ? (
+                                <span aria-hidden="true" className="ml-1">
+                                  ★
+                                </span>
+                              ) : null}
+                            </span>
+                          </div>
+
+                          {/* UIE-05 AC-7 and AC-9. **ROW 2 — the type and the portion.** The image
+                              collapses these to a bare uppercase code; `Leave` / `Working from home`
+                              is OPS-002 AC-7, which requires every screen naming an entry's type to
+                              state that the member is WORKING and forbids a word meaning "away", and
+                              src/lib/labels.ts:21-29 records that choice deliberately. A code states
+                              neither. */}
+                          <div className="flex flex-wrap items-center gap-2">
+                            <span data-testid="week-row-type" data-type={entry.type} className="opacity-70">
+                              {TYPE_LABELS[entry.type]}
+                            </span>
+
+                            {/* AC-3 and AC-4. `data-portion` is the attribute the criteria turn on, and
+                                it is read off the entry on EVERY date the entry covers — which is why a
+                                five-day `pm` entry renders five afternoons and cannot render a whole day
+                                in the middle (INV-06). **UIE-05 MOVED THIS PILL AND DID NOT DROP IT**,
+                                which the image does: it is INV-06's only visible surface in the whole
+                                product, so dropping it would make that invariant invisible on the one
+                                screen that shows it. */}
+                            <span
+                              data-testid="week-row-portion"
+                              data-portion={entry.portion}
+                              className="rounded-full bg-white/70 px-2 py-0.5"
+                            >
+                              {PORTION_LABELS[entry.portion]}
+                            </span>
+                          </div>
+
+                          {/* UIE-05 AC-9. **ROW 3 — DEMOTION, NOT DISCLOSURE.** Smaller and lighter,
+                              and every one of these renders AT REST: no hover, no click, no expansion.
+                              UIE-04 refused hiding them even behind an expand, where the information
+                              still existed; this reproduces the image's silhouette and much of its
+                              density without amending an acceptance criterion. The row itself is
+                              absent when it would be empty. */}
+                          {entry.tentative || hasNote || approver ? (
+                            <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 text-xs">
+                              {/* AC-9's marking. The dashed border above says it visually; this says it in
+                                  words, because a border is not readable to somebody who cannot see it. */}
+                              {entry.tentative ? (
+                                <span data-testid="week-row-tentative" className="opacity-70">
+                                  Tentative
+                                </span>
+                              ) : null}
+
+                              {/* AC-6. Present only when there is a note — an empty note element is a row
+                                  that claims something was said. The note is readable by the whole team,
+                                  which follows from `entry_select_team` being a row-level select policy
+                                  (ADR-005) and is a consequence to be aware of rather than a decision this
+                                  screen takes. Demoting it changes how PROMINENT it is and not who may
+                                  read it. */}
+                              {hasNote ? (
+                                <span data-testid="week-row-note" className="basis-full break-words opacity-80">
+                                  {entry.note}
+                                </span>
+                              ) : null}
+
+                              {/* AC-7 and AC-8. DISPLAYING who approved, and nothing else: this is a name,
+                                  not a control. A pending entry renders no approver at all rather than an
+                                  empty one. The star that stood at the head of this sentence is now on row
+                                  1; the words and `data-approver-id` are unchanged, which is what
+                                  cal-05-week-view.spec.ts:216's `toContainText(ADMIN_NAME)` reads. */}
+                              {approver ? (
+                                <span
+                                  data-testid="week-row-approver"
+                                  data-approver-id={approver.id}
+                                  className="basis-full opacity-70"
+                                >
+                                  Approved by {approver.displayName}
+                                </span>
+                              ) : null}
+                            </div>
                           ) : null}
                         </li>
                       );
