@@ -688,7 +688,7 @@ Tickets that cannot proceed until a human decides something. Name the decision, 
 | 17 | UIE-04 | The week view as seven day columns | 2026-09-07 | [#66](https://github.com/didi-code0980/calechip/pull/66) |
 | 18 | OPS-004 | A password-free bootstrap file that creates the first team and the first admin | 2026-09-07 | [#71](https://github.com/didi-code0980/calechip/pull/71) |
 | 19 | UIE-05 | The week column fills the viewport, and its header strip and entry chip are restacked | 2026-09-08 | [#72](https://github.com/didi-code0980/calechip/pull/72) |
-| 20 | UIE-06 | The month grid becomes one ruled full-width card with taller cells, on the product's tokens | 2026-09-08 | PENDING_PR |
+| 20 | UIE-06 | The month grid becomes one ruled full-width card with taller cells, on the product's tokens | 2026-09-08 | [#73](https://github.com/didi-code0980/calechip/pull/73) |
 
 **The window displaced `CAL-03` at this ship** — *CAL-03, Edit or delete another member's entry, as an
 admin, shipped 2026-09-03,* [#38](https://github.com/didi-code0980/calechip/pull/38). Reproduced on
