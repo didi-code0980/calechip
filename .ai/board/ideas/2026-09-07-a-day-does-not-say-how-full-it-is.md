@@ -16,10 +16,26 @@ inputs_read:
   - .ai/board/tickets/UIE-04/design/README.md
   - .ai/board/backlog.md
   - tech-lead-design's technical read of the same request, 2026-09-07
+  - .ai/registry/decisions/ADR-029-the-week-view-renders-a-per-day-absence-count.md (re-read in full
+    at the re-triage of 2026-09-08, when it read ACCEPTED by orchestrator)
+  - .ai/registry/features.md (the UIE group, and the two amendments ADR-029 already obliged)
+  - src/routes/WeekView.tsx:11-17 (re-read on disk, 2026-09-08 — still says IT COUNTS NOTHING)
+  - .claude/commands/triage.md
+  - tech-lead-design's technical half of the re-triage of 2026-09-08 (PROMOTE, size S), folded in
+    the same day — § Folded in at the end of this file
+  - src/routes/WeekView.tsx:115, :180, :258, :280, :424, :454, :464, :515, :535-537, :714-717
+    (read on disk at the fold-in, to correct one citation and check five claims)
+  - src/lib/data/absence.ts:197, :343, :347-349
+  - src/routes/MonthView.tsx:213, :399, :474, :523-527
+  - .ai/registry/glossary.md:34
+  - src/index.css:104, :109, :117-123, :174
+  - src/hooks/useRoster.ts:56 and src/components/Sidebar.tsx:167-171
+  - tests/e2e/cal-05-week-view.spec.ts:97-120, :247-253, :266
+  - tests/absence.test.ts:151-157, :253-257
 consulted: []
 gate: PASS
 blocking_reason: ""
-next_state: TRIAGE
+next_state: BACKLOG
 ---
 
 # A day on the week screen does not say how full it is
@@ -88,7 +104,10 @@ dispatching session rather than recalled:**
 
 - `absenceCountsFor(entries, range, roster)` — `src/lib/data/absence.ts:197` — and
   `currentMemberCount(roster)` — `:348` — **take no team and no threshold**.
-- **`WeekView` already holds `roster` and `entries` in state** at `src/routes/WeekView.tsx:207`.
+- **`WeekView` already holds `roster` and `entries` in state** at `src/routes/WeekView.tsx:180` (the
+  `phase: "ready"` union) and `:258` (the `setView` that fills it). **The address was `:207` when this
+  line was written on 2026-09-07 and that was wrong — corrected in place on 2026-09-08, see
+  § *Folded in* below.** The *fact* was never wrong; only the line was.
 - `.ai/board/tickets/CAL-05/01-plan.md:528-531` reads, verbatim: *"INV-04 forbids a second definition;
   this would not be one, and it would still make two surfaces that appear to disagree while both being
   right. If a number is ever wanted here, it is a criterion on the row rather than an inference from
@@ -298,3 +317,179 @@ CAL-05's row amended and UIE-04's row given its superseding line. **What it did 
 `src/routes/WeekView.tsx:11-17` still says *"IT COUNTS NOTHING"* and still states the two wrong
 reasons. That correction belongs to the ticket, and until the ticket runs the comment is stale in the
 tree — recorded here rather than left for its next reader to trip over.
+
+---
+
+# Re-triage verdict — PROMOTE, as `UIE-07` — **THIS IS THE LIVE VERDICT**
+
+**Written by `product` at `/triage` on 2026-09-08, on the re-triage ADR-029 § *Consequences*
+obliges.** The argument for `/triage` was this filename, so step 0 did not run and this file was
+judged as it stood.
+
+## Which verdict is live, said before anything else
+
+**This file now carries two verdicts and a reader arriving cold must not have to work out which one
+governs.** Nothing above was deleted or rewritten — `CLAUDE.md` § *Working agreements* is additive
+only, and an artifact edited to agree with a later verdict stops being the record of what was
+believed before that verdict existed.
+
+| Section | Date | Standing |
+|---|---|---|
+| `# Triage verdict — NEEDS-ADR` above | 2026-09-07 | **DISCHARGED HISTORY.** It asked for a decision; the decision was made. It is correct as written and it governs nothing. |
+| `## Outcome — 2026-09-08` above | 2026-09-08 | The record of that decision. Still true. |
+| **This section** | 2026-09-08 | **LIVE.** The one verdict the `/triage` gate requires. |
+
+The NEEDS-ADR pass is discharged in the ordinary way rather than reversed: it named the decision that
+had to be made, the decision was made on 2026-09-08, and a verdict whose whole content was *"somebody
+must decide X"* is spent the moment X is decided. Nothing in it was found wrong.
+
+## The verdict
+
+**PROMOTE, as `UIE-07`.**
+
+**It is not a judgement call and it was not re-derived.** ADR-029 § *Consequences* states it in the
+document's own words: *"This decision does not create a ticket. On acceptance the idea is re-triaged
+and promotes into a `UIE` row carrying the four clauses above as the substance of its criteria.
+Nothing is built from this document alone."* That sentence is what obliges this verdict; the ADR is
+`ACCEPTED by orchestrator` as of 2026-09-08, so the condition it names has occurred.
+
+**ADR-028's four-step boundary test is already spent and is deliberately not re-run.** ADR-029 names
+the group in the sentence above — `UIE`, not `CAL`, not an `OPS` chore — and re-running a test whose
+answer a decided ADR already records is how a settled question quietly acquires a second answer.
+
+**Next free number, counted on disk rather than recalled:** `.ai/registry/features.md` § *UIE* holds
+six rows, `UIE-01` to `UIE-06` at `:149-154`, and all six are `DONE`. `UIE-07` is the next.
+
+## What was written, and where
+
+- **`.ai/registry/features.md`** — one new row, `UIE-07`, `Status: PLANNED`, under `## UIE`. It cites
+  this idea filename in `Notes`, which under ADR-007 is the only provenance a reviewer has, and it
+  cites ADR-029 as the decision that obliges it. The four clauses are carried there as the substance
+  of the criteria, not as criteria — those are `tech-lead-design`'s at PLAN.
+- **`.ai/board/tickets/UIE-07/ticket.yaml`** — the shell, `state: BACKLOG`, Definition of Ready items
+  1, 3, 4 and 6 filled (ADR-010). Items 2 and 5 are left as the template ships them.
+- **`.ai/board/backlog.md`** — one row under `## BACKLOG`, at position 2 behind `BUG-002`.
+
+**Two registry amendments ADR-029 obliged were already done in the pull request that accepted it, and
+were verified rather than duplicated at this triage:** CAL-05's row now reads *"…from
+`absenceCountsFor` and no other source"*, and UIE-04's row carries its superseding line saying AC-13's
+first clause no longer holds while its second survives. Neither row was touched by this run.
+
+## What the row must carry, and why each clause is load-bearing
+
+The substance is ADR-029 § *Decision*'s four clauses. They are reproduced on the row and in the ticket
+shell rather than summarised, because the value of clause 1 in particular is in its exact wording.
+
+1. **The number is `absenceCountsFor(entries, range, roster)` and nothing else** — a `week-row` count,
+   a `people.length`, or any local filter or sum is forbidden. **This is the clause the invariant
+   hangs on.** ADR-029:133-134 says INV-04 is *satisfied* by this decision rather than amended, and
+   that the ledger is not edited — *"That is a property of clause 1 and of nothing else: without it,
+   this decision becomes option 3 below."* Option 3 is the chip count, which is INV-04's forbidden
+   second definition, and one occurrence anywhere in the product is ADR-029's revert condition.
+   The ADR is explicit that this sentence belongs in the criterion because *"a comment does not
+   survive the next developer"*.
+2. **The denominator is `currentMemberCount(roster)`, never a literal.** The fixtures give **4**, not
+   the image's 8.
+3. **No threshold, no overload state, no `seam.getTeam()`.** UIE-04's AC-13 keeps its second clause
+   intact; only its first is superseded.
+4. **The label may not say "away".** WFH is counted and a WFH member is working — OPS-002 AC-7 and
+   `src/lib/labels.ts:24-29` — and it is **English** (`.ai/standards/ui-design-system.md`
+   § *Language*), so `vắng` is unavailable whatever noun is chosen.
+
+## The three things carried into the shell that PLAN would otherwise rediscover
+
+- **`src/routes/WeekView.tsx:11-17` is rewritten by this ticket.** Re-read on disk at this triage: it
+  still opens *"IT COUNTS NOTHING"* and still gives the two reasons ADR-029 found false. ADR-029
+  § *Consequences* assigns the rewrite here **and** requires the replacement to carry the correction
+  that a count never needed a team read — otherwise the next reader inherits the same wrong reason in
+  new words.
+- **The empty-state sentence is an open decision for PLAN, and it is authorised to be *considered*
+  rather than decided.** A footer reading `0/4` makes deleting *"Everybody is in."* defensible and
+  following from this decision — but **until the ticket decides, the sentence stays**, because
+  without the count deleting it makes *an ordinary Tuesday* and *we did not look* the same column
+  (CAL-05 AC-13, UIE-04 AC-10, and `tests/e2e/cal-05-week-view.spec.ts:266` asserts seven
+  `week-day-empty` elements). This idea's § *Open questions* item 3 is therefore answered only in
+  part: the coupling is settled, the deletion is not.
+- **ADR-029's own *what gets worse* list travels with the row rather than being left to be
+  rediscovered at review.** A day with one full-day and two half-day entries shows three chips over
+  `1.5/N` and the screen does not explain the arithmetic — CAL-05's objection, **accepted rather than
+  answered**; a second number lands on the densest screen in the product, where `CLAUDE.md`
+  § *Visual direction* says every row costs; and a refusal taken deliberately three times is
+  reversed, which costs the next reader some trust in that file's standing comments.
+
+## What this verdict does not do
+
+- **It does not write an acceptance criterion.** The four clauses are the *substance* of the criteria
+  and are quoted as such. Turning them into `Given/When/Then` is `tech-lead-design`'s at PLAN, from
+  the registry row.
+- **It does not size or place the ticket.** `size_estimate` is left as the template ships it, and
+  `backlog.md` is ordered by a human — `UIE-07` is row 2 because `BUG-002` was already row 1, not
+  because anybody placed it.
+- **It does not amend an invariant.** INV-04 is satisfied, not changed, and `.ai/registry/invariants.md`
+  is not edited by this run.
+- **It does not touch CAL-05's or UIE-04's rows.** Their ADR-029 amendments landed already.
+
+*`consulted` remains `[]` above, deliberately and for the same reason as the first pass:
+`tech-lead-design` was **co-dispatched by the same `/triage` run** rather than consulted under
+RULE-11, so no chat budget was spent and no consultation edge was walked.*
+
+---
+
+## Folded in — the technical half, 2026-09-08
+
+**`tech-lead-design`'s half of this same re-triage returned PROMOTE, size S, and found nothing
+contradicting ADR-029.** The verdict above is unchanged by it and was not re-derived. This section is
+additive: nothing above was rewritten except the one citation named below, which was wrong.
+
+### The one thing found wrong, and where the wrong copy survives
+
+**`src/routes/WeekView.tsx:207` does not say what three documents claim it says.** That line is a
+comment about the `landingDay` memoisation (`:207-210`); it has nothing to do with the roster. The
+*fact* it was cited for is true — the screen already holds roster and entries in state — and the
+correct addresses are **`:180`**, the `phase: "ready"` union carrying `roster`, `entries` and
+`holidays`, and **`:258`**, the `setView` that fills it from `seam.listMembers()` and
+`seam.listTeamEntriesOverlapping(range)` at `:252-256`.
+
+Corrected in this file's § *Evidence* and in `UIE-07`'s registry row and ticket shell, all three of
+which are mine and uncommitted. **Two copies survive and are deliberately not touched:**
+
+- **`.ai/registry/decisions/ADR-029-…:87`** — `.ai/registry/decisions/` is human plane under RULE-01,
+  and **an accepted ADR is not edited to fix a line number**. It is recorded here instead, so the
+  divergence is visible rather than silent. The sentence around it stays true.
+- **`.ai/board/ideas/2026-09-07-a-busy-week-does-not-fit-and-a-day-does-not-say-how-full-it-is.md:403`**
+  — the parent idea, shipped with `UIE-05` in PR #72. It is not a file this run created, so it is not
+  rewritten (`CLAUDE.md` § *Working agreements*, additive only).
+
+**Anybody re-citing this fact should cite `:180` and `:258` and not any of the three older copies.**
+
+### What the technical half added, and where it went
+
+The engineering detail is carried in `.ai/board/tickets/UIE-07/ticket.yaml`, which is what PLAN reads
+— § 9 (paths, sizing signal, the selector, the two assertions that hold clause 1), § 12 (five things
+ADR-029 left underspecified), § 13 (the denominator, and `n/0`), § 14 (the empty-state
+recommendation). It is not duplicated into this file. Four findings belong to the *problem* rather
+than to the build and are recorded here:
+
+- **The cheapest wrong path is still open and it now has a name.** The `absent` map is already in
+  scope at `src/routes/WeekView.tsx:280`, so a developer can sum weights out of it in four lines —
+  **a local sum, forbidden by clause 1 and by ADR-029's revert condition, and it would pass every
+  existing test.** § *Impact if ignored* above predicted the chip count; this is the same failure with
+  the chip count closed off, and it is why clause 1 has to be a criterion.
+- **Open question 2 is worse than it looked, and the answer this triage now recommends is *no noun*.**
+  Clause 4 forbids "away" and offers the glossary's name or nothing at all — but the glossary's name
+  is **"Absence count"**, glossed *số người vắng* (`.ai/registry/glossary.md:34`), and in English it
+  carries exactly the claim about a WFH member that clause 4 exists to prevent. **A bare `n/N` with no
+  visible noun satisfies both halves of the clause and spends the least density**, with the glossary's
+  term in the accessible name only. PLAN writes it as a criterion; it cannot be inherited.
+- **Open question 3's density argument does not survive being located on the screen.** *"Everybody is
+  in."* renders only when `people.length === 0` (`:515`) and the strip pins to the bottom of a column
+  UIE-05 made at least a viewport tall — so the two are only ever co-visible **on a column with
+  nothing else in it**. The redundancy costs a row exactly where there is spare room and costs nothing
+  on the crowded columns `CLAUDE.md` § *Visual direction* is written about. Recommendation: the
+  sentence **stays** and the deletion is deferred. § 14 of the shell carries it, with the cost.
+- **Open question 4 is answered on disk rather than by argument.** UIE-05 shipped
+  `xl:grid xl:min-h-full xl:grid-cols-7` (`:424`) with each day a `flex min-w-0 flex-col` section
+  (`:454`); grid items stretch, so `mt-auto` pins a footer to the column's bottom edge — the same
+  treatment the header strip already gets at `:464` — and below `xl` the stack is content-height and
+  `mt-auto` is inert. **No new wrapper and no `overflow` change**, so the strip is additive to UIE-05
+  rather than a re-layout of it.

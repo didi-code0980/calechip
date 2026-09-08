@@ -32,6 +32,108 @@ Under the current gate placement a ticket sits here until it has been planned �
 
 | # | Ticket | Title | State | Blocked on |
 |---|--------|-------|-------|------------|
+| 1 | BUG-002 | Two row limits sit above the datastore cap, so four truncation assertions can never fire | BACKLOG | |
+| 2 | UIE-07 | The week view renders a per-day absence count | BACKLOG | |
+
+**Row 2 was appended by `product` at /triage on 2026-09-08, later the same day, and it is the row
+owed item *"ADR-029 obliges a re-triage"* below has been waiting for since that decision was
+signed.** It is from `.ai/board/ideas/2026-09-07-a-day-does-not-say-how-full-it-is.md`, whose
+**second** verdict section — `# Re-triage verdict — PROMOTE, as UIE-07` — is the reasoning. **That
+file carries two verdicts and the live one is the second**: the `NEEDS-ADR` pass above it is
+discharged history, and it is discharged in the ordinary way rather than reversed — it named a
+decision that had to be made, and the decision was made.
+
+**`product` asserts nothing about its position.** It is row 2 because `BUG-002` was already row 1
+when this was written, not because anybody placed either of them. The header of this file says a
+human reorders, and placing this above a row already here would have moved it.
+
+**Four facts a human needs, and none of them is a priority question.**
+
+1. ***THE VERDICT WAS NOT A JUDGEMENT CALL AND WAS NOT RE-DERIVED.***
+   [ADR-029](../registry/decisions/ADR-029-the-week-view-renders-a-per-day-absence-count.md) is
+   `ACCEPTED by orchestrator` and its § *Consequences* states it directly: *"This decision does not
+   create a ticket. On acceptance the idea is re-triaged and promotes into a `UIE` row carrying the
+   four clauses above as the substance of its criteria. Nothing is built from this document
+   alone."* ADR-028's four-step boundary test is spent rather than re-run — the ADR names the
+   group. **The operator delegated that decision rather than making it** — *"tưj quyết đi"* — so the
+   signature is an agent's and **CODEOWNERS review at merge is the approval**, and ADR-008's revert
+   condition points at exactly that document.
+2. **`requires_adr: false`, and unusually that is a fact rather than a first reading.** The three
+   artifacts that refused this number — CAL-05's row, CAL-05's `01-plan.md:95-97`, UIE-04's shipped
+   AC-13 — are the envelope ADR-029 opened, so PLAN builds inside the four clauses instead of
+   stopping. **If PLAN concludes it needs anything outside them** — the overload state, a team read,
+   or an amendment to INV-04 — **the correct verdict is `BLOCKED` with `requires_adr: true`**.
+   `ticket.yaml` § 1 and § 6.
+3. **`depends_on` is `[]` and it was measured rather than assumed.** UIE-04 and UIE-05 both shipped
+   the week column this row writes into and both are `DONE`, read from `ticket.yaml` rather than
+   from this view (`UIE-04/ticket.yaml:13`, `UIE-05/ticket.yaml:14`), so Definition of Ready item 3
+   passes. **`BUG-002` at row 1 is deliberately not named**: its scope is
+   `src/lib/domain/types.ts` and both seam implementations, it touches no route, and its own § 9
+   puts `src/lib/data/absence.ts` out of bounds because the defect is *upstream* of the arithmetic
+   this row displays. `ticket.yaml` § 5 carries the measurement, including the honest residue —
+   while `BUG-002` is unfixed the new strip **inherits** a truncation exposure CAL-05 AC-15 already
+   records, and it must neither create nor fix one.
+4. **The load-bearing half is a single sentence that must reach an acceptance criterion.** The
+   number is `absenceCountsFor(entries, range, roster)` **and nothing else** — a `week-row` count, a
+   `people.length` or any local sum is forbidden. That is ADR-029 clause 1, it is why **INV-04 is
+   *satisfied* rather than amended and the ledger is not edited**, and **one occurrence of a count
+   from any other source, anywhere in this product, is that ADR's revert condition**. Without the
+   clause the decision becomes its own rejected option 3 — three chips against a load of two.
+
+**Two things a human may want to know before it is planned, and neither is its position.**
+
+- **One decision is handed to PLAN open, and it is coupled to a test.** Whether *"Everybody is in."*
+  goes. A footer reading `0/4` makes deleting it defensible *and following from* the count — but
+  ADR-029 authorises the ticket only to **consider** it, and **until the ticket decides, the
+  sentence stays**: without the count, deleting it makes *an ordinary Tuesday* and *we did not look*
+  the same column (CAL-05 AC-13, UIE-04 AC-10), and `tests/e2e/cal-05-week-view.spec.ts:266`
+  asserts **seven** `week-day-empty` elements. That spec file enters `allowed_paths` if and only if
+  PLAN deletes the sentence, and PLAN says which it chose. `ticket.yaml` § 4.
+- **What ADR-029 says gets worse is on the row rather than hidden, and the plan does not have to
+  discover it.** A day with one full-day and two half-day entries shows three chips over `1.5/N`
+  and the screen does not explain the arithmetic — CAL-05's objection, **accepted rather than
+  answered**, with a secondary revert condition that retires the strip on the first real report
+  instead of explaining it, so PLAN must not spend a row explaining it pre-emptively. A second
+  number lands on the densest screen in the product. And a refusal taken deliberately three times is
+  reversed, which costs the next reader some trust in that file's standing comments —
+  `src/routes/WeekView.tsx:11-17`, which this ticket rewrites and whose replacement ADR-029
+  requires to carry the correction that **a count never needed a team read**.
+
+**Row 1 was appended by `product` at /triage on 2026-09-08, and it is the row owed item 1 below has
+been waiting for since 2026-09-05.** It is from
+`.ai/board/ideas/2026-09-08-two-row-limits-sit-above-the-cap-they-were-written-to-stay-under.md`,
+whose `## Verdict` section is the reasoning. It is row 1 because it is the only row, not because
+anybody placed it — the header of this file says a human reorders, and `product` asserts nothing
+about position.
+
+**The paragraph immediately below says this table is empty. It is left standing rather than
+rewritten**, on this file's own convention: it was true when `UIE-06` shipped, and it stopped being
+true when this row landed — which is exactly the door it describes.
+
+**Three things a human needs, and none of them is a priority question.**
+
+1. **It is a defect, not a capability, so there is no new feature row and no new feature ID.**
+   `BUG-nnn` is a ticket ID scheme: ADR-028:36-39 records that it appears on no prefix line, has no
+   rows, and is not policed by check D1 — re-verified on disk at this triage against
+   `scripts/check-docs.mjs:194-198` and `:224-225`, which today build the pattern from the four
+   declared prefixes `CAL ADM TEA UIE`. What was written instead is a provenance sentence on the
+   `Notes` of **CAL-03, CAL-04, CAL-05 and CAL-06**, each citing the idea file and `BUG-002`. On
+   CAL-04, CAL-06 and ADM-02 the same sentence **discharges the `TODO(verify):` on the datastore's
+   default `max-rows`** — the answer is 1000, read off the installed client. ADM-06's marker is a
+   different and independent unknown and is deliberately **not** discharged.
+2. **Four `feature_ids`, and CAL-05 is in the list on purpose.** `tech-lead-design` recommended
+   three. CAL-05's AC-15 is falsified by the same constant through the same read, so it is a parent
+   of this defect; that its seven-day range is unlikely to reach the cap in practice is a statement
+   about urgency, not about parentage. `.ai/standards/git-conventions.md:38-39` requires a bug to
+   carry its parent feature, and there are four. All four are `CAL`, so Definition of Ready item 6
+   passes on one group.
+3. ***THE TICKET SHELL FENCES OFF ONE FIX SHAPE AND A REVIEWER SHOULD KNOW BEFORE PLAN RUNS.***
+   `requires_adr: false` is scoped to three of the four candidate fixes. The fourth — raising the
+   Supabase project's `max-rows` API setting — is out of bounds inside this ticket, and `ticket.yaml`
+   § 4 says why at length: it adds a repository artifact and a deployment step that do not exist, and
+   it makes a product correctness property depend on a value no file records and no check can verify.
+   **If PLAN concludes that shape is right, the correct verdict from PLAN is `BLOCKED` with
+   `requires_adr: true`** — ADR-008's test, decide inside the envelope and ask before changing it.
 
 ***THIS TABLE IS EMPTY AGAIN — THE SECOND TIME, AND THE FIRST TIME IT HAPPENED THE ROWS CAME BACK
 WITHIN THE HOUR.*** `UIE-06` left it for `## ARCHIVE` on 2026-09-08. **All twenty-nine tickets on the board are
@@ -71,20 +173,45 @@ settled it is item 3 of the same section rather than any preference about densit
 its own option 3 because a reader who counts three chips against a load of two gets the wrong number,
 and deleting the month numeral asks that cell to become exactly that.
 
-**ONE THING IS NOW OWED THAT WAS NOT BEFORE: ADR-029 obliges a re-triage.** Its § *Consequences* says
+~~**ONE THING IS NOW OWED THAT WAS NOT BEFORE: ADR-029 obliges a re-triage.** Its § *Consequences* says
 *"This decision does not create a ticket"* — the idea
 `2026-09-07-a-day-does-not-say-how-full-it-is.md` is re-triaged and promotes into a `UIE` row carrying
 the four clauses as the substance of its criteria. **That is `/triage`'s, in a `product` session, and
-it is the first row this empty table is waiting for.** ADR-031's rejection obliges nothing at all.
+it is the first row this empty table is waiting for.**~~ ADR-031's rejection obliges nothing at all.
+
+***DISCHARGED 2026-09-08 BY `product` AT /triage — the row is `UIE-07`, at row 2 of this table.***
+Struck rather than deleted, on this file's convention. **It was not the first row this table was
+waiting for in the end**: `BUG-002` reached it earlier the same day, so this one is row 2, which is a
+statement about arrival order and not about priority. What the re-triage produced is a `UIE-07` row in
+`.ai/registry/features.md`, a shell at `.ai/board/tickets/UIE-07/ticket.yaml`, and a second verdict
+section in the idea file — the `NEEDS-ADR` pass there is now discharged history and the `PROMOTE` is
+live.
 
 **And one stale comment is owed with it.** `src/routes/WeekView.tsx:11-17` still reads *"IT COUNTS
 NOTHING"* and still gives the two reasons the decision found false. It belongs to the ticket, not to a
-chore, so it stays wrong in the tree until that ticket runs.
+chore, so it stays wrong in the tree until that ticket runs. **That is still true and is NOT
+discharged by the re-triage** — the ticket now exists and carries the rewrite as `ticket.yaml` § 3,
+with ADR-029's requirement that the replacement say a count never needed a team read; the comment is
+wrong in the tree until `UIE-07` is built. Re-read on disk at that triage and unchanged.
 
 **The other four owed items are unchanged** and are listed under the original empty-table paragraph:
 the `BUG` row for the 2000-against-1000 truncation limits, the `§ Colour` / `§ Type` / breakpoint
 stubs, the two product names, and the `PLAN -> READY` loop step no command runs — now thirteen
 tickets old.
+
+***ONE OF THOSE FOUR IS NOW DISCHARGED, 2026-09-08: the `BUG` row exists and is `BUG-002` at row 1.***
+The sentence above is left standing rather than corrected, on this file's convention. **The other
+three are untouched and still owed** — ~~and so is ADR-029's obliged re-triage of
+`.ai/board/ideas/2026-09-07-a-day-does-not-say-how-full-it-is.md`, which is a **separate `/triage`
+run in a `product` session** and is **not** discharged by this one.~~ Nothing about `BUG-002` bears on
+it: it is a defect against four shipped `CAL` rows, and the re-triage promotes into a `UIE` row.
+
+***THE RE-TRIAGE WAS DISCHARGED LATER THE SAME DAY, 2026-09-08, and the clause above is struck rather
+than deleted.*** It was correct when written — that separate `product` session was still owed, and it
+then ran. Its outcome is `UIE-07` at row 2. **The three remaining owed items are unchanged and still
+owed**: the `§ Colour` / `§ Type` / breakpoint stubs, the two product names, and the `PLAN -> READY`
+loop step no command runs. **The `src/routes/WeekView.tsx:11-17` comment is also still stale**, and
+what changed is only that a ticket now carries its rewrite.
 
 **One smaller item was added by this ship.** `src/components/Sidebar.tsx:63-64` carries a comment
 whose three clauses are false, the same ones UIE-06 corrected in `src/index.css`. It was left in place
@@ -280,6 +407,11 @@ Each is recorded in the file that found it, and each is the operator's to promot
    `src/lib/domain/types.ts` while the datastore caps at 1000, so their truncation assertions can
    never fire and **CAL-04 AC-11 is not held**: the month grid sums what it was given and shows a
    wrong count with no error anywhere.
+   ***DISCHARGED 2026-09-08 BY `product` AT /triage — the row is `BUG-002`, at the top of this
+   file.*** The item is left standing rather than deleted, and everything it states is still true of
+   the tree: nothing is fixed yet, and what changed is only that the work is now on the board. It
+   grew in the doing — it is **four** unheld written statements against four `CAL` rows, not one, and
+   CAL-03's is the sharpest because `listTeamEntries` has no date filter at all.
 2. **`§ Colour`, `§ Type` and a breakpoint have no standard behind them.** `.ai/standards/ui-design-system.md`
    § *Colour* and § *Type* are still bare `TODO(project)` stubs while `src/index.css` carries the
    real palette and type scale (UIE-01), and `1280px` was originated at UIE-04 as the product's
