@@ -884,7 +884,7 @@ Tickets that cannot proceed until a human decides something. Name the decision, 
 | 17 | UIE-05 | The week column fills the viewport, and its header strip and entry chip are restacked | 2026-09-08 | [#72](https://github.com/didi-code0980/calechip/pull/72) |
 | 18 | UIE-06 | The month grid becomes one ruled full-width card with taller cells, on the product's tokens | 2026-09-08 | [#73](https://github.com/didi-code0980/calechip/pull/73) |
 | 19 | BUG-002 | Two row limits sit above the datastore cap, so four truncation assertions can never fire | 2026-09-08 | [#76](https://github.com/didi-code0980/calechip/pull/76) |
-| 20 | UIE-07 | The week view renders a per-day absence count | 2026-09-08 | PENDING_PR |
+| 20 | UIE-07 | The week view renders a per-day absence count | 2026-09-08 | [#77](https://github.com/didi-code0980/calechip/pull/77) |
 
 **The window displaced `CAL-04` at this ship** — *CAL-04, Month view — a day grid showing who is away
 and which days are overloaded, shipped 2026-09-04,*
