@@ -1700,3 +1700,39 @@ than checking it. Recorded because the standing instruction is *verify before an
 a command is not the same as reading its result.
 
 No registry write. No ADR.
+
+### 2026-09-08 — two stale documents, and the defect that let them stay stale
+
+Routed here by `orchestrator` at CAL-09's `/ship`, which found that both `03-impl-log.md` and
+`04-review.md` had declined to run `pnpm exec playwright test` and had cited MD-021's six known
+harness failures plus `playwright.config.ts:49-51` as the reason.
+
+**Verified the citation before acting on it, and both halves of it were already false.**
+`playwright.config.ts:49-51` is BUG-001's fix, not a defect — it pins `VITE_DATA_SEAM: "mock"` and
+`VITE_SUPABASE_URL: ""` in `webServer.env`, which is precisely what MD-021's *Fix shape* column
+asked for. And the six failures do not occur: **ran the suite rather than believing either document
+— 171 tests in 18 spec files, all pass.**
+
+Measured all four commands instead of copying the numbers out of the row that reported the problem:
+typecheck exit 0, lint exit 0, `vitest` 12 files / 202 tests, `playwright` 171 tests. The docs audit
+reports 0 errors and the hook and script suite is 229 of 229.
+
+**Two writes, and one of them is standards plane.** MD-021 gains a `RESOLVED 2026-09-03 by BUG-001`
+banner in the form MD-015 already established. `.ai/standards/testing-standards.md`'s command table
+now records the 2026-09-08 run in place of the 2026-09-01 one; that file is human-owned under
+RULE-01 and the mechanism is CODEOWNERS review at merge, so it is written here and approved there.
+The superseded row is quoted in the paragraph beneath rather than deleted, on the same principle
+this log follows.
+
+**Recorded MD-029 rather than treating this as two documents that happened to rot.** Nothing
+connects a shipped ticket to the debt row it closes: `/ship` knows its ticket and nothing more, no
+ticket names the row it fixes, and no check reads a fixed row back. Marking MD-021 today does not
+stop the next one. The asymmetry is what makes it worth a row rather than a shrug — **a stale
+`pass` is merely untrue, a stale `fail` is a standing permission to skip a gate command**, and CAL-09
+is the proof that a stage will take it. Both of its stages declared the skip instead of hiding it,
+which is the only reason any of this was visible.
+
+Did not touch CAL-09. It is `DONE` and merged (#79), the finding is about the documents it read, and
+re-opening a shipped ticket to run a command whose result is now known would be theatre.
+
+Audit 0 errors, 2 warnings, 3 pending. 229 of 229 hook and script tests pass. No registry write.
