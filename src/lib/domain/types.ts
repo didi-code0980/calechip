@@ -349,8 +349,49 @@ export interface DateRange {
  * item 2.
  *
  * A LITERAL AND NOT DATASTORE_MAX_ROWS, for the reason recorded on TEAM_ENTRY_LIMIT above.
+ *
+ * CAL-09 RETIRED ITS ONLY READER AND LEFT THE CONSTANT STANDING. The ticket that follows this one,
+ * promised two paragraphs above, is CAL-09, and it took the paging answer: `listTeamEntriesOverlapping`
+ * now assembles windows of TEAM_ENTRY_PAGE_SIZE rows and refuses what it cannot prove complete, so
+ * nothing reads this value any more. It is NOT deleted, and that is a decision rather than an
+ * oversight — six files outside CAL-09's `allowed_paths` still name it in comments
+ * (src/routes/YearView.tsx, src/routes/WeekView.tsx and the four tests/e2e/cal-0*.spec.ts headers),
+ * and putting four route and end-to-end files into a ticket for comment-only edits is worse than one
+ * honest paragraph here. Removing it is a chore, and this sentence is what a later reader needs in
+ * order to know the constant is dead rather than merely quiet. tests/row-limits.test.ts keeps
+ * asserting it: the row is now vacuously true, and deleting it would edit BUG-002's list for no
+ * property gained.
  */
 export const MONTH_ENTRY_LIMIT = 1000;
+
+/**
+ * CAL-09. The window `listTeamEntriesOverlapping` reads in, and NOT a ceiling.
+ *
+ * The read pages and assembles; it does not truncate. Like PENDING_PAGE_SIZE and unlike the five
+ * limits above it, this must sit strictly BELOW DATASTORE_MAX_ROWS so a page shortened by a lowered
+ * cap is distinguishable from a full one.
+ *
+ * 500 rather than 50: this read serves the YEAR view, whose legitimate row count is the largest in
+ * the product, and every sequential request is a round trip on the slowest screen in the app. At 500
+ * the month, the week and the draft-entry warning are one request each, and a year is a small
+ * handful. The cost is paid in the unit test, which must create 501 entries to cross a boundary —
+ * arithmetic in a mock, not four minutes in a browser.
+ */
+export const TEAM_ENTRY_PAGE_SIZE = 500;
+
+/**
+ * CAL-09. The most requests one assembly may issue.
+ *
+ * A BOUND ON WORK, NOT A CEILING ON CORRECTNESS, and the difference is the whole point: exceeding it
+ * cannot return a short array, because the completeness comparison refuses first. What it prevents
+ * is an unbounded loop against a datastore that keeps answering.
+ *
+ * It does leave the product with a maximum, and that is stated rather than hidden: a range matching
+ * more than TEAM_ENTRY_PAGE_SIZE * TEAM_ENTRY_MAX_PAGES entries is REFUSED. That figure is four
+ * times the cap this ticket removes, and unlike the cap it is this product's own, named here, and
+ * detected in the response rather than invisible in it.
+ */
+export const TEAM_ENTRY_MAX_PAGES = 8;
 
 /**
  * The absence count for each date in a range. Keys are `yyyy-MM-dd`; EVERY date in the range is
