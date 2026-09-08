@@ -5,32 +5,77 @@ id: CAL-09
 title: "The calendar reads serve a year larger than one datastore page"
 feature_ids: [CAL-09]
 group: CAL
-state: BACKLOG
+state: DONE        # `orchestrator` at /ship, 2026-09-08, on 04-review.md `gate: PASS` /
+                   # `next_state: DONE`. ADR-022 removed the QA stage, so REVIEW -> DONE is the whole
+                   # remaining transition (.ai/01-operating-model.md:36).
+#
+# PREVIOUS VALUE, `REVIEW`, comment reproduced below. SIXTEENTH TICKET TO GO BACKLOG -> REVIEW ON
+# DISK, and the clearest statement of the mechanism any stage has written: /plan writes only four
+# fields (.claude/commands/plan.md:114) and the ORCHESTRATOR grades the DoR and moves the ticket.
+# The developer did not back-date the gate, which is the fifth time that refusal has been made.
+#
+# THE GRADE BEHIND IT: `/next-ticket` graded the full Definition of Ready in the orchestrator session
+# at 2026-09-08 16:31 +07, SIX OF SIX PASS — after `/plan` (16:20) and before `/implement`.
+#
+# state: REVIEW    # Set by `developer` at /implement on 2026-09-08, on gate PASS — 03-impl-log.md.
+#                  # IT ARRIVED HERE READING `BACKLOG`, and that is left visible rather than tidied:
+#                  # /plan writes only size_estimate, size, invariants_touched and allowed_paths
+#                  # (.claude/commands/plan.md:114), and the orchestrator grades the Definition of
+#                  # Ready and moves the ticket to READY. That never ran, so `gates.plan` below is
+#                  # still `passed: false` and this agent did not back-date it. /ship requires it.
 owner: ""
-branch: ""
-size_estimate: ""     # THE TEMPLATE'S SHIPPED DEFAULT, LEFT UNTOUCHED. Definition of Ready item 5,
-                      # set by `tech-lead-design` at /plan. This triage records NO size and NO size
-                      # signal — see §9. A triage that fills it has taken PLAN's decision on a
-                      # reading rather than on a design, and §5 is the reason a reading is not
-                      # enough here: the mechanism this ticket needs does not exist in the tree.
-size: ""              # S|M|L|XL - set by tech-lead-design at PLAN; decides splitting
+branch: "feat/CAL-09"   # FILLED BY `orchestrator` AT /ship, 2026-09-08. It was `""` through triage,
+                        # PLAN, /implement and REVIEW — the ONLY ONE OF THIRTY-TWO TICKETS with the
+                        # field empty, and it was reported at /next-ticket twice and in PR #78's body
+                        # before this. Nothing was blocked by it: both guards resolve the ticket from
+                        # the REAL git branch name (scripts/check-allowed-paths.mjs:101,
+                        # .claude/hooks/guard-allowed-paths.mjs:3), never from this field. So this is
+                        # recording a fact that was already true on disk, not taking a decision —
+                        # the branch this ticket was planned, built, reviewed and shipped on is
+                        # `feat/CAL-09`. Under .ai/steward/context.md § Autonomy's small-defect grant.
+size_estimate: "M"    # Set by `tech-lead-design` at /plan on 2026-09-08. Read from 01-plan.md
+                      # section 1: two seam implementations, a shared constants module, the seam's
+                      # contract comment and two test files, against a mechanism with no precedent
+                      # in this tree. The triage recorded no size and no size signal (§9), so this
+                      # is the first estimate anybody has made. It DISAGREES with `size` below —
+                      # 01-plan.md section 7 carries the one line ADR-012 asks for.
+size: "S"             # Six files, counted from `allowed_paths` below - 01-plan.md section 7.
+                      # `S` is up to 6 (.ai/01-operating-model.md:372), so this proceeds and does
+                      # not split. NOT XL: the seam signature is unchanged character for character,
+                      # there is no migration, and the two constants added to src/lib/domain/types.ts
+                      # are additive so no existing caller changes - the ADM-06 reading of the
+                      # "changes a shared type module" clause at .ai/01-operating-model.md:375.
 depends_on: []        # MEASURED AT THIS TRIAGE RATHER THAN ASSUMED — §10 is the measurement.
-invariants_touched: []   # THE TEMPLATE'S SHIPPED DEFAULT, LEFT UNTOUCHED — AND IT IS *NOT* THIS
-                         # TRIAGE'S ANSWER. Definition of Ready item 2, and it belongs to
-                         # `tech-lead-design` at /plan. §11 names what to look at and settles
-                         # nothing. .ai/registry/invariants.md:63 warns that observing the safest
-                         # behaviour and concluding no invariant is engaged is circular reasoning,
-                         # so PLAN states the MECHANISM per invariant and not the conclusion.
-allowed_paths: []     # [] is a control, not a placeholder — guard-allowed-paths.mjs blocks every
-                      # write outside this ticket folder while it is empty. PLAN fills it.
-                      # EXACT PATHS, NO GLOBS ON SOURCE FILES, AND NO INLINE COMMENTS ON THE ITEMS:
-                      # `readYamlList` in scripts/check-allowed-paths.mjs and in
-                      # .claude/hooks/guard-allowed-paths.mjs strips only a leading and a trailing
-                      # quote, so a trailing `# ...` is swallowed into the pattern and the glob then
-                      # matches nothing.
+invariants_touched: [INV-04, INV-07]   # Set by `tech-lead-design` at /plan. 01-plan.md
+                         # section 2 states the MECHANISM per ID rather than the conclusion, which is
+                         # what .ai/registry/invariants.md:63 asks for.
+                         # INV-04 is engaged through COMPLETENESS, not arithmetic: `absenceCountsFor`
+                         # sums correctly over whatever rows it is handed and the whole question is
+                         # whether it is handed all of them. Held inside the seam, before any caller
+                         # counts, and by the ban on a per-page sum (AC-10).
+                         # INV-07 because a multi-request read COULD scope its requests differently
+                         # and mix teams; held by `entry_select_team` filtering every request and by
+                         # the mock filtering the whole array before the first window (AC-9).
+                         # INV-01, INV-02, INV-03, INV-05 and INV-06 are decided NOT engaged rather
+                         # than omitted - this ticket writes no entry and adds no status predicate.
+allowed_paths:        # Enumerated by `tech-lead-design` at /plan - 01-plan.md section 7, which
+                      # says what each is for. Exact paths, no globs, no inline comments on the items.
+                      # .ai/board/tickets/CAL-09/ is absent deliberately: the guard exempts the active
+                      # ticket's own folder (.claude/hooks/guard-allowed-paths.mjs:205-206).
+  - "src/lib/domain/types.ts"
+  - "src/lib/data/index.ts"
+  - "src/lib/data/supabase.ts"
+  - "src/lib/data/mock.ts"
+  - "tests/row-limits.test.ts"
+  - "tests/team-entries-paging.test.ts"
 schema_delta: none    # §6, AND IT CARRIES A FENCE RATHER THAN A CONCLUSION. `none` is correct for
                       # offset paging over the order the read already has. IT MAY NOT SURVIVE A
                       # KEYSET PREDICATE — read §6 before relying on this value.
+                      # RE-EVALUATED AT /plan ON 2026-09-08 AND NOT INHERITED, which is what the fence
+                      # above asks for. The shape taken is OFFSET `range()` over the existing
+                      # `start_date`,`id` order, with the offset advanced by rows in hand. The keyset
+                      # predicate was considered and REJECTED on its merits — 01-plan.md section 8,
+                      # rejected alternative 1 — so no index is wanted and `none` stands.
 requires_adr: false   # §7, AND IT IS SCOPED. One fix shape is out of bounds inside this ticket and
                       # PLAN's correct verdict on reaching for it is BLOCKED with requires_adr: true.
 rework_count: 0
@@ -42,8 +87,18 @@ chat_budget:
   # triaged after that date, so no `qa` key appears here and none may be added.
 tracker: { provider: "", external_id: "", sync_enabled: false }
 gates:
-  plan:   { passed: false, at: null }   # ADR-019 merged the `spec` and `design` gates into one
-  review: { passed: false, at: null }
+  # BOTH ROWS TRANSCRIBED BY `orchestrator` AT /ship ON 2026-09-08. Neither value is claimed here —
+  # each is a copy of a gate another stage reached, read from that artifact's own front-matter.
+  # THE OFFSETS ARE NORMALISED TO `+07:00`. Both artifacts wrote `+0700` without the colon, which is
+  # this ticket's form alone; every other gate row in the repository carries the colon. Same value.
+  #
+  # From .ai/board/tickets/CAL-09/01-plan.md: `gate: PASS`, `blocking_reason: ""`,
+  # `produced_at: 2026-09-08T16:20:47+0700`. ADR-019 merged the `spec` and `design` gates into one.
+  plan:   { passed: true, at: "2026-09-08T16:20:47+07:00" }
+  # From .ai/board/tickets/CAL-09/04-review.md: `gate: PASS`, `blocking_reason: ""`,
+  # `next_state: DONE`, `produced_at: 2026-09-08T16:52:52+0700`. ONE review pass, `rework_count: 0`,
+  # no consultation, no amendment — the seventh in a row.
+  review: { passed: true, at: "2026-09-08T16:52:52+07:00" }
   # No `qa` gate — ADR-022 removed the stage. /ship requires `plan` and `review`.
 
 # Created by `product` at /triage on 2026-09-08, on a PROMOTE verdict, from

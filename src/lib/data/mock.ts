@@ -34,12 +34,16 @@ import type {
 } from "../domain/types";
 // TEA-03, and CAL-04 for the third. RUNTIME imports, not type ones - 02-design.md section 1.1.
 // ADM-04 adds PENDING_PAGE_SIZE, which is a WINDOW and not a ceiling - see its own comment there.
+// CAL-09 adds TEAM_ENTRY_PAGE_SIZE and TEAM_ENTRY_MAX_PAGES, which are a window and a bound on work
+// for the same reason, and removes MONTH_ENTRY_LIMIT: `listTeamEntriesOverlapping` was its only
+// reader here and now pages instead. The constant still exists and its docblock says why.
 import {
   HOLIDAY_LIMIT,
-  MONTH_ENTRY_LIMIT,
   PENDING_PAGE_SIZE,
   ROSTER_LIMIT,
   TEAM_ENTRY_LIMIT,
+  TEAM_ENTRY_MAX_PAGES,
+  TEAM_ENTRY_PAGE_SIZE,
 } from "../domain/types";
 import {
   FIXTURE_ADMIN,
@@ -1212,10 +1216,20 @@ export const seam: DataSeam = {
   // `sameTeam` and not `===`, for the reason `listTeamEntries` records: `member_team_id` is null for
   // a removed member and `null = null` is NULL in SQL rather than true, so a removed member's
   // entries are invisible here exactly as they are there.
+  //
+  // CAL-09 REPLACED THE CEILING WITH THE SAME ASSEMBLY supabase.ts runs, over the same order, so the
+  // two implementations tell one story and the unit test can exercise the walk. The team filter, the
+  // overlap predicate and the sort are unchanged; `.slice(0, MONTH_ENTRY_LIMIT)` and its raise are
+  // gone, and `matching` is the filtered array's length.
+  //
+  // THE TEAM FILTER IS APPLIED TO THE WHOLE ARRAY BEFORE THE FIRST WINDOW IS TAKEN (INV-07, AC-9),
+  // which is the mock's copy of `entry_select_team` filtering every request in the real one. A window
+  // taken before the filter would page over another team's rows and then drop them, which reads as a
+  // short page rather than as a scope error.
   async listTeamEntriesOverlapping(range: DateRange): Promise<Entry[]> {
     const mine = memberTeamId(currentMemberId);
 
-    const rows = entries
+    const matched = entries
       .filter((e) => sameTeam(memberTeamId(e.memberId), mine))
       .filter((e) => e.startDate <= range.end && e.endDate >= range.start)
       .slice()
@@ -1223,20 +1237,46 @@ export const seam: DataSeam = {
         a.startDate === b.startDate
           ? a.id.localeCompare(b.id)
           : a.startDate.localeCompare(b.startDate),
-      )
-      .slice(0, MONTH_ENTRY_LIMIT);
+      );
 
-    // AC-11. The same limit and the same raise as supabase.ts, and the same reason as `listMembers`
-    // and `listTeamEntries`: this array is bounded by the fixtures so it never fires, and it is here
-    // so the two implementations tell one story rather than because the mock can truncate.
-    if (rows.length >= MONTH_ENTRY_LIMIT) {
+    const matching = matched.length;
+    const assembled: Entry[] = [];
+    const seen = new Set<string>();
+
+    for (let request = 0; request < TEAM_ENTRY_MAX_PAGES; request += 1) {
+      const from = assembled.length;
+      const rows = matched.slice(from, from + TEAM_ENTRY_PAGE_SIZE);
+
+      // The same two refusals as supabase.ts, and NEITHER CAN FIRE HERE: the count and the windows
+      // come from one array, so a row cannot be skipped or repeated between them. They are written
+      // because the two implementations must tell one story, not because the mock can truncate —
+      // the same reason `listMembers` and `listTeamEntries` carry their raises.
+      for (const row of rows) {
+        if (seen.has(row.id)) {
+          throw new Error(
+            `listTeamEntriesOverlapping received entry ${row.id} twice across pages: the result is ` +
+              `not a set and must not be counted (CAL-09 AC-6)`,
+          );
+        }
+        seen.add(row.id);
+        assembled.push(row);
+      }
+
+      if (assembled.length >= matching) break;
+      if (rows.length === 0) break;
+    }
+
+    // AC-1, AC-5, AC-8. The bound IS reachable here, unlike the two refusals above: a fixture of more
+    // than TEAM_ENTRY_PAGE_SIZE * TEAM_ENTRY_MAX_PAGES matching entries exhausts the loop and this
+    // comparison throws rather than returning a short array.
+    if (assembled.length !== matching) {
       throw new Error(
-        `listTeamEntriesOverlapping returned ${rows.length} rows at the ${MONTH_ENTRY_LIMIT} ` +
-          `limit: the month may be truncated and must not be counted (CAL-04 AC-11)`,
+        `listTeamEntriesOverlapping assembled ${assembled.length} rows while ${matching} match: ` +
+          `the range may be incomplete and must not be counted (CAL-09 AC-5)`,
       );
     }
 
-    return rows.map((e) => ({ ...e }));
+    return assembled.map((e) => ({ ...e }));
   },
 
   // -------------------------------------------------------------------------

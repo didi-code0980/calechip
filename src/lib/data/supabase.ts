@@ -43,13 +43,17 @@ import type {
 // TEA-03, CAL-01 for the second constant, CAL-04 for the fourth. RUNTIME imports, not type ones:
 // each is needed as a value at the call. They come from ../domain/types and not from ./index, which
 // imports this file back - 02-design.md section 1.1.
+// CAL-09 removed MONTH_ENTRY_LIMIT from this list: `listTeamEntriesOverlapping` was its only reader
+// here and now pages instead. The constant itself still exists — its docblock in ../domain/types
+// records why it was not deleted.
 import {
   HOLIDAY_LIMIT,
-  MONTH_ENTRY_LIMIT,
   OWN_ENTRY_LIMIT,
   PENDING_PAGE_SIZE,
   ROSTER_LIMIT,
   TEAM_ENTRY_LIMIT,
+  TEAM_ENTRY_MAX_PAGES,
+  TEAM_ENTRY_PAGE_SIZE,
 } from "../domain/types";
 
 // Vite exposes only variables prefixed VITE_. The anon key is public by design and ships in the
@@ -1158,34 +1162,86 @@ export const seam: DataSeam = {
   // alone leaves their order undefined in PostgreSQL. ASCENDING, unlike the three reads above: this
   // one feeds a grid that reads left to right through the month rather than a list that shows the
   // newest first.
+  //
+  // CAL-09 REPLACED THE CEILING WITH AN ASSEMBLY. The `.limit(MONTH_ENTRY_LIMIT)` and the
+  // `rows.length >= MONTH_ENTRY_LIMIT` raise that stood here until 2026-09-08 were CORRECT and are
+  // gone: a correct refusal is not a calendar, and a team above the cap lost the year view outright
+  // for the rest of the year. What replaces them is strictly stronger — the read requests windows and
+  // compares what it assembled against the datastore's own exact count, which detects a shortened
+  // window, a skipped row and an exhausted bound alike WITHOUT KNOWING the cap's value. CAL-09 AC-1
+  // to AC-8; the ADM-04 precedent for `count: "exact"` with `.range()` is at `listPendingEntries`
+  // below.
   async listTeamEntriesOverlapping(range: DateRange): Promise<Entry[]> {
-    const { data, error } = await client()
-      .from("entry")
-      .select(ENTRY_COLUMNS)
-      .filter("date_range", "ov", `[${range.start},${range.end}]`)
-      .order("start_date", { ascending: true })
-      .order("id", { ascending: true })
-      .limit(MONTH_ENTRY_LIMIT)
-      .returns<EntryRow[]>();
+    const assembled: EntryRow[] = [];
+    const seen = new Set<string>();
+    let matching: number | null = null;
 
-    if (error) throw new Error(`listTeamEntriesOverlapping failed: ${error.message}`);
+    for (let request = 0; request < TEAM_ENTRY_MAX_PAGES; request += 1) {
+      // THE OFFSET IS THE NUMBER OF ROWS IN HAND, not `request * TEAM_ENTRY_PAGE_SIZE`. A page
+      // shortened by a lowered cap then costs another request rather than opening a gap the
+      // completeness check would only report after the rows were already lost.
+      const from = assembled.length;
+      const to = from + TEAM_ENTRY_PAGE_SIZE - 1;
 
-    const rows = data ?? [];
+      const { data, error, count } = await client()
+        .from("entry")
+        .select(ENTRY_COLUMNS, { count: "exact" })
+        .filter("date_range", "ov", `[${range.start},${range.end}]`)
+        .order("start_date", { ascending: true })
+        .order("id", { ascending: true })
+        .range(from, to)
+        .returns<EntryRow[]>();
 
-    // AC-11, and it is the sharpest instance of an assertion this file already makes three times.
-    // PostgREST caps rows server-side and answers a believable short list with no error anywhere;
-    // every other read that happens to loses a row from a list, where the gap is at least visible.
-    // This one gets SUMMED, so a truncated read produces a lower count, a day that was overloaded
-    // renders normal, and nothing anywhere says so. A wrong count on this screen is worse than no
-    // screen, because the count is the product.
-    if (rows.length >= MONTH_ENTRY_LIMIT) {
+      if (error) throw new Error(`listTeamEntriesOverlapping failed: ${error.message}`);
+
+      // AC-7. The count is asked for explicitly, so a null one means the datastore did not answer
+      // the half completeness is decided on. Falling back to `rows.length` would report a page as
+      // the whole year — the silent short calendar BUG-002 closed, arriving by a new route.
+      if (count === null || count === undefined) {
+        throw new Error(
+          "listTeamEntriesOverlapping got no exact count: completeness must never be derived from " +
+            "the number of rows received (CAL-09 AC-7)",
+        );
+      }
+
+      // The FIRST count is the target. Later counts are read and ignored: a count that grew means a
+      // concurrent write, which is not by itself a loss, and refusing on it would fail the year view
+      // whenever anybody created an entry. What a concurrent write can actually DO to an offset walk
+      // is caught below — a skipped row by the length comparison, a repeated row by `seen`.
+      if (matching === null) matching = count;
+
+      const rows = data ?? [];
+
+      // AC-6. Offset paging is not atomic: a row inserted ahead of the cursor shifts the window and
+      // returns a row already held. Summed twice it inflates a day's absence count, which is INV-04
+      // wrong in the loud direction rather than the silent one — still wrong.
+      for (const row of rows) {
+        if (seen.has(row.id)) {
+          throw new Error(
+            `listTeamEntriesOverlapping received entry ${row.id} twice across pages: the result is ` +
+              `not a set and must not be counted (CAL-09 AC-6)`,
+          );
+        }
+        seen.add(row.id);
+        assembled.push(row);
+      }
+
+      if (assembled.length >= matching) break;
+      if (rows.length === 0) break; // no progress; the comparison below is the refusal
+    }
+
+    // AC-1, AC-5, AC-8. THE ONE REFUSAL SITE, and it is strictly stronger than the ceiling it
+    // replaces: it detects a shortened window, a skipped row and an exhausted bound alike, without
+    // knowing the datastore's cap. Reached with `matching` non-null — the loop bound is at least 2
+    // (AC-13), so the body runs and either assigns it or throws.
+    if (matching === null || assembled.length !== matching) {
       throw new Error(
-        `listTeamEntriesOverlapping returned ${rows.length} rows at the ${MONTH_ENTRY_LIMIT} ` +
-          `limit: the month may be truncated and must not be counted (CAL-04 AC-11)`,
+        `listTeamEntriesOverlapping assembled ${assembled.length} rows while ${matching ?? "no"} ` +
+          `match: the range may be incomplete and must not be counted (CAL-09 AC-5)`,
       );
     }
 
-    return rows.map(toEntry);
+    return assembled.map(toEntry);
   },
 
   // -------------------------------------------------------------------------

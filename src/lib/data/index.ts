@@ -503,10 +503,11 @@ export interface DataSeam {
    * outside `absenceCountsFor`, which is what INV-04 exists to prevent. The one implementation of
    * the rule excludes them (AC-4).
    *
-   * THROWS on a transport failure and on a possibly-truncated answer, the shape `listTeamEntries`,
-   * `listOwnEntries` and `listMembers` all use. AC-11 is that throw: a capped read SUMS what it was
-   * given and produces a believable wrong answer with no error anywhere, and on this screen the
-   * count is the product.
+   * THROWS on a transport failure, and on any answer the seam cannot prove complete. The read PAGES
+   * and assembles rather than truncating (CAL-09): it requests windows of TEAM_ENTRY_PAGE_SIZE rows
+   * in the read's own order until it holds as many DISTINCT rows as the datastore says match, and it
+   * refuses if it cannot. There is no partial success — a caller receives every matching entry or an
+   * error, which is what lets absenceCountsFor be handed the set and called once.
    */
   listTeamEntriesOverlapping(range: DateRange): Promise<Entry[]>;
 

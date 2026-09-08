@@ -29,6 +29,8 @@ import {
   PENDING_PAGE_SIZE,
   ROSTER_LIMIT,
   TEAM_ENTRY_LIMIT,
+  TEAM_ENTRY_MAX_PAGES,
+  TEAM_ENTRY_PAGE_SIZE,
 } from "@/lib/domain/types";
 
 // Every ceiling the product defines for a SINGLE read, in the order they are declared in
@@ -62,5 +64,39 @@ describe("BUG-002 — row ceilings against the datastore cap", () => {
   // so that a future change to paging cannot quietly borrow the ceiling rule.
   it("AC-1: PENDING_PAGE_SIZE is a window below the cap, not a ceiling", () => {
     expect(PENDING_PAGE_SIZE).toBeLessThan(DATASTORE_MAX_ROWS);
+  });
+});
+
+// CAL-09 — the two constants that replaced MONTH_ENTRY_LIMIT's ceiling on the calendar read.
+//
+// They are asserted in this file and not in tests/team-entries-paging.test.ts because the property is
+// arithmetic about the constants themselves, which is exactly what this file exists for, and because
+// the third assertion below is the ONLY place AC-8's bound is observable at all: making the assembly
+// actually exhaust TEAM_ENTRY_MAX_PAGES would cost a fixture of 4001 rows.
+//
+// MONTH_ENTRY_LIMIT stays in CEILINGS above, unchanged. Its row is now vacuously true — nothing reads
+// the constant since CAL-09 — and removing it would edit BUG-002's list for no property gained.
+describe("CAL-09 — the paged calendar read's window and bound", () => {
+  // AC-13, first clause. A WINDOW, like PENDING_PAGE_SIZE and unlike the five ceilings: strictly
+  // below the cap, so a page shortened by a lowered `max-rows` is distinguishable from a full one.
+  // Equal to the cap would make every full page look shortened and every shortened page look full.
+  it("AC-13: TEAM_ENTRY_PAGE_SIZE is a window strictly below the cap", () => {
+    expect(TEAM_ENTRY_PAGE_SIZE).toBeLessThan(DATASTORE_MAX_ROWS);
+  });
+
+  // AC-13, second clause. At least 2, and the assembly's one refusal site depends on it: the loop
+  // body must run at least once for `matching` to be assigned, and a bound of 1 would make the walk
+  // a single request wearing a loop's clothes.
+  it("AC-13: TEAM_ENTRY_MAX_PAGES admits more than one request", () => {
+    expect(TEAM_ENTRY_MAX_PAGES).toBeGreaterThanOrEqual(2);
+  });
+
+  // AC-13, third clause, AND IT IS THE ONE THAT MAKES THE TICKET TRUE. The product's own maximum has
+  // to sit ABOVE the datastore cap this ticket removes, or paging would have moved the ceiling
+  // downward and bought nothing. It is a bound on work and not a ceiling on correctness — beyond it
+  // the read REFUSES rather than truncating — but it is still a maximum, and this is where the
+  // repository records that somebody chose it.
+  it("AC-13: the window times the bound exceeds the cap paging replaced", () => {
+    expect(TEAM_ENTRY_PAGE_SIZE * TEAM_ENTRY_MAX_PAGES).toBeGreaterThan(DATASTORE_MAX_ROWS);
   });
 });
