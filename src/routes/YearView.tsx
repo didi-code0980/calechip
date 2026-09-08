@@ -171,7 +171,9 @@ export default function YearView() {
       setView({ phase: "ready", roster, entries, holidays });
     } catch {
       // AC-14. All three reads throw on a transport failure and on a possibly-truncated answer
-      // (`MONTH_ENTRY_LIMIT`, reused rather than joined by a second constant — section 4.2). This
+      // (since CAL-09 the team-entry bound is `TEAM_ENTRY_PAGE_SIZE` × `TEAM_ENTRY_MAX_PAGES` —
+      // @/lib/data/mock:1246-1270 — and NOT the `MONTH_ENTRY_LIMIT` this line used to cite, which
+      // CAL-09 removed together with its only reader; mock.ts:37-38 records the removal). This
       // branch is the refusal: no grid at all, rather than one missing the entries the read dropped.
       //
       // CAL-08 AC-12 is the same branch for the holiday read, whose truncation is worse than local:
@@ -267,7 +269,7 @@ export default function YearView() {
       <p
         data-testid="year-loading"
         role="status"
-        className="mx-auto max-w-md rounded-2xl bg-white p-8 text-center text-sm opacity-70 shadow-sm"
+        className="mx-auto max-w-md rounded-card bg-card p-8 text-center text-sm opacity-70 shadow-soft"
       >
         Loading the year…
       </p>
@@ -278,7 +280,7 @@ export default function YearView() {
     return (
       <section
         data-testid="year-not-on-a-team"
-        className="mx-auto flex max-w-md flex-col gap-3 rounded-2xl bg-white p-8 text-center text-sm shadow-sm"
+        className="mx-auto flex max-w-md flex-col gap-3 rounded-card bg-card p-8 text-center text-sm shadow-soft"
       >
         <p>This calendar belongs to a team, and you are not on one yet.</p>
         <Link data-testid="year-sign-in" to="/signin" className="underline">
@@ -293,7 +295,7 @@ export default function YearView() {
       <p
         data-testid="year-unavailable"
         role="alert"
-        className="mx-auto max-w-md rounded-2xl bg-white p-8 text-center text-sm shadow-sm"
+        className="mx-auto max-w-md rounded-card bg-card p-8 text-center text-sm shadow-soft"
       >
         The year could not be read completely, so no grid is drawn. A grid with days missing from it
         would look like a year nobody was away.
@@ -336,10 +338,10 @@ export default function YearView() {
           Every cell below is an ELEMENT in a CSS grid rather than a component with props of its own,
           and every value it reads was precomputed above. That is the whole of what makes 10,950
           cells renderable, and it is why nothing in this block calls a derivation. */}
-      <div className="overflow-x-auto rounded-2xl bg-white p-4 shadow-sm">
+      <div className="overflow-x-auto rounded-card bg-card p-4 shadow-soft">
         <div data-testid="year-grid" className="flex w-max flex-col gap-px text-xs select-none">
           <div className="grid gap-px" style={columns}>
-            <div className="sticky left-0 z-10 bg-white" />
+            <div className="sticky left-0 z-10 bg-card" />
             {months.map(({ month, days }) => (
               <div
                 key={month}
@@ -364,7 +366,7 @@ export default function YearView() {
               this file's own comments make the per-cell budget the property that decides whether the
               screen scrolls; a strip is 365 elements (01-plan.md section 8, rejected alternative 5). */}
           <div data-testid="year-daystatus" className="grid items-center gap-px pb-1" style={columns}>
-            <div className="sticky left-0 z-10 bg-white pr-2 font-medium opacity-60">Calendar</div>
+            <div className="sticky left-0 z-10 bg-card pr-2 font-medium opacity-60">Calendar</div>
             {dates.map((date) => {
               const status = dayStatuses.get(date);
               const holiday = status?.holiday ?? null;
@@ -382,13 +384,13 @@ export default function YearView() {
                     // Lavender for a NON-WORKING holiday and for nothing else: a mandated `working`
                     // Saturday is named through `title` but not tinted (AC-2), and a weekend is drawn
                     // exactly as it is today, which is not at all (01-plan.md section 1, Out of scope).
-                    status?.nonWorkingReason === "holiday" ? "bg-violet-200" : "bg-slate-100",
+                    status?.nonWorkingReason === "holiday" ? "bg-holiday" : "bg-bg",
                   ].join(" ")}
                 >
                   {/* AC-3's mark, and it is deliberately NOT a colour: lavender means not working
                       and a bridge day is a working day that everybody is about to request. */}
                   {status?.bridge ? (
-                    <span aria-hidden="true" className="block h-1 w-1 rounded-full bg-slate-500" />
+                    <span aria-hidden="true" className="block h-1 w-1 rounded-full bg-ink-2" />
                   ) : null}
                 </div>
               );
@@ -409,7 +411,7 @@ export default function YearView() {
                 className="grid items-center gap-px"
                 style={columns}
               >
-                <div className="sticky left-0 z-10 flex items-center gap-1 bg-white pr-2">
+                <div className="sticky left-0 z-10 flex items-center gap-1 bg-card pr-2">
                   <span data-testid="year-row-avatar" aria-hidden="true">
                     {member.avatar}
                   </span>
@@ -442,7 +444,7 @@ export default function YearView() {
                         // the month grid and the week list so one person reads the same on all three.
                         // An empty day is a faint rule rather than nothing at all, or 365 columns of
                         // white would give the eye no grid to follow.
-                        !mark ? "bg-slate-100" : mark.type === "wfh" ? "bg-emerald-200" : "bg-orange-200",
+                        !mark ? "bg-bg" : mark.type === "wfh" ? "bg-wfh" : "bg-pto",
                         // AC-6. Tentative at reduced opacity, so that "is away" and "is settled" stay
                         // visually separate: a tentative entry fills its cell on exactly the same
                         // terms as any other (INV-05) and is drawn so nobody reads the grid as
@@ -473,7 +475,7 @@ export default function YearView() {
               to be scanned. `data-count` carries the number on every day regardless, because a
               missing attribute and a zero are different answers. */}
           <div className="grid items-center gap-px pt-1" style={columns}>
-            <div className="sticky left-0 z-10 bg-white pr-2 font-medium opacity-60">Away</div>
+            <div className="sticky left-0 z-10 bg-card pr-2 font-medium opacity-60">Away</div>
             {dates.map((date) => {
               const count = counts.get(date) ?? 0;
               return (
@@ -505,7 +507,7 @@ export default function YearView() {
       {view.holidays.length === 0 ? (
         <p
           data-testid="year-holidays-empty"
-          className="rounded-2xl bg-white p-6 text-center text-sm opacity-70 shadow-sm"
+          className="rounded-card bg-card p-6 text-center text-sm opacity-70 shadow-soft"
         >
           The holiday calendar holds no day for {anchorYear}. Nothing is marked because nothing has
           been entered, not because the year is ordinary.
