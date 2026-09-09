@@ -1,0 +1,152 @@
+# Copied from .ai/templates/ticket.yaml by `product` at /triage, 2026-09-09 (ADR-010).
+# ticket.yaml is authoritative; backlog.md is a view (see .ai/01-operating-model.md).
+# state enum: TRIAGE BACKLOG PLAN READY IN_PROGRESS REVIEW REWORK ESCALATED DONE
+id: UIE-09
+title: "An admin hub screen at /admin, reachable from one control in the top bar"
+feature_ids: [UIE-09]
+group: UIE
+state: BACKLOG
+owner: ""
+branch: ""
+size_estimate: ""     # EMPTY DELIBERATELY. Definition of Ready item 5 is `tech-lead-design`'s at
+                      # /plan, and the gate sits after PLAN so that it can be. The technical half of
+                      # this triage offered `S` as a SIGNAL and it is recorded in §9 as a signal,
+                      # not copied into this field.
+size: ""              # Same. Set at /plan.
+depends_on: []        # MEASURED, not assumed — §8.
+invariants_touched: []
+# ^ THIS `[]` MEANS "NOBODY HAS LOOKED YET", NOT "CONSIDERED, NONE ENGAGED". The template
+#   (.ai/templates/ticket.yaml) gives `[]` the second meaning, so the distinction is stated here
+#   rather than left to the reader. It is item 2 of PLAN's output. What is already on the record:
+#   nothing in this row changes a table, a policy, an arithmetic or a definition, and the whole
+#   deliverable sits above the data seam — so `[]` as an ANSWER is the likely outcome, which is
+#   what `.ai/registry/features.md` § UIE says is expected of this group. `product` asserts no more
+#   than that.
+allowed_paths: []     # A CONTROL, not a placeholder. guard-allowed-paths.mjs blocks every write
+                      # outside this ticket folder while it is empty. PLAN fills it.
+schema_delta: none
+# ^ MEASURED AT THIS TRIAGE, AND UNFENCED. No table, column, policy, grant, trigger or constraint is
+#   named by anything in this row. The five addresses the hub lists already exist and keep their
+#   guards and their row-level security exactly as they are; every control involved is an affordance
+#   over a policy already in force (ADR-005, src/components/Sidebar.tsx:10-15). ADR-014's warning —
+#   that a policy-only migration is NOT `none` — has nothing to bite on here, because there is no
+#   migration of any kind.
+requires_adr: false
+# ^ AND THE REASON IS THAT THE HUB EXTENDS RATHER THAN REVERSES.
+#   .ai/board/tickets/ADM-01/01-plan.md:194-197 records the own-screen-per-setting shape as "an
+#   assumption that ships" whose reversal "moves one route and one link". A hub adds a route ABOVE
+#   the four and moves none of them — /threshold stays /threshold. Under ADR-008's test (decide
+#   inside an existing envelope, ask before changing the envelope) this is inside. See §7 for the
+#   one shape that would flip this field.
+rework_count: 0
+chat_budget:
+  developer->tech-lead-design: { used: 0, max: 6 }
+tracker: { provider: "", external_id: "", sync_enabled: false }
+gates:
+  plan:   { passed: false, at: null }
+  review: { passed: false, at: null }
+
+# -----------------------------------------------------------------------------------------------
+# Written by `product` at /triage on 2026-09-09, from
+# .ai/board/ideas/2026-09-09-the-sidebar-holds-every-address-and-grows-with-the-role.md, on a
+# PROMOTE verdict. That file's `# Verdict — PROMOTE, as two rows: UIE-09 then UIE-10` section is the
+# reasoning and is not repeated here. Nothing below is an acceptance criterion; all of them are
+# PLAN's.
+#
+# 1. THIS IS THE ADDITIVE HALF OF A TWO-ROW SPLIT, AND ITS DEFINING PROPERTY IS THAT THE SIDEBAR IS
+#    NOT TOUCHED. All 30 executable assertions across the 11 executing spec files keep passing
+#    UNEDITED while this ships. Every unit of risk in the operator's request is in UIE-10, which
+#    depends on this row. If PLAN finds itself editing src/components/Sidebar.tsx, the split has
+#    been lost and the correct move is to say so rather than to widen `allowed_paths`.
+#
+# 2. NEW `admin-hub-*` SELECTORS. NOT THE `home-*` IDS, AND THIS IS A MECHANISM RATHER THAN A
+#    PREFERENCE. UIE-02 AC-6 requires every `home-*` id to resolve to exactly one node and
+#    Playwright strict mode fails a click matching two, so the four `home-*-link` ids cannot exist
+#    in the sidebar and on the hub at the same time. They stay in the sidebar for the whole of this
+#    row and are adopted by UIE-10, unrenamed, if that is the migration it chooses.
+#    The top-bar control also needs a name; `shell-admin-link` was the technical half's suggestion
+#    and PLAN owns the choice. Whatever it is, `.ai/standards/ui-design-system.md` § *Selectors*
+#    applies: a control added without a `data-testid` cannot be exercised at all.
+#
+# 3. THE SHAPE IS A HUB AT AN ADDRESS, AND IT WAS DECIDED AT TRIAGE RATHER THAN LEFT OPEN.
+#    A menu on the button was rejected: it invents open-on-click-or-hover, close-on-Escape,
+#    close-on-outside-click, focus and `role="menu"` semantics against
+#    `.ai/standards/ui-design-system.md` § *Components*, WHICH IS A BARE `TODO(project)` — the first
+#    menu in this product would be a component-library decision taken inside a UI ticket — and it
+#    saves nothing, since all 17 visibility assertions still fail and all 13 navigation assertions
+#    still need an inserted step. The transcription supports the hub: an OUTLINE PILL WITH NO CARET,
+#    the shape of `shell-period-today` (src/components/TopBar.tsx:134-140); the only `▾` in the
+#    picture is on the year anchor. If PLAN wants to reopen this, it says so in the plan rather than
+#    building the other thing.
+#
+# 4. THE MEMBER CASE NEEDS NOTHING INVENTED — THERE ARE SIX PRECEDENTS AND THEY AGREE.
+#    /admin guards on `member` and refuses IN-SCREEN, exactly as /threshold (src/App.tsx:338-343),
+#    /entries/team (:257-261) and /entries/pending (:277-283) each do and each explain: a member who
+#    types the address is refused BY THE SCREEN, because the refusal is what says why. Nothing here
+#    is a control — the refusal is an affordance over row-level security that is already in force,
+#    and this row changes no policy (ADR-005).
+#
+# 5. IT CLOSES A HOLE THAT PREDATES THE REQUEST, AND THE HOLE IS THE SHARPEST ARGUMENT FOR THE SHAPE.
+#    /members is a route (src/App.tsx:221) with NO LINK ANYWHERE IN src/ — verified at this triage,
+#    the only occurrences are the route line and three comments. It carries the two most destructive
+#    controls in the product, remove a member and promote to admin (TEA-03's read, TEA-04's writes),
+#    and today it is reachable only by typing the address. The hub lists it.
+#
+# 6. ONE CONSEQUENCE PLAN MUST NOT DISCOVER LATE, AND ONE SENTENCE IT MUST WRITE WHEN IT DOES.
+#    src/components/TopBar.tsx:3-5 states in bold "IT TAKES NO PROPS" and derives everything from
+#    useLocation().pathname. A role-conditional control is a ROLE read, and the top bar has no role.
+#    The cheapest correct fix is a prop from AppShell, which already holds the member — which amends
+#    that comment and puts src/components/AppShell.tsx in `allowed_paths`.
+#    THE COMMENT'S REAL SUBJECT IS THE *PERIOD* DERIVATION (TopBar.tsx:7-11, why useParams() would
+#    return {} on a layout route) AND THAT IS UNTOUCHED. The plan says so, or the next reader
+#    concludes an invariant was broken.
+#
+# 7. THE ONE SHAPE THAT WOULD FLIP `requires_adr`, FENCED HERE SO IT IS NOT TAKEN QUIETLY.
+#    A TABBED admin area — /admin/threshold and friends — re-addresses four shipped screens, changes
+#    every page.goto in the refusal tests, changes each screen's own back-link, and REVERSES ADM-01's
+#    Open question 1 along with the answer ADM-02, ADM-03 and ADM-04 all inherited. If PLAN concludes
+#    that is the right shape, the correct verdict from PLAN is BLOCKED with requires_adr: true —
+#    ADR-008's test, decide inside the envelope and ask before changing it. Not a quiet re-address.
+#
+# 8. `depends_on: []`, MEASURED. Every ticket on the board other than CAL-10 is DONE, `allowed_paths`
+#    is `[]` on every ticket, so nothing claims a path.
+#    CAL-10 IS NOT A DEPENDENCY AND IS NAMED ANYWAY: it sits at row 1 of the backlog, it also edits
+#    src/App.tsx, and it moves the default year address that five shipped criteria are written
+#    against. That is a sequencing fact for whoever plans second, not a dependency — one working tree
+#    holds one branch (ADR-006), so only one ticket is ever in flight.
+#    Definition of Ready item 6 passes: all of `feature_ids` is one group.
+#
+# 9. THE SIZE SIGNAL, RECORDED AS A SIGNAL. The technical half counted five files —
+#    src/routes/AdminHub.tsx (new), src/App.tsx, src/components/TopBar.tsx,
+#    src/components/AppShell.tsx and one new spec — and called it `S`. `size_estimate` stays empty:
+#    it is item 5 of PLAN's output. The one thing that will move it is how much the hub screen is
+#    asked to BE: a list of five links is small, and a hub that summarises anything — a pending
+#    count beside the worklist link, say — is a seam read and a different ticket.
+#
+# 10. THE VISUAL REFERENCE IS A TRANSCRIPTION AND NOT AN IMAGE.
+#    .ai/board/tickets/UIE-09/design/README.md is a verbatim copy of the hand transcription written
+#    by the only session that saw the pasted picture. THERE IS NO IMAGE FILE AND THERE NEVER WAS —
+#    MD-030, and the CORRECTION 2026-09-09 block in `.ai/standards/ui-design-system.md`
+#    § *Visual specification*. A later reader cannot check a single sentence of it against the
+#    picture it describes. It is evidence of intent; it is NOT a specification, and "looks like the
+#    screenshot" is not an acceptance criterion.
+#    AN IMAGE IS ATTACHED AT EXACTLY ONE STAGE AND THAT STAGE HAS HAPPENED: `/plan` must not be
+#    handed a second image.
+#
+# 11. REFUSED, EACH BECAUSE IT REVERSES SOMETHING DECIDED OR BELONGS TO SOMEBODY ELSE. These are
+#    refusals rather than deferrals, and the plan restates them in its own Out-of-scope section,
+#    which the gate already requires to be non-empty:
+#    11.1 ALL VIETNAMESE COPY — `Quản trị & Duyệt`, `+ Đăng ký` and the rest. The interface is
+#         English per § *Language*, the operator's own instruction of 2026-09-03, lint-enforced on
+#         JSX text under src/ — so several of those strings FAIL THE BUILD rather than failing
+#         review. UIE-01, UIE-05, UIE-06 and UIE-08 each refused the identical request; this is the
+#         fifth.
+#    11.2 THE `2026 ▾` DROPDOWN ANCHOR. It replaces a <p> carrying data-year / data-month /
+#         data-week-start that 43 spec references read (TopBar.tsx:104-106) with a year picker
+#         nothing specifies, in a product where the period is the address.
+#    11.3 THE REMOVAL OF THE `Today` CONTROL. § *Visual specification* says what an image does not
+#         show goes to Out-of-scope; it does not say it gets deleted. `shell-period-today` is
+#         UIE-02 AC-13 and the only anchorless route back to the current period from a distant date.
+#    11.4 THE FLOATING KEYBOARD BUTTON. The transcription itself says "nothing in the picture says
+#         what it does". CLAUDE.md § *Working agreements*: no invention.
+#    11.5 THE SIDEBAR, ENTIRELY. It is UIE-10's, and §1 is why.
