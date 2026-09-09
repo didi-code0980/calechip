@@ -53,7 +53,12 @@ const MEMBER_EMAIL = "thanh@example.com";
 const ADMIN_EMAIL = "quan@example.com";
 const MEMBER_LESS_EMAIL = "hoa@example.com";
 
-const YEAR = "/year/2026";
+// CAL-10, inside ADR-032 § Consequences item 1. **THE GRID MOVED ADDRESS AND NOTHING ELSE.**
+// `/year/:yyyy` is the twelve-month OVERVIEW since CAL-10 and the per-member matrix this file is
+// about is at `/year/:yyyy/members`. Every assertion below is the one CAL-06 shipped; only the
+// address it is made at has changed, which is exactly what AC-1, AC-2, AC-13 and AC-14 were
+// reworded to say (.ai/board/tickets/CAL-06/01-plan.md).
+const YEAR = "/year/2026/members";
 
 // Transcribed rather than imported: the acceptance suite addresses the application through the
 // browser and does not import from src/.
@@ -173,7 +178,7 @@ test.describe("CAL-06 — year view", () => {
   });
 
   test("AC-2: a leap year renders 366 days, ending 2028-12-31", async ({ page }) => {
-    await openYearAs(page, MEMBER_EMAIL, "/year/2028");
+    await openYearAs(page, MEMBER_EMAIL, "/year/2028/members");
 
     await expect(page.getByTestId("year-anchor")).toHaveAttribute("data-year", "2028");
     await expect(page.getByTestId("year-total")).toHaveCount(366);
@@ -307,8 +312,10 @@ test.describe("CAL-06 — year view", () => {
     await page.getByTestId("year-next").click();
     await expect(page.getByTestId("year-anchor")).toHaveAttribute("data-year", "2027");
 
-    // The address alone produces the same screen, so a year can be shared or bookmarked.
-    await expect(page).toHaveURL(/\/year\/2027$/);
+    // The address alone produces the same screen, so a year can be shared or bookmarked. CAL-10
+    // AC-16: the `/members` suffix survives every step, so a member stepping years on the matrix
+    // stays on the matrix instead of silently arriving at the overview.
+    await expect(page).toHaveURL(/\/year\/2027\/members$/);
 
     // And the month link opens on a month of the year just left, rather than on today's month.
     await page.getByTestId("year-month").click();
@@ -337,7 +344,10 @@ test.describe("CAL-06 — year view", () => {
     // used to precede this click; the sidebar link renders everywhere inside the shell, so the
     // assertion below is reached the same way.
     await page.getByTestId("home-year-link").click();
-    await expect(page.getByTestId("year-grid")).toBeVisible();
+    // CAL-10. The sidebar link is UNTOUCHED and still points at `/year`, which is the OVERVIEW since
+    // ADR-032 made it the default year screen. The criterion is that the link reaches the year, and
+    // it does; which of the two year screens it lands on is ADR-032's decision and not CAL-06's.
+    await expect(page.getByTestId("year-overview")).toBeVisible();
   });
 
   test("AC-13: no session and no member row both land on the member-less state", async ({ page }) => {

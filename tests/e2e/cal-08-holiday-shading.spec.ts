@@ -305,7 +305,7 @@ test.describe("CAL-08 — holidays and bridge days in the calendar views", () =>
   });
 
   test("AC-7: the year view carries day status for every day of the year", async ({ page }) => {
-    await openAs(page, "year", MEMBER_EMAIL, "/year/2026");
+    await openAs(page, "year", MEMBER_EMAIL, "/year/2026/members");
 
     // One element per date, in a strip of its own — NOT one lookup per member cell, which is the
     // 10,950-cell budget CAL-06 set for this screen (01-plan.md § 8, rejected alternative 5).
@@ -332,7 +332,7 @@ test.describe("CAL-08 — holidays and bridge days in the calendar views", () =>
   });
 
   test("AC-8: a year the calendar does not reach says so in words", async ({ page }) => {
-    await openAs(page, "year", MEMBER_EMAIL, "/year/2027");
+    await openAs(page, "year", MEMBER_EMAIL, "/year/2027/members");
 
     // The strip still renders 365 elements — every date is a key whether or not anything is drawn on
     // it — which is exactly why the map cannot answer this and the sentence is read off the rows.
@@ -402,8 +402,9 @@ test.describe("CAL-08 — holidays and bridge days in the calendar views", () =>
       name: await monthCell(page, "2026-10-15").getByTestId("month-cell-holiday").textContent(),
     };
 
-    // Switching views keeps the date, which is CAL-05's and CAL-06's own criterion — so this walks
-    // the product's links rather than typing three addresses.
+    // Switching views keeps the date, which is CAL-05's and CAL-06's own criterion — so the month
+    // and the week are reached by walking the product's links rather than by typing an address. The
+    // YEAR is the one exception, and CAL-10 is why: see the comment on it below.
     await page.getByTestId("month-week").click(); // /week/2026-10-01
     await page.getByTestId("week-next").click(); // week of 2026-10-05
     await page.getByTestId("week-next").click(); // week of 2026-10-12
@@ -415,7 +416,12 @@ test.describe("CAL-08 — holidays and bridge days in the calendar views", () =>
       name: await weekDay(page, "2026-10-15").getByTestId("week-day-holiday").textContent(),
     };
 
-    await page.getByTestId("week-year").click(); // /year/2026
+    // CAL-10, inside ADR-032. The year is TWO screens now: `week-year` reaches the OVERVIEW at
+    // `/year/2026`, and the per-member grid this criterion compares against is at
+    // `/year/2026/members`, which no link from the week reaches. So this one is typed, and only
+    // because the address moved. A document load is safe here — every holiday this test reads is a
+    // fixture, and `src/lib/data/mock.ts` restores the session from `localStorage`.
+    await page.goto("/year/2026/members");
     await expect(page.getByTestId("year-grid")).toBeVisible();
 
     const fromTheYear = {
@@ -460,7 +466,16 @@ test.describe("CAL-08 — holidays and bridge days in the calendar views", () =>
         await expect(page.getByTestId(control)).toHaveCount(0);
       }
 
+      // CAL-10. `week-year` now lands on the OVERVIEW, and the member grid is at its own address.
+      // BOTH are year surfaces and neither may carry a holiday control, so both are checked — the
+      // criterion is about the surfaces this ticket shades, and ADR-032 turned one of them into two.
       await page.getByTestId("week-year").click();
+      await expect(page.getByTestId("year-overview")).toBeVisible();
+      for (const control of HOLIDAY_CONTROLS) {
+        await expect(page.getByTestId(control)).toHaveCount(0);
+      }
+
+      await page.goto("/year/2026/members");
       await expect(page.getByTestId("year-grid")).toBeVisible();
       for (const control of HOLIDAY_CONTROLS) {
         await expect(page.getByTestId(control)).toHaveCount(0);

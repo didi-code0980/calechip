@@ -177,7 +177,7 @@ than recalled). **This ticket adds no fixture.** The four rows are:
 
 **AC-7 — the year view carries day status for every day of the year**
 - **Given** a signed-in member
-- **When** they open `/year/2026`
+- **When** they open `/year/2026/members`
 - **Then** the grid carries one day-status element per date, the elements for 2026-06-11, 2026-06-15
   and 2026-10-15 are marked non-working holidays, the element for 2026-06-13 is marked a working day,
   and the element for 2026-10-16 is marked a bridge day
@@ -666,3 +666,12 @@ leaves CAL-06's grid exactly as it shipped.
 ## Changelog
 
 - `2026-09-05T16:13:56+07:00` — sections 1–8 written. First version. Raised by `tech-lead-design`.
+- `2026-09-09T11:38:02:z` — **AC-7 reworded by CAL-10, and by nothing else.** ADR-032, `ACCEPTED by the operator`
+  2026-09-09, moved the per-member year grid from `/year/:yyyy` to `/year/:yyyy/members` so the new
+  twelve-month overview could take the default year address. AC-7 named `/year/2026` literally and
+  now names `/year/2026/members`; **its substance is unchanged** — the same one day-status element
+  per date, the same five dates, the same holiday, working and bridge markings, on the same grid.
+  **AC-11 IS DELIBERATELY UNTOUCHED**: it says *"the year grid"* in a three-surface comparison and
+  stays true as written, because the grid it names is the screen that moved rather than a screen that
+  changed. Written by `developer` at CAL-10's IN_PROGRESS, which is the stage ADR-032 assigns the
+  edit.

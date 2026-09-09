@@ -5,15 +5,47 @@ id: CAL-10
 title: "Year overview — twelve month cards with a year summary band"
 feature_ids: [CAL-10]
 group: CAL
-state: BACKLOG
+state: DONE
+# ^ SET BY `orchestrator` AT /ship ON 2026-09-09, on 04-review.md `gate: PASS` / `next_state: DONE`.
+#   ADR-022 removed the QA stage, so REVIEW -> DONE is the whole remaining transition
+#   (.ai/01-operating-model.md:36). BOTH GATE ROWS BELOW WERE TRANSCRIBED IN THIS SAME WRITE, each
+#   carrying the time its own stage finished — including the plan gate the comment below says was
+#   owed, at `2026-09-09T09:42:15+0700` exactly as it asked. That comment is the `developer`'s, it
+#   was right, and it is left standing rather than tidied away.
+# PREVIOUS VALUE, `REVIEW`:
+# SET BY `developer` AT /implement ON 2026-09-09, per .claude/commands/implement.md ("On PASS, set
+#   the ticket to `REVIEW`"). **IT JUMPED BACKLOG -> REVIEW AND THAT IS A GAP IN THE RECORD, NOT IN
+#   THE WORK.** `/plan` PASSED (01-plan.md front-matter: `gate: PASS`, `next_state: READY`) and was
+#   right not to move the board — .claude/commands/plan.md:114-115 assigns the DoR grading and the
+#   transition to the orchestrator. `/next-ticket` has not run, so PLAN, READY and IN_PROGRESS were
+#   never written here and `gates.plan` below is still `false` with a null timestamp.
+#   The operator was told and re-issued /implement; 03-impl-log.md § Open questions carries the
+#   detail. Definition of Done item 1 needs BOTH gates `passed: true` WITH timestamps, so the
+#   orchestrator still owes the plan gate before /ship — and it should carry the time /plan actually
+#   finished, `2026-09-09T09:42:15+0700`, rather than a back-filled later one.
+#   `owner` and `branch` are deliberately left empty: they are the orchestrator's at READY and
+#   inventing them here would hide the gap this comment exists to show. The branch IS `feat/CAL-10`.
 owner: ""
-branch: ""
-size_estimate: ""     # EMPTY DELIBERATELY. It is `tech-lead-design`'s at /plan and this triage made
-                      # no estimate. §5 records the one signal that will move it, so PLAN does not
-                      # have to rediscover it.
-size: ""              # Same. Set at /plan.
+branch: "feat/CAL-10"   # FILLED BY `orchestrator` AT /ship, 2026-09-09, same as CAL-09. It was `""`
+                        # through four stages; the comment above says it deliberately, and it is
+                        # right that no earlier stage invented it. Recording it now is a fact, not a
+                        # claim: both path guards resolve the ticket from the real git branch name
+                        # and never from this field. `owner` stays `""` — no stage wrote it.
+size_estimate: "M"    # Set by `tech-lead-design` at /plan on 2026-09-09, read from 01-plan.md
+                      # section 1: one new screen, one route change, one additive derivation, two
+                      # shipped plan files reworded, three end-to-end specs.
+                      # §5's SIGNAL WAS SPENT AND IT WAS RIGHT ABOUT WHERE, WRONG ABOUT HOW MUCH —
+                      # the summary band cost ONE function in src/lib/data/absence.ts (01-plan.md
+                      # section 4.1), while the ADDRESS MOVE cost four files nobody counts from a
+                      # picture. 01-plan.md section 7 carries the line.
+size: "M"             # Ten files, counted from `allowed_paths` below - 01-plan.md section 7.
+                      # `M` is up to 12 (.ai/01-operating-model.md:373), so this proceeds and does
+                      # not split. NOT XL: no seam function changes shape, there is no migration, and
+                      # src/lib/domain/types.ts is NOT TOUCHED AT ALL - the one new type is declared
+                      # beside the function that returns it, so the "changes a shared type module"
+                      # clause at .ai/01-operating-model.md:375 is not engaged on any reading.
 depends_on: []        # MEASURED, not assumed — §6.
-invariants_touched: []
+invariants_touched: [INV-04, INV-05, INV-07]
 # ^ THIS `[]` MEANS "NOBODY HAS LOOKED YET", NOT "CONSIDERED, NONE ENGAGED". The template
 #   (.ai/templates/ticket.yaml) gives `[]` the second meaning, so the distinction is stated here
 #   rather than left to the reader. It is item 2 of PLAN's output and Definition of Ready is
@@ -22,8 +54,42 @@ invariants_touched: []
 #   INV-04's implementation is documented as never consulting `type`
 #   (src/lib/data/absence.ts:190-191) and INV-04 itself forbids a second definition
 #   (.ai/registry/invariants.md:36). `product` asserts nothing further about the list.
-allowed_paths: []     # A CONTROL, not a placeholder. guard-allowed-paths.mjs blocks every write
-                      # outside this ticket folder while it is empty. PLAN fills it.
+#
+#   FILLED BY `tech-lead-design` AT /plan ON 2026-09-09. The line above kept its wording: it was true
+#   when written and the record of what `[]` meant here is worth more than a tidy file.
+#   01-plan.md section 2 states the MECHANISM per ID, per .ai/registry/invariants.md:63.
+#   INV-04 - EVERY number on this screen is INV-04's number or a declared decomposition of it. The
+#     PTO/WFH split that ADR-032 Consequences item 4 warns about is derived from the SAME `walk` with
+#     the SAME weights (01-plan.md section 4.1), so `pto + wfh = total` is an IDENTITY and not an
+#     assertion that can drift. The overview computes no arithmetic of its own (AC-12).
+#   INV-05 - a tentative entry must count here exactly as elsewhere; held by reuse, `walk` never
+#     consults `tentative` and no filter is added.
+#   INV-07 - the summary band is the first figure in the product aggregating a whole year across the
+#     whole team, so a differently scoped read would put another team's rows in it. Held by
+#     `entry_select_team` and by making the same four seam calls the year grid makes. Held negatively
+#     too: the picture's five sub-team subtitles are refused in Out-of-scope for this reason.
+#   INV-01, INV-02, INV-03 and INV-06 are decided NOT engaged rather than omitted - this ticket
+#     writes no entry, edits none, and constructs no entry value. INV-06's usual surface is discussed
+#     at ADR-032 Consequences item 2 as an ACCEPTED LOSS on this screen, not an amendment.
+allowed_paths:        # Enumerated by `tech-lead-design` at /plan - 01-plan.md section 7, which
+                      # says what each is for. Exact paths, no globs, no inline comments on the items.
+                      # .ai/board/tickets/CAL-10/ is absent deliberately: the guard exempts the active
+                      # ticket's own folder (.claude/hooks/guard-allowed-paths.mjs:205-206).
+                      # THE TWO `01-plan.md` PATHS ARE THE FIVE REWORDED CRITERIA ADR-032 Consequences
+                      # item 1 assigns to THIS stage. Both are BOARD plane and agent-writable; neither
+                      # is under .ai/registry/**, so RULE-01 is not engaged.
+                      # src/lib/period.ts IS NOT THE SHELL EDIT §4.4 FORBIDS - TopBar.tsx and
+                      # Sidebar.tsx are untouched and no control is added. 01-plan.md section 7.
+  - "src/routes/YearOverview.tsx"
+  - "src/App.tsx"
+  - "src/lib/data/absence.ts"
+  - "src/lib/period.ts"
+  - "tests/absence.test.ts"
+  - "tests/e2e/cal-10-year-overview.spec.ts"
+  - "tests/e2e/cal-06-year-view.spec.ts"
+  - "tests/e2e/cal-08-holiday-shading.spec.ts"
+  - ".ai/board/tickets/CAL-06/01-plan.md"
+  - ".ai/board/tickets/CAL-08/01-plan.md"
 schema_delta: none
 # ^ MEASURED AT THIS TRIAGE. All four reads this screen needs already exist and none of them changes:
 #   listTeamEntriesOverlapping is paged and complete-or-throw since CAL-09
@@ -40,8 +106,22 @@ chat_budget:
   developer->tech-lead-design: { used: 0, max: 6 }
 tracker: { provider: "", external_id: "", sync_enabled: false }
 gates:
-  plan:   { passed: false, at: null }
-  review: { passed: false, at: null }
+  # BOTH ROWS TRANSCRIBED BY `orchestrator` AT /ship ON 2026-09-09. Neither value is claimed here —
+  # each is a copy of a gate another stage reached, read from that artifact's own front-matter.
+  # THE OFFSETS ARE NORMALISED TO `+07:00`; both artifacts wrote `+0700` without the colon, which is
+  # this ticket's form alone. Same instant, same value.
+  #
+  # From .ai/board/tickets/CAL-10/01-plan.md: `gate: PASS`, `blocking_reason: ""`,
+  # `next_state: READY`, `produced_at: 2026-09-09T09:42:15+0700`. ADR-019 merged `spec` and `design`
+  # into this one gate. THE BOARD NEVER RECORDED `PLAN -> READY` OR `READY -> IN_PROGRESS` — the
+  # eighteenth ticket to go BACKLOG -> REVIEW on disk. The gate is transcribed at the time /plan
+  # finished and NOT back-dated to this ship, which is what the `state:` comment above asked for.
+  plan:   { passed: true, at: "2026-09-09T09:42:15+07:00" }
+  # From .ai/board/tickets/CAL-10/04-review.md: `gate: PASS`, `blocking_reason: ""`,
+  # `next_state: DONE`, `produced_at: 2026-09-09T13:41:53+0700`. R1-R8 all PASS on one pass,
+  # `## Findings` empty, `rework_count: 0`, no consultation and no amendment — the ninth in a row.
+  review: { passed: true, at: "2026-09-09T13:41:53+07:00" }
+  # No `qa` gate — ADR-022 removed the stage. /ship requires `plan` and `review`.
 
 # -----------------------------------------------------------------------------------------------
 # Written by `product` at /triage on 2026-09-09, from

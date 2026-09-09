@@ -347,3 +347,54 @@ export function isOverloaded(count: number, currentMembers: number, threshold: n
 /** INV-04's denominator, in one place: the team's members with `removedAt === null`. */
 export const currentMemberCount = (roster: readonly Member[]): number =>
   roster.filter((member) => member.removedAt === null).length;
+
+// ---------------------------------------------------------------------------
+// CAL-10. 01-plan.md section 4.1.
+// ---------------------------------------------------------------------------
+
+/** The part of INV-04's total contributed by each entry type. Both halves, always present. */
+export interface AbsenceByType {
+  pto: number;
+  wfh: number;
+}
+
+/**
+ * CAL-10 AC-6. INV-04's total for `range`, SPLIT BY `type`.
+ *
+ * **NOT A SECOND DEFINITION, AND THE CONSTRUCTION IS THE ARGUMENT.** It walks the SAME `walk` as
+ * `absenceCountsFor`, applies the SAME `WEIGHT`, and inherits the same rejected-entry, tentative,
+ * removed-member and range-clamp rules; the only thing it adds is which of two accumulators receives
+ * the weight. Because every counted entry has exactly one `type`, `pto + wfh` equals
+ * `absenceCountsFor`'s total over the same range for every dataset — an IDENTITY, not an assertion
+ * that could drift.
+ *
+ * ADR-032 § Consequences item 4 is the reason this function exists at all and the reason it is HERE:
+ * `absenceCountsFor` is documented above as never consulting `type` (:189-190) and INV-04 forbids a
+ * second definition of the number, so the split had to be a NEW quantity derived from the ONE pass
+ * rather than a filter written on a screen. CAL-10 01-plan.md section 8, rejected alternative 1
+ * records what the filter would have cost: it applies none of the four rules above, so it disagrees
+ * with the total beside it the first time a member is removed mid-year — and disagrees QUIETLY,
+ * because both numbers look plausible.
+ *
+ * **THIS IS THE FIFTH DERIVATION AND THE FIRST THAT READS `type`.** That is not a contradiction of
+ * the `WEIGHT` comment above: the weight is still blind to `type`, so a PTO day and a WFH day still
+ * cost the room the same. This function does not re-weigh anything — it only asks which bucket an
+ * already-weighted day belongs to.
+ *
+ * @param entries every entry overlapping `range`, REJECTED ONES INCLUDED — `walk` excludes them, and
+ *                it is the only thing that may.
+ * @param range   inclusive at both ends.
+ * @param roster  the team's members, INCLUDING removed ones, exactly as the other four take them:
+ *                ADR-013 needs `removedAt` per member to decide each date.
+ */
+export function absenceByTypeFor(
+  entries: readonly Entry[],
+  range: DateRange,
+  roster: readonly Member[],
+): AbsenceByType {
+  const split: AbsenceByType = { pto: 0, wfh: 0 };
+  walk(entries, range, roster, (_date, entry) => {
+    split[entry.type] += WEIGHT[entry.portion];
+  });
+  return split;
+}

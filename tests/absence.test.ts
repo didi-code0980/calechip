@@ -19,6 +19,7 @@
 // every variation spreads from — so the shape stays the seed's even where the values differ.
 import { describe, expect, it } from "vitest";
 import {
+  absenceByTypeFor,
   absenceCountsFor,
   absentDatesByMember,
   absentEntriesFor,
@@ -812,5 +813,128 @@ describe("CAL-06 section 4.3: the derivation stands up at the shape the brief na
       const filled = roster.filter((m) => away.get(m.id)?.has(date)).length;
       expect(on(counts, date)).toBe(filled);
     }
+  });
+});
+
+// ===========================================================================
+// CAL-10 — the summary band's PTO/WFH split. 01-plan.md sections 4.1 and 7.
+//
+// **THIS IS THE CHEAPEST POSSIBLE CHECK OF ADR-032's REVERT CONDITION**, which is why the standard
+// puts it here rather than only on the screen: the partition is asserted AGAINST `absenceCountsFor`
+// over the same fixtures, so a divergence between the two shows up as a failing identity rather than
+// as two plausible numbers sitting next to each other in a browser.
+//
+// The entries below are constructed exactly as every block above constructs them, from the seeded
+// row, for the reason this file's own header gives — they are the ARGUMENTS of a pure function and
+// not entities, and the shapes INV-04 distinguishes do not exist in `supabase/seed.sql`.
+// ===========================================================================
+
+/** INV-04's total over a range, summed off the map the screen sums — never recomputed here. */
+const totalOver = (counts: ReadonlyMap<string, number>, range: DateRange): number =>
+  eachDateInRange(range).reduce((sum, date) => sum + (counts.get(date) ?? 0), 0);
+
+describe("CAL-10 AC-6: the PTO and WFH parts partition INV-04's total exactly", () => {
+  it("splits a plain month by type, and the two halves sum to the total", () => {
+    const rows = [
+      entry({ memberId: FIXTURE_MEMBER.id, type: "pto", startDate: "2026-04-06", endDate: "2026-04-08" }),
+      entry({ memberId: FIXTURE_ADMIN.id, type: "wfh", startDate: "2026-04-06", endDate: "2026-04-07" }),
+    ];
+
+    const split = absenceByTypeFor(rows, APRIL, ROSTER);
+
+    expect(split).toEqual({ pto: 3, wfh: 2 });
+    expect(split.pto + split.wfh).toBe(totalOver(absenceCountsFor(rows, APRIL, ROSTER), APRIL));
+  });
+
+  it("inherits every rule of the one pass, so the identity survives the five shapes INV-04 distinguishes", () => {
+    // ONE dataset holding all five, because the failure this guards against is a filter on a screen
+    // that applies NONE of them — 01-plan.md section 8, rejected alternative 1. Each row below is a
+    // rule `walk` applies and a `.filter(e => e.type === 'pto')` would not.
+    const rows = [
+      // Rejected: contributes nothing, to either half (AC-4 of CAL-04).
+      entry({ memberId: FIXTURE_MEMBER.id, type: "pto", status: "rejected", startDate: "2026-04-02", endDate: "2026-04-03" }),
+      // Tentative: counts on exactly the same terms as any other (INV-05).
+      entry({ memberId: FIXTURE_MEMBER.id, type: "wfh", tentative: true, startDate: "2026-04-06", endDate: "2026-04-07" }),
+      // A half day: 0.5, and it lands in the half its own type names (AC-3 of CAL-04).
+      entry({ memberId: FIXTURE_ADMIN.id, type: "pto", portion: "am", startDate: "2026-04-09", endDate: "2026-04-09" }),
+      // A removed member: counts up to the removal and not after it (ADR-013). FIXTURE_REMOVED_MEMBER
+      // was removed 2026-08-31, so the whole of April is still theirs.
+      entry({ memberId: FIXTURE_REMOVED_MEMBER.id, type: "pto", startDate: "2026-04-10", endDate: "2026-04-10" }),
+      // Spanning the range boundary: clamped to April, so March 30th and 31st are not in either half.
+      entry({ memberId: FIXTURE_SECOND_ADMIN.id, type: "wfh", startDate: "2026-03-30", endDate: "2026-04-02" }),
+      // An entry whose member is not in the roster: counts for nobody, in either half.
+      entry({ memberId: "99999999-9999-4999-8999-999999999999", type: "pto", startDate: "2026-04-15", endDate: "2026-04-17" }),
+    ];
+
+    const split = absenceByTypeFor(rows, APRIL, ROSTER);
+    const counts = absenceCountsFor(rows, APRIL, ROSTER);
+
+    // The identity, which is the whole criterion. It is asserted against the OTHER function rather
+    // than against a literal, because a literal would be a second arithmetic in the test.
+    expect(split.pto + split.wfh).toBe(totalOver(counts, APRIL));
+
+    // And the halves are what they should be, so the identity above is not two wrong numbers
+    // cancelling: 0.5 of PTO (the am) + 1 (the removed member's day), and 2 of WFH (the tentative
+    // pair) + 2 (the clamped span's 1 and 2 April).
+    expect(split).toEqual({ pto: 1.5, wfh: 4 });
+  });
+
+  it("holds over a whole year, which is the range the summary band actually asks for", () => {
+    const rows = [
+      entry({ memberId: FIXTURE_MEMBER.id, type: "pto", startDate: "2026-01-01", endDate: "2026-01-31" }),
+      entry({ memberId: FIXTURE_ADMIN.id, type: "wfh", startDate: "2026-06-01", endDate: "2026-06-30" }),
+      entry({ memberId: FIXTURE_APPROVED_MEMBER.id, type: "wfh", portion: "pm", startDate: "2026-12-28", endDate: "2026-12-31" }),
+      entry({ memberId: FIXTURE_SECOND_ADMIN.id, type: "pto", portion: "am", startDate: "2026-12-30", endDate: "2027-01-05" }),
+    ];
+
+    const split = absenceByTypeFor(rows, YEAR, ROSTER);
+
+    // 31 PTO days + 1 (two clamped am days in the year) and 30 WFH + 2 (four pm days).
+    expect(split).toEqual({ pto: 32, wfh: 32 });
+    expect(split.pto + split.wfh).toBe(totalOver(absenceCountsFor(rows, YEAR, ROSTER), YEAR));
+  });
+
+  it("is {pto: 0, wfh: 0} on an empty year rather than an absent half", () => {
+    // Both halves are ALWAYS present — the contract on `AbsenceByType`. A caller reading
+    // `split.wfh` on a year of pure PTO must get 0 and never `undefined`, or the summary card would
+    // render nothing where it should render a zero.
+    const split = absenceByTypeFor([], YEAR, ROSTER);
+    expect(split).toEqual({ pto: 0, wfh: 0 });
+
+    const onlyPto = absenceByTypeFor(
+      [entry({ memberId: FIXTURE_MEMBER.id, type: "pto", startDate: "2026-04-06", endDate: "2026-04-06" })],
+      YEAR,
+      ROSTER,
+    );
+    expect(onlyPto.wfh).toBe(0);
+  });
+});
+
+describe("CAL-10 AC-8: a fractional total stays a fraction and is never rounded", () => {
+  it("reports 0.5 for one am half day, in the total and in its own half", () => {
+    // The criterion names the screen, and this is its derivation half: `0.5` must be 0.5 here, or no
+    // rendering could show it. `0` and `1` are both wrong and both plausible.
+    const rows = [
+      entry({ memberId: FIXTURE_MEMBER.id, type: "pto", portion: "am", startDate: "2026-04-07", endDate: "2026-04-07" }),
+    ];
+
+    const split = absenceByTypeFor(rows, YEAR, ROSTER);
+    expect(split).toEqual({ pto: 0.5, wfh: 0 });
+    expect(totalOver(absenceCountsFor(rows, YEAR, ROSTER), YEAR)).toBe(0.5);
+  });
+
+  it("adds two halves of one date to exactly 1, in the split as in the total", () => {
+    // INV-01 forbids two entries of the same member on the same slot, so an `am` and a `pm` on one
+    // date is 1.0 and never 1.5 — and the split must reach the same answer by the same route. The
+    // two halves are different TYPES here, which is the case only this function can get wrong.
+    const rows = [
+      entry({ memberId: FIXTURE_MEMBER.id, type: "pto", portion: "am", startDate: "2026-04-07", endDate: "2026-04-07" }),
+      entry({ memberId: FIXTURE_MEMBER.id, type: "wfh", portion: "pm", startDate: "2026-04-07", endDate: "2026-04-07" }),
+    ];
+
+    const split = absenceByTypeFor(rows, APRIL, ROSTER);
+    expect(split).toEqual({ pto: 0.5, wfh: 0.5 });
+    expect(split.pto + split.wfh).toBe(1);
+    expect(on(absenceCountsFor(rows, APRIL, ROSTER), "2026-04-07")).toBe(1);
   });
 });

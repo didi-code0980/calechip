@@ -351,13 +351,40 @@ export function periodNavFor(pathname: string): PeriodNav | null {
 
   if (head === "year") {
     if (!isRealYear(anchor)) return null;
+
+    // CAL-10 § 4.5 and AC-16. THE YEAR IS TWO SCREENS SINCE ADR-032: `/year/:yyyy` is the overview
+    // and `/year/:yyyy/members` is the per-member grid CAL-06 shipped. `prevTo`, `nextTo` and
+    // `todayTo` therefore carry the suffix the caller arrived with, so stepping a year from the grid
+    // lands on the grid. Without this a member who presses "next" on the matrix silently changes
+    // screen, which is the one navigation failure nothing on the page would explain.
+    //
+    // **`yearTo` DELIBERATELY DOES NOT TAKE IT.** The `Year` segment of the switcher is how a reader
+    // on the grid gets back to the overview, and it is the only route between the two screens the
+    // shell can offer without a new control — which Out-of-scope forbids (§ 1, "No shell edit").
+    // `weekTo` and `monthTo` leave the year cluster entirely and are unchanged.
+    const onMembers = segments[2] === "members";
+    const suffix = onMembers ? "/members" : "";
+
+    // **`todayTo` IS THE ONE ANCHORED `todayTo` IN THIS MODULE, and only on the grid.** § 4.5's
+    // sketch reads `/year${suffix}`, which is `/year/members` — an address CAL-10 § 4.2 refuses to
+    // route ("the grid is always anchored by a year, and the anchorless case is `/year`, which is
+    // the overview"), and which would in fact match `/year/:year` with a year of `members` and
+    // bounce the caller to the OVERVIEW. That is the opposite of what the same paragraph asks for,
+    // so the intent is kept and the expression is not: the current year is resolved HERE for this
+    // one target. `currentDay()` is already this module's one clock and answers in the caller's
+    // local time, which is the right reading of "what year is it for the person looking".
+    //
+    // On the OVERVIEW `todayTo` stays the anchorless `/year`, exactly as `/week` and `/month` are,
+    // so the screen still resolves the clock everywhere it can. 03-impl-log.md § Deviations.
+    const todayTo = onMembers ? `/year/${currentDay().slice(0, 4)}/members` : "/year";
+
     return {
       kind: "year",
       label: anchor,
       anchorValue: anchor,
-      prevTo: `/year/${shiftYear(anchor, -1)}`,
-      nextTo: `/year/${shiftYear(anchor, 1)}`,
-      todayTo: "/year",
+      prevTo: `/year/${shiftYear(anchor, -1)}${suffix}`,
+      nextTo: `/year/${shiftYear(anchor, 1)}${suffix}`,
+      todayTo,
       // January, which is where `YearView.tsx:347`'s own month link goes. `weekTo` has no
       // counterpart on that screen and is the first day of the year for the same reason.
       weekTo: `/week/${anchor}-01-01`,
