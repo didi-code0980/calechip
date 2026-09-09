@@ -13,7 +13,9 @@ import Holidays from "./routes/Holidays";
 import MemberList from "./routes/MemberList";
 import MonthView from "./routes/MonthView";
 import WeekView from "./routes/WeekView";
-import YearView from "./routes/YearView";
+// CAL-10. The overview is the default year screen; `YearMembers` is the wrapper that keeps a
+// malformed `/year/<bad>/members` on the member grid (AC-3), and `YearView` itself is unchanged.
+import YearOverview, { YearMembers } from "./routes/YearOverview";
 import EditEntry from "./routes/EditEntry";
 import NewEntry from "./routes/NewEntry";
 import PendingEntries from "./routes/PendingEntries";
@@ -327,9 +329,24 @@ export default function App() {
                   renders `year-not-on-a-team` for a caller with no member row, and that refusal is
                   what says why. A redirect would leave somebody who followed a shared year link with
                   nothing to read. `entry_select_team` and `member_select_team` are the controls, and
-                  this ticket adds no policy — every read it makes was already permitted. */}
-              <Route path="/year" element={<YearView />} />
-              <Route path="/year/:year" element={<YearView />} />
+                  this ticket adds no policy — every read it makes was already permitted.
+
+                  CAL-10 § 4.2, inside ADR-032. THREE LINES WHERE THERE WERE TWO, and the change is
+                  which path each screen is mounted at rather than anything either screen does. The
+                  OVERVIEW is now the default year — `/year` and `/year/:yyyy` — and CAL-06's
+                  per-member 365-column grid moves, behaviourally unchanged, to `/year/:yyyy/members`
+                  (AC-1, AC-2). Both are kept: ADR-032 option 3, chosen by the operator on
+                  2026-09-09 over replacing the grid outright.
+
+                  THERE IS DELIBERATELY NO `/year/members` ROUTE. The grid is always anchored by a
+                  year, and the anchorless case is `/year`, which is the overview.
+
+                  `YearMembers` IS A WRAPPER OVER `YearView` AND NOT A SECOND SCREEN — it is the
+                  malformed-anchor case of AC-3 and nothing else, and the file it lives in says why
+                  it is not written here. The grid itself is untouched by this ticket. */}
+              <Route path="/year" element={<YearOverview />} />
+              <Route path="/year/:year" element={<YearOverview />} />
+              <Route path="/year/:year/members" element={<YearMembers />} />
 
               {/* ADM-01. The threshold setting, at its own address (01-plan.md Open question 1: the
                   registry row leaves the surface open and recommends its own screen, so ADM-02,

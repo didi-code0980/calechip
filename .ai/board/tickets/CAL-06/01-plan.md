@@ -128,12 +128,12 @@ Observable through the interface or through `pnpm test`. The selector attribute 
 
 **AC-1 — the year is anchored by the URL and renders every day of it**
 - **Given** a signed-in member
-- **When** they open `/year/2026`
+- **When** they open `/year/2026/members`
 - **Then** the grid renders 365 day columns, the first being 2026-01-01 and the last 2026-12-31
 
 **AC-2 — a leap year renders 366 days**
 - **Given** a signed-in member
-- **When** they open `/year/2028`
+- **When** they open `/year/2028/members`
 - **Then** the grid renders 366 day columns, ending 2028-12-31
 
 **AC-3 — one row per member of the team, including members with no entries**
@@ -196,7 +196,7 @@ Observable through the interface or through `pnpm test`. The selector attribute 
 
 **AC-13 — the three non-list states**
 - **Given** a caller with no session, a signed-in caller with no member row, and a read that fails
-- **When** `/year/2026` is opened in each case
+- **When** `/year/2026/members` is opened in each case
 - **Then** the first is sent to sign in, the second sees the member-less state, and the third sees a
   failure state and no grid
 
@@ -204,7 +204,8 @@ Observable through the interface or through `pnpm test`. The selector attribute 
 - **Given** a year whose entries come back at the row limit
 - **When** the screen resolves
 - **Then** it shows the failure state and draws no grid, rather than a grid missing the entries the
-  read dropped
+  read dropped — and this holds on BOTH year screens, the member grid at `/year/:yyyy/members` and
+  the overview at `/year/:yyyy`, each refusing in place with its own failure state
 
 ### Invariants touched
 
@@ -572,3 +573,15 @@ member by construction, and removes the pressure that would produce the bad vers
   either stage and that the layout is the Tech Lead's own. Sections 1 and 2 written before the source
   tree was read; nothing in either was amended afterwards. Raised by `tech-lead-design`. Amended by
   `tech-lead-design`.
+- `2026-09-09T11:38:02:z` — **AC-1, AC-2, AC-13 and AC-14 reworded by CAL-10, and by nothing else.** ADR-032,
+  `ACCEPTED by the operator` 2026-09-09, made the twelve-month overview the DEFAULT year screen: this
+  grid moves from `/year/:yyyy` to `/year/:yyyy/members` and is otherwise untouched — its behaviour,
+  its markup, its test ids and UIE-08's repaint of it all survive (ADR-032 § *Consequences* items 1
+  and 6). **NO CRITERION'S SUBSTANCE MOVED.** AC-1, AC-2 and AC-13 changed an address they named
+  literally; AC-14 named no address and was reworded because its subject is *the grid*, which now
+  names one of two screens while its refusal must hold at both. **AC-3 to AC-12 ARE DELIBERATELY
+  UNTOUCHED** — AC-3, AC-4, AC-5, AC-6, AC-8, AC-9 and AC-10 open *"When the year renders"* and carry
+  no address; AC-7 and AC-11 likewise; and AC-12's *link back to the month* is satisfied unchanged by
+  the top bar's `Month` segment and again by the overview card footer's `View →`, which CAL-10
+  targets at `/month/yyyy-MM` precisely so that this criterion did not have to move. Written by
+  `developer` at CAL-10's IN_PROGRESS, which is the stage ADR-032 assigns the edit.
