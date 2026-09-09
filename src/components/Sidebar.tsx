@@ -36,6 +36,36 @@
 // `shell-admin-link` (AC-4). Left naming a removed id they would have passed VACUOUSLY: an assertion
 // that a named node is absent is satisfied by the name never having existed, for anybody. AC-5 is
 // the criterion that says no such assertion survives anywhere in the suite.
+//
+// -----------------------------------------------------------------------------------------------
+// **SOLO, 2026-09-09 — THE ROSTER IS GROUPED AND EACH GROUP COLLAPSES.** No ticket, no gate;
+// `.claude/agents/solo.md` is what authorises that. **THAT FILE AND `.claude/commands/solo.md` BOTH
+// CITE `.ai/registry/decisions/ADR-033-solo-engineer.md`, WHICH IS NOT ON DISK** — the decisions
+// directory stops at ADR-032. The citation is repeated here as a pointer to that gap and not as
+// evidence; the agent definition is the thing that actually exists.
+//
+// **THE GROUPING KEY IS `role`, AND IT IS NOT WHAT THE TRANSCRIPTION SHOWED.** The operator attached
+// an image grouping the roster by sub-team — `CORE ENGINEERING`, `FRONTEND TEAM`, `QA / TESTING` —
+// and NO SUCH FIELD EXISTS. `Member` carries `teamId` and nothing else that partitions a roster
+// (`src/lib/domain/types.ts`), INV-07 makes it one team per member, and `member_select_team` scopes
+// `listMembers()` to the caller's own team — so grouping by `teamId` yields exactly one group,
+// always, and a drawer with nothing beside it is not a drawer. Inventing a `sub_team` column is what
+// `CLAUDE.md` § *No invention* forbids and would touch `.ai/standards/data-model.md`, which is the
+// human-only plane. **The operator was asked and chose `role`**, which needs no read this file did
+// not already make: `useRoster` has returned `role` on every member since TEA-03 and UIE-10 already
+// draws it on every row.
+//
+// **THE TOGGLE IS `<details>`/`<summary>` AND NOT A `<button>`, AND THAT IS LOAD-BEARING.** UIE-10
+// AC-10 (`tests/e2e/uie-10-sidebar.spec.ts`) asserts the pane renders EXACTLY ONE `<button>` and
+// that it is `home-sign-out` — the criterion that says this pane writes nothing. A disclosure toggle
+// writes nothing either, so the criterion is right and it is the ELEMENT that had to give way.
+// Native disclosure costs no state, no `aria-expanded` to keep true and no key handler, and it keeps
+// a shipped assertion passing UNEDITED rather than relaxing it to admit this change.
+//
+// **NOTHING ABOUT A ROW CHANGED.** `shell-roster-row`, `shell-roster-role` and `shell-roster-count`
+// keep their names, their count and their text; the rows are the same nodes under two parents
+// instead of one. `shell-roster-count` stays OUTSIDE the groups — it is INV-04's denominator
+// everywhere else in the product and must not leave the screen with a closed drawer.
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useRoster } from "@/hooks/useRoster";
@@ -99,6 +129,100 @@ function AvatarChip({ avatar, testId }: { avatar: string; testId?: string }) {
     >
       {avatar}
     </span>
+  );
+}
+
+/** SOLO. The roster's groups, in this order and for this reason: an admin is who you look for when
+ *  you need something decided, so that drawer is the one at the top of the pane.
+ *
+ *  These are PLURALS and `roleLabel` above returns SINGULARS, kept as separate strings rather than
+ *  derived by suffixing an `s`. `roleLabel`'s two words are letter for letter what shipped specs
+ *  assert (`tests/e2e/tea-05-sign-in.spec.ts` at :65, :146, :155 and UIE-10 AC-7), and a header built
+ *  out of them would make a group label's copy a hostage to a row's. They are two pieces of copy
+ *  about the same fact and they are allowed to differ. */
+const ROLE_GROUPS: readonly { role: MemberRole; label: string }[] = [
+  { role: "admin", label: "Admins" },
+  { role: "member", label: "Members" },
+];
+
+/** The disclosure chevron. Drawn pointing DOWN and rotated to point up while the group is open,
+ *  which is the state the transcription shows.
+ *
+ *  Inline SVG rather than `lucide-react`. The package is a dependency and NO file under `src/`
+ *  imports it today — `grep -rn "lucide-react" src/` returns nothing — and a request to make one
+ *  list collapse is not the change that should decide whether this product carries an icon set.
+ *
+ *  `aria-hidden`, and it carries no state of its own: `<details>` owns the open/closed fact and
+ *  announces it natively, so a second announcement here would be a duplicate that can disagree. */
+function Chevron() {
+  return (
+    <svg
+      aria-hidden
+      viewBox="0 0 12 12"
+      className="ml-auto h-3 w-3 shrink-0 text-ink-3 transition-transform duration-150 group-open:rotate-180"
+    >
+      <path
+        d="M2.5 4.5 6 8l3.5-3.5"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.5"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
+/** One roster row, lifted out of the map unchanged when the map moved inside a group. Every id,
+ *  attribute and string below is UIE-02's or UIE-10's and none of them is this change's. */
+function RosterRow({ member, isMe }: { member: Member; isMe: boolean }) {
+  return (
+    <li
+      data-testid="shell-roster-row"
+      data-member-id={member.id}
+      className="flex items-center gap-2"
+    >
+      <AvatarChip avatar={member.avatar} />
+      {/* UIE-02 AC-9. `(You)` marks the signed-in member, appended to the name rather than
+          replacing it — the roster is who is on the team, and the caller is one of them. It stays
+          on the NAME line: moved down beside the role word it would read as a second role (UIE-10
+          01-plan.md § 2b).
+
+          **UIE-10 AC-7 REVERSES THE FIRST CLAUSE OF WHAT THIS COMMENT USED TO SAY.** It read *"No
+          role badge, no count and no control on a row"*; a row now carries the role word. THE OTHER
+          TWO CLAUSES STAND — no count and no control on a row (UIE-10 AC-10) — and the reversal is
+          marked here rather than made silently, which is what
+          `.ai/standards/ui-design-system.md` § *Visual specification* asks of a decision that
+          changes. **THE COUNT CLAUSE STILL STANDS AFTER SOLO**: the count pill the transcription
+          shows sits on a GROUP HEADER, which is not a row. */}
+      <div className="flex min-w-0 flex-col">
+        <span className="truncate text-[13px] text-ink-2">
+          {isMe ? `${member.displayName} (You)` : member.displayName}
+        </span>
+        {/* UIE-10 AC-7 and AC-8. `shell-roster-role` and NEVER `home-member-role`: that name
+            belongs to the account footer below and `tests/e2e/tea-05-sign-in.spec.ts` reads it by
+            text at :65, :146 and :155, so a second node under it resolves to two under strict mode
+            and breaks UIE-02 AC-6's exactly-one count. The prefix is `shell-`, which is what this
+            file already uses for what the shell owns rather than a screen.
+
+            `data-role` carries the RAW value beside the rendered word, so an assertion can read the
+            fact without depending on the copy — the shape `year-day-cell` and `month-cell` already
+            use.
+
+            NO NEW READ. `useRoster` has returned `role` on every member since TEA-03; the rows have
+            held this all along and chose not to draw it (§ 5). It is DISPLAYED and never acted on,
+            the same property `roleLabel` above records — displaying a role neither grants nor
+            withholds anything. **It is now also what the row is GROUPED by, which is still a
+            display decision and still grants nobody anything.** */}
+        <span
+          data-testid="shell-roster-role"
+          data-role={member.role}
+          className="text-[9px] uppercase tracking-wider text-ink-3"
+        >
+          {roleLabel(member.role)}
+        </span>
+      </div>
+    </li>
   );
 }
 
@@ -193,58 +317,79 @@ export default function Sidebar({ member, signOut }: SidebarProps) {
             >
               Team ({roster.members.length})
             </p>
-            <ul className="mt-2 flex flex-col gap-1.5">
-              {roster.members.map((m) => (
-                <li
-                  key={m.id}
-                  data-testid="shell-roster-row"
-                  data-member-id={m.id}
-                  className="flex items-center gap-2"
-                >
-                  <AvatarChip avatar={m.avatar} />
-                  {/* UIE-02 AC-9. `(You)` marks the signed-in member, appended to the name rather
-                      than replacing it — the roster is who is on the team, and the caller is one of
-                      them. It stays on the NAME line: moved down beside the role word it would read
-                      as a second role (UIE-10 01-plan.md § 2b).
+            {/* SOLO. One `<details>` per group, both OPEN on first paint — the transcription shows
+                every chevron up, and a roster that greets a new session closed hides the one thing
+                this pane exists to show.
 
-                      **UIE-10 AC-7 REVERSES THE FIRST CLAUSE OF WHAT THIS COMMENT USED TO SAY.** It
-                      read *"No role badge, no count and no control on a row"*; a row now carries the
-                      role word. THE OTHER TWO CLAUSES STAND — no count and no control on a row
-                      (UIE-10 AC-10) — and the reversal is marked here rather than made silently,
-                      which is what `.ai/standards/ui-design-system.md` § *Visual specification*
-                      asks of a decision that changes. */}
-                  <div className="flex min-w-0 flex-col">
-                    <span className="truncate text-[13px] text-ink-2">
-                      {m.id === member.id
-                        ? `${m.displayName} (You)`
-                        : m.displayName}
-                    </span>
-                    {/* UIE-10 AC-7 and AC-8. `shell-roster-role` and NEVER `home-member-role`: that
-                        name belongs to the account footer below and `tests/e2e/tea-05-sign-in.spec.ts`
-                        reads it by text at :65, :146 and :155, so a second node under it resolves to
-                        two under strict mode and breaks UIE-02 AC-6's exactly-one count. The prefix
-                        is `shell-`, which is what this file already uses for what the shell owns
-                        rather than a screen — `shell-roster-row`, `shell-roster-count`.
+                **A GROUP WITH NO MEMBERS IS NOT RENDERED AT ALL** rather than rendered as an empty
+                drawer. A team whose only admin is the caller would otherwise carry a `Members 0`
+                header that opens onto nothing, which states a fact nobody asked for in the space
+                the roster needs.
 
-                        `data-role` carries the RAW value beside the rendered word, so an assertion
-                        can read the fact without depending on the copy — the shape `year-day-cell`
-                        and `month-cell` already use.
+                **THE OPEN/CLOSED STATE IS DOM STATE AND IS NOT PERSISTED**, which is a limit rather
+                than an oversight. `<details>` remembers it for as long as the node lives, and this
+                pane is the layout route's element (`AppShell.tsx`) so it survives every navigation
+                inside the shell — a closed drawer stays closed while the caller moves between
+                `/week`, `/year` and `/holidays`. A RELOAD reopens both. Nothing in the request asked
+                for more, and anything more means a store this component does not have. */}
+            <div className="mt-2 flex flex-col gap-2">
+              {ROLE_GROUPS.map((group) => {
+                const rows = roster.members.filter((m) => m.role === group.role);
+                if (rows.length === 0) return null;
+                return (
+                  <details
+                    key={group.role}
+                    open
+                    data-testid="shell-roster-group"
+                    data-role={group.role}
+                    data-count={rows.length}
+                    className="group"
+                  >
+                    {/* `list-none` and the `::-webkit-details-marker` reset remove the native
+                        triangle, which is drawn at the START of the line and would sit where the
+                        transcription puts nothing; the chevron this file draws is at the END. Both
+                        are needed — the pseudo-element is Safari's and `list-none` is everyone
+                        else's.
 
-                        NO NEW READ. `useRoster` has returned `role` on every member since TEA-03;
-                        the rows have held this all along and chose not to draw it (§ 5). It is
-                        DISPLAYED and never acted on, the same property `roleLabel` above records —
-                        displaying a role neither grants nor withholds anything. */}
-                    <span
-                      data-testid="shell-roster-role"
-                      data-role={m.role}
-                      className="text-[9px] uppercase tracking-wider text-ink-3"
+                        NO `role`, NO `aria-expanded` AND NO `tabIndex`. A `<summary>` is already a
+                        focusable disclosure control with its state announced; every one of those
+                        attributes written by hand would be a second copy of a fact the element
+                        maintains, and the copy is the one that goes wrong. */}
+                    <summary
+                      data-testid="shell-roster-group-summary"
+                      className="flex cursor-pointer list-none items-center gap-1.5 rounded-pill py-0.5 text-[10px] font-bold uppercase tracking-wider text-ink-3 transition-colors hover:text-ink-2 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink [&::-webkit-details-marker]:hidden"
                     >
-                      {roleLabel(m.role)}
-                    </span>
-                  </div>
-                </li>
-              ))}
-            </ul>
+                      <span data-testid="shell-roster-group-label">
+                        {group.label}
+                      </span>
+                      {/* The count pill. It counts the GROUP and `shell-roster-count` counts the
+                          team; the two are different numbers and are deliberately different nodes,
+                          so no assertion on INV-04's denominator can pick one up for the other. */}
+                      <span
+                        data-testid="shell-roster-group-count"
+                        className="rounded-pill bg-field px-1.5 py-0.5 text-[9px] font-bold leading-none text-ink-3"
+                      >
+                        {rows.length}
+                      </span>
+                      <Chevron />
+                    </summary>
+                    {/* The guide rail the transcription draws down the left of a group's rows. It
+                        is a `border-l` on the list rather than a node of its own, so it is exactly
+                        as tall as the rows it belongs to and disappears with them when the group
+                        closes. */}
+                    <ul className="mt-1.5 ml-3.25 flex flex-col gap-1.5 border-l border-line pb-0.5 pl-3">
+                      {rows.map((m) => (
+                        <RosterRow
+                          key={m.id}
+                          member={m}
+                          isMe={m.id === member.id}
+                        />
+                      ))}
+                    </ul>
+                  </details>
+                );
+              })}
+            </div>
           </>
         )}
       </div>

@@ -30,7 +30,7 @@
 // and is not built; the only route back is INV-02's trigger on a substantive edit.
 import { useState } from "react";
 import { seam } from "@/lib/data";
-import type { Entry, Failure } from "@/lib/domain/types";
+import type { Entry, EntryType, Failure } from "@/lib/domain/types";
 
 export interface EntryDecisionProps {
   /** The entry as the datastore last returned it. The panel reads `id` and `status` and nothing else. */
@@ -42,6 +42,32 @@ export interface EntryDecisionProps {
    */
   onDecided: () => void | Promise<void>;
 }
+
+/** SOLO, 2026-09-09. The shape both decision controls share, so the pair reads as a pair. */
+const DECISION_PILL =
+  "shrink-0 whitespace-nowrap rounded-pill px-4 py-1.5 text-sm font-semibold transition-colors " +
+  "disabled:opacity-40 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink";
+
+/**
+ * SOLO, 2026-09-09. **THE APPROVE CONTROL IS THE COLOUR OF THE THING IT APPROVES** — peach for
+ * leave, mint for working from home. It is the transcription's clearest idea and it costs nothing:
+ * the two tokens already exist (`CLAUDE.md` § Visual direction, `src/index.css`), the sidebar's
+ * legend already teaches them, and an admin working down a mixed queue can see which kind of entry
+ * each row is without reading the label.
+ *
+ * **THE TEXT IS `text-ink` AND NOT WHITE, WHICH IS A DELIBERATE DEPARTURE FROM THE TRANSCRIPTION.**
+ * It draws white on both fills; white on `--color-wfh` (#a9e2cd) is about 1.6:1, which is not a
+ * contrast ratio, it is a decoration. Ink on either pastel clears AA comfortably, and a pastel fill
+ * under dark text is what § Visual direction asks for in the same sentence that names the colours.
+ *
+ * **IT ADDS NO MEANING.** The kind of entry is already on the row as a word and as `data-type`; this
+ * is the same fact in a second channel, which is why nothing is keyed to it and colour alone carries
+ * nothing here.
+ */
+const APPROVE_FILL: Record<EntryType, string> = {
+  pto: "bg-pto hover:brightness-95",
+  wfh: "bg-wfh hover:brightness-95",
+};
 
 export default function EntryDecision({ entry, onDecided }: EntryDecisionProps) {
   // Three pieces of one thing. `open` is the reason field's disclosure — reject OPENS it and writes
@@ -85,12 +111,18 @@ export default function EntryDecision({ entry, onDecided }: EntryDecisionProps) 
         {entry.status === "approved" ? null : (
           <button
             data-testid="entry-decision-approve"
+            data-type={entry.type}
             type="button"
             disabled={busy}
             onClick={() => void run(() => seam.approveEntry(entry.id))}
-            className="rounded-full bg-emerald-100 px-3 py-1 text-sm disabled:opacity-40"
+            className={`${DECISION_PILL} ${APPROVE_FILL[entry.type]} text-ink`}
           >
             Approve
+            {/* `CLAUDE.md` § Visual direction: an approved entry carries a small star. The
+                transcription puts one on the control that produces that state, which is decorative
+                rather than a second meaning — so it is `aria-hidden` and sits OUTSIDE the word, and
+                the accessible name of this button is still `Approve`. */}
+            <span aria-hidden="true"> ★</span>
           </button>
         )}
 
@@ -105,7 +137,7 @@ export default function EntryDecision({ entry, onDecided }: EntryDecisionProps) 
             setError(null);
             setReason(entry.rejectionReason ?? "");
           }}
-          className="rounded-full bg-rose-100 px-3 py-1 text-sm disabled:opacity-40"
+          className={`${DECISION_PILL} border border-line bg-card text-ink-2 hover:bg-field hover:text-ink`}
         >
           {entry.status === "rejected" ? "Change the reason" : "Reject"}
         </button>

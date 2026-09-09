@@ -54,6 +54,7 @@ import { Link } from "react-router-dom";
 // never import `./supabase` or `./mock` (RULE-02).
 import BulkRejection from "@/components/BulkRejection";
 import EntryDecision from "@/components/EntryDecision";
+import { usePageOverload } from "@/hooks/usePageOverload";
 import { seam } from "@/lib/data";
 import type {
   BulkRejectionOutcome,
@@ -98,6 +99,10 @@ const TYPE_OPTIONS: readonly { value: string; label: string }[] = [
  * `currentMonth`, WeekView.tsx's `today` and YearView.tsx's `currentYear` all record the same
  * exception for the same reason: this answers "what day is it for the person looking at the screen".
  */
+/** SOLO. The stable empty page handed to `usePageOverload` on the three non-`ready` phases. A fresh
+ *  `[]` would be a new dependency on every render; this is one array for the life of the module. */
+const NO_ROWS: readonly Entry[] = [];
+
 function localToday(): string {
   const now = new Date();
   return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
@@ -203,6 +208,19 @@ export default function PendingEntries() {
     setSelected([]);
     setOutcome(null);
   }, [query]);
+
+  // SOLO, 2026-09-09 — the crowded-day sentence on a row. **CALLED HERE, ABOVE THE FOUR EARLY
+  // RETURNS, BECAUSE A HOOK CANNOT BE CONDITIONAL**; on every phase but `ready` it is handed the
+  // shared empty array and issues no read at all.
+  //
+  // `NO_ROWS` IS A MODULE CONSTANT AND NOT A FRESH `[]`. A new array each render is a new dependency
+  // each render, which would rebuild the derived map on every keystroke of the filter for a screen
+  // that is not even showing rows.
+  //
+  // **THIS ADDS NO PHASE TO THIS SCREEN.** The hook says nothing when its read fails, so the queue
+  // still lists, filters, counts and pages exactly as ADM-04 shipped it — the four phases above are
+  // untouched, and a reader should be able to check that by seeing that `view` is not mentioned here.
+  const crowded = usePageOverload(view.phase === "ready" ? view.rows : NO_ROWS);
 
   if (view.phase === "loading") {
     return (
@@ -386,7 +404,13 @@ export default function PendingEntries() {
           Nothing is waiting for a decision in this view.
         </p>
       ) : (
-        <ul data-testid="pending-entries" className="flex flex-col gap-2">
+        // SOLO, 2026-09-09. ONE CARD HOLDING FIVE DIVIDED ROWS, not five cards with a gap between
+        // them — the transcription's arrangement, and the reason it is better is that a queue reads
+        // as one thing to work down rather than five things to consider separately.
+        <ul
+          data-testid="pending-entries"
+          className="divide-y divide-line overflow-hidden rounded-card bg-card shadow-soft"
+        >
           {rows.map((entry) => (
             <li
               key={entry.id}
@@ -398,7 +422,7 @@ export default function PendingEntries() {
               data-start-date={entry.startDate}
               data-end-date={entry.endDate}
               data-tentative={entry.tentative}
-              className="flex flex-wrap items-center gap-3 rounded-2xl bg-white px-4 py-3 text-sm shadow-sm"
+              className="flex flex-wrap items-center gap-3 px-4 py-3 text-sm"
             >
               {/* ADM-06 AC-1, AC-14, AC-15. The selection checkbox, FIRST on the row so the set
                   being composed reads down the left edge of the list. It writes NOTHING (AC-17):
@@ -424,26 +448,91 @@ export default function PendingEntries() {
               {/* AC-2. The column that makes this a worklist rather than a list of rows: a queue of
                   unnamed entries is not the feature, and TEA-03's `member_select_team` is the hard
                   dependency that makes the name readable at all. */}
-              <span aria-hidden="true" className="text-lg">
+              {/* SOLO. The avatar is the transcription's 38px circle rather than a bare glyph, and
+                  it sits on `bg-field` the way the sidebar's roster chip does — one shape for "a
+                  person" across the product instead of two. */}
+              <span
+                aria-hidden="true"
+                className="flex size-9.5 shrink-0 items-center justify-center rounded-pill bg-field text-xl"
+              >
                 {ownerAvatar(entry.memberId)}
               </span>
-              <span data-testid="pending-entry-row-member" className="font-medium">
-                {ownerName(entry.memberId)}
-              </span>
 
-              {/* BOTH BOUNDS, always, as `d → d` for a single day — the form CAL-01 fixed and
-                  TeamEntries.tsx repeats, for its reason: a single date shown once makes the
-                  inclusivity of `end_date` unobservable on exactly the case where an off-by-one is
-                  easiest to introduce. The strings render as they arrive; no `new Date(...)` on this
-                  path. */}
-              <span data-testid="pending-entry-row-dates">
-                {entry.startDate} → {entry.endDate}
-              </span>
+              {/* SOLO. THE THREE LINES THE TRANSCRIPTION DRAWS — who and what, when, and whether the
+                  day is crowded. Every id, string and `data-` attribute below is ADM-04's, ADM-05's
+                  or ADM-06's; what changed is which line each sits on. `min-w-0` so a long note
+                  truncates inside the column rather than pushing the decision controls off the row. */}
+              <div className="flex min-w-0 flex-1 flex-col gap-0.5">
+                <p className="flex flex-wrap items-baseline gap-x-2">
+                  <span
+                    data-testid="pending-entry-row-member"
+                    className="font-semibold text-ink"
+                  >
+                    {ownerName(entry.memberId)}
+                  </span>
+                  <span className="text-ink-3">{TYPE_LABELS[entry.type]}</span>
+                  <span className="text-ink-3">
+                    {PORTION_LABELS[entry.portion]}
+                  </span>
+                </p>
 
-              <span className="opacity-70">{TYPE_LABELS[entry.type]}</span>
-              <span className="opacity-70">{PORTION_LABELS[entry.portion]}</span>
-              {entry.tentative ? <span className="opacity-70">Tentative</span> : null}
-              {entry.note ? <span className="opacity-70">{entry.note}</span> : null}
+                <p className="flex flex-wrap items-center gap-2">
+                  {/* BOTH BOUNDS, always, as `d → d` for a single day — the form CAL-01 fixed and
+                      TeamEntries.tsx repeats, for its reason: a single date shown once makes the
+                      inclusivity of `end_date` unobservable on exactly the case where an off-by-one
+                      is easiest to introduce. The strings render as they arrive; no `new Date(...)`
+                      on this path.
+
+                      SOLO added `font-mono` and nothing else. The transcription sets the dates in a
+                      monospace face so a column of them lines up, and a face is presentation — the
+                      STRING is unchanged, which is what `tests/e2e/adm-04-worklist.spec.ts` reads. */}
+                  <span
+                    data-testid="pending-entry-row-dates"
+                    className="font-mono text-xs text-ink-2"
+                  >
+                    {entry.startDate} → {entry.endDate}
+                  </span>
+
+                  {/* SOLO. `Tentative` became a PILL and kept its word. The transcription marks
+                      every row `CHƯA CHỐT`; the interface is English (§ Language), so the word is
+                      the one ADM-04 already ships and only the shape is the transcription's. The
+                      dashed border is `CLAUDE.md` § Visual direction's own marker for a tentative
+                      entry, so the row and the calendar say it the same way. */}
+                  {entry.tentative ? (
+                    <span className="rounded-pill border border-dashed border-ink-3 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-ink-3">
+                      Tentative
+                    </span>
+                  ) : null}
+
+                  {entry.note ? (
+                    <span className="truncate text-xs text-ink-3">
+                      {entry.note}
+                    </span>
+                  ) : null}
+                </p>
+
+                {/* SOLO — the crowded-day sentence. `usePageOverload` computes it for the whole page
+                    from ONE set of reads and INV-04's single implementation; see that file for why
+                    it is not `OverloadWarning` mounted per row.
+
+                    **IT REFUSES NOTHING** (charter refusal 6). It is a sentence beside a control it
+                    cannot reach: the decision panel below neither reads it nor is disabled by it, so
+                    an admin who wants to approve a crowded day approves it. Rendered as `null` when
+                    the row is not crowded AND when the read has not resolved or failed — a warning
+                    is the only thing it says, and it has nothing to say about a read it did not get. */}
+                {(crowded.get(entry.id) ?? []).map((day) => (
+                  <p
+                    key={day.date}
+                    data-testid="pending-entry-row-overload"
+                    data-date={day.date}
+                    data-count={day.count}
+                    className="text-xs font-semibold text-danger"
+                  >
+                    <span aria-hidden="true">⚠ </span>
+                    {day.date} already has {day.count} away
+                  </p>
+                ))}
+              </div>
 
               {/* ADM-04 AC-14. The SAME route the owner and CAL-03's team list already use, and
                   it keeps its name, its destination and its position —

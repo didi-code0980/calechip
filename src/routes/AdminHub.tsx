@@ -37,56 +37,6 @@ type View =
   | { phase: "unavailable" }
   | { phase: "ready"; me: Member };
 
-/**
- * The five destinations, declared once as data so the list and its order are one thing rather than
- * five copies of a row. AC-3 counts them and AC-4 follows each.
- *
- * **THE ORDER IS BY HOW OFTEN AN ADMIN NEEDS IT** — 01-plan.md § 2b — and not alphabetical and not
- * the sidebar's. The approval queue is the daily one and it is first, which is the only mitigation
- * available inside this ticket for the second click UIE-10 will introduce.
- *
- * `/holidays` IS DELIBERATELY NOT ONE OF THEM (01-plan.md § 1, Out of scope): it is already linked
- * in the sidebar for BOTH roles, not behind the role condition, so it is not an administrative
- * destination this hub collects.
- */
-const DESTINATIONS: readonly {
-  testId: string;
-  to: string;
-  name: string;
-  blurb: string;
-}[] = [
-  {
-    testId: "admin-hub-pending-link",
-    to: "/entries/pending",
-    name: "Pending approvals",
-    blurb: "Entries waiting for a decision. Approve or reject them one at a time or together.",
-  },
-  {
-    testId: "admin-hub-team-entries-link",
-    to: "/entries/team",
-    name: "Team entries",
-    blurb: "Every entry the team has declared, with the controls to edit or remove one.",
-  },
-  {
-    testId: "admin-hub-members-link",
-    to: "/members",
-    name: "Members",
-    blurb: "Who is on the team. Remove somebody, or make somebody an admin.",
-  },
-  {
-    testId: "admin-hub-allow-list-link",
-    to: "/allow-list",
-    name: "Allow list",
-    blurb: "The addresses allowed to sign up and join this team.",
-  },
-  {
-    testId: "admin-hub-threshold-link",
-    to: "/threshold",
-    name: "Overload threshold",
-    blurb: "The share of the team above which a day is called crowded.",
-  },
-];
-
 export default function AdminHub() {
   const [view, setView] = useState<View>({ phase: "loading" });
 
@@ -180,30 +130,26 @@ export default function AdminHub() {
       <header>
         <h1 className="text-xl font-semibold text-ink">Admin</h1>
         <p className="mt-2 text-sm text-ink-2">
-          Everything an admin can do, in one place. Each destination keeps its own screen — nothing
-          is decided here.
+          Everything an admin can do, in one place. Pick a tab above — each one is its own screen,
+          and nothing is decided here.
         </p>
       </header>
 
-      {/* AC-3. An ORDERED list, because § 2b's order is a claim about how often each is needed and
-          `<ol>` is the element that says so. The row carries `admin-hub-link` so the list can be
-          COUNTED and `data-to` so a count can also be checked against the addresses; the anchor
-          inside it carries the destination's own id, so AC-4 follows a link rather than a row.
-          One `data-testid` per element is the constraint that splits them across the two. */}
-      <ol className="flex flex-col gap-3">
-        {DESTINATIONS.map((destination) => (
-          <li key={destination.to} data-testid="admin-hub-link" data-to={destination.to}>
-            <Link
-              data-testid={destination.testId}
-              to={destination.to}
-              className="block rounded-card bg-card p-5 shadow-soft transition-colors hover:bg-field focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
-            >
-              <span className="block text-sm font-semibold text-ink">{destination.name}</span>
-              <span className="mt-1 block text-xs text-ink-2">{destination.blurb}</span>
-            </Link>
-          </li>
-        ))}
-      </ol>
+      {/* **THE `<ol>` OF FIVE CARDS THAT STOOD HERE IS NOW THE TAB STRIP, AND IT MOVED RATHER THAN
+          CHANGING.** `src/components/AdminTabs.tsx` carries UIE-09's `DESTINATIONS` array verbatim
+          — the same five addresses in § 2b's order, the same `admin-hub-link` row id with the same
+          `data-to`, and the same five `admin-hub-*-link` ids on the anchors — and `AdminLayout`
+          renders it above this screen and above each of the five. **AC-3, AC-4, AC-5 and AC-9 all
+          still pass on THIS page, unedited**, because the rows they count and follow are still on
+          it; they are one element higher up the tree.
+
+          **IT MUST NOT BE RENDERED TWICE.** A second copy of the five here would put two nodes
+          under each `admin-hub-*-link`, which fails AC-9's exactly-one count and every strict-mode
+          click in the eight other spec files that follow one. That is the whole reason this list is
+          gone rather than kept alongside the strip, and it is why the five blurbs moved to the tab
+          anchors' `title` instead of staying as a second, fuller list.
+
+          SOLO, 2026-09-09. `.claude/agents/solo.md`; there is no ticket and no plan for this. */}
 
       <p>
         <Link data-testid="admin-hub-back" to="/" className="text-sm underline">

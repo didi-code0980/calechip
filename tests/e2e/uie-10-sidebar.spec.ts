@@ -226,8 +226,17 @@ test.describe("UIE-10 — the sidebar after the migration", () => {
     // ticket that never read this comment is caught too.
     const { readFileSync, readdirSync } = await import("node:fs");
     const { join } = await import("node:path");
+    const { fileURLToPath } = await import("node:url");
 
-    const dir = new URL(".", import.meta.url).pathname;
+    // **`fileURLToPath` AND NOT `.pathname`, WHICH NEVER RAN ON WINDOWS.** A file URL's pathname is
+    // `/D:/TMA/vibe%20code/...` — a leading slash the drive letter does not want, and `%20` for
+    // every space — so `readdirSync` was handed `D:\D:\TMA\vibe%20code\...` and threw ENOENT before
+    // reading a single file. Fixed by `solo` on 2026-09-09, OUTSIDE ITS SCOPE and named as such:
+    // this criterion reads the SUITE rather than the product, and a criterion that throws before
+    // reading anything is the one kind of test that cannot fail usefully. Nothing about what it
+    // asserts is changed, and it now genuinely passes rather than being red for a reason unrelated
+    // to what it checks.
+    const dir = fileURLToPath(new URL(".", import.meta.url));
     const offenders: string[] = [];
 
     for (const file of readdirSync(dir).filter((f) => f.endsWith(".spec.ts"))) {

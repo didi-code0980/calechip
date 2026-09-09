@@ -8,6 +8,7 @@ import { BrowserRouter, Navigate, Outlet, Route, Routes } from "react-router-dom
 import { seamName } from "./lib/data";
 import { useSession } from "./hooks/useSession";
 import AppShell from "./components/AppShell";
+import AdminLayout from "./components/AdminLayout";
 import AdminHub from "./routes/AdminHub";
 import AllowList from "./routes/AllowList";
 import Holidays from "./routes/Holidays";
@@ -218,10 +219,30 @@ export default function App() {
                   safe with no session: it calls getCurrentMember(), gets null, and renders
                   `allow-list-refused`. A guard here would add no protection and would put this
                   ticket's routing decisions on top of another ticket's acceptance criteria. */}
-              <Route path="/allow-list" element={<AllowList />} />
-              {/* TEA-03. Reachable by address only, and not guarded, for the same two reasons: it
-                  renders `member-list-not-on-a-team` when getCurrentMember() returns null. */}
-              <Route path="/members" element={<MemberList />} />
+{/* **SOLO, 2026-09-09 — THE ADMIN TAB STRIP, AND WHY THERE ARE THREE OF THESE BLOCKS
+                  RATHER THAN ONE.** `AdminLayout` draws `AdminTabs` above whatever the child route
+                  renders, so the ROUTER decides which screens carry the strip — the same shape
+                  `BareLayout` and `AppShell` above already use, and not a `useLocation()` test
+                  inside a component (`AdminLayout.tsx` records why at length).
+
+                  The six admin addresses fall into three ADJACENT PAIRS in this table, and they are
+                  wrapped where they lie instead of being gathered into one block. Gathering them
+                  would move six route blocks and roughly a hundred and thirty lines of the reasoning
+                  attached to them, and it would reorder a table whose order carries a documented
+                  argument — `/entries/pending` sits above `/entries/:id/edit` and the comment there
+                  explains why. Three two-line wrappers cost less than that and change no matching:
+                  none of the six paths is a prefix of another, and the `*` catch-all stays last.
+
+                  `isAdmin` AND NOT THE `Member`: the layout's one question is whether to draw the
+                  strip, and a member must not be handed a list of the five administrative addresses
+                  on every screen that refuses them — UIE-10 AC-1 removed exactly that from the
+                  sidebar. Each destination keeps its own guard below, untouched. */}
+              <Route element={<AdminLayout isAdmin={membership.state === "member" && membership.member.role === "admin"} />}>
+                <Route path="/allow-list" element={<AllowList />} />
+                {/* TEA-03. Reachable by address only, and not guarded, for the same two reasons: it
+                    renders `member-list-not-on-a-team` when getCurrentMember() returns null. */}
+                <Route path="/members" element={<MemberList />} />
+              </Route>
 
               {/* CAL-01. GUARDED, unlike the two above, and the difference is not a change of mind:
                   an entry needs a member row to belong to (INV-07, `member_id` not-null against
@@ -262,32 +283,35 @@ export default function App() {
                   somebody who mistyped nothing to read. The guard is an affordance either way:
                   `entry_update_admin` and `entry_delete_admin` are the controls and they refuse the
                   write whoever reaches them. */}
-              <Route
-                path="/entries/team"
-                element={membership.state === "member" ? <TeamEntries /> : <Navigate to="/" replace />}
-              />
+{/* SOLO, 2026-09-09 — the admin tab strip, block 2 of 3. See block 1 above for why three. */}
+              <Route element={<AdminLayout isAdmin={membership.state === "member" && membership.member.role === "admin"} />}>
+                <Route
+                  path="/entries/team"
+                  element={membership.state === "member" ? <TeamEntries /> : <Navigate to="/" replace />}
+                />
 
-              {/* ADM-04. The worklist of entries awaiting a decision, at its own address — ADM-01's
-                  `TODO(project):` was answered at its own PLAN with *its own screen at /threshold*,
-                  and .ai/registry/features.md:103 says the later admin rows inherit that answer rather
-                  than re-asking it. `/entries/pending` sits in the family `/entries/team` and
-                  `/entries/new` already established.
+                {/* ADM-04. The worklist of entries awaiting a decision, at its own address — ADM-01's
+                    `TODO(project):` was answered at its own PLAN with *its own screen at /threshold*,
+                    and .ai/registry/features.md:103 says the later admin rows inherit that answer rather
+                    than re-asking it. `/entries/pending` sits in the family `/entries/team` and
+                    `/entries/new` already established.
 
-                  A STATIC SEGMENT ABOVE `/entries/:id/edit`, and it cannot be shadowed by it: react
-                  router v7 ranks a static segment above a dynamic one regardless of declaration order,
-                  so `/entries/pending` never resolves to EditEntry with an id of "pending".
+                    A STATIC SEGMENT ABOVE `/entries/:id/edit`, and it cannot be shadowed by it: react
+                    router v7 ranks a static segment above a dynamic one regardless of declaration order,
+                    so `/entries/pending` never resolves to EditEntry with an id of "pending".
 
-                  GUARDED ON `member` AND NOT ON `admin`, which is the choice /entries/team and
-                  /threshold already record: a member who types this address must reach the component
-                  and be refused BY IT (`pending-entries-refused`, AC-10) rather than be bounced to
-                  `/`, because the refusal is what says why. The guard is an affordance either way —
-                  and here there is no control behind it at all: `entry_select_team` admits these rows
-                  to both roles, so a member who got past the refusal would see what they can already
-                  read at /entries/team (01-plan.md section 3). */}
-              <Route
-                path="/entries/pending"
-                element={membership.state === "member" ? <PendingEntries /> : <Navigate to="/" replace />}
-              />
+                    GUARDED ON `member` AND NOT ON `admin`, which is the choice /entries/team and
+                    /threshold already record: a member who types this address must reach the component
+                    and be refused BY IT (`pending-entries-refused`, AC-10) rather than be bounced to
+                    `/`, because the refusal is what says why. The guard is an affordance either way —
+                    and here there is no control behind it at all: `entry_select_team` admits these rows
+                    to both roles, so a member who got past the refusal would see what they can already
+                    read at /entries/team (01-plan.md section 3). */}
+                <Route
+                  path="/entries/pending"
+                  element={membership.state === "member" ? <PendingEntries /> : <Navigate to="/" replace />}
+                />
+              </Route>
 
               {/* CAL-04. The month grid, and the anchor is the URL — `/month/2026-04` typed directly
                   produces the same screen as pressing "next" from March (AC-10). `/month` with no
@@ -360,34 +384,37 @@ export default function App() {
                   resolves by membership. The guard is an affordance either way — `team_update_admin`
                   and `grant update (overload_threshold)` are the controls and they refuse the write
                   whoever reaches them. */}
-              <Route
-                path="/threshold"
-                element={membership.state === "member" ? <Threshold /> : <Navigate to="/" replace />}
-              />
+{/* SOLO, 2026-09-09 — the admin tab strip, block 3 of 3. See block 1 above for why three. */}
+              <Route element={<AdminLayout isAdmin={membership.state === "member" && membership.member.role === "admin"} />}>
+                <Route
+                  path="/threshold"
+                  element={membership.state === "member" ? <Threshold /> : <Navigate to="/" replace />}
+                />
 
-              {/* UIE-09. The admin hub — one screen naming every administrative destination, and
-                  the only thing in the product that links to `/members`, which has been a route with
-                  no link anywhere in `src/` since TEA-03 (01-plan.md § 1).
+                {/* UIE-09. The admin hub — one screen naming every administrative destination, and
+                    the only thing in the product that links to `/members`, which has been a route with
+                    no link anywhere in `src/` since TEA-03 (01-plan.md § 1).
 
-                  IT ADDS A ROUTE ABOVE THE FOUR AND MOVES NONE OF THEM. `/threshold` is still
-                  `/threshold`, `/allow-list` is still `/allow-list`, and each keeps its own back
-                  link. THERE ARE DELIBERATELY NO CHILDREN: a tabbed `/admin/threshold` family would
-                  re-address four shipped screens and reverse ADM-01's Open question 1 along with the
-                  answer ADM-02, ADM-03 and ADM-04 all inherited — `ticket.yaml` § 7 fences it and
-                  01-plan.md § 8 rejects it on the merits.
+                    IT ADDS A ROUTE ABOVE THE FOUR AND MOVES NONE OF THEM. `/threshold` is still
+                    `/threshold`, `/allow-list` is still `/allow-list`, and each keeps its own back
+                    link. THERE ARE DELIBERATELY NO CHILDREN: a tabbed `/admin/threshold` family would
+                    re-address four shipped screens and reverse ADM-01's Open question 1 along with the
+                    answer ADM-02, ADM-03 and ADM-04 all inherited — `ticket.yaml` § 7 fences it and
+                    01-plan.md § 8 rejects it on the merits.
 
-                  GUARDED ON `member` AND NOT ON `admin`, which is the choice /entries/team,
-                  /entries/pending and /threshold each already record: a member who types this address
-                  must reach the component and be refused BY IT (`admin-hub-refused`, AC-6) rather
-                  than be bounced to `/`, because the refusal is what says why. A caller with no
-                  session or no member row lands on `/`, which then resolves by membership (AC-7).
-                  The guard is an affordance either way, and here it guards nothing at all: the screen
-                  renders five LINKS and no control, and each of the five destinations keeps the guard
-                  and the policy it already had. */}
-              <Route
-                path="/admin"
-                element={membership.state === "member" ? <AdminHub /> : <Navigate to="/" replace />}
-              />
+                    GUARDED ON `member` AND NOT ON `admin`, which is the choice /entries/team,
+                    /entries/pending and /threshold each already record: a member who types this address
+                    must reach the component and be refused BY IT (`admin-hub-refused`, AC-6) rather
+                    than be bounced to `/`, because the refusal is what says why. A caller with no
+                    session or no member row lands on `/`, which then resolves by membership (AC-7).
+                    The guard is an affordance either way, and here it guards nothing at all: the screen
+                    renders five LINKS and no control, and each of the five destinations keeps the guard
+                    and the policy it already had. */}
+                <Route
+                  path="/admin"
+                  element={membership.state === "member" ? <AdminHub /> : <Navigate to="/" replace />}
+                />
+              </Route>
 
               {/* ADM-02. The national holiday calendar, and the anchor is the URL exactly as the
                   month's, the week's and the year's are — `/holidays/2026` typed directly produces the
