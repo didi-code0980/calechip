@@ -4,7 +4,8 @@ import { expect, test, type Locator, type Page } from "@playwright/test";
 //
 // Written from 01-plan.md sections 2, 2b, 3, 4.4 and 4.5. Every locator is a `data-testid` from the
 // selector table in section 4.5; the ones this file uses that are NOT in that table — `sign-in-*`,
-// `home-sign-out`, `home-new-entry-link`, `home-pending-entries-link`, `new-entry-*`,
+// `home-sign-out`, `home-new-entry-link`, `shell-admin-link`, `admin-hub-pending-link`,
+// `new-entry-*`,
 // `own-entry-row`, `pending-entry-row*`, `pending-entries-*`, `entry-decision*` — belong to TEA-01,
 // TEA-05, CAL-01, ADM-04 and ADM-05 and are declared in 03-impl-log.md § Deviations.
 //
@@ -119,8 +120,11 @@ async function declare(
   await expect(page.getByTestId("home-sign-out")).toBeVisible();
 }
 
+/** **TWO CLICKS SINCE UIE-10**, which removed the sidebar's four admin links: the top-bar control,
+ *  then the hub row UIE-09 shipped. The destination and everything asserted about it are unchanged. */
 async function openWorklist(page: Page): Promise<void> {
-  await page.getByTestId("home-pending-entries-link").click();
+  await page.getByTestId("shell-admin-link").click();
+  await page.getByTestId("admin-hub-pending-link").click();
   await expect(count(page)).toBeVisible();
 }
 

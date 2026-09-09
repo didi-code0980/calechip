@@ -5,7 +5,8 @@ import { expect, test, type Locator, type Page } from "@playwright/test";
 // Written from 01-plan.md sections 2 and 4.3. Every locator is a `data-testid` named in section 4.3,
 // plus `team-entries-loading`, `team-entries-unavailable`, `team-entry-delete-cancel`,
 // `team-entry-delete-error`, `team-entries-back`, `edit-entry-team-back`,
-// `home-team-entries-link` and the `data-member-id` / `data-created-at` / `data-updated-at`
+// `shell-admin-link`, `admin-hub-team-entries-link` and the `data-member-id` / `data-created-at` /
+// `data-updated-at`
 // attributes on `team-entry-row` — all declared in 03-impl-log.md as additions beyond the selector
 // table.
 //
@@ -110,8 +111,11 @@ async function openOwnList(page: Page): Promise<void> {
   await expect(page.getByTestId("new-entry-form")).toBeVisible();
 }
 
+/** **TWO CLICKS SINCE UIE-10**, which removed the sidebar's four admin links: the top-bar control,
+ *  then the hub row UIE-09 shipped. The destination is unchanged. */
 async function openTeamList(page: Page): Promise<void> {
-  await page.getByTestId("home-team-entries-link").click();
+  await page.getByTestId("shell-admin-link").click();
+  await page.getByTestId("admin-hub-team-entries-link").click();
   await expect(page.getByTestId("team-entries-loading")).toBeHidden();
 }
 
@@ -299,7 +303,11 @@ test.describe("CAL-03 edit or delete another member's entry, as an admin", () =>
     await signInAs(page, MEMBER_EMAIL);
 
     // The link is not offered — an affordance, and the first half of AC-10.
-    await expect(page.getByTestId("home-team-entries-link")).toHaveCount(0);
+    // **REWRITTEN ONTO `shell-admin-link` BY UIE-10 AC-4.** This line named
+    // `home-team-entries-link`, which after that ticket renders for NOBODY — so it would have gone
+    // on passing while asserting nothing, because an absent name is absent for every caller.
+    // `shell-admin-link` renders for an admin and not for a member, so it can still fail.
+    await expect(page.getByTestId("shell-admin-link")).toHaveCount(0);
 
     // Typed by address, the screen is reached and REFUSES. It lists nothing belonging to anybody.
     await page.goto("/entries/team");
@@ -473,8 +481,15 @@ test.describe("CAL-03 edit or delete another member's entry, as an admin", () =>
 
   test("AC-10: the team entry list is reachable by an admin and by nobody else", async ({ page }) => {
     await signInAs(page, ADMIN_EMAIL);
-    await expect(page.getByTestId("home-team-entries-link")).toBeVisible();
-    await openTeamList(page);
+    // **ON THE HUB SINCE UIE-10, NOT IN THE SIDEBAR.** The criterion's substance is untouched — the
+    // list is reachable by an admin and by nobody else — and only the surface the link sits on
+    // moved. The admin half still follows a link rather than typing the address, which is what
+    // makes it a claim about reachability.
+    await expect(page.getByTestId("shell-admin-link")).toBeVisible();
+    await page.getByTestId("shell-admin-link").click();
+    await expect(page.getByTestId("admin-hub-team-entries-link")).toBeVisible();
+    await page.getByTestId("admin-hub-team-entries-link").click();
+    await expect(page.getByTestId("team-entries-loading")).toBeHidden();
     await expect(page.getByTestId("team-entries")).toBeVisible();
     await expect(page.getByTestId("team-entries-refused")).toHaveCount(0);
     // The list shows the whole team, the caller's own rows included — it is not "everybody else's".
@@ -484,7 +499,11 @@ test.describe("CAL-03 edit or delete another member's entry, as an admin", () =>
     await signOutFromHome(page);
 
     await signInAs(page, MEMBER_EMAIL);
-    await expect(page.getByTestId("home-team-entries-link")).toHaveCount(0);
+    // **REWRITTEN ONTO `shell-admin-link` BY UIE-10 AC-4.** This line named
+    // `home-team-entries-link`, which after that ticket renders for NOBODY — so it would have gone
+    // on passing while asserting nothing, because an absent name is absent for every caller.
+    // `shell-admin-link` renders for an admin and not for a member, so it can still fail.
+    await expect(page.getByTestId("shell-admin-link")).toHaveCount(0);
     await page.goto("/entries/team");
     await expect(page.getByTestId("team-entries-refused")).toBeVisible();
     // It lists no entry, and it names nobody. A refusal that said what it was withholding would be

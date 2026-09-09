@@ -8,15 +8,34 @@
 // the count and AC-7 is the two role strings.
 //
 // **NOTHING HERE IS A CONTROL.** Every element is an affordance over a row-level-security policy
-// that already exists and is not touched (01-plan.md § 3, ADR-005). The four admin-only links are
-// hidden from a member (AC-8) and a member who types any of those four addresses still reaches the
-// screen and is still refused BY IT — `allow-list-refused`, `team-entries-refused`,
-// `threshold-refused`, `pending-entries-refused`. Hiding a link saves a pointless journey and
-// refuses nobody.
+// that already exists and is not touched (01-plan.md § 3, ADR-005). A caller who types one of the
+// admin addresses still reaches the screen and is still refused BY IT — `allow-list-refused`,
+// `team-entries-refused`, `threshold-refused`, `pending-entries-refused`. Hiding a link saves a
+// pointless journey and refuses nobody. That was true when the links were here and it is exactly as
+// true now that they are not.
 //
-// The role condition is `member.role === "admin"`, read off the `member` row `App.tsx` already
-// resolved — the same condition `Home.tsx` used, MOVED rather than rewritten, which is what keeps
-// the three `toHaveCount(0)` assertions passing.
+// -----------------------------------------------------------------------------------------------
+// **UIE-10 — THE MIGRATION HALF. THIS FILE NO LONGER RENDERS ANYTHING ROLE-DEPENDENT.**
+// 01-plan.md § 4.1 and § 4.2. Two changes, and the second reverses a decision UIE-02 wrote down:
+//
+// 1. THE FOUR ADMIN-ONLY LINKS ARE GONE, FOR BOTH ROLES (AC-1). `home-pending-entries-link`,
+//    `home-team-entries-link`, `home-allow-list-link` and `home-threshold-link` are removed rather
+//    than relocated, and `isAdmin` is removed with them. UIE-09's hub at `/admin` carries the same
+//    four addresses under its own `admin-hub-*-link` ids, reached from `shell-admin-link` in the top
+//    bar. The paragraph above about UIE-02's relocation trick describes THAT ticket and is left
+//    standing as its record; it does not describe this one.
+// 2. EVERY ROSTER ROW NOW SHOWS THE MEMBER'S ROLE (AC-7), under the new id `shell-roster-role`.
+//    This reverses the first clause of the sentence at the roster row below — *"No role badge, no
+//    count and no control on a row"* — and only the first clause. The reversal is marked at that
+//    comment and in AC-7, because a reversal nobody marked is what
+//    `.ai/standards/ui-design-system.md` § *Visual specification* exists to prevent.
+//
+// WHAT THIS COSTS THE SUITE, AND WHY IT IS PAID HERE. Nine spec files clicked or asserted those four
+// ids. The nine navigation sites each gained one step — reach the hub, then click its link — and the
+// SIX NEGATIVE ASSERTIONS THAT SAID A MEMBER IS OFFERED NOTHING WERE REWRITTEN ONTO
+// `shell-admin-link` (AC-4). Left naming a removed id they would have passed VACUOUSLY: an assertion
+// that a named node is absent is satisfied by the name never having existed, for anybody. AC-5 is
+// the criterion that says no such assertion survives anywhere in the suite.
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useRoster } from "@/hooks/useRoster";
@@ -124,7 +143,11 @@ export default function Sidebar({ member, signOut }: SidebarProps) {
     }
   }
 
-  const isAdmin = member.role === "admin";
+  // `const isAdmin = member.role === "admin";` stood here until UIE-10. The four admin-only links
+  // were its only reader, so removing them leaves it unused — and an unused binding is a lint error
+  // rather than a harmless leftover. The role condition now lives once, in `TopBar.tsx`, on
+  // `shell-admin-link`. `member.role` is still read in this file, by the account footer and now by
+  // every roster row, but only ever to DISPLAY a word.
 
   return (
     // § 4.9. A fixed 216px pane on `--color-card`, full height, NO BORDER — separated from the
@@ -179,14 +202,46 @@ export default function Sidebar({ member, signOut }: SidebarProps) {
                   className="flex items-center gap-2"
                 >
                   <AvatarChip avatar={m.avatar} />
-                  {/* AC-9. `(You)` marks the signed-in member, appended to the name rather than
-                      replacing it — the roster is who is on the team, and the caller is one of
-                      them. No role badge, no count and no control on a row. */}
-                  <span className="truncate text-[13px] text-ink-2">
-                    {m.id === member.id
-                      ? `${m.displayName} (You)`
-                      : m.displayName}
-                  </span>
+                  {/* UIE-02 AC-9. `(You)` marks the signed-in member, appended to the name rather
+                      than replacing it — the roster is who is on the team, and the caller is one of
+                      them. It stays on the NAME line: moved down beside the role word it would read
+                      as a second role (UIE-10 01-plan.md § 2b).
+
+                      **UIE-10 AC-7 REVERSES THE FIRST CLAUSE OF WHAT THIS COMMENT USED TO SAY.** It
+                      read *"No role badge, no count and no control on a row"*; a row now carries the
+                      role word. THE OTHER TWO CLAUSES STAND — no count and no control on a row
+                      (UIE-10 AC-10) — and the reversal is marked here rather than made silently,
+                      which is what `.ai/standards/ui-design-system.md` § *Visual specification*
+                      asks of a decision that changes. */}
+                  <div className="flex min-w-0 flex-col">
+                    <span className="truncate text-[13px] text-ink-2">
+                      {m.id === member.id
+                        ? `${m.displayName} (You)`
+                        : m.displayName}
+                    </span>
+                    {/* UIE-10 AC-7 and AC-8. `shell-roster-role` and NEVER `home-member-role`: that
+                        name belongs to the account footer below and `tests/e2e/tea-05-sign-in.spec.ts`
+                        reads it by text at :65, :146 and :155, so a second node under it resolves to
+                        two under strict mode and breaks UIE-02 AC-6's exactly-one count. The prefix
+                        is `shell-`, which is what this file already uses for what the shell owns
+                        rather than a screen — `shell-roster-row`, `shell-roster-count`.
+
+                        `data-role` carries the RAW value beside the rendered word, so an assertion
+                        can read the fact without depending on the copy — the shape `year-day-cell`
+                        and `month-cell` already use.
+
+                        NO NEW READ. `useRoster` has returned `role` on every member since TEA-03;
+                        the rows have held this all along and chose not to draw it (§ 5). It is
+                        DISPLAYED and never acted on, the same property `roleLabel` above records —
+                        displaying a role neither grants nor withholds anything. */}
+                    <span
+                      data-testid="shell-roster-role"
+                      data-role={m.role}
+                      className="text-[9px] uppercase tracking-wider text-ink-3"
+                    >
+                      {roleLabel(m.role)}
+                    </span>
+                  </div>
                 </li>
               ))}
             </ul>
@@ -194,10 +249,31 @@ export default function Sidebar({ member, signOut }: SidebarProps) {
         )}
       </div>
 
-      {/* The seven nav items, the four admin-only ones last. Every id is relocated and unrenamed
-          (§ 4.8). Each of the three read-only destinations is linked with NO anchor, so the screen
-          resolves the current period from the caller's clock — a date computed here would be a
-          second clock in a second file, and this component holds none. */}
+      {/* **THREE NAV ITEMS, AND UIE-10 AC-1 IS WHY THERE ARE NO LONGER SEVEN.** The four admin-only
+          links — `home-pending-entries-link`, `home-team-entries-link`, `home-allow-list-link` and
+          `home-threshold-link` — are REMOVED, for both roles, and the `isAdmin` condition that wrapped
+          them is removed with them. The same four addresses are reached through `shell-admin-link` in
+          the top bar and then the hub's own `admin-hub-*-link` rows, which UIE-09 shipped. The
+          sidebar's length is no longer a function of the caller's role.
+
+          **THE FOUR IDS ARE NOT RELOCATED, WHICH IS THE ONE THING UIE-02 DID AND THIS DOES NOT.**
+          UIE-09 shipped `admin-hub-*-link` on those exact rows and asserts each resolves to one node;
+          a row cannot carry two `data-testid` values, so adopting a `home-*` name on the hub would
+          mean renaming away from a name a shipped spec already asserts (UIE-10 01-plan.md § 1). Every
+          navigation site needed the inserted hub step either way, so relocation would have saved the
+          id text on nine lines and nothing else.
+
+          **THE THREE GENERAL LINKS STAY (AC-2), and that is a decision rather than an omission.**
+          The top bar renders no switcher at all on the eight non-period routes — `periodNavFor`
+          returns null (`src/lib/period.ts`) and `TopBar.tsx` gates the whole cluster on it — so on
+          three of those the week and year links here are the only route back to a calendar. And
+          `/holidays` is linked from exactly one place in the product, this one, while being guarded
+          on a SESSION rather than a role, so no admin control can adopt it without breaking ADM-02
+          AC-15 and taking the national calendar away from every member.
+
+          Each of the three is linked with NO anchor, so the screen resolves the current period from
+          the caller's clock — a date computed here would be a second clock in a second file, and this
+          component holds none. */}
       <nav className="flex flex-col gap-0.5">
         <Link data-testid="home-week-link" to="/week" className={NAV_LINK}>
           This week
@@ -212,41 +288,6 @@ export default function Sidebar({ member, signOut }: SidebarProps) {
         >
           Public holidays
         </Link>
-
-        {/* AC-8. The four admin-only affordances, under one condition rather than four copies of
-            it — the shape `Home.tsx` used, kept. */}
-        {isAdmin ? (
-          <>
-            <Link
-              data-testid="home-pending-entries-link"
-              to="/entries/pending"
-              className={NAV_LINK}
-            >
-              Waiting for a decision
-            </Link>
-            <Link
-              data-testid="home-team-entries-link"
-              to="/entries/team"
-              className={NAV_LINK}
-            >
-              The team&rsquo;s entries
-            </Link>
-            <Link
-              data-testid="home-allow-list-link"
-              to="/allow-list"
-              className={NAV_LINK}
-            >
-              Allowed addresses
-            </Link>
-            <Link
-              data-testid="home-threshold-link"
-              to="/threshold"
-              className={NAV_LINK}
-            >
-              When a day counts as crowded
-            </Link>
-          </>
-        ) : null}
       </nav>
 
       {/* § 4.9. The spacer that pins the legend and the account footer to the bottom. */}

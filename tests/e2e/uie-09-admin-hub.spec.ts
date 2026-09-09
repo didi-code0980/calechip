@@ -90,8 +90,19 @@ const landmarkOf = (page: Page, landmarks: readonly [string, ...string[]]): Loca
     .slice(1)
     .reduce((locator, id) => locator.or(page.getByTestId(id)), page.getByTestId(landmarks[0]));
 
-/** The four admin-only sidebar links UIE-10 has to migrate and this ticket must not touch. */
-const SIDEBAR_ADMIN_LINKS = [
+/**
+ * The four admin-only sidebar links UIE-09 had to leave alone and **UIE-10 has now removed**.
+ *
+ * THE ARRAY IS KEPT AND ITS MEANING IS INVERTED, WHICH IS DELIBERATE. UIE-09's AC-9 and AC-10 each
+ * looped over it asserting `toHaveCount(1)` for an admin — a promise that the migration ticket still
+ * had four ids to migrate. UIE-10 AC-1 removes them for BOTH roles, so those loops now assert
+ * `toHaveCount(0)` everywhere, and the four names survive here as the list of what must never come
+ * back. Deleting the array instead would have deleted the only place the suite states that these
+ * four names are retired, and a name nothing mentions is a name somebody re-adds.
+ *
+ * Both amendments are recorded in `.ai/board/tickets/UIE-09/01-plan.md` § *Amended by UIE-10*.
+ */
+const RETIRED_SIDEBAR_ADMIN_LINKS = [
   "home-pending-entries-link",
   "home-team-entries-link",
   "home-allow-list-link",
@@ -290,12 +301,19 @@ test.describe("UIE-09 — the admin hub", () => {
     );
     expect(unexpected).toEqual([]);
 
-    // NO `home-*` ID IS ADDED, MOVED, RENAMED OR REMOVED — the mechanism the two-row split is built
-    // on. UIE-02 AC-6 requires each to resolve to exactly one node, and Playwright strict mode fails
-    // a click matching two, so a `home-*-link` rendered on the hub as well as in the sidebar would
-    // break the migration UIE-10 has to make.
-    for (const id of SIDEBAR_ADMIN_LINKS) {
-      await expect(page.getByTestId(id)).toHaveCount(1);
+    // **AC-9 AMENDED BY UIE-10, AND THE CLAUSE THAT MOVED IS NAMED RATHER THAN QUIETLY DROPPED.**
+    // As shipped this read *"no `home-*` id is added, moved, renamed or removed"*. That was a
+    // promise about UIE-09's OWN change and it stays true of UIE-09; read as a standing property of
+    // the product it is false the moment UIE-10 lands, which is what UIE-10 § 4.5 records.
+    //
+    // What the criterion is really for survives untouched: NO `home-*` ID IS RENAMED, AND NONE IS
+    // DUPLICATED ONTO THE HUB. UIE-02 AC-6 requires each surviving `home-*` id to resolve to exactly
+    // one node and Playwright strict mode fails a click matching two, so a `home-*-link` rendered on
+    // the hub as well as in the sidebar would have broken the migration. It never was: UIE-10
+    // REMOVED the four rather than relocating them, and the hub's rows kept the `admin-hub-*-link`
+    // names UIE-09 shipped.
+    for (const id of RETIRED_SIDEBAR_ADMIN_LINKS) {
+      await expect(page.getByTestId(id)).toHaveCount(0);
     }
     await expect(page.getByTestId("home-new-entry-link")).toHaveCount(1);
     await expect(page.getByTestId("home-week-link")).toHaveCount(1);
@@ -313,20 +331,26 @@ test.describe("UIE-09 — the admin hub", () => {
     }
   });
 
-  test("AC-10: the sidebar is unchanged, for both roles", async ({ page }) => {
+  test("AC-10: the sidebar keeps its three general links, for both roles", async ({ page }) => {
+    // **AMENDED BY UIE-10, AND THE TITLE CHANGED WITH IT.** As shipped this criterion read *"the
+    // sidebar is unchanged … including all four `home-*-link` admin links for the admin"*, and it
+    // described the DOUBLE EXPOSURE UIE-09 deliberately left behind: the four links in the sidebar
+    // and the five rows on the hub, both on screen at once. UIE-10 is the migration that ends it, so
+    // the clause about the four is false by design and the clause about the three is the half that
+    // was ever meant to be permanent. `.ai/board/tickets/UIE-09/01-plan.md` § *Amended by UIE-10*
+    // carries the same wording; this is the assertion.
     await signInAtHub(page, ADMIN_EMAIL);
 
     await expect(page.getByTestId("shell-sidebar")).toBeVisible();
-    for (const id of SIDEBAR_ADMIN_LINKS) {
-      await expect(page.getByTestId(id)).toHaveCount(1);
+    for (const id of RETIRED_SIDEBAR_ADMIN_LINKS) {
+      await expect(page.getByTestId(id)).toHaveCount(0);
     }
-    // And on the hub itself — the sidebar renders on every route inside the shell, so the four are
-    // still there while the five are on screen beside them. That double exposure is the whole of
-    // what this row costs and it is deliberate: UIE-10 is the migration.
+    // And on the hub itself — the sidebar renders on every route inside the shell, so if any of the
+    // four had been RELOCATED here rather than removed this loop is where it would show up.
     await page.getByTestId("shell-admin-link").click();
     await expect(page.getByTestId("admin-hub")).toBeVisible();
-    for (const id of SIDEBAR_ADMIN_LINKS) {
-      await expect(page.getByTestId(id)).toHaveCount(1);
+    for (const id of RETIRED_SIDEBAR_ADMIN_LINKS) {
+      await expect(page.getByTestId(id)).toHaveCount(0);
     }
 
     // Sign out WITHOUT a document load, so the second half runs against the same page lifetime.
@@ -335,8 +359,12 @@ test.describe("UIE-09 — the admin hub", () => {
     await signIn(page, MEMBER_EMAIL);
     await expect(page.getByTestId("home-sign-out")).toBeVisible();
 
+    // For a member the four are absent too — and that is now the SAME sentence as the line above
+    // rather than the opposite one, which is exactly why UIE-10 AC-4 moved every denial in this
+    // suite onto `shell-admin-link`. Asserted here anyway: the length of this pane no longer depends
+    // on who is reading it, and that is the property UIE-10 AC-1 bought.
     await expect(page.getByTestId("shell-sidebar")).toBeVisible();
-    for (const id of SIDEBAR_ADMIN_LINKS) {
+    for (const id of RETIRED_SIDEBAR_ADMIN_LINKS) {
       await expect(page.getByTestId(id)).toHaveCount(0);
     }
     await expect(page.getByTestId("home-week-link")).toHaveCount(1);

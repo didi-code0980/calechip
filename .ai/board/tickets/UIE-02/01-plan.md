@@ -208,9 +208,24 @@ the Changelog.*
 - Given a signed-in `admin` on any route inside the shell
 - When the page has rendered
 - Then each of `home-member-avatar`, `home-member-name`, `home-member-role`, `home-sign-out`,
-  `home-week-link`, `home-year-link`, `home-holidays-link`, `home-new-entry-link`,
-  `home-allow-list-link`, `home-team-entries-link`, `home-threshold-link` and
-  `home-pending-entries-link` resolves to exactly one node — never zero, never two
+  `home-week-link`, `home-year-link`, `home-holidays-link` and `home-new-entry-link` resolves to
+  exactly one node — never zero, never two
+
+> ***AMENDED 2026-09-09 BY UIE-10, WHICH SHORTENED THE LIST FROM TWELVE IDS TO EIGHT.***
+> `home-allow-list-link`, `home-team-entries-link`, `home-threshold-link` and
+> `home-pending-entries-link` were removed from the product by UIE-10 AC-1 — the sidebar gave up its
+> four admin links and the same four addresses are reached through `shell-admin-link` in the top bar
+> and then the `admin-hub-*-link` rows UIE-09 shipped. **They are removed rather than relocated**, so
+> there is no node anywhere for the count to be taken of: UIE-09 had already shipped
+> `admin-hub-*-link` on those exact rows and asserts each resolves to one node, and a row cannot
+> carry two `data-testid` values.
+>
+> **The eight that remain keep this criterion exactly as it was written, and that is the half worth
+> protecting** — Playwright strict mode fails a `.click()` matching two nodes, which is what made
+> UIE-02's relocation trick safe in the first place. UIE-10's own AC-8 re-states the count for the
+> shell's ids and adds `shell-roster-role` to what is checked. **The four names are not reused.**
+> UIE-10 01-plan.md § 4.5 and `tests/e2e/uie-10-sidebar.spec.ts` carry the reasoning and the
+> assertion.
 
 **AC-7 — `home-member-role` keeps the exact strings `Admin` and `Member`**
 - Given a signed-in member
@@ -224,6 +239,26 @@ the Changelog.*
 - Then `home-allow-list-link`, `home-team-entries-link`, `home-threshold-link` and
   `home-pending-entries-link` each resolve to zero nodes; and given the same caller with role
   `admin`, each resolves to exactly one
+
+> ***SUPERSEDED 2026-09-09 BY UIE-10 AC-1. The criterion above is kept in the past tense rather than
+> rewritten, because it is a true statement about what UIE-02 shipped and it is the record of why
+> those four ids existed at all.*** After UIE-10 the four are hidden from BOTH roles — they render
+> for nobody — so the second clause is false by design and the first is true for a reason it was
+> never asserting.
+>
+> **AND THAT IS PRECISELY WHY THE ASSERTIONS THAT CARRIED THIS CRITERION COULD NOT SIMPLY BE LEFT
+> ALONE.** Six `toHaveCount(0)` assertions across four spec files stated the member half of it. An
+> assertion that a named node is absent is satisfied by the name never having existed, so all six
+> would have gone on passing while stating nothing at all. UIE-10 AC-4 rewrote each of them onto
+> `shell-admin-link`, which renders for an admin and not for a member and can therefore still fail;
+> UIE-10 AC-5 is the standing check that no such assertion is left anywhere in the suite.
+>
+> **WHAT THE ROLE DISTINCTION THIS CRITERION EXPRESSED NOW LOOKS LIKE:** one control,
+> `shell-admin-link`, rendered for an admin and absent for a member (UIE-09 AC-1 and AC-2), and four
+> screens that each still refuse a member who types their address — `pending-entries-refused`,
+> `team-entries-refused`, `allow-list-refused`, `threshold-refused`. Neither this criterion nor its
+> replacement was ever what protected anything: both are affordances over row-level security that
+> was not touched (ADR-005).
 
 **AC-9 — the sidebar roster lists the caller's active team-mates and marks the caller**
 - Given a signed-in member whose team roster is readable

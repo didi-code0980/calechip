@@ -122,8 +122,11 @@ async function openOwnList(page: Page): Promise<void> {
   await expect(page.getByTestId("new-entry-form")).toBeVisible();
 }
 
+/** **TWO CLICKS SINCE UIE-10**, which removed the sidebar's four admin links: the top-bar control,
+ *  then the hub row UIE-09 shipped. The destination is unchanged. */
 async function openTeamList(page: Page): Promise<void> {
-  await page.getByTestId("home-team-entries-link").click();
+  await page.getByTestId("shell-admin-link").click();
+  await page.getByTestId("admin-hub-team-entries-link").click();
   await expect(page.getByTestId("team-entries-loading")).toBeHidden();
 }
 

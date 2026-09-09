@@ -3,9 +3,14 @@ import { expect, test, type Page } from "@playwright/test";
 // ADM-01 — set the overload threshold.
 //
 // Written from 01-plan.md sections 2, 4.3 and 5. Every locator is a `data-testid` named in the
-// selector table of section 4.3, plus `home-threshold-link` (also section 4.3), `sign-in-*`,
-// `home-*` and `month-threshold` — the last belonging to CAL-04 and read, never written, which is
-// what AC-13 is.
+// selector table of section 4.3, plus `sign-in-*`, `home-*` and `month-threshold` — the last
+// belonging to CAL-04 and read, never written, which is what AC-13 is.
+//
+// **AMENDED BY UIE-10.** `home-threshold-link` no longer exists: the sidebar gave up its four admin
+// links and the address is reached through `shell-admin-link` in the top bar and then
+// `admin-hub-threshold-link` on the hub UIE-09 shipped. AC-10 below is UNCHANGED IN SUBSTANCE — the
+// link is still shown to an admin and to nobody else — and only the surface it sits on moved, which
+// is the same treatment UIE-02 gave this file when it relocated eleven ids out of `Home.tsx`.
 //
 // **THE DIVISION OF LABOUR WITH tests/threshold.test.ts IS DELIBERATE.** AC-5, AC-9 and AC-14 are
 // refusals BELOW the interface: they call the seam with a chosen caller, which this suite cannot do
@@ -46,12 +51,22 @@ async function signIn(page: Page, email: string): Promise<void> {
   await expect(page.getByTestId("home-sign-out")).toBeVisible();
 }
 
-/** Signs in and reaches the screen through its LINK, which keeps one page lifetime — a
- *  `page.goto(THRESHOLD)` would discard anything an earlier step in the same test saved. */
+/** Signs in and reaches the screen through its LINKS, which keeps one page lifetime — a
+ *  `page.goto(THRESHOLD)` would discard anything an earlier step in the same test saved.
+ *
+ *  TWO CLICKS SINCE UIE-10, not one. The sidebar link is gone; the route is the top-bar control and
+ *  then the hub's own row. Both steps are asserted, so a failure says which of the two broke. */
 async function openThreshold(page: Page, email: string): Promise<void> {
   await signIn(page, email);
-  await expect(page.getByTestId("home-threshold-link")).toBeVisible();
-  await page.getByTestId("home-threshold-link").click();
+  await openThresholdFromShell(page);
+}
+
+/** The hub leg on its own, for a test already signed in and standing inside the shell. */
+async function openThresholdFromShell(page: Page): Promise<void> {
+  await expect(page.getByTestId("shell-admin-link")).toBeVisible();
+  await page.getByTestId("shell-admin-link").click();
+  await expect(page.getByTestId("admin-hub-threshold-link")).toBeVisible();
+  await page.getByTestId("admin-hub-threshold-link").click();
   await expect(page.getByTestId("threshold-current")).toBeVisible();
 }
 
@@ -100,8 +115,7 @@ test.describe("ADM-01 set the overload threshold", () => {
     // Leave and come back. Nothing the previous screen held survives — the component unmounts and
     // the value on the second visit came from `getTeam()`, which is the whole of this criterion.
     await page.getByTestId("threshold-back").click();
-    await expect(page.getByTestId("home-threshold-link")).toBeVisible();
-    await page.getByTestId("home-threshold-link").click();
+    await openThresholdFromShell(page);
 
     await expect(page.getByTestId("threshold-current")).toContainText("60%");
     await expect(page.getByTestId("threshold-current")).toHaveAttribute("data-threshold", "0.6");
@@ -195,15 +209,25 @@ test.describe("ADM-01 set the overload threshold", () => {
   });
 
   test("AC-10: the link is shown to an admin and to nobody else", async ({ page }) => {
+    // UIE-10 AC-4 moved both halves of this criterion onto the surface that now carries them. The
+    // ADMIN half follows the link to the hub and asserts the row is there, so the claim is still
+    // *a link to this screen is offered* rather than *a control exists somewhere*.
     await signIn(page, ADMIN_EMAIL);
-    await expect(page.getByTestId("home-threshold-link")).toBeVisible();
+    await expect(page.getByTestId("shell-admin-link")).toBeVisible();
+    await page.getByTestId("shell-admin-link").click();
+    await expect(page.getByTestId("admin-hub-threshold-link")).toBeVisible();
 
     // Sign out WITHOUT a document load, so the second half runs against the same page lifetime.
     await page.getByTestId("home-sign-out").click();
     await expect(page.getByTestId("sign-in-submit")).toBeVisible();
 
     await signIn(page, MEMBER_EMAIL);
-    await expect(page.getByTestId("home-threshold-link")).toHaveCount(0);
+    // **AND THIS IS THE ASSERTION UIE-10 AC-4 EXISTS FOR.** It used to name
+    // `home-threshold-link`, which after that ticket renders for NOBODY — so it would have passed
+    // against a name that no longer exists and stated nothing at all. `shell-admin-link` renders
+    // for an admin and not for a member, so the assertion can still fail, which is the only reason
+    // it is worth running.
+    await expect(page.getByTestId("shell-admin-link")).toHaveCount(0);
   });
 
   test("AC-13: the new threshold reclassifies the days already on screen", async ({ page }) => {

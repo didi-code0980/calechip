@@ -5,13 +5,45 @@ id: UIE-10
 title: "The sidebar gives up its admin links and restyles its roster; the specs route through the hub"
 feature_ids: [UIE-10]
 group: UIE
-state: BACKLOG
-owner: ""
-branch: ""
-size_estimate: ""     # EMPTY DELIBERATELY. Definition of Ready item 5 is `tech-lead-design`'s at
-                      # /plan. The technical half offered `M` at ten files as a SIGNAL and it is
-                      # recorded in §9 as a signal, not copied into this field.
-size: ""              # Same. Set at /plan.
+state: DONE
+# ^ SET BY `orchestrator` AT /ship ON 2026-09-09, on 04-review.md `gate: PASS` / `next_state: DONE`.
+#   ADR-022 removed the QA stage, so REVIEW -> DONE is the whole remaining transition
+#   (.ai/01-operating-model.md:36). The `developer`'s comment below is left standing and is right on
+#   every point but one, corrected here rather than silently: `/next-ticket` DID run for this ticket,
+#   at 2026-09-09 15:16 +07, between /plan and /implement. It graded the full Definition of Ready six
+#   of six and reported that `state:` still read `BACKLOG` — and, being report-only, wrote nothing.
+#   Graded and not recorded, which is narrower than never evaluated. Same as UIE-09, same owed item.
+#   THIS STAGE FILLED ONLY `gates.review`. `gates.plan` was already set by /implement from
+#   01-plan.md's front-matter, which is the right source; its offset is normalised below.
+# PREVIOUS VALUE, `REVIEW`:
+# SET BY `developer` AT /implement ON 2026-09-09, AND IT SKIPPED TWO VALUES RATHER THAN ONE.
+#   THE ROW ARRIVED AT THIS STAGE READING `BACKLOG` WITH `gates.plan.passed: false`, while
+#   01-plan.md's front-matter reads `gate: PASS` and `next_state: READY`. PLAN wrote the plan, the
+#   `size` verdict and `allowed_paths` below, and did not advance the state. The plan's front-matter
+#   is the record (CLAUDE.md § Replying, *quote the gate from your artifact's front-matter*), so
+#   `gates.plan` below is set from it rather than re-decided here, and 03-impl-log.md § Open
+#   questions 3 flags the gap as upstream of this stage.
+owner: "developer"
+branch: "feat/UIE-10"
+size_estimate: "M"    # Set by `tech-lead-design` at /plan on 2026-09-09, read from 01-plan.md
+                      # section 1: one component, nine shipped spec files, one new spec, two shipped
+                      # plan files whose criteria this contradicts.
+size: "L"             # Thirteen files, counted from `allowed_paths` below - 01-plan.md section 7.
+                      # THEY DISAGREE AND THE VERDICT WINS (ADR-012). The estimate missed by exactly
+                      # the two files UIE-09 added between the triage that shaped this ticket and
+                      # this plan: its own spec, and its own plan whose AC-10 states the opposite of
+                      # AC-1. §9's ten-file signal was taken before either existed.
+                      #
+                      # *** `L` PROCEEDS UNSPLIT, BY THE OPERATOR'S DECISION OF 2026-09-09. ***
+                      # .ai/01-operating-model.md:373 says an L must split at PLAN. The operator was
+                      # asked with three cuts costed and chose to accept L and record the exception.
+                      # 01-plan.md section 7 carries the reasoning: carving the roster out removes NO
+                      # file, cutting by link leaves the sidebar half-migrated for a whole ticket,
+                      # and dropping the two plan amendments leaves four shipped criteria stating the
+                      # opposite of what ships.
+                      # THIS IS MD-017 REACHED A SECOND TIME AND IT DOES NOT FIX IT. The next L
+                      # reproduces this. One line is owed in .ai/board/model-debt.md beside MD-017
+                      # and it is `/thuki`'s, on an ops/ branch - not this ticket's.
 depends_on: [UIE-09]
 # ^ AND THIS ONE IS A MECHANISM RATHER THAN A PREFERENCE, WHICH IS UNUSUAL FOR THIS FIELD.
 #   UIE-02 AC-6 requires every `home-*` id to resolve to exactly one node, and Playwright strict mode
@@ -26,10 +58,44 @@ invariants_touched: []
 #   data seam. INV-07 is named in §6 as the invariant the DEFERRED sub-group work would engage — it
 #   is not engaged by anything in this ticket, and it is written down so that a later reader finds
 #   the reason rather than the silence.
-allowed_paths: []     # A CONTROL, not a placeholder. guard-allowed-paths.mjs blocks every write
-                      # outside this ticket folder while it is empty. PLAN fills it — and on this
-                      # ticket it will contain EIGHT SHIPPED SPEC FILES, which is unusual enough to
-                      # be worth naming here. §2.
+#
+#   ANSWERED BY `tech-lead-design` AT /plan ON 2026-09-09, AND IT IS NOW AN ANSWER RATHER THAN THE
+#   TEMPLATE DEFAULT. The lines above kept their wording. No inline comment sits on the key line,
+#   deliberately: `readYamlList` slices an inline list to the LAST `]` on the line, so a comment
+#   mentioning empty brackets swallows the value.
+#   01-plan.md section 2 reasons through every id. Nothing here creates, edits, approves, rejects or
+#   counts an entry, and src/lib/data/absence.ts is imported by neither file this ticket changes.
+#   INV-07 stays named for the reason the lines above give: the DEFERRED sub-group work would engage
+#   it through a count pill one question away from a threshold per group, and that work is out of
+#   scope in 01-plan.md section 1.
+#   ONE EXPOSURE CHANGE IS STATED IN 01-plan.md SECTION 3 RATHER THAN HIDDEN UNDER AN INVARIANT:
+#   every member can now see every teammate's role. It is not new data - `member_select_team` has
+#   returned `role` to both roles since TEA-03 - but it is newly on screen for a member.
+allowed_paths:        # Enumerated by `tech-lead-design` at /plan - 01-plan.md section 7, which
+                      # says what each is for. Exact paths, no globs, no inline comments on the items.
+                      # .ai/board/tickets/UIE-10/ is absent deliberately: the guard exempts the active
+                      # ticket's own folder (.claude/hooks/guard-allowed-paths.mjs:205-206).
+                      # NINE SHIPPED SPEC FILES, NOT EIGHT AS §2.4 LISTED. The ninth is
+                      # tests/e2e/uie-09-admin-hub.spec.ts, which did not exist at that triage; it
+                      # holds four loops over a SIDEBAR_ADMIN_LINKS array and fails on all four ids.
+                      # THE TWO `01-plan.md` PATHS carry criteria this ticket contradicts outright -
+                      # UIE-02 AC-6 and AC-8, UIE-09 AC-9 and AC-10. Both are BOARD plane and
+                      # agent-writable; neither is under .ai/registry/**, so RULE-01 is not engaged.
+                      # ADM-01 AC-10, ADM-04 AC-9, CAL-03 AC-10 and TEA-05 AC-10 are NOT here: they
+                      # stay true as written and only their assertions move surface. 01-plan.md §4.5.
+  - "src/components/Sidebar.tsx"
+  - "tests/e2e/adm-01-threshold.spec.ts"
+  - "tests/e2e/adm-04-worklist.spec.ts"
+  - "tests/e2e/adm-05-approve-reject.spec.ts"
+  - "tests/e2e/adm-06-bulk-reject.spec.ts"
+  - "tests/e2e/cal-03-admin-edit-entry.spec.ts"
+  - "tests/e2e/cal-07-overload-warning.spec.ts"
+  - "tests/e2e/cal-08-holiday-shading.spec.ts"
+  - "tests/e2e/tea-05-sign-in.spec.ts"
+  - "tests/e2e/uie-09-admin-hub.spec.ts"
+  - "tests/e2e/uie-10-sidebar.spec.ts"
+  - ".ai/board/tickets/UIE-02/01-plan.md"
+  - ".ai/board/tickets/UIE-09/01-plan.md"
 schema_delta: none
 # ^ MEASURED AT THIS TRIAGE, AND UNFENCED. No table, column, policy, grant, trigger or constraint is
 #   named by anything in this row. THE ONE PART OF THE PICTURE THAT WOULD HAVE NEEDED A MIGRATION IS
@@ -42,8 +108,31 @@ chat_budget:
   developer->tech-lead-design: { used: 0, max: 6 }
 tracker: { provider: "", external_id: "", sync_enabled: false }
 gates:
-  plan:   { passed: false, at: null }
-  review: { passed: false, at: null }
+  # `plan` was set by `developer` at /implement from 01-plan.md's front-matter — the right source, and
+  # the first ticket on this board where the plan gate did not wait for /ship. `orchestrator` at /ship
+  # on 2026-09-09 NORMALISED ITS OFFSET ONLY, `+0700` -> `+07:00`: same instant, and every other gate
+  # row in the repository carries the colon. The value is not re-decided and the comment is kept.
+  plan:   { passed: true, at: "2026-09-09T15:04:18+07:00" }   # From 01-plan.md front-matter, not re-decided here
+  # TRANSCRIBED BY `orchestrator` AT /ship ON 2026-09-09 from .ai/board/tickets/UIE-10/04-review.md:
+  # `gate: PASS`, `blocking_reason: ""`, `next_state: DONE`, `produced_at: 2026-09-09T15:48:45+0700`.
+  # R1-R8 all PASS on one pass, `## Findings` empty, `rework_count: 0`, no consultation and no
+  # amendment — the eleventh in a row, and the one with a recorded deviation the review upheld.
+  review: { passed: true, at: "2026-09-09T15:48:45+07:00" }
+  # No `qa` gate — ADR-022 removed the stage. /ship requires `plan` and `review`.
+impl:
+  # Recorded by `developer` at /implement. 03-impl-log.md front-matter is the record; this is the
+  # index. Every command named in .ai/standards/testing-standards.md was RUN, exit code read:
+  # tsc 0, eslint 0, vitest 0 (208 passed), playwright 0 (208 passed, 0 failed) — and the last of
+  # those is the one MD-029 records CAL-09 skipping on a stale table. 13 files changed, exactly
+  # `allowed_paths`; `node scripts/check-allowed-paths.mjs` PASS.
+  gate: PASS
+  at: "2026-09-09T15:36:04+0700"
+  deviations: 1   # ADM-04 AC-9's asserted text. 01-plan.md section 4.4 states that the hub row for
+                  # /entries/pending "carries the same words" as `home-pending-entries-link` did.
+                  # It does not - src/routes/AdminHub.tsx:59-63 names it `Pending approvals` - so
+                  # `toHaveText("Waiting for a decision")` cannot pass against it under any casing.
+                  # What AC-9 is FOR, that the link carries no count, is asserted directly instead.
+                  # 03-impl-log.md section Deviations carries it in full.
 
 # -----------------------------------------------------------------------------------------------
 # Written by `product` at /triage on 2026-09-09, from

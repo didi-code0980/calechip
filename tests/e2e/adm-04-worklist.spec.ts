@@ -4,7 +4,8 @@ import { expect, test, type Locator, type Page } from "@playwright/test";
 //
 // Written from 01-plan.md sections 2, 2b, 3, 4.3 and 4.5. Every locator is a `data-testid` from the
 // selector table in section 4.5; the ones this file uses that are NOT in that table —
-// `sign-in-*`, `home-sign-out`, `home-new-entry-link`, `home-team-entries-link`, `new-entry-*`,
+// `sign-in-*`, `home-sign-out`, `home-new-entry-link`, `shell-admin-link`, `admin-hub-*-link`,
+// `new-entry-*`,
 // `own-entry-row`, `edit-entry-form`, `not-on-a-team-*` — belong to TEA-01, TEA-05, CAL-01, CAL-02
 // and CAL-03 and are declared in 03-impl-log.md § Deviations.
 //
@@ -134,9 +135,16 @@ async function declare(
   await expect(page.getByTestId("home-sign-out")).toBeVisible();
 }
 
-/** Opens the worklist from Home, by the admin link this ticket adds. */
+/** Opens the worklist by the admin link this ticket adds.
+ *
+ *  **TWO CLICKS SINCE UIE-10.** The link this ticket added lived in the sidebar as
+ *  `home-pending-entries-link`; that ticket removed the sidebar's four admin links and the address is
+ *  now reached through `shell-admin-link` in the top bar and then `admin-hub-pending-link` on the hub
+ *  UIE-09 shipped. AC-9 below is unchanged in substance — a link to this screen is offered to an
+ *  admin, and it carries no count — and only the surface it sits on moved. */
 async function openWorklist(page: Page): Promise<void> {
-  await page.getByTestId("home-pending-entries-link").click();
+  await page.getByTestId("shell-admin-link").click();
+  await page.getByTestId("admin-hub-pending-link").click();
   await expect(page.getByTestId("pending-entries-count")).toBeVisible();
 }
 
@@ -316,7 +324,13 @@ test.describe("ADM-04 — the worklist of entries awaiting a decision", () => {
     await expect(page.getByTestId("home-sign-out")).toBeVisible();
 
     // AC-10's affordance half: no link is offered to a member.
-    await expect(page.getByTestId("home-pending-entries-link")).toHaveCount(0);
+    //
+    // **REWRITTEN ONTO `shell-admin-link` BY UIE-10 AC-4, AND THAT IS NOT A COSMETIC MOVE.** This
+    // line named `home-pending-entries-link`, which after that ticket renders for NOBODY — so it
+    // would have gone on passing while asserting nothing, because an absent name is absent for
+    // every caller. `shell-admin-link` renders for an admin and not for a member, so the assertion
+    // can still fail, which is the whole of what makes it worth running.
+    await expect(page.getByTestId("shell-admin-link")).toHaveCount(0);
 
     // Typing the address anyway. A reload here resets the mock's tables and keeps the session, which
     // costs nothing: this criterion reads no row.
@@ -332,7 +346,12 @@ test.describe("ADM-04 — the worklist of entries awaiting a decision", () => {
     // bearing would make this next assertion fail.
     await page.getByTestId("pending-entries-back").click();
     await expect(page.getByTestId("home-sign-out")).toBeVisible();
-    await expect(page.getByTestId("home-team-entries-link")).toHaveCount(0);
+    // Also rewritten onto `shell-admin-link` (UIE-10 AC-4). It named `home-team-entries-link` and
+    // the two ids used to be different nodes; since UIE-10 both denials are carried by the one
+    // control, so this reads the same locator as the line above. IT IS KEPT RATHER THAN DELETED
+    // because what it observes is different: that the member is offered nothing AFTER the round
+    // trip through the refusal, on the page that refusal returned them to.
+    await expect(page.getByTestId("shell-admin-link")).toHaveCount(0);
   });
 
   test("AC-12: a caller with no member row reaches no worklist either", async ({ page }) => {
@@ -402,16 +421,24 @@ test.describe("ADM-04 — the worklist of entries awaiting a decision", () => {
     await expect(page.getByTestId("pending-entries-next")).toBeDisabled();
   });
 
-  test("AC-9: the admin link is on Home for an admin, and it carries no count of its own", async ({
+  test("AC-9: the admin link is offered to an admin, and it carries no count of its own", async ({
     page,
   }) => {
     await signInAt(page, ADMIN_EMAIL);
 
-    const link = page.getByTestId("home-pending-entries-link");
+    // **ON THE HUB SINCE UIE-10, NOT ON HOME.** The criterion's substance is untouched: a link to
+    // this screen is offered to an admin and it states no number. Only the surface moved.
+    await page.getByTestId("shell-admin-link").click();
+    const link = page.getByTestId("admin-hub-pending-link");
     await expect(link).toBeVisible();
 
     // No badge. A number here would need a second read, and two reads can disagree — the one
-    // property .ai/registry/features.md:103 forbids this feature from having.
-    await expect(link).toHaveText("Waiting for a decision");
+    // property .ai/registry/features.md:103 forbids this feature from having. The hub row carries a
+    // name and a blurb and no figure, so the assertion is now `toContainText` on the name rather
+    // than `toHaveText` on the whole row: the blurb is UIE-09's copy and not this criterion's to
+    // pin. What this criterion is about — NO COUNT — is asserted directly below it, over the
+    // row's whole text, and that is the half a rename could not quietly satisfy.
+    await expect(link).toContainText("Pending approvals");
+    expect(((await link.textContent()) ?? "").match(/\d/)).toBeNull();
   });
 });

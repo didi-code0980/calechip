@@ -178,6 +178,40 @@ Observable through the interface or through `pnpm exec playwright test`. The sel
 - Then it renders exactly what it renders today, including all four `home-*-link` admin links for the
   admin and none of them for the member
 
+> ## Amended by UIE-10, 2026-09-09
+>
+> **Both criteria above are kept as written, and both are scoped to UIE-10's landing.** They were
+> true when UIE-09 shipped and they are the record of the double exposure that ticket deliberately
+> left behind — the four sidebar links and the five hub rows on screen at once. UIE-10 is the
+> migration that ends it, so read as standing properties of the product they are now false. Which
+> clause of each moved, and which survives:
+>
+> **AC-9 — the clause *"no `home-*` id is added, moved, renamed or removed"* was a promise about
+> UIE-09's OWN change.** Scoped to UIE-09 it stays true and nothing about it needs revisiting.
+> Unscoped it is false after UIE-10 AC-1, which REMOVES `home-pending-entries-link`,
+> `home-team-entries-link`, `home-allow-list-link` and `home-threshold-link`. **What the criterion
+> was for survives untouched**: no `home-*` id is RENAMED and none is DUPLICATED onto the hub, which
+> is the strict-mode hazard UIE-02 AC-6 exists against and the mechanism the two-row split was built
+> on. The hub's rows kept the `admin-hub-*-link` names this ticket shipped; UIE-10 § 8, rejected
+> alternative 2, records that relocating a `home-*` name onto them would have traded four broken
+> assertions for five and saved nothing.
+>
+> **AC-10 — the clause about the four admin links is false by design; the clause about the three
+> general links is the half that was ever meant to be permanent.** After UIE-10 the sidebar renders
+> `home-week-link`, `home-year-link` and `home-holidays-link` for both roles and nothing that depends
+> on the caller's role, and every roster row carries the member's role word under the new id
+> `shell-roster-role`. `tests/e2e/uie-09-admin-hub.spec.ts` carries the amendment as an assertion:
+> the test is retitled *the sidebar keeps its three general links, for both roles*, and the four
+> loops that asserted `toHaveCount(1)` for an admin now assert `toHaveCount(0)` for both roles. The
+> array they loop over is kept, renamed `RETIRED_SIDEBAR_ADMIN_LINKS`, so the suite goes on naming
+> the four ids that must never come back.
+>
+> **AC-1 through AC-8, AC-11 and AC-12 are untouched by UIE-10** and every one of them still passes
+> unedited. `shell-admin-link` in particular gained work rather than losing it: UIE-10 AC-4 made it
+> the node that carries the member denial in six assertions across four other spec files, because
+> the ids they used to name now render for nobody and their `toHaveCount(0)` would have passed
+> vacuously.
+
 **AC-11 — the period cluster is unaffected**
 - Given a signed-in admin on `/week/2026-04-06`, on `/month/2026-04`, on `/year/2026` and on
   `/allow-list`

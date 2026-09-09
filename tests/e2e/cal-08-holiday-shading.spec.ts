@@ -5,7 +5,8 @@ import { expect, test, type Locator, type Page } from "@playwright/test";
 // Written from 01-plan.md sections 2, 2b, 3, 4.2, 4.3 and 4.4. Every locator is a `data-testid` from
 // the selector table in section 4.4; the ones this file uses that are NOT in that table —
 // `month-sign-in`, `week-sign-in`, `year-sign-in`, `home-week-link`, `home-year-link`,
-// `home-holidays-link`, `home-threshold-link`, `holiday-add-*`, `threshold-*` — belong to CAL-04,
+// `home-holidays-link`, `shell-admin-link`, `admin-hub-threshold-link`, `holiday-add-*`,
+// `threshold-*` — belong to CAL-04,
 // CAL-05, CAL-06, ADM-01 and ADM-03 and are declared in 03-impl-log.md § Deviations.
 //
 // **THE DIVISION OF LABOUR WITH tests/day-status.test.ts IS THE STANDARD'S.**
@@ -355,12 +356,17 @@ test.describe("CAL-08 — holidays and bridge days in the calendar views", () =>
     await expect(monthCell(page, "2026-09-15")).toHaveAttribute("data-count", "1");
     await expect(monthCell(page, "2026-09-15")).toHaveAttribute("data-overloaded", "false");
 
-    // UIE-03 AC-12. The step onto the landing screen is deleted; the threshold link below is a
-    // SIDEBAR control and renders on the grid.
+    // UIE-03 AC-12. The step onto the landing screen is deleted.
+    //
+    // **TWO CLICKS SINCE UIE-10.** The threshold link WAS a sidebar control and rendered on the
+    // grid; that ticket removed the sidebar's four admin links, so the route is the top-bar control
+    // and then the hub row. Both render on the grid, so the property this comment was recording —
+    // no step onto a landing screen — still holds.
     // ADM-01's control, used to make one person away crowded — moving three people through the
     // sign-in screen would test CAL-01 rather than this. THE FIELD IS A WHOLE PERCENT and the column
     // is a share: 10 here is the 0.1 that `isOverloaded` compares against (ADM-01 01-plan.md).
-    await page.getByTestId("home-threshold-link").click();
+    await page.getByTestId("shell-admin-link").click();
+    await page.getByTestId("admin-hub-threshold-link").click();
     await page.getByTestId("threshold-input").fill("10");
     await page.getByTestId("threshold-save").click();
     await expect(page.getByTestId("threshold-saved")).toBeVisible();

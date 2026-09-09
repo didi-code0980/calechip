@@ -141,19 +141,35 @@ test.describe("TEA-05 sign in, sign out, and session", () => {
   });
 
   test("AC-10: the allow-list link is shown to an admin and to nobody else", async ({ page }) => {
+    // **ON THE HUB SINCE UIE-10, NOT IN THE SIDEBAR.** That ticket removed the sidebar's four admin
+    // links; the address is reached through `shell-admin-link` in the top bar and then
+    // `admin-hub-allow-list-link`. AC-10's substance is untouched — an admin is offered a link to
+    // the allow list and a member is offered none — and only the surface it sits on moved.
+    //
+    // `home-member-role` is READ AND NEVER WRITTEN by this ticket and it still resolves to exactly
+    // one node, in the account footer. UIE-10 added the role word to every ROSTER row under the new
+    // id `shell-roster-role` precisely so these three lines keep working under strict mode.
+
     // Admin sees link
     await submitSignIn(page, ADMIN_EMAIL, PASSWORD);
     await expect(page.getByTestId("home-member-role")).toHaveText("Admin");
-    await expect(page.getByTestId("home-allow-list-link")).toBeVisible();
+    await expect(page.getByTestId("shell-admin-link")).toBeVisible();
+    await page.getByTestId("shell-admin-link").click();
+    await expect(page.getByTestId("admin-hub-allow-list-link")).toBeVisible();
 
     // Sign out
     await page.getByTestId("home-sign-out").click();
     await expect(page.getByTestId("sign-in-submit")).toBeVisible();
 
-    // Member does not see link
+    // Member does not see link.
+    //
+    // **REWRITTEN ONTO `shell-admin-link` BY UIE-10 AC-4.** This line named
+    // `home-allow-list-link`, which after that ticket renders for NOBODY — so it would have gone on
+    // passing while asserting nothing, because an absent name is absent for every caller.
+    // `shell-admin-link` renders for an admin and not for a member, so it can still fail.
     await submitSignIn(page, MEMBER_EMAIL, PASSWORD);
     await expect(page.getByTestId("home-member-role")).toHaveText("Member");
-    await expect(page.getByTestId("home-allow-list-link")).toHaveCount(0);
+    await expect(page.getByTestId("shell-admin-link")).toHaveCount(0);
   });
 
   test("AC-11: signing in creates, updates and deletes nothing in member roster", async ({
