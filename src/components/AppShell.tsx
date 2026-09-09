@@ -38,7 +38,15 @@ export default function AppShell({ member, signOut }: AppShellProps) {
           scrolls sideways. With it the overflow belongs to the grid, inside the pane, which is where
           AC-21 says horizontal scrolling may live. */}
       <div className="flex min-w-0 flex-1 flex-col overflow-y-auto">
-        <TopBar />
+        {/* UIE-09 § 4.3. The bar has no session and no seam call of its own, and a ROLE is not
+            derivable from a pathname — so the one question it needs answering is answered here, in
+            the file that already holds the member row `App.tsx` resolved. `AppShellProps` is
+            unchanged, and the expression is the one `Sidebar.tsx:127` already uses.
+
+            A BOOLEAN AND NOT THE `Member` ITSELF (§ 8, rejected alternative 4): a member row passed
+            down invites the bar to grow a second reason to hold one, which is how a component that
+            documents *it re-reads nothing* acquires a read. */}
+        <TopBar isAdmin={member.role === "admin"} />
         <div className="min-w-0 flex-1 px-6 pb-6">
           <Outlet />
         </div>
