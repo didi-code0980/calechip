@@ -112,6 +112,31 @@ design"*.
 | `/triage` | the idea's `Evidence` section | on PROMOTE, `product` moves it to `.ai/board/tickets/<ID>/design/`. On REJECT or NEEDS-ADR it stays with the idea and specifies nothing — there is no ticket to specify |
 | `/plan` | `.ai/board/tickets/<ID>/design/` directly | the reference cited by `01-plan.md` § 2b |
 
+> ***CORRECTION 2026-09-09 — THE WORD `moves` IN THE ROW ABOVE NAMES SOMETHING NO AGENT CAN DO, AND
+> IT HAS NEVER HAPPENED ONCE.*** `git ls-files` finds **zero** `png/jpg/jpeg/gif/webp/pdf` in this
+> repository, across 33 tickets and seven `design/` folders; every one of those folders holds a
+> `README.md` and nothing else. **The table is left standing and is not rewritten** — it is the
+> record of what was decided on 2026-09-04, and the decision is sound. What is corrected is the
+> mechanism it assumed.
+>
+> **Why it cannot run.** An image the operator pastes into conversation arrives as conversation
+> content, not as a path on disk, and the harness writes no temporary copy. `move` presupposes a
+> source path and a tool that can write bytes to a destination; `product` holds
+> `Read, Grep, Glob, Write, Edit, SendMessage` — no `Bash`, and `Write` writes text. **No role in
+> this loop can turn a pasted picture into a file.** So the step degrades, silently and without
+> refusing, into the only artifact the role can produce: a prose transcription at the canonical path.
+>
+> **What that costs is stated exactly where the cost lands** —
+> `.ai/board/tickets/UIE-08/design/README.md`, written by the only party that could see the picture:
+> *"A later reader cannot check a single sentence of it against the picture it describes."* A
+> transcription is evidence of intent. It is not a reference, because nothing can be checked against
+> it.
+>
+> **Until this is repaired, read the row above as: an image specifies a UI only if it is on disk at
+> `.ai/board/tickets/<ID>/design/`, and today the only party who can put it there is the operator.**
+> A `design/README.md` with no sibling image file is a transcription and must say so in its first
+> line, as all seven existing ones do. `.ai/board/model-debt.md` MD-030 carries the fix shape.
+
 **One canonical home, `.ai/board/tickets/<ID>/design/`**, and the path is not arbitrary: both
 `scripts/check-allowed-paths.mjs` and `.claude/hooks/guard-allowed-paths.mjs` exempt
 `.ai/board/tickets/<ID>/**` unconditionally, so an image there is readable and writable whatever

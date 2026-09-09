@@ -1736,3 +1736,89 @@ Did not touch CAL-09. It is `DONE` and merged (#79), the finding is about the do
 re-opening a shipped ticket to run a command whose result is now known would be theatre.
 
 Audit 0 errors, 2 warnings, 3 pending. 229 of 229 hook and script tests pass. No registry write.
+
+### 2026-09-09 — the attached design image was never on disk, and the `move` step cannot run
+
+Operator's question: why an image attached at `/triage` does not end up in the repository, and why the
+built UI is not the same as the design. **Two separate causes, and only the first is a defect.**
+
+**The image is not saved because no role can save it.** `.ai/standards/ui-design-system.md`
+§ *Visual specification* and `.claude/commands/triage.md:64` both say `product` *moves* the image to
+`.ai/board/tickets/<ID>/design/`. `move` presupposes a source path and a tool that can write bytes; a
+pasted image is conversation content, the harness writes no temp copy, and `product` holds
+`Read, Grep, Glob, Write, Edit, SendMessage` — no `Bash`, and `Write` writes text. **Measured, not
+argued: zero `png/jpg/jpeg/gif/webp/pdf` under `git ls-files` across 33 tickets, and all seven
+`design/` folders hold a `README.md` and nothing else.** The step never refused; it degraded into a
+hand transcription written by the dispatching session, the only party that saw the picture.
+
+**The build does not match the design for a reason the standard already states as a decision.** *"An
+image binds nothing by itself. No stage downstream ever reopens it."* No visual check at REVIEW, none
+in CI, no QA stage since ADR-022, and *"looks like the screenshot" is not an acceptance criterion*. So
+fidelity rests entirely on how completely § 2b turned the picture into ACs, in one pass, with nothing
+downstream able to check it. The missing file makes that worse rather than causing it: what travels is
+prose nobody can compare to the original.
+
+**Credit where the loop worked:** every transcription disclosed its own status unprompted.
+`.ai/board/tickets/UIE-08/design/README.md` states that the image is not on disk and that *"a later
+reader cannot check a single sentence of it against the picture it describes."* That disclosure is the
+only reason any of this was visible — and nothing in the model required it or checks for it, which is
+half of why MD-030 is `high`.
+
+**Corrected the standard rather than leaving it** — the same failure recorded as MD-029 yesterday: a
+document asserting a mechanism that does not run becomes a standing permission. The 2026-09-04 table
+is left standing as the record of the decision, with a correction block beneath it naming what the
+mechanism actually is today. Standards plane, human-owned under RULE-01, CODEOWNERS at merge.
+
+**Did not touch the two command files.** `triage.md` and `plan.md` still read `move`; fixing them is
+the same `ops/<slug>` batch as the D-check in MD-030's fix shape, and doing it here would have put a
+command change in a run the operator asked a question in. Named in the fix shape instead.
+
+**One thing is the operator's and is deliberately not decided here:** whether the loop gains a visual
+check, or explicitly accepts that the image is spent at PLAN and never re-read. It is what the model
+does today, and it should be chosen rather than inherited from the fact that no image ever existed.
+
+**Ran the audit and found `main` failing it with 9 errors, none of them from these edits.** Verified
+by checking every failing path against `HEAD` — all nine pre-date this run. **Recorded as MD-031,
+`high`, and it is a second finding rather than a detail of the first.** UIE-08 shipped citing a
+drafted ADR marked `PROPOSED — awaiting the operator` and an idea file; **neither exists on any ref**
+— no add in `git log --all --diff-filter=A`, nothing in any `refs/remotes/origin` tree. MD-031 names
+the ADR; it is not restated here, and that is deliberate — see the D11 note below. Eight documents
+cite it (D11's 8) and `features.md` cites the missing idea file (D6's 1).
+
+**Naming the missing decision costs an audit error, and that is a third defect.** D11 matches
+`\bADR-\d{3}\b` in every scanned document (`scripts/check-docs.mjs:569`) and has **no escape** — no
+`absent by design` deferral of the kind D6 carries. So the register of record cannot describe a
+missing ADR without failing the audit, and the cheapest way to make the run green is to stop naming
+it, which erases the evidence. That is MD-012's trap one check over. `.ai/board/model-debt.md` carries
+the ID once, because it must; this log cites MD-031 instead, which is the repository's own discipline
+of citing by ID rather than restating. Added to MD-031's fix shape.
+
+**The cause is a rule.** `.ai/standards/git-conventions.md:140-146` puts `.ai/board/ideas/**` and
+`.ai/registry/decisions/**` in *Everything else — left dirty, landed by the session that wrote it*.
+`/triage` has no step that lands them, ADR-006 gives the next stage the same tree, and the
+`features.md` row rides the ticket branch as ship-owned — so the citation lands and the cited files
+do not. **UIE-08's reviewer diagnosed it precisely and routed it into a dead end**
+(`04-review.md:159-165`): it called this *"the `/ship` session's to resolve"*, and `/ship` is the one
+command that rule forbids from committing those two paths.
+
+**Did not repair the nine errors, deliberately.** Eight are true statements about what UIE-08 was
+planned against; editing them to make the check green would delete the only surviving evidence that
+the decision was drafted at all. The two files are `product`'s and the operator's to re-produce.
+
+**Also noted in the fix shape: `node scripts/check-docs.mjs` is not in the Definition of Done.** Its
+five items do not include the audit, so shipping over nine audit errors violated nothing. D1 and D11
+caught this at a moment no gate consults them.
+
+**The test suite is red on `main` as well, and I measured it rather than inferring it.** Stashed this
+run's three edits and ran `node --test scripts/tests/check-docs.test.mjs` on clean `main`: **104 of
+106**, the two failures being *every path the register declares absent is still absent in the shipped
+tree* (D6) and *this repository passes its own audit with zero errors*. Whole hook-and-script suite:
+**227 of 229**. Both were 229 of 229 on 2026-09-08, so this arrived with UIE-08. **The two real-file
+tests built to catch exactly this did catch it, and the ship went over them** — the same gap as the
+audit not being in the Definition of Done, and recorded there.
+
+**Verified after these edits:** audit 10 errors — the 9 that pre-date this run, plus the one this
+register necessarily adds by naming the missing decision — 2 advisory D8, 3 pending. Hook and script
+suite 227 of 229, unchanged by these edits. **No registry write.**
+
+**Changed:** `.ai/standards/ui-design-system.md`, `.ai/board/model-debt.md`, `.ai/steward/context.md`.
