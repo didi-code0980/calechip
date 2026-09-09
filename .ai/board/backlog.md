@@ -32,6 +32,117 @@ Under the current gate placement a ticket sits here until it has been planned �
 
 | # | Ticket | Title | State | Blocked on |
 |---|--------|-------|-------|------------|
+| 1 | CAL-10 | Year overview — twelve month cards with a year summary band | BACKLOG |  |
+| 2 | UIE-09 | An admin hub screen at `/admin`, reachable from one control in the top bar | BACKLOG |  |
+| 3 | UIE-10 | The sidebar gives up its admin links and restyles its roster; the specs route through the hub | BACKLOG | UIE-09 |
+
+**Rows 2 and 3 were appended by `product` at /triage on 2026-09-09**, later the same day, from
+`.ai/board/ideas/2026-09-09-the-sidebar-holds-every-address-and-grows-with-the-role.md`, whose
+`# Verdict — PROMOTE, as two rows: UIE-09 then UIE-10` section is the reasoning. The request was
+*"change layout of left side bar, Remove all the link to admin page in sidebar. Add one 1 button to
+access admin function in top bar"*, with an image. **`product` asserts nothing about position** —
+they are rows 2 and 3 because `CAL-10` was already row 1 when they were written, not because anybody
+placed any of the three; the header of this file says a human reorders, and putting either above a
+row already here would have moved it.
+
+**Four facts a human needs, and none of them is a priority question.**
+
+1. ***THE SPLIT IS FORCED BY THE TEST RUNNER, NOT CHOSEN — AND ROW 3 DEPENDS ON ROW 2 FOR THAT
+   REASON.*** UIE-02 AC-6 requires every `home-*` id to resolve to exactly one node and Playwright
+   strict mode fails a `.click()` matching two, so the four `home-*-link` ids cannot exist in the
+   sidebar and on the hub at the same time: **the hub must exist before the sidebar gives them up.**
+   As one ticket the work is 14 files and therefore `L`, which must split
+   (`.ai/01-operating-model.md:373`). **It was split at TRIAGE rather than at PLAN because MD-017
+   records that no command owns a shell created by a split at DESIGN**, so a ticket that splits there
+   loses half of itself silently. What the split buys is the second fact.
+2. ***UIE-09 IS ENTIRELY ADDITIVE AND UIE-10 CARRIES ALL THE RISK, IN ONE REVIEWABLE PLACE.*** While
+   `UIE-09` ships, the sidebar is untouched and **all 30 executable assertions across the 11 executing
+   spec files keep passing unedited**. `UIE-10` is the migration and a reviewer should be able to read
+   it as one sentence.
+3. ***UIE-10 AMENDS ACCEPTANCE CRITERIA THAT FIVE `DONE` TICKETS SHIPPED, AND NO AVAILABLE SHAPE
+   AVOIDS IT. THIS IS THE THING THE OPERATOR SHOULD DECIDE KNOWINGLY.*** The seven sidebar link ids
+   are referenced **41 times across 12 spec files**; read line by line that is 11 comments and 30
+   executable statements — **13 navigation, which one inserted step repairs, and 17 visibility, which
+   nothing repairs.** Named: **ADM-01 AC-10, ADM-02 AC-15, ADM-04 AC-9, CAL-03 AC-10**, TEA-05's
+   visibility pair, and in the plan plane **UIE-02 AC-6 and AC-8**. UIE-02's relocation trick does not
+   save this one — it worked because the ids stayed visible from every route. **And the sharpest part
+   is that the six negative assertions pass *vacuously* once the ids they name stop existing**: they
+   are the only shipped statements anywhere that a member is not offered the admin surface, so a
+   reviewer who sees six green assertions afterwards is seeing nothing. Which node asserts it instead
+   is an AC `UIE-10` owes. **The suite was not run**, so 17 is the honest estimate of the cost and not
+   a measurement of it.
+4. **`schema_delta: none` on both, unfenced, and no ADR is owed.** No table, column, policy, grant,
+   trigger or constraint is named by either row; the seam is untouched; every control involved is an
+   affordance over row-level security already in force (ADR-005). The hub **extends** ADM-01's
+   own-screen-per-setting shape rather than reversing it — `/threshold` stays `/threshold` — which is
+   inside ADR-008's envelope test. `depends_on` was measured on both.
+
+**Three things a human may want to know before either is planned, and none is its position.**
+
+- ***THE ONE ITEM THE OPERATOR MAY WANT BACK IS DEFERRED, NOT DROPPED: the roster's five sub-groups.***
+  `CORE ENGINEERING`, `FRONTEND TEAM`, `BACKEND TEAM`, `QA / TESTING`, `DESIGN / PRODUCT`, each with a
+  count pill. **There is no column anywhere that groups members within a team** — `public.member`
+  carries seven columns and no later migration adds one — so it is a migration, therefore `XL` and
+  **a human's under RULE-09**. And before the column there is a decision: INV-07 scopes counting to
+  the team, and **a count pill on every group header is one question away from a threshold per group**,
+  which would give INV-04 a second arithmetic. *Is a sub-group ever a counting unit?* is the ADR. It
+  is open question 9 of the idea file. **The same picture has now shown those five subtitles four
+  times and nothing has acted on them** — UIE-05, UIE-06 and UIE-08 each recorded it in their
+  `design/README.md` and each was out of scope, as this one is.
+- **Where the operator's words and the picture differ, the words govern, and it is not a preference.**
+  The request names the **admin** links; the transcription's sidebar has no nav links at all.
+  `home-week-link`, `home-year-link` and `home-holidays-link` **stay**, because `periodNavFor` returns
+  `null` off the period routes (`src/lib/period.ts:315`) so the top bar draws neither switcher nor
+  anchor on `/allow-list`, `/members` or `/holidays` — and because **`/holidays` has exactly one link
+  in the entire product**, is guarded on a session rather than a role, and **ADM-02 AC-15 asserts that
+  link is offered to both roles**. Emptying the nav block entirely is available as its own idea, and
+  it owes a second answer for `/holidays` first. **The first clause of the request is still served**:
+  `UIE-10` carries the roster restyle — the role word on each row — which reverses
+  `src/components/Sidebar.tsx:182-184` and needs a **new** selector, not a renamed one.
+- **The design reference in both ticket folders is a transcription with no image beside it, and this
+  is the first time one has been copied into two folders.** `.ai/board/tickets/UIE-09/design/README.md`
+  and `UIE-10/design/README.md` hold the same verbatim text, each with one line at the top naming
+  which half of the picture that ticket answers. **It does not close MD-030**: no role in this loop can
+  write image bytes, so what is durable is prose about a picture nobody can open. `/plan` must not be
+  handed a second image for either ticket.
+
+**Row 1 was appended by `product` at /triage on 2026-09-09**, from
+`.ai/board/ideas/2026-09-09-the-year-view-cannot-answer-what-the-year-looked-like.md`, whose
+`# Verdict — PROMOTE, as CAL-10` section is the reasoning. **The paragraph immediately below says this
+table is empty; it is left standing rather than rewritten**, on this file's convention — it was true
+when UIE-08 shipped and it stopped being true when this row landed. **`product` asserts nothing about
+position**: row 1 because the table was empty, not because anybody placed it there.
+
+**Three facts a human needs, and none of them is a priority question.**
+
+1. ***THE OTHER HALF OF THE 2026-09-08 REQUEST IS NOW ON THE BOARD, AND THE DECISION IT WAS WAITING
+   FOR HAS BEEN MADE.*** The paragraph below says ADR-032 is `PROPOSED — awaiting the operator`. **The
+   operator answered on 2026-09-09**, in two explicit choices: keep **both** surfaces, and make the
+   overview the **default**. ADR-032 is `ACCEPTED by the operator` and is written at the filename
+   eight documents already cite — **which closes 8 of the 9 errors `main`'s audit fails with**
+   (MD-031, item 6 below). The first draft of that ADR, and the idea behind it, exist on no ref and
+   were not recovered; this row's idea file states the problem again from source.
+2. ***THE COST THE PARAGRAPH BELOW RECORDS IS RETIRED, NOT PAID.*** It warns that accepting ADR-032
+   throws UIE-08's paint away rather than adjusting it. **Under "keep both" the member grid survives**,
+   behaviourally unchanged, at `/year/:yyyy/members` — so UIE-08's four semantic tokens and its card
+   treatment continue to apply to it. The warning was correct against the option that was not chosen.
+3. **`requires_adr: true`, and the reason is a route rather than a screen.** Moving the default moves
+   the address **five shipped acceptance criteria** are written against — CAL-06 AC-1, AC-2, AC-13,
+   AC-14 and CAL-08 AC-7 — and rewording them is this ticket's, not a chore's. **Nine more were
+   checked and are deliberately untouched**; both lists are in `ticket.yaml` § 1 and § 2 with
+   `file:line`. `depends_on` is `[]` and was measured (§ 6).
+
+**One thing a human may want to know before it is planned, and it is not its position.** ***THE FOUR
+SUMMARY NUMBERS IN THE PICTURE HAVE NO DEFINITIONS AND THE PICTURE CANNOT SUPPLY THEM*** — its own
+figures mix units, its one month with a count draws a different number of days than it states, and all
+of them are already recorded as fictional against the fixtures. They are acceptance criteria written
+at PLAN. The binding one is ADR-032's: **`NGÀY PTO` and `NGÀY WFH` split the year by `type`, which
+INV-04's implementation is documented as never doing**, so they are a new quantity that must sum
+exactly to INV-04's total.
+
+**And the design reference is a real file — the first on this board.**
+`.ai/board/tickets/CAL-10/design/year-overview-2026-09-08.jpg` is a JPEG, not a transcription. It does
+**not** close MD-030: the dispatching session placed it, and no role in the loop can still do so.
 
 ***THIS TABLE IS EMPTY FOR THE FIFTH TIME.*** `UIE-08` left it for `## ARCHIVE` on 2026-09-08, and
 all thirty-three tickets on the board are `DONE`. **The paragraphs below were written while it still
