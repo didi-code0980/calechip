@@ -1,8 +1,18 @@
 // UIE-02 — the top bar. 01-plan.md § 4.3, § 4.8 and § 4.9.
 //
-// **IT TAKES NO PROPS.** The anchor, the previous and next targets and the active segment are all
-// derived from the pathname. No context, no upward prop path, no `useOutletContext` — 01-plan.md
-// § 4.3 in as many words.
+// **IT TAKES ONE PROP, AND THE PROP IS A ROLE.** UIE-09 § 4.2 amends UIE-02's *IT TAKES NO PROPS*,
+// which read: *the anchor, the previous and next targets and the active segment are all derived from
+// the pathname. No context, no upward prop path, no `useOutletContext` — 01-plan.md § 4.3 in as many
+// words.*
+//
+// **WHAT THAT SENTENCE WAS PROTECTING STILL HOLDS, AND ITS REAL SUBJECT IS THE PERIOD DERIVATION.**
+// The anchor, the step controls, `Today` and the three switcher segments still come from
+// `periodNavFor(useLocation().pathname)` and from nothing else — see the paragraph below, which is
+// the one that says why. What `isAdmin` carries is a ROLE, which is not derivable from a pathname by
+// any means and which this component had no way to obtain: it holds no session and makes no seam
+// call, so `AppShell` — which already has the member row `App.tsx` resolved — computes the
+// expression and passes the answer. A reader who finds the bold sentence gone must be able to see in
+// the same paragraph that the invariant it was protecting is untouched; this is that paragraph.
 //
 // **IT READS `useLocation().pathname` AND NOT `useParams()`, AND THAT IS LOAD-BEARING.** This
 // component is rendered by the LAYOUT route, which sits ABOVE the matched child route, so its own
@@ -50,7 +60,15 @@ const SEGMENT_OFF = "font-semibold text-ink-3 hover:text-ink-2";
 const segmentClass = (on: boolean): string =>
   `${SEGMENT_BASE} ${on ? SEGMENT_ON : SEGMENT_OFF}`;
 
-export default function TopBar() {
+export interface TopBarProps {
+  /** Whether the signed-in member is an admin. The bar has no session and no seam call of its own,
+   *  so the answer arrives from `AppShell`, which already holds the member row — UIE-09 § 4.3.
+   *  A BOOLEAN AND NOT A `Member` (§ 8, rejected alternative 4): the bar's one question is *may this
+   *  person administer*, and a member row here would invite a second reason to hold one. */
+  isAdmin: boolean;
+}
+
+export default function TopBar({ isAdmin }: TopBarProps) {
   const { pathname } = useLocation();
   const nav = periodNavFor(pathname);
 
@@ -176,6 +194,25 @@ export default function TopBar() {
             link, `home-pending-entries-link`, and that link is in the sidebar. A second control to
             one address would either duplicate an id — the strict-mode failure AC-6 exists to
             prevent — or give the product two names for one screen. */}
+        {/* UIE-09 AC-1, AC-2 and AC-11. An OUTLINE PILL WITH NO CARET, reusing `PILL_OUTLINE` so it
+            is the same object as `Today` rather than a new one that looks like it — the shape the
+            transcription draws, and not a disclosure control (§ 2b). It reaches a SCREEN at an
+            address rather than opening a menu: § 8, rejected alternative 1.
+
+            IT SITS OUTSIDE THE `nav !== null` CONDITION AND RENDERS ON EVERY ROUTE INSIDE THE SHELL,
+            including the ones with no period — `/allow-list`, `/threshold`, `/admin` itself. AC-11
+            is the criterion that says adding an always-present control did not disturb the
+            conditionally-present cluster above it.
+
+            ABSENT FOR A MEMBER, NOT DISABLED (AC-2). A disabled control asserts that an area exists
+            and is merely unavailable, which is the opposite of what the sidebar's own four
+            admin-only links say by simply not being there. */}
+        {isAdmin ? (
+          <Link data-testid="shell-admin-link" to="/admin" className={PILL_OUTLINE}>
+            Admin
+          </Link>
+        ) : null}
+
         <Link
           data-testid="home-new-entry-link"
           to="/entries/new"

@@ -8,6 +8,7 @@ import { BrowserRouter, Navigate, Outlet, Route, Routes } from "react-router-dom
 import { seamName } from "./lib/data";
 import { useSession } from "./hooks/useSession";
 import AppShell from "./components/AppShell";
+import AdminHub from "./routes/AdminHub";
 import AllowList from "./routes/AllowList";
 import Holidays from "./routes/Holidays";
 import MemberList from "./routes/MemberList";
@@ -362,6 +363,30 @@ export default function App() {
               <Route
                 path="/threshold"
                 element={membership.state === "member" ? <Threshold /> : <Navigate to="/" replace />}
+              />
+
+              {/* UIE-09. The admin hub — one screen naming every administrative destination, and
+                  the only thing in the product that links to `/members`, which has been a route with
+                  no link anywhere in `src/` since TEA-03 (01-plan.md § 1).
+
+                  IT ADDS A ROUTE ABOVE THE FOUR AND MOVES NONE OF THEM. `/threshold` is still
+                  `/threshold`, `/allow-list` is still `/allow-list`, and each keeps its own back
+                  link. THERE ARE DELIBERATELY NO CHILDREN: a tabbed `/admin/threshold` family would
+                  re-address four shipped screens and reverse ADM-01's Open question 1 along with the
+                  answer ADM-02, ADM-03 and ADM-04 all inherited — `ticket.yaml` § 7 fences it and
+                  01-plan.md § 8 rejects it on the merits.
+
+                  GUARDED ON `member` AND NOT ON `admin`, which is the choice /entries/team,
+                  /entries/pending and /threshold each already record: a member who types this address
+                  must reach the component and be refused BY IT (`admin-hub-refused`, AC-6) rather
+                  than be bounced to `/`, because the refusal is what says why. A caller with no
+                  session or no member row lands on `/`, which then resolves by membership (AC-7).
+                  The guard is an affordance either way, and here it guards nothing at all: the screen
+                  renders five LINKS and no control, and each of the five destinations keeps the guard
+                  and the policy it already had. */}
+              <Route
+                path="/admin"
+                element={membership.state === "member" ? <AdminHub /> : <Navigate to="/" replace />}
               />
 
               {/* ADM-02. The national holiday calendar, and the anchor is the URL exactly as the
