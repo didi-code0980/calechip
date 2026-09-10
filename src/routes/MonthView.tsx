@@ -74,6 +74,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { Link, Navigate, useParams } from "react-router-dom";
 import EntryForm from "@/components/EntryForm";
 import type { EntryFormValues } from "@/components/EntryForm";
+import Modal from "@/components/Modal";
 // The seam, through its one door. Nothing above the seam names an implementation, and this file must
 // never import `./supabase` or `./mock` (RULE-02).
 import { seam } from "@/lib/data";
@@ -93,6 +94,10 @@ import {
 // weekend rule is inside that module and is not exported — a `isSaturday(d)` written here would be
 // the second definition .ai/registry/features.md:95 forbids.
 import { dayStatusesFor, holidayReadRange } from "@/lib/data/day-status";
+// SOLO, 2026-09-10. One entry per unbroken run of the days chosen in the picker, and the dragged
+// range expanded into the days the picker opens filled.
+import { createEntriesForDates } from "@/lib/create-entries";
+import { datesInRange } from "@/lib/date-selection";
 import type { DateRange, DayStatus, Entry, Failure, Holiday, Member, Team } from "@/lib/domain/types";
 // UIE-02 § 4.5. `MONTH_NAMES`, `mondayIndex`, `shiftMonth`, `monthLabel` and the month shape test
 // were declared BELOW, in this file; the shell's top bar needs all of them, and `mondayIndex` was
@@ -295,11 +300,13 @@ export default function MonthView() {
   // path of its own: `seam.createEntry` is CAL-01's, `entry_insert_own` decides it, and nothing is
   // written until the member presses the button.
   async function onCreate(values: EntryFormValues): Promise<Failure | null> {
-    const result = await seam.createEntry(values);
-    if (!result.ok) return result.error;
+    // SOLO, 2026-09-10. The drag still fills the picker; the picker is what is saved, so a member
+    // who dragged three days and then unchose the middle one stores two entries and not one across
+    // a day they are working. The dialog closes only when every run was stored.
+    const failure = await createEntriesForDates(values);
     await load();
-    setDraft(null);
-    return null;
+    if (!failure) setDraft(null);
+    return failure;
   }
 
   if (!valid) return <Navigate to={`/month/${currentMonth()}`} replace />;
@@ -628,28 +635,34 @@ export default function MonthView() {
           `key` remounts it for each new range: `EntryForm` reads `initial` into `useState`, so a
           re-render with new dates would leave the old ones on screen. */}
       {draft ? (
-        <div data-testid="month-entry-panel" className="flex flex-col gap-2">
-          <EntryForm
-            key={`${draft.start}:${draft.end}`}
-            testIdPrefix="month-entry"
-            title={`Declare ${draft.start} to ${draft.end}`}
-            submitLabel="Save"
-            submittingLabel="Saving…"
-            initial={{
-              type: "pto",
-              portion: "full",
-              startDate: draft.start,
-              endDate: draft.end,
-              tentative: false,
-              note: null,
-            }}
-            afterSubmit="keep"
-            onSubmit={onCreate}
-          />
-          <button data-testid="month-entry-cancel" type="button" onClick={() => setDraft(null)} className="self-start underline">
-            Cancel
-          </button>
-        </div>
+        <Modal
+          testIdPrefix="month-entry"
+          label="Book leave or working from home"
+          onClose={() => setDraft(null)}
+        >
+          {/* SOLO, 2026-09-10. The panel became the dialog the operator's design draws, and
+              `month-entry-cancel` moved INTO the form as its `onCancel` — same selector, same
+              effect, one control fewer outside it. The wrapper keeps `month-entry-panel`. */}
+          <div data-testid="month-entry-panel" className="flex flex-col gap-2">
+            <EntryForm
+              key={`${draft.start}:${draft.end}`}
+              testIdPrefix="month-entry"
+              title="Book leave or working from home"
+              submitLabel="Save"
+              submittingLabel="Saving…"
+              initial={{
+                type: "pto",
+                portion: "full",
+                dates: datesInRange(draft.start, draft.end),
+                tentative: false,
+                note: null,
+              }}
+              afterSubmit="keep"
+              onSubmit={onCreate}
+              onCancel={() => setDraft(null)}
+            />
+          </div>
+        </Modal>
       ) : null}
     </section>
   );

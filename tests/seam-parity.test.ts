@@ -141,3 +141,42 @@ describe("CAL-04 listTeamEntriesOverlapping", () => {
     expect(await mock.listTeamEntriesOverlapping(covering)).toEqual([]);
   });
 });
+
+// SOLO, 2026-09-10. Not an acceptance criterion — `.claude/agents/solo.md` and ADR-033.
+//
+// **THIS IS THE TERM OF THE SEAM CONTRACT THAT LETS `useSession` READ ONCE INSTEAD OF TWICE.**
+// GoTrue calls every new subscriber back immediately with the current session, unconditionally
+// (`@supabase/auth-js@2.112.4/dist/module/GoTrueClient.js:3633-3644`, read on disk). The mock did
+// not, so the hook compensated by ALSO calling `getSession()` itself — and against the real client
+// that made two `auth.getUser()` calls and two `member` selects on every mount, one of which a
+// sequence guard silently discarded.
+//
+// The hook now has one path. If an implementation stops emitting, `resolving` never clears and the
+// application sits on its loading screen for ever; the acceptance suite catches that, and this
+// catches it one layer down and in one second.
+describe("SOLO — onAuthStateChange emits once on subscribe", () => {
+  it("calls a new listener with the current session, without waiting for a change", async () => {
+    const seen: Array<unknown> = [];
+    const unsubscribe = mock.onAuthStateChange((session) => seen.push(session));
+
+    // Nothing yet: the emit is ASYNCHRONOUS, as the real client's is. A synchronous callback would
+    // run inside the subscriber's own effect body, before its cleanup was registered.
+    expect(seen, "the mock emitted synchronously").toEqual([]);
+
+    await Promise.resolve();
+    expect(seen, "the mock did not emit on subscribe").toHaveLength(1);
+
+    unsubscribe();
+  });
+
+  it("does not call a listener that unsubscribed in the same tick", async () => {
+    // React's StrictMode subscribes and unsubscribes within one tick on its throwaway first mount.
+    // An emit that ignored the unsubscribe would set state on a component that is already gone.
+    const seen: Array<unknown> = [];
+    const unsubscribe = mock.onAuthStateChange((session) => seen.push(session));
+    unsubscribe();
+
+    await Promise.resolve();
+    expect(seen).toEqual([]);
+  });
+});

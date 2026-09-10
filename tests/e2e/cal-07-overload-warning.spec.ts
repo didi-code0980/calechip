@@ -1,4 +1,5 @@
 import { expect, test, type Locator, type Page } from "@playwright/test";
+import { choosePortion, chooseType, pickRange, setRange, unpickDate } from "./support/entry-form";
 
 // CAL-07 — the overload warning, shown while choosing dates and before the entry is saved.
 //
@@ -142,10 +143,12 @@ interface EntryInput {
 /** The six fields, all six SET rather than left holding whatever the control carried — the lesson
  *  CAL-01's suite records about the sticky tentative flag. */
 async function fillEntry(page: Page, prefix: string, input: EntryInput): Promise<void> {
-  await page.getByTestId(`${prefix}-type`).selectOption(input.type ?? "pto");
-  await page.getByTestId(`${prefix}-portion`).selectOption(input.portion ?? "full");
-  await page.getByTestId(`${prefix}-start`).fill(input.start);
-  await page.getByTestId(`${prefix}-end`).fill(input.end);
+  await chooseType(page, prefix, input.type ?? "pto");
+  await choosePortion(page, prefix, input.portion ?? "full");
+  // SOLO, 2026-09-10. `setRange` and not `pickRange`: the two date inputs this replaces overwrote
+  // whatever they held, and a picker is a toggle — so the selection is emptied before the new days
+  // are chosen. Several tests below fill the same form twice.
+  await setRange(page, prefix, input.start, input.end);
   await page.getByTestId(`${prefix}-tentative`).setChecked(input.tentative ?? false);
   if (input.note !== undefined) await page.getByTestId(`${prefix}-note`).fill(input.note);
 }
@@ -224,11 +227,11 @@ test.describe("CAL-07 the overload warning", () => {
 
     // Changing the portion touches no date, so this is recomputed from the rows already held and
     // reaches the datastore not at all.
-    await page.getByTestId("new-entry-portion").selectOption("am");
+    await choosePortion(page, "new-entry", "am");
     await expect(day(page, "new-entry", CROWDED)).toHaveAttribute("data-count", "2.5");
     await expect(day(page, "new-entry", CROWDED)).toContainText("2.5 of 4");
 
-    await page.getByTestId("new-entry-portion").selectOption("full");
+    await choosePortion(page, "new-entry", "full");
     await expect(day(page, "new-entry", CROWDED)).toHaveAttribute("data-count", "3");
   });
 
@@ -356,9 +359,11 @@ test.describe("CAL-07 the overload warning", () => {
     await expect(overload(page, "new-entry").getByTestId("new-entry-error")).toHaveCount(0);
 
     // And no field is made invalid by the warning: the refusal is about the row, not about a value
-    // somebody typed.
-    await expect(page.getByTestId("new-entry-start")).not.toHaveAttribute("aria-invalid", "true");
-    await expect(page.getByTestId("new-entry-end")).not.toHaveAttribute("aria-invalid", "true");
+    // somebody typed. SOLO, 2026-09-10 — the two date inputs became a grid of day toggles, so the
+    // assertion is over every cell of it rather than over two named inputs. Same criterion, and it
+    // now covers more controls than it did.
+    await expect(page.locator('[data-testid="new-entry-day"][aria-invalid="true"]')).toHaveCount(0);
+    await expect(page.getByTestId("new-entry-note")).not.toHaveAttribute("aria-invalid", "true");
   });
 
   test("AC-12: a save pressed before the count arrives is not deferred", async ({ page }) => {
@@ -369,8 +374,7 @@ test.describe("CAL-07 the overload warning", () => {
     // click lands is not something a browser test can force — the honest claim is the one asserted:
     // the save proceeds on its own and is never gated on the warning. Nothing in the component can
     // defer it, because it holds no submit state at all (01-plan.md section 4.4).
-    await page.getByTestId("new-entry-start").fill(CROWDED);
-    await page.getByTestId("new-entry-end").fill(CROWDED);
+    await pickRange(page, "new-entry", CROWDED, CROWDED);
     await page.getByTestId("new-entry-submit").click();
 
     await expect(ownRows(page)).toHaveCount(1);
@@ -386,25 +390,27 @@ test.describe("CAL-07 the overload warning", () => {
     await fillEntry(page, "new-entry", { start: CROWDED, end: CROWDED });
     await expect(day(page, "new-entry", CROWDED)).toBeVisible();
 
-    // AC-20. Half a range is not a range: the warning goes, and no count is asked for.
-    await page.getByTestId("new-entry-end").fill("");
+    // AC-20. No days chosen is not a range: the warning goes, and no count is asked for. SOLO,
+    // 2026-09-10 — this was `fill("")` on the end input, which is the same state reached through the
+    // control that exists now.
+    await unpickDate(page, "new-entry", CROWDED);
     await expect(overload(page, "new-entry")).toHaveCount(0);
     await page.waitForTimeout(PAST_THE_DEBOUNCE);
     await expect(overload(page, "new-entry")).toHaveCount(0);
 
-    // AC-20. An inverted range, likewise. There is deliberately no `min` on the end input — CAL-01
-    // gives an inverted range its own criterion and its own sentence.
-    await page.getByTestId("new-entry-start").fill(NEXT_DAY);
-    await page.getByTestId("new-entry-end").fill(CROWDED);
-    await page.waitForTimeout(PAST_THE_DEBOUNCE);
-    await expect(overload(page, "new-entry")).toHaveCount(0);
+    // AC-20's other half was an INVERTED range, and SOLO made it unreachable: a set of chosen days
+    // has no order to invert. The criterion is not dropped, it is held by construction, and this is
+    // the assertion that says so — the picker offers no input to type a bound into, so there is no
+    // way through this interface to ask the datastore about a range that ends before it starts.
+    // CAL-01 AC-9's refusal still exists in the seam; what is gone is the control that could express
+    // the mistake.
+    await expect(page.getByTestId("new-entry-picker").locator("input")).toHaveCount(0);
 
     // AC-19. Moved to a quiet range: the warning never describes the range that has been left. The
     // interleaving of two in-flight answers cannot be forced through a browser, so what is asserted
     // is the observable requirement rather than the mechanism — the request-number guard in
     // src/components/OverloadWarning.tsx is what delivers it.
-    await page.getByTestId("new-entry-start").fill(QUIET);
-    await page.getByTestId("new-entry-end").fill(QUIET);
+    await setRange(page, "new-entry", QUIET, QUIET);
     await page.waitForTimeout(PAST_THE_DEBOUNCE);
     await expect(day(page, "new-entry", CROWDED)).toHaveCount(0);
     await expect(overload(page, "new-entry")).toHaveCount(0);
@@ -426,8 +432,7 @@ test.describe("CAL-07 the overload warning", () => {
     await expect(overload(page, "edit-entry")).toHaveCount(0);
 
     // Moved onto the crowded day, and nothing saved.
-    await page.getByTestId("edit-entry-start").fill(CROWDED);
-    await page.getByTestId("edit-entry-end").fill(CROWDED);
+    await setRange(page, "edit-entry", CROWDED, CROWDED);
 
     await expect(day(page, "edit-entry", CROWDED)).toBeVisible();
     await expect(day(page, "edit-entry", CROWDED)).toHaveAttribute("data-count", "3");
@@ -462,8 +467,7 @@ test.describe("CAL-07 the overload warning", () => {
     await teamRow(page, APPROVED_ENTRY_ID).getByTestId("team-entry-row-edit").click();
     await expect(page.getByTestId("edit-entry-form")).toBeVisible();
 
-    await page.getByTestId("edit-entry-start").fill(CROWDED);
-    await page.getByTestId("edit-entry-end").fill(CROWDED);
+    await setRange(page, "edit-entry", CROWDED, CROWDED);
 
     await expect(day(page, "edit-entry", CROWDED)).toBeVisible();
 

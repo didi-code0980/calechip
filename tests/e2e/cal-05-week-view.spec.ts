@@ -1,4 +1,5 @@
 import { expect, test, type Locator, type Page } from "@playwright/test";
+import { choosePortion, chooseType, pickRange } from "./support/entry-form";
 
 // CAL-05 — the week view: who is away this week, for how much of each day, why, and who agreed.
 //
@@ -105,10 +106,9 @@ async function declare(
   // the TOP BAR and renders on the week itself.
   await page.getByTestId("home-new-entry-link").click();
 
-  await page.getByTestId("new-entry-start").fill(fields.start);
-  await page.getByTestId("new-entry-end").fill(fields.end);
-  if (fields.portion) await page.getByTestId("new-entry-portion").selectOption(fields.portion);
-  if (fields.type) await page.getByTestId("new-entry-type").selectOption(fields.type);
+  await pickRange(page, "new-entry", fields.start, fields.end);
+  if (fields.portion) await choosePortion(page, "new-entry", fields.portion);
+  if (fields.type) await chooseType(page, "new-entry", fields.type);
   if (fields.note) await page.getByTestId("new-entry-note").fill(fields.note);
   if (fields.tentative) await page.getByTestId("new-entry-tentative").check();
 

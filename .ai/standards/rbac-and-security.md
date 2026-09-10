@@ -1,6 +1,6 @@
 ---
-doc_version: 2
-last_updated: 2026-08-31
+doc_version: 3
+last_updated: 2026-09-10
 governed_by: [RULE-01, RULE-02, RULE-09]
 ---
 
@@ -41,9 +41,10 @@ and the permission-model test in [testing-standards.md](testing-standards.md) re
 | Remove a member | ❌ | ✅ |
 | Promote a member to admin | ❌ | ✅ |
 | Demote an admin to member | ❌ | ❌ **not decided — denied until it is** |
-| Read the allow-list | ❌ | ✅ |
-| Add an address to the allow-list | ❌ | ✅ |
-| Remove an address from the allow-list | ❌ | ✅ |
+| Read the list of pending sign-ups | ❌ | ✅ |
+| Approve a sign-up onto the approving admin's own team | ❌ | ✅ |
+| Reject a sign-up | ❌ | ✅ |
+| Re-decide somebody already approved onto a team | ❌ | ❌ **not decided — denied until it is** |
 | Read the overload threshold | ✅ | ✅ |
 | Set the overload threshold | ❌ | ✅ |
 
@@ -52,7 +53,16 @@ Every row above except the two marked was decided by the operator on 2026-08-31 
 that turns out to be wrong surfaces as a blocked story, which is cheap; a permission that turns out
 to be wrong surfaces as data somebody should not have touched.
 
-**Two changes to this table on 2026-08-31, after [ADR-009](../registry/decisions/ADR-009-how-a-person-becomes-a-member.md):**
+**Three allow-list rows became three sign-up rows on 2026-09-10, under
+[ADR-033](../registry/decisions/ADR-033-a-person-joins-by-signing-up-and-an-admin-decides-afterwards.md).**
+Read, add and remove an address are gone with the table; read the queue, approve and reject replace
+them. The power is the same one — an admin decides who is on the team — and only the moment moved,
+from before the person arrives to after. **The fourth row is new and is a denial by default, not a
+decision:** the `member_decide_admin` policy admits only rows with no team and `status = 'pending'`,
+so an approval cannot be taken back through this surface, and nothing has been decided about whether
+it should be.
+
+**Two changes to this table on 2026-08-31, after [ADR-009](../registry/decisions/ADR-009-how-a-person-becomes-a-member.md), kept because they are the record of how the rows above came to exist:**
 
 - **`Invite a member` was removed.** ADR-009 decided that joining happens through the allow-list and
   that no invitation is sent, which left this row meaning exactly what
@@ -70,11 +80,20 @@ to be wrong surfaces as data somebody should not have touched.
   It is recorded this way — derived, flagged, then confirmed — rather than quietly promoted to
   settled, because the flag is what made the confirmation possible.
 
-**The allow-list is how somebody joins** ([ADR-009](../registry/decisions/ADR-009-how-a-person-becomes-a-member.md)).
-A member must not read it: it is a list of people who have been invited and have not yet arrived, and
-that is admin information rather than team information. Sign-up itself needs no permission — the
-trigger refuses to create a `member` row for an address that is not listed, so an unlisted sign-up
-produces an auth user with no membership and sees nothing.
+**Signing up is how somebody joins, and an admin decides afterwards**
+([ADR-033](../registry/decisions/ADR-033-a-person-joins-by-signing-up-and-an-admin-decides-afterwards.md)).
+Sign-up itself needs no permission: the trigger creates a `member` row for anybody who confirms an
+address, with no team and `status = 'pending'`. **That row grants nothing.** `public.member_team_id`
+returns a team only for an `approved` member, every row-level policy in the product resolves through
+that function, and `public.is_admin` carries the same clause — so an undecided person is refused by
+all of them at once, and an admin who is later rejected stops being an admin rather than keeping
+admin powers over no team.
+
+A member must not read the pending queue: it is a list of people who have asked and not yet been
+answered, which is admin information rather than team information. The policy that exposes it is
+deliberately **not** team-scoped — a pending member has no team to scope it by — so with more than
+one team every admin sees every pending sign-up and may claim one for their own team. v1 has one
+team; ADR-033 names this as the first thing to revisit if a second is created.
 
 **Removing a member does not remove their entries.** They stay, and the absence count for past dates
 changes because team size is read at evaluation time — the consequence recorded in the INV-04 note in

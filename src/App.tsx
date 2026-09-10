@@ -10,7 +10,8 @@ import { useSession } from "./hooks/useSession";
 import AppShell from "./components/AppShell";
 import AdminLayout from "./components/AdminLayout";
 import AdminHub from "./routes/AdminHub";
-import AllowList from "./routes/AllowList";
+import AwaitingApproval from "./routes/AwaitingApproval";
+import NewSignups from "./routes/NewSignups";
 import Holidays from "./routes/Holidays";
 import MemberList from "./routes/MemberList";
 import MonthView from "./routes/MonthView";
@@ -21,6 +22,8 @@ import YearOverview, { YearMembers } from "./routes/YearOverview";
 import EditEntry from "./routes/EditEntry";
 import NewEntry from "./routes/NewEntry";
 import PendingEntries from "./routes/PendingEntries";
+// SOLO 2026-09-10. The caller's own profile, reached from the account footer in the sidebar.
+import Profile from "./routes/Profile";
 import TeamEntries from "./routes/TeamEntries";
 import Threshold from "./routes/Threshold";
 import NotOnATeam from "./routes/NotOnATeam";
@@ -63,7 +66,7 @@ export default function App() {
   // context provider TEA-02's design predicted — there is one consumer, and a provider would add a
   // file, a wrapper and an indirection to serve a single call site. The first component that needs
   // the session without a prop path should add the provider, backed by this same hook.
-  const { membership, resolving, signIn, signOut } = useSession();
+  const { membership, resolving, signIn, signOut, refresh } = useSession();
 
   return (
     <BrowserRouter>
@@ -169,7 +172,14 @@ export default function App() {
             <Route
               element={
                 membership.state === "member" ? (
-                  <AppShell member={membership.member} signOut={signOut} />
+                  // SOLO 2026-09-10. `refresh` reaches the profile screen through the shell's
+                  // outlet context: `updateOwnProfile` writes the member row without touching the
+                  // session, so nothing else would tell this hook to read it again.
+                  <AppShell
+                    member={membership.member}
+                    signOut={signOut}
+                    refreshMembership={refresh}
+                  />
                 ) : (
                   <BareLayout />
                 )
@@ -203,6 +213,13 @@ export default function App() {
                 element={
                   membership.state === "member" ? (
                     <WeekView landing />
+                  ) : membership.state === "undecided" ? (
+                    // SOLO, 2026-09-10. **A FOURTH BRANCH, AND WITHOUT IT THIS ROUTE LOOPS.** An
+                    // `undecided` caller fell through to `<Navigate to="/signin">`, and `/signin`
+                    // sends anybody holding a session back to `/` — so a person who had just signed
+                    // up bounced between the two forever. Reachable by everybody the moment the
+                    // allow-list stopped being the gate, and by nobody before it.
+                    <AwaitingApproval member={membership.member} signOut={signOut} />
                   ) : membership.state === "member-less" ? (
                     <NotOnATeam user={membership.user} signOut={signOut} />
                   ) : (
@@ -238,7 +255,10 @@ export default function App() {
                   on every screen that refuses them — UIE-10 AC-1 removed exactly that from the
                   sidebar. Each destination keeps its own guard below, untouched. */}
               <Route element={<AdminLayout isAdmin={membership.state === "member" && membership.member.role === "admin"} />}>
-                <Route path="/allow-list" element={<AllowList />} />
+                {/* SOLO, 2026-09-10. `/allow-list` is gone with the allow-list. `/signups` is the
+                    admin queue that replaced it; the screen renders its own refusal, so this route
+                    is unguarded for the same two reasons `/allow-list` recorded. */}
+                <Route path="/signups" element={<NewSignups />} />
                 {/* TEA-03. Reachable by address only, and not guarded, for the same two reasons: it
                     renders `member-list-not-on-a-team` when getCurrentMember() returns null. */}
                 <Route path="/members" element={<MemberList />} />
@@ -447,6 +467,25 @@ export default function App() {
                   membership.state === "signed-out" ? <Navigate to="/" replace /> : <Holidays />
                 }
               />
+              {/* **SOLO, 2026-09-10 — the personal profile screen.** No ticket and no plan;
+                  `.claude/agents/solo.md` and ADR-033 are the authority, and `Profile.tsx` carries
+                  the reasoning.
+
+                  GUARDED ON A MEMBER ROW, like `/entries/new` and `/entries/:id/edit` above and
+                  unlike `/allow-list`: the screen's whole subject is the caller's member row, so a
+                  caller who has none has nothing here to read. A signed-out or member-less caller
+                  lands on `/`, which resolves by membership to the sign-in screen or the
+                  member-less one. It is an affordance either way — the seam's own reads are the
+                  control and they return nothing without a session.
+
+                  NOT UNDER `AdminLayout`. It is every member's own screen and it is not
+                  administration; a tab strip above it would put five admin addresses on a page a
+                  member reaches from their own name. */}
+              <Route
+                path="/profile"
+                element={membership.state === "member" ? <Profile /> : <Navigate to="/" replace />}
+              />
+
               {/* AC-9. Every address the application does not route lands on `/`, which then
                   resolves by membership — so a caller with no session reaches the sign-in screen and
                   a member reaches the current week. This replaced TEA-01's temporary `→ /signup`,

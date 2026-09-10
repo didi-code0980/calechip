@@ -1,4 +1,5 @@
 import { expect, test, type Page } from "@playwright/test";
+import { choosePortion, chooseType, pickRange } from "./support/entry-form";
 
 // ADM-01 — set the overload threshold.
 //
@@ -259,10 +260,9 @@ test.describe("ADM-01 set the overload threshold", () => {
     await page.getByTestId("home-new-entry-link").click();
     await expect(page.getByTestId("new-entry-form")).toBeVisible();
 
-    await page.getByTestId("new-entry-type").selectOption("pto");
-    await page.getByTestId("new-entry-portion").selectOption("full");
-    await page.getByTestId("new-entry-start").fill("2026-10-12");
-    await page.getByTestId("new-entry-end").fill("2026-10-12");
+    await chooseType(page, "new-entry", "pto");
+    await choosePortion(page, "new-entry", "full");
+    await pickRange(page, "new-entry", "2026-10-12", "2026-10-12");
     await page.getByTestId("new-entry-tentative").setChecked(false);
     await page.getByTestId("new-entry-submit").click();
 

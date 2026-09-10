@@ -13,7 +13,7 @@
 // component exists — `useSession()` is called exactly once, there (`useSession.ts`, TEA-05
 // 01-plan.md § 4.3) — so the member arrives as a prop and this file makes no session read. The one
 // seam call the shell makes anywhere is `seam.listMembers()` in `useRoster`, from the sidebar.
-import { Outlet } from "react-router-dom";
+import { Outlet, useOutletContext } from "react-router-dom";
 import Sidebar from "./Sidebar";
 import TopBar from "./TopBar";
 import type { Member, Result } from "@/lib/domain/types";
@@ -22,9 +22,50 @@ export interface AppShellProps {
   /** The signed-in member. `App.tsx` has already resolved it; the shell never re-reads it. */
   member: Member;
   signOut(): Promise<Result<void>>;
+  /** SOLO 2026-09-10. Passed straight through to the outlet — see `ShellContext` below. The shell
+   *  never calls it itself, and `IT RE-READS NOTHING` above is unchanged by its presence. */
+  refreshMembership(): void;
 }
 
-export default function AppShell({ member, signOut }: AppShellProps) {
+/**
+ * SOLO 2026-09-10. What a screen inside the shell may ask the shell to do. One entry today.
+ *
+ * **THIS IS NOT THE `useOutletContext` UIE-02 § 4.3 REFUSED, AND THE DIFFERENCE IS THE WHOLE
+ * JUSTIFICATION.** That refusal was about the top bar's period derivation: an anchor, a step target
+ * and an active segment are all derivable from the pathname, so a context carrying them would be a
+ * second source for a fact the ADDRESS already holds, free to disagree with it. Nothing here is
+ * derivable from anything — `refreshMembership` is a handle on state that lives ABOVE the router, in
+ * `App.tsx`'s single `useSession()` call, and a routed screen has no other way to reach it.
+ *
+ * **WHY IT HAS TO EXIST AT ALL.** `updateOwnProfile` writes the `member` row and touches no session,
+ * so the auth client emits nothing and `useSession` never re-resolves: after a member renames
+ * themselves, the sidebar two hundred pixels to the left keeps drawing the old name until a reload.
+ * The alternative was for the profile screen to hold its own copy of the member row — the same fact,
+ * read twice, rendered twice, free to disagree on screen at the same moment.
+ */
+export interface ShellContext {
+  /**
+   * The signed-in member, as `App.tsx` resolved it.
+   *
+   * **IT IS HERE SO THAT A SCREEN INSIDE THE SHELL DOES NOT READ IT AGAIN.** `getCurrentMember()` is
+   * two network round trips in the real seam — `auth.getUser()` and then the `member` row — and the
+   * shell has already paid for both before any screen renders. A screen re-reading it produced
+   * visible duplicate requests on `/profile`, which is what put this field here.
+   *
+   * A screen that needs a member row for somebody ELSE still reads the seam. This is the caller's
+   * own row and only that.
+   */
+  member: Member;
+  refreshMembership(): void;
+}
+
+/** The typed reader. Screens call this rather than `useOutletContext` directly, so the shape is
+ *  declared in one place and grows one entry at a time rather than per caller. */
+export function useShellContext(): ShellContext {
+  return useOutletContext<ShellContext>();
+}
+
+export default function AppShell({ member, signOut, refreshMembership }: AppShellProps) {
   return (
     // § 4.9. Two panes, full bleed, no page margin. `min-h-0` on the row is what makes the content
     // pane the ONLY scrolling region: without it a flex child's default `min-height: auto` lets the
@@ -48,7 +89,13 @@ export default function AppShell({ member, signOut }: AppShellProps) {
             documents *it re-reads nothing* acquires a read. */}
         <TopBar isAdmin={member.role === "admin"} />
         <div className="min-w-0 flex-1 px-6 pb-6">
-          <Outlet />
+          {/* SOLO 2026-09-10. The context object is built INLINE and is therefore a new identity on
+              every render of the shell. That is harmless here — `useOutletContext` is a plain
+              context read and the screens below re-render with the shell anyway — and memoising it
+              would add a dependency array that has to stay true for no behaviour anyone can see.
+              NOTE for whoever adds the second entry: this reasoning stops holding the moment a
+              consumer puts the context object in a `useEffect` dependency list. */}
+          <Outlet context={{ member, refreshMembership } satisfies ShellContext} />
         </div>
       </div>
     </div>

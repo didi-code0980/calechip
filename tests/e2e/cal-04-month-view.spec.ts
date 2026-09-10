@@ -1,4 +1,5 @@
 import { expect, test, type Locator, type Page } from "@playwright/test";
+import { choosePortion } from "./support/entry-form";
 
 // CAL-04 — the month grid: who is away on each day, and which days are crowded.
 //
@@ -110,6 +111,11 @@ async function dragAcross(page: Page, from: string, to: string): Promise<void> {
   await page.mouse.up();
 }
 
+/** SOLO, 2026-09-10. One cell of the entry form's day picker. `.first()` because the grid draws
+ *  whole weeks, so a date at a month boundary can appear on two of them. */
+const dayCell = (page: Page, prefix: string, date: string) =>
+  page.locator(`[data-testid="${prefix}-day"][data-date="${date}"]`).first();
+
 test.describe("CAL-04 — month view", () => {
   test("AC-1: the grid renders every date of the month in the URL, exactly once", async ({ page }) => {
     await openMonthAs(page, MEMBER_EMAIL);
@@ -203,8 +209,15 @@ test.describe("CAL-04 — month view", () => {
     await dragAcross(page, "2026-09-06", "2026-09-08");
 
     await expect(page.getByTestId("month-entry-form")).toBeVisible();
-    await expect(page.getByTestId("month-entry-start")).toHaveValue("2026-09-06");
-    await expect(page.getByTestId("month-entry-end")).toHaveValue("2026-09-08");
+
+    // SOLO, 2026-09-10. The two date inputs became a month grid, so "pre-filled" is now three days
+    // drawn as chosen rather than two values. The criterion is unchanged: the drag reaches the form,
+    // and it reaches it carrying exactly the dragged dates and nothing either side of them.
+    for (const date of ["2026-09-06", "2026-09-07", "2026-09-08"]) {
+      await expect(dayCell(page, "month-entry", date)).toHaveAttribute("data-selected", "true");
+    }
+    await expect(dayCell(page, "month-entry", "2026-09-05")).toHaveAttribute("data-selected", "false");
+    await expect(dayCell(page, "month-entry", "2026-09-09")).toHaveAttribute("data-selected", "false");
 
     // Nothing has been written: the three days are still empty behind the form.
     for (const date of ["2026-09-06", "2026-09-07", "2026-09-08"]) {
@@ -249,7 +262,7 @@ test.describe("CAL-04 — month view", () => {
     // the threshold, so the day is drawn crowded.
     await switchTo(page, SECOND_ADMIN_EMAIL);
     await dragAcross(page, "2026-09-15", "2026-09-15");
-    await page.getByTestId("month-entry-portion").selectOption("am");
+    await choosePortion(page, "month-entry", "am");
     await page.getByTestId("month-entry-submit").click();
 
     await expect(cell(page, "2026-09-15")).toHaveAttribute("data-count", "2.5");

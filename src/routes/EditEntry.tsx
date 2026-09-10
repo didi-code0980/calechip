@@ -44,6 +44,9 @@ import EntryDecision from "@/components/EntryDecision";
 import EntryForm from "@/components/EntryForm";
 import type { EntryFormValues } from "@/components/EntryForm";
 import { seam } from "@/lib/data";
+// SOLO, 2026-09-10. The picker holds days, the row holds a range: this expands one into the other on
+// the way in, and `dateRuns` folds it back on the way out.
+import { dateRuns, datesInRange } from "@/lib/date-selection";
 import type { Entry, Failure } from "@/lib/domain/types";
 // OPS-002. The status words moved to src/lib/labels.ts, which is their ONE declaration (AC-8) —
 // TeamEntries.tsx held a second, already-English copy of the same three strings.
@@ -100,10 +103,24 @@ export default function EditEntry() {
   // TRIGGER may have rewritten `status`, `approved_by`, `approved_at` and `updated_at` on the way
   // through, and a screen that painted the values it sent would show an entry as still approved
   // after the datastore had returned it to pending.
+  // SOLO, 2026-09-10. ONE ROW, so one run. `selection="single-run"` is what keeps the form from
+  // submitting a gapped selection at all, and this is the second guard rather than the first: the
+  // control is already disabled, and a refusal here would be a failure code invented in a component
+  // for a state the interface does not offer.
   async function onSave(values: EntryFormValues): Promise<Failure | null> {
     if (!id) return { code: "entry_not_permitted", message: "This entry could not be edited." };
 
-    const result = await seam.updateEntry(id, values);
+    const [run, ...rest] = dateRuns(values.dates);
+    if (run === undefined || rest.length > 0) return null;
+
+    const result = await seam.updateEntry(id, {
+      type: values.type,
+      portion: values.portion,
+      startDate: run.startDate,
+      endDate: run.endDate,
+      tentative: values.tentative,
+      note: values.note,
+    });
     if (!result.ok) return result.error;
 
     setState({ phase: "ready", entry: result.value });
@@ -145,6 +162,10 @@ export default function EditEntry() {
 
   return (
     <section className="mx-auto flex max-w-xl flex-col gap-4">
+      {/* SOLO, 2026-09-10. The card the form used to draw around itself. `EntryForm` gave up its own
+          surface when it was redrawn, because inside the month view's dialog it is already on one —
+          so the two routes that mount it on a page provide it here. */}
+      <div className="rounded-card bg-card p-6 shadow-soft md:p-8">
       <EntryForm
         testIdPrefix="edit-entry"
         title="Edit entry"
@@ -153,13 +174,15 @@ export default function EditEntry() {
         initial={{
           type: entry.type,
           portion: entry.portion,
-          startDate: entry.startDate,
-          endDate: entry.endDate,
+          // The stored range, expanded into the days the picker fills. A single-day entry is one
+          // chosen day, which is CAL-01 AC-3's inclusivity seen from the other side.
+          dates: datesInRange(entry.startDate, entry.endDate),
           tentative: entry.tentative,
           note: entry.note,
         }}
         afterSubmit="keep"
         onSubmit={onSave}
+        selection="single-run"
         /* CAL-07, 01-plan.md section 4.5. Two props, and both values are already on this screen.
 
            `ownerId` is the ENTRY's member and never the caller: an admin editing somebody else's
@@ -169,6 +192,7 @@ export default function EditEntry() {
         ownerId={entry.memberId}
         excludeEntryId={entry.id}
       />
+      </div>
 
       {/* ADM-05 AC-4, AC-5, AC-10, AC-11. An ADMIN ONLY, and the branch is the one this screen
           already makes for its read — an affordance and not a control, exactly as that branch is.

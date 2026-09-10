@@ -28,11 +28,31 @@ export interface SessionState {
   resolving: boolean;
   signIn(input: SignInInput): Promise<Result<Session>>;
   signOut(): Promise<Result<void>>;
+  /**
+   * SOLO 2026-09-10. Re-reads the membership now.
+   *
+   * **IT EXISTS BECAUSE ONE WRITE IN THIS PRODUCT CHANGES THE MEMBER ROW WITHOUT TOUCHING THE
+   * SESSION.** Everything else that changes what this hook holds goes through the auth client, which
+   * emits, and the subscription below re-resolves — that is the single path the comment on `signIn`
+   * describes and it is unchanged. `updateOwnProfile` is a table write: it emits nothing, so after a
+   * member renames themselves the sidebar and every screen holding `membership.member` keep drawing
+   * the OLD name until the next reload. This is the way to say "read it again", and it is still one
+   * path — it re-runs the same `resolve`, it does not set a membership of its own.
+   *
+   * The screen calls it AFTER the seam reports success, never instead of reading the seam's answer.
+   */
+  refresh(): void;
 }
 
 export function useSession(): SessionState {
   const [membership, setMembership] = useState<Membership>({ state: "signed-out" });
   const [resolving, setResolving] = useState(true);
+  // SOLO 2026-09-10. Bumping this re-runs the effect below, which re-resolves. A counter and not a
+  // lifted `resolve`: `resolve` closes over `live` and `latest`, the two guards that stop a slow
+  // answer overwriting a newer one, and hoisting it out of the effect would leave those guards
+  // outside the lifecycle they exist to track. The cost is that the subscription is torn down and
+  // re-established on each refresh, which is two synchronous calls on the seam and no request.
+  const [refreshCount, setRefreshCount] = useState(0);
 
   useEffect(() => {
     let live = true;
@@ -55,9 +75,22 @@ export function useSession(): SessionState {
           // §Consequences requires the second one's absence to be handled in the interface rather
           // than left to look like a bug.
           const member = await seam.getCurrentMember();
-          next = member
-            ? { state: "member", user: session.user, member }
-            : { state: "member-less", user: session.user };
+
+          // **SOLO, 2026-09-10 — A THIRD ANSWER, BECAUSE THERE ARE NOW THREE FACTS.** Until the
+          // allow-list was removed a member row existed only for somebody an admin had already let
+          // in, so "has a row" and "is on the team" were the same thing. They are not any more: a
+          // sign-up creates a row immediately with no team and `status: "pending"`, so a caller can
+          // hold a row and still be nobody.
+          //
+          // **THIS ROUTES; IT DOES NOT DECIDE.** `public.member_team_id` returns null for anything
+          // but `approved`, and every row-level policy in the product is keyed on that function — so
+          // an `undecided` caller is refused by the datastore whatever this line says. Reading
+          // `status` here only chooses which true sentence to put on screen.
+          next = !member
+            ? { state: "member-less", user: session.user }
+            : member.status === "approved"
+              ? { state: "member", user: session.user, member }
+              : { state: "undecided", user: session.user, member };
         }
       } catch {
         // A transport failure, or the Supabase client raising on an unusable configuration before
@@ -73,11 +106,28 @@ export function useSession(): SessionState {
       setResolving(false);
     }
 
-    // Subscribe BEFORE the first read, so a change arriving during that read is not missed.
+    // **SUBSCRIBING IS THE FIRST READ. THERE IS NO SECOND ONE, AND UNTIL SOLO 2026-09-10 THERE WAS.**
+    //
+    // This used to be `subscribe, then void resolve()`, with the comment *"Subscribe BEFORE the
+    // first read, so a change arriving during that read is not missed."* The ordering was right and
+    // the extra call was redundant: `onAuthStateChange` emits once, unconditionally, immediately
+    // after subscribing — with the session if there is one and with `null` if the read failed.
+    // VERIFIED ON DISK rather than recalled, at
+    // `@supabase/auth-js@2.112.4/dist/module/GoTrueClient.js:3633-3644` (`_emitInitialSession`,
+    // called from `onAuthStateChange` and awaited in both the locked and unlocked paths). So the
+    // explicit call raced its own subscription's first event, and every mount of the application
+    // issued `auth.getUser()` and the `member` select TWICE. The `latest` sequence guard hid it by
+    // discarding whichever answer came second.
+    //
+    // **THE MOCK NOW EMITS ON SUBSCRIBE TOO, AND THAT IS A CONTRACT AND NOT AN IMPLEMENTATION
+    // DETAIL** — `seam.onAuthStateChange`'s docblock in `lib/data/index.ts` says so, and
+    // `mock.ts` reproduces it. If an implementation ever stops emitting, `resolving` never clears
+    // and the application sits on `Loading…` for ever. That is the hazard this comment exists to
+    // flag; it is caught by every acceptance test, all of which render the app before they do
+    // anything else.
     const unsubscribe = seam.onAuthStateChange(() => {
       void resolve();
     });
-    void resolve();
 
     // The unsubscribe is not optional. A leaked subscription survives a hot reload and then
     // re-resolves against a stale closure, setting state on a component that is gone.
@@ -85,13 +135,14 @@ export function useSession(): SessionState {
       live = false;
       unsubscribe();
     };
-  }, []);
+  }, [refreshCount]);
 
   // Both pass straight through. Neither sets state here: the seam notifies, the listener above
   // re-resolves, and that is the single path by which a membership changes. A local `setMembership`
   // beside these would be the second source of truth this hook exists to avoid.
   const signIn = useCallback((input: SignInInput) => seam.signIn(input), []);
   const signOut = useCallback(() => seam.signOut(), []);
+  const refresh = useCallback(() => setRefreshCount((n) => n + 1), []);
 
-  return { membership, resolving, signIn, signOut };
+  return { membership, resolving, signIn, signOut, refresh };
 }

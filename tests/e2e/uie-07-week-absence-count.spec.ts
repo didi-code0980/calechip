@@ -1,4 +1,5 @@
 import { expect, test, type Locator, type Page } from "@playwright/test";
+import { choosePortion, pickRange } from "./support/entry-form";
 
 // UIE-07 — the week view renders a per-day absence count.
 //
@@ -129,9 +130,8 @@ async function declare(
   const path = new URL(page.url()).pathname;
 
   await page.getByTestId("home-new-entry-link").click();
-  await page.getByTestId("new-entry-start").fill(fields.start);
-  await page.getByTestId("new-entry-end").fill(fields.end);
-  await page.getByTestId("new-entry-portion").selectOption(fields.portion);
+  await pickRange(page, "new-entry", fields.start, fields.end);
+  await choosePortion(page, "new-entry", fields.portion);
   await page.getByTestId("new-entry-submit").click();
   await expect(page.getByTestId("own-entry-row")).toHaveCount(ownRows);
 

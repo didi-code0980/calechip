@@ -49,6 +49,18 @@ export default defineConfig({
     env: {
       VITE_DATA_SEAM: "mock",
       VITE_SUPABASE_URL: "",
+      // SOLO, 2026-09-10 — PINNED ON, for exactly the reason the two lines above are pinned.
+      // `src/lib/config.ts` defaults this OFF, which is the operator's new configuration; TEA-01
+      // AC-7 and the seven `signup-confirm-notice` assertions in `tests/e2e/tea-01-signup.spec.ts`
+      // are written against `Confirm email` ON, and a suite that inherited the default would report
+      // a shipped criterion as broken when what changed was the setting it runs under.
+      //
+      // **THE OTHER DIRECTION IS COVERED BY `tests/signup-confirmation.test.ts` AND NOT HERE**, and
+      // that is a limit rather than a choice: `webServer` is one server for the whole run, so a
+      // browser test of the flag OFF would need a second config and a second build. The seam
+      // behaviour it would assert is not browser-shaped anyway — the standard puts seam behaviour at
+      // the unit level (`.ai/standards/testing-standards.md`).
+      VITE_REQUIRE_EMAIL_CONFIRMATION: "false",
     },
   },
 });

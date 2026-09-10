@@ -43,7 +43,7 @@ const TABS = [
   { testId: "admin-hub-pending-link", path: "/entries/pending" },
   { testId: "admin-hub-team-entries-link", path: "/entries/team" },
   { testId: "admin-hub-members-link", path: "/members" },
-  { testId: "admin-hub-allow-list-link", path: "/allow-list" },
+  { testId: "admin-hub-allow-list-link", path: "/signups" },
   { testId: "admin-hub-threshold-link", path: "/threshold" },
 ];
 

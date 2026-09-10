@@ -1,6 +1,6 @@
 ---
-doc_version: 2
-last_updated: 2026-08-31
+doc_version: 3
+last_updated: 2026-09-10
 governed_by: [RULE-01, RULE-04, RULE-09]
 ---
 
@@ -8,7 +8,13 @@ governed_by: [RULE-01, RULE-04, RULE-09]
 
 ## Status
 
-`ACCEPTED by the operator` — 2026-08-31.
+**`SUPERSEDED by ADR-033` — 2026-09-10.** The order is reversed: everybody who signs up gets a
+`member` row, and an admin approves or rejects them afterwards. `allowed_email` is dropped. What
+survives untouched is the mechanism this ADR chose and the reason it chose it — `signUp` on the
+ordinary client, no server, no service-role key, ADR-005 unmoved. **Nothing below is edited**; the
+whole value of this file now is the record of what was decided first.
+
+`ACCEPTED by the operator` — 2026-08-31. Superseded, not reversed on its own terms.
 
 Recorded, not authored. Offered three paths — an Edge Function holding the service-role key, a
 self-serve sign-up gated by an allow-list, and a claim token. The operator chose:

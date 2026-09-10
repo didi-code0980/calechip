@@ -1,4 +1,5 @@
 import { expect, test, type Locator, type Page } from "@playwright/test";
+import { choosePortion, chooseType, pickRange, setPartialRange } from "./support/entry-form";
 
 // CAL-03 — edit or delete another member's entry, as an admin.
 //
@@ -130,10 +131,9 @@ interface EntryInput {
 
 /** Creates an entry for the CALLER, through the only path there is. There is no admin path: AC-6. */
 async function createOwnEntry(page: Page, input: EntryInput): Promise<void> {
-  await page.getByTestId("new-entry-type").selectOption(input.type ?? "pto");
-  await page.getByTestId("new-entry-portion").selectOption(input.portion ?? "full");
-  await page.getByTestId("new-entry-start").fill(input.start);
-  await page.getByTestId("new-entry-end").fill(input.end);
+  await chooseType(page, "new-entry", input.type ?? "pto");
+  await choosePortion(page, "new-entry", input.portion ?? "full");
+  await pickRange(page, "new-entry", input.start, input.end);
   await page.getByTestId("new-entry-tentative").setChecked(input.tentative ?? false);
   if (input.note !== undefined) await page.getByTestId("new-entry-note").fill(input.note);
   await page.getByTestId("new-entry-submit").click();
@@ -143,10 +143,14 @@ async function createOwnEntry(page: Page, input: EntryInput): Promise<void> {
 /** Only the named fields are touched, so a test that changes one leaves the other five holding the
  *  entry's own values — which is what makes AC-4's note-only edit a note-only edit. */
 async function submitEdit(page: Page, input: Partial<EntryInput>): Promise<void> {
-  if (input.type) await page.getByTestId("edit-entry-type").selectOption(input.type);
-  if (input.portion) await page.getByTestId("edit-entry-portion").selectOption(input.portion);
-  if (input.start) await page.getByTestId("edit-entry-start").fill(input.start);
-  if (input.end) await page.getByTestId("edit-entry-end").fill(input.end);
+  if (input.type) await chooseType(page, "edit-entry", input.type);
+  if (input.portion) await choosePortion(page, "edit-entry", input.portion);
+  // SOLO, 2026-09-10. The two date inputs are a month grid now. Naming ONE bound used to leave the
+  // other holding the entry's own value, and `setPartialRange` is that behaviour over a picker: the
+  // bound that was not named is read back off the grid, and the whole range is chosen again.
+  if (input.start !== undefined || input.end !== undefined) {
+    await setPartialRange(page, "edit-entry", input.start, input.end);
+  }
   if (input.tentative !== undefined) {
     await page.getByTestId("edit-entry-tentative").setChecked(input.tentative);
   }
@@ -353,12 +357,14 @@ test.describe("CAL-03 edit or delete another member's entry, as an admin", () =>
     await expect(page.getByTestId("new-entry-form")).toHaveCount(0);
     await expect(page.locator("form")).toHaveCount(0);
 
-    // And the create form an admin DOES have offers no member. Exactly two selects, type and
-    // portion — the same assertion CAL-01 AC-10 makes for both roles, repeated here because this is
-    // the ticket that would have been tempted to add a third.
+    // And the create form an admin DOES have offers no member. Exactly two grouped controls, type
+    // and portion — the same assertion CAL-01 AC-10 makes for both roles, repeated here because this
+    // is the ticket that would have been tempted to add a third. SOLO, 2026-09-10: the two were
+    // `<select>`s and are segmented button groups now.
     await page.getByTestId("team-entries-back").click();
     await openOwnList(page);
-    await expect(page.locator("#root select, form select")).toHaveCount(2);
+    await expect(page.locator("#root select, form select")).toHaveCount(0);
+    await expect(page.getByTestId("new-entry-form").locator('[role="group"]')).toHaveCount(2);
     await expect(page.getByTestId("new-entry-type")).toBeVisible();
     await expect(page.getByTestId("new-entry-portion")).toBeVisible();
 
@@ -382,7 +388,10 @@ test.describe("CAL-03 edit or delete another member's entry, as an admin", () =>
     // The form carries the same six fields it carries for an owner, and a member is not among them.
     // `UpdateEntryInput` has no `memberId`, and the update grant omits the column permanently — the
     // affordance and the control agree, which is why there is no seventh field to hide.
-    await expect(page.locator("select")).toHaveCount(2);
+    // SOLO, 2026-09-10: type and portion were `<select>`s and are segmented button groups now, so
+    // the count moved to `role="group"`. Two controls, and nothing naming a member.
+    await expect(page.locator("select")).toHaveCount(0);
+    await expect(page.getByTestId("edit-entry-form").locator('[role="group"]')).toHaveCount(2);
     await expect(page.getByTestId("edit-entry-member")).toHaveCount(0);
 
     await submitEdit(page, { note: "Still theirs" });

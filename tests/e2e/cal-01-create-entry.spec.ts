@@ -1,4 +1,5 @@
 import { expect, test, type Page } from "@playwright/test";
+import { choosePortion, chooseType, pickRange } from "./support/entry-form";
 
 // CAL-01 — create an entry for themselves, over a range of dates.
 //
@@ -44,10 +45,9 @@ interface EntryInput {
 }
 
 async function submitEntry(page: Page, input: EntryInput): Promise<void> {
-  await page.getByTestId("new-entry-type").selectOption(input.type ?? "pto");
-  await page.getByTestId("new-entry-portion").selectOption(input.portion ?? "full");
-  await page.getByTestId("new-entry-start").fill(input.start);
-  await page.getByTestId("new-entry-end").fill(input.end);
+  await chooseType(page, "new-entry", input.type ?? "pto");
+  await choosePortion(page, "new-entry", input.portion ?? "full");
+  await pickRange(page, "new-entry", input.start, input.end);
   // Set, never assumed. An `if (input.tentative) check()` inherits whatever the control was left
   // holding, so an entry this helper describes as not tentative could be saved tentative — which is
   // exactly what happened, and is how the sticky flag above was found.
@@ -210,18 +210,27 @@ test.describe("CAL-01 create an entry over a range of dates", () => {
     await expect(rows(page)).toHaveCount(2);
   });
 
-  test("AC-9: an inverted range is refused with a sentence about the dates", async ({ page }) => {
+  test("AC-9: an inverted range cannot be expressed through the form at all", async ({ page }) => {
+    // SOLO, 2026-09-10 — THIS TEST CHANGED SHAPE BECAUSE A CONTROL WAS REMOVED, NOT BECAUSE THE
+    // CRITERION MOVED. It used to type 9 October into `start` and 5 October into `end` and assert
+    // the sentence that came back. The operator's design replaced both inputs with a day picker, and
+    // a SET of chosen days has no order to invert — there is no longer an input the mistake can be
+    // typed into.
+    //
+    // The refusal still exists in both seam implementations (src/lib/data/mock.ts:1060,
+    // src/lib/data/supabase.ts:507) and is asserted in tests/entry-range-refusals.test.ts, which was
+    // written for this move rather than the criterion being dropped. What is asserted HERE is the
+    // half that is about the interface: no control on this form can produce an inverted range.
     await signInAndOpenForm(page, MEMBER_EMAIL);
-    await submitEntry(page, { start: "2026-10-09", end: "2026-10-05" });
 
-    const error = page.getByTestId("new-entry-error");
-    await expect(error).toBeVisible();
+    const form = page.getByTestId("new-entry-form");
+    await expect(form.locator('input[type="date"]')).toHaveCount(0);
+    await expect(form.getByTestId("new-entry-picker")).toBeVisible();
+    await expect(form.getByTestId("new-entry-picker").locator("input")).toHaveCount(0);
 
-    const text = (await error.textContent())?.trim() ?? "";
-    expect(text.length).toBeGreaterThan(0);
-    // Not the range-bound error text the generated column raises, and not a SQLSTATE.
-    expect(text).not.toMatch(/range lower bound|23514|daterange/i);
-
+    // And with no day chosen there is nothing to submit: the control is disabled, so an empty form
+    // cannot ask the datastore about a range at all.
+    await expect(page.getByTestId("new-entry-submit")).toBeDisabled();
     await expect(rows(page)).toHaveCount(0);
     await expect(page.getByTestId("own-entries-empty")).toBeVisible();
   });
@@ -231,12 +240,19 @@ test.describe("CAL-01 create an entry over a range of dates", () => {
   }) => {
     // The absence of a member picker is the affordance; the policy's `with check` is the control,
     // and it is uniform across roles. What is observable through the interface is that neither role
-    // is offered a choice of member — the form carries exactly two selects, type and portion.
+    // is offered a choice of member — the form carries exactly two grouped controls, type and
+    // portion.
+    //
+    // SOLO, 2026-09-10: those two were `<select>`s and are segmented button groups now, so the count
+    // is over `role="group"`, and the assertion that there is no `<select>` at all is added beside
+    // it. The criterion is unchanged, and it still counts the controls rather than naming them.
     for (const email of [MEMBER_EMAIL, ADMIN_EMAIL]) {
       await signInAndOpenForm(page, email);
 
       const form = page.getByTestId("new-entry-form");
-      await expect(form.locator("select")).toHaveCount(2);
+      await expect(form.locator("select")).toHaveCount(0);
+      await expect(form.locator('[role="group"]')).toHaveCount(2);
+      await expect(form.locator('[data-testid*="member"]')).toHaveCount(0);
       await expect(form.getByTestId("new-entry-type")).toBeVisible();
       await expect(form.getByTestId("new-entry-portion")).toBeVisible();
 

@@ -12,18 +12,31 @@
 // this screen hands it an entry and re-reads when it reports back. The link on a row still goes to
 // `/entries/:id/edit`, which is CAL-02's and CAL-03's shipped screen.
 //
-// **ADM-06 ADDS THE BATCH TO THE SAME SURFACE, AND THE SENTENCE ABOVE SURVIVES IT.** `BulkRejection`
-// calls `seam.rejectEntries`; this screen holds the SELECTION (AC-14 empties it on every query
-// change, AC-15 needs the page's ids) and the OUTCOME (`load()` unmounts the bar, and section 2b
-// requires the sentence naming both numbers to stay on screen), hands both down, and re-reads when
-// the bar reports back. It still issues no write of its own. ADM-04's and ADM-05's behaviour is
-// UNCHANGED — this screen lists, filters, counts and pages exactly as it did, `load` is untouched,
-// and the per-row panel keeps its place on every row.
+// **ADM-06 ADDED THE BATCH TO THIS SURFACE AND SOLO REMOVED IT AGAIN ON 2026-09-10**, on the
+// operator's instruction: *"Bỏ phần Select entries to reject them together."* `BulkRejection.tsx` is
+// deleted, the selection state and the per-row checkbox with it, and `tests/e2e/adm-06-bulk-reject.spec.ts`
+// is deleted because all five of its tests drove the removed controls.
 //
-// **AFTER A DECISION THE SCREEN RELOADS THE PAGE IT IS ON (ADM-05 AC-1, AC-2).** `load()`, never a
-// local splice: the row leaves the queue and `pending-entries-count` falls because the datastore
-// says so. Splicing would make the count and the list disagree, which is the one property this
-// screen was built not to have.
+// **THE SEAM AND THE DATABASE ARE UNTOUCHED, AND THE OPERATOR CHOSE THAT DEPTH WHEN ASKED.**
+// `seam.rejectEntries`, `BulkRejectionOutcome`, `tests/bulk-rejection.test.ts` and
+// `supabase/migrations/20260905230000_adm06_reject_entries.sql` all stay. So ADM-06's CAPABILITY is
+// intact and only its surface is gone — re-mounting a bar later needs a component and nothing else,
+// and no schema change was made on live data to undo something a UI decision can undo for free.
+//
+// **THE FILTERS AND THE PAGER ARE GONE TOO, FROM THE SAME INSTRUCTION**: *"Bỏ phần filter"* and
+// *"Bỏ pagination thay bằng load more"*. What that costs ADM-04 is named at the query and at the
+// list below. This screen now LISTS and COUNTS; it no longer FILTERS, and it pages by ACCUMULATING
+// rather than by replacing.
+//
+// **AFTER A DECISION THE SCREEN RE-READS FROM THE FIRST PAGE (ADM-05 AC-1, AC-2).** `reload()`,
+// never a local splice: the row leaves the queue and `pending-entries-count` falls because the
+// datastore says so. Splicing would make the count and the list disagree, which is the one property
+// this screen was built not to have.
+//
+// **A DECISION COLLAPSES AN EXPANDED LIST BACK TO ONE PAGE, AND THAT IS A CHOSEN COST.** The
+// alternative — re-reading pages 0..k and concatenating — is k requests, and it is not even correct:
+// these are OFFSET pages over a set that just shrank, so re-reading them after a removal can skip a
+// row into the gap the decided entry left. One read from the top can skip nothing.
 //
 // **THE REFUSAL IS AN AFFORDANCE AND NOT A CONTROL**, and it has to be said plainly because a screen
 // that says "this page is for admins" reads exactly like one — the sentence TeamEntries.tsx already
@@ -48,48 +61,19 @@
 // when the standard is written. 01-plan.md section 2b records that no image was attached at any
 // stage and that the arrangement below is the Tech Lead's own — borrowed wholesale from
 // TeamEntries.tsx, which is the nearest thing the product has to this screen.
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 // The seam, through its one door. Nothing above the seam names an implementation, and this file must
 // never import `./supabase` or `./mock` (RULE-02).
-import BulkRejection from "@/components/BulkRejection";
 import EntryDecision from "@/components/EntryDecision";
 import { usePageOverload } from "@/hooks/usePageOverload";
 import { seam } from "@/lib/data";
-import type {
-  BulkRejectionOutcome,
-  Entry,
-  EntryType,
-  Member,
-  PendingWindow,
-} from "@/lib/domain/types";
+import type { Entry, Member } from "@/lib/domain/types";
 import { PORTION_LABELS, TYPE_LABELS } from "@/lib/labels";
 
 // OPS-002 folded these into src/lib/labels.ts. The paragraph that stood here handed the fold to
 // OPS-001, which shipped without doing it; the shared home is a module rather than a component, so
 // no ticket has to own a component to fold a label set into it.
-
-// AC-6 and AC-7. Three windows, always visible, never collapsed behind a control — a filter that
-// hides rows while itself being hidden is how an admin concludes the queue is empty (01-plan.md
-// section 2b, and Open questions item 3).
-//
-// `upcoming` is the default. 01-plan.md section 2, Open questions item 2 takes `features.md:103`'s
-// recommendation: past-dated pending entries stay `pending`, which is truthful — nobody ever decided
-// — and there is no fourth `entry_status` and none is proposed.
-const WINDOW_LABELS: Record<PendingWindow, string> = {
-  upcoming: "Still to come",
-  past: "Already past",
-  all: "Every date",
-};
-
-const WINDOWS: readonly PendingWindow[] = ["upcoming", "past", "all"];
-
-/** AC-8. The type filter Open questions item 1's recommendation asks for. `""` is both types. */
-const TYPE_OPTIONS: readonly { value: string; label: string }[] = [
-  { value: "", label: "Leave and working from home" },
-  { value: "pto", label: TYPE_LABELS.pto },
-  { value: "wfh", label: TYPE_LABELS.wfh },
-];
 
 /**
  * This machine's date as `yyyy-MM-dd`.
@@ -116,7 +100,15 @@ type View =
   | { phase: "loading" }
   | { phase: "refused" } // AC-10, and the state a caller with no member row lands on
   | { phase: "unavailable" } // any throw, including AC-5's short-page assertion
-  | { phase: "ready"; rows: Entry[]; total: number; page: number; pageSize: number; roster: Member[] };
+  | {
+      phase: "ready";
+      rows: Entry[];
+      total: number;
+      /** SOLO. How many pages this screen has ACCUMULATED. The next read asks for this index. */
+      pages: number;
+      pageSize: number;
+      roster: Member[];
+    };
 
 export default function PendingEntries() {
   const [view, setView] = useState<View>({ phase: "loading" });
@@ -125,30 +117,36 @@ export default function PendingEntries() {
   // them is a new read. `today` is resolved ONCE, on mount, so a screen left open across midnight
   // keeps answering the question it was opened with rather than silently re-filtering.
   const [today] = useState(localToday);
-  const [dateWindow, setDateWindow] = useState<PendingWindow>("upcoming");
-  const [type, setType] = useState<EntryType | null>(null);
-  const [page, setPage] = useState(0);
 
-  // ADM-06 AC-14 and AC-15. THE SELECTION LIVES ON THE SCREEN AND NOT IN THE BAR, for two reasons
-  // that both point here: AC-14 resets it whenever the query changes, and AC-15 needs the ids of the
-  // page the screen is holding. A bar that owned it would own a set of ids that outlived the rows it
-  // was drawn from, which is the one property a bulk rejection must not have.
-  const [selected, setSelected] = useState<string[]>([]);
+  // SOLO, 2026-09-10. **`busy` IS NOT A PHASE, AND THAT DISTINCTION IS THE WHOLE OF "LOAD MORE".**
+  // The `loading` phase blanks the screen, which is right on a first read and wrong on a second: a
+  // list that vanished while it grew would lose the rows the admin was reading. So fetching the next
+  // page sets this instead, and the only thing it changes is the control's own label and disabled
+  // state.
+  const [busy, setBusy] = useState(false);
 
-  // ADM-06 AC-5. THE OUTCOME LIVES HERE FOR A MECHANICAL REASON, not a design one: `load()` below
-  // sets the `loading` phase, which returns before the bar is rendered, so the bar UNMOUNTS during
-  // the re-read AC-12 requires and anything it held would be lost. 01-plan.md section 2b requires
-  // the opposite — the sentence naming both numbers stays on screen, because the rows it is about
-  // are gone from the view and it is the only record of a partial write. Declared as a deviation
-  // from section 4.4's prop list in 03-impl-log.md.
-  const [outcome, setOutcome] = useState<BulkRejectionOutcome | null>(null);
-
-  const query = useMemo(
-    () => ({ type, window: dateWindow, today, page }),
-    [type, dateWindow, today, page],
+  // SOLO, 2026-09-10 — **THE QUERY IS FIXED NOW, AND `window: "all"` IS A DECISION THE OPERATOR
+  // MADE WHEN ASKED.** ADM-04 defaulted to `upcoming` and offered a control to reach the other two;
+  // 01-plan.md § 2 is explicit that *the control is what advertises the existence of the sets it is
+  // not showing*. Remove the control and keep `upcoming` and that sentence becomes the bug: a
+  // past-dated pending entry would be unreachable from this screen forever, with nothing on it to
+  // say so. `all` is the only window under which removing the filter hides nothing.
+  //
+  // `type: null` is both kinds, which is what the removed Kind control defaulted to.
+  //
+  // **THE SEAM STILL TAKES BOTH**, untouched: `PendingEntryQuery` keeps `window` and `type`, and
+  // `tests/pending-entries.test.ts` still exercises every window and both kinds directly. What was
+  // removed is a screen's controls, not a read's capability — which is why re-adding a filter later
+  // is a component change and nothing more.
+  //
+  // `today` is still passed and still resolved ONCE on mount, so a screen left open across midnight
+  // keeps answering the question it was opened with rather than silently re-filtering.
+  const queryFor = useCallback(
+    (page: number) => ({ type: null, window: "all" as const, today, page }),
+    [today],
   );
 
-  const load = useCallback(async (): Promise<void> => {
+  const reload = useCallback(async (): Promise<void> => {
     setView({ phase: "loading" });
 
     try {
@@ -172,7 +170,7 @@ export default function PendingEntries() {
       // needs: an entry whose owner has since been removed still resolves to a name rather than to a
       // bare uuid.
       const [pageResult, roster] = await Promise.all([
-        seam.listPendingEntries(query),
+        seam.listPendingEntries(queryFor(0)),
         seam.listMembers(),
       ]);
 
@@ -180,7 +178,7 @@ export default function PendingEntries() {
         phase: "ready",
         rows: pageResult.rows,
         total: pageResult.total,
-        page: pageResult.page,
+        pages: 1,
         pageSize: pageResult.pageSize,
         roster,
       });
@@ -190,24 +188,59 @@ export default function PendingEntries() {
       // entries is two decisions nobody will ever make, and nothing about it looks wrong.
       setView({ phase: "unavailable" });
     }
-  }, [query]);
+  }, [queryFor]);
 
   useEffect(() => {
-    void load();
-  }, [load]);
+    void reload();
+  }, [reload]);
 
-  // ADM-06 AC-14. A BATCH MAY ONLY EVER CONTAIN ROWS THE ADMIN CAN SEE AT THE MOMENT THEY SUBMIT IT,
-  // so changing the date window, the kind filter or the page empties the selection. It keys on the
-  // same `query` memo `load` depends on, which is what makes "the view changed" one fact rather than
-  // three places to remember. The result sentence goes with it: a count about a batch drawn from a
-  // view that is no longer on screen is true and unreadable.
-  //
-  // NOT on `load` itself: `load` is also the bar's `onRejected`, and clearing there would be
-  // indistinguishable from AC-13's clear-on-success while quietly also firing on a refusal's re-read.
-  useEffect(() => {
-    setSelected([]);
-    setOutcome(null);
-  }, [query]);
+  /**
+   * SOLO, 2026-09-10 — the next page, APPENDED. What replaced the pager.
+   *
+   * **IT NEVER SETS A PHASE.** `busy` is what changes, so the rows already on screen stay on screen
+   * while the next page arrives — which is the entire difference between "load more" and "next
+   * page", and the reason the pager could not simply be relabelled.
+   *
+   * **IT READS THE PAGE AFTER THE LAST ONE HELD, NOT `total / pageSize`.** `pages` counts what this
+   * screen has actually accumulated; deriving the next index from the total would ask for a page
+   * that was already loaded whenever the set shrank under it.
+   *
+   * **A FAILURE HERE DOES NOT BLANK THE SCREEN.** `reload`'s catch sets `unavailable` because it has
+   * nothing to show; this one has a list already, and replacing it with a failure notice would throw
+   * away rows that are still perfectly true. It stops, and the control comes back so the admin can
+   * try again — the same reasoning `EntryDecision` records for keeping a refused rejection on screen.
+   *
+   * **`listMembers()` IS NOT RE-READ.** The roster in hand already names every owner on the team, so
+   * a second read would be one request per page for an answer that does not change.
+   */
+  const loadMore = useCallback(async (): Promise<void> => {
+    if (busy) return;
+    setBusy(true);
+
+    try {
+      const next = await seam.listPendingEntries(
+        queryFor(view.phase === "ready" ? view.pages : 0),
+      );
+
+      setView((current) =>
+        current.phase === "ready"
+          ? {
+              ...current,
+              // The TOTAL comes from the newest response rather than being kept: it is the size of
+              // the matching set at the moment of THIS read, and a decision landing between the two
+              // pages must move the number the header states.
+              total: next.total,
+              rows: [...current.rows, ...next.rows],
+              pages: current.pages + 1,
+            }
+          : current,
+      );
+    } catch {
+      // Deliberately silent about the list. See the note above.
+    } finally {
+      setBusy(false);
+    }
+  }, [busy, queryFor, view]);
 
   // SOLO, 2026-09-09 — the crowded-day sentence on a row. **CALLED HERE, ABOVE THE FOUR EARLY
   // RETURNS, BECAUSE A HOOK CANNOT BE CONDITIONAL**; on every phase but `ready` it is handed the
@@ -291,9 +324,11 @@ export default function PendingEntries() {
   const ownerAvatar = (memberId: string): string =>
     roster.find((m) => m.id === memberId)?.avatar ?? "";
 
-  const pages = Math.max(1, Math.ceil(total / pageSize));
-  const onFirst = view.page <= 0;
-  const onLast = view.page >= pages - 1;
+  // SOLO, 2026-09-10. **THE ROWS IN HAND AGAINST THE SIZE OF THE MATCHING SET**, which is the one
+  // comparison "load more" needs and the only one it makes. `total` is the datastore's figure from
+  // the newest response, never `rows.length` — the property this screen's header note states and the
+  // reason a control offering a page that is not there is not reachable from here.
+  const more = rows.length < total;
 
   return (
     <section className="mx-auto flex max-w-3xl flex-col gap-4">
@@ -318,80 +353,6 @@ export default function PendingEntries() {
           coordination, not permission — nothing is blocked while an entry waits.
         </p>
       </header>
-
-      {/* AC-6, AC-7, AC-8. Both filters are ALWAYS VISIBLE and neither is collapsed, because the
-          default window HIDES rows: the control is what advertises the existence of the sets it is
-          not showing (01-plan.md section 2, Open questions item 3). Changing either resets to the
-          first page — a filter change that kept page 3 would show an empty page of a one-page set. */}
-      <div className="flex flex-wrap items-center gap-4 rounded-2xl bg-white px-4 py-3 text-sm shadow-sm">
-        <label className="flex items-center gap-2">
-          <span className="opacity-70">Dates</span>
-          <select
-            data-testid="pending-entries-window"
-            data-window={dateWindow}
-            value={dateWindow}
-            onChange={(event) => {
-              setDateWindow(event.target.value as PendingWindow);
-              setPage(0);
-            }}
-            className="rounded-lg border border-slate-200 px-2 py-1"
-          >
-            {WINDOWS.map((value) => (
-              <option key={value} value={value}>
-                {WINDOW_LABELS[value]}
-              </option>
-            ))}
-          </select>
-        </label>
-
-        <label className="flex items-center gap-2">
-          <span className="opacity-70">Kind</span>
-          <select
-            data-testid="pending-entries-type"
-            data-type={type ?? ""}
-            value={type ?? ""}
-            onChange={(event) => {
-              const next = event.target.value;
-              setType(next === "" ? null : (next as EntryType));
-              setPage(0);
-            }}
-            className="rounded-lg border border-slate-200 px-2 py-1"
-          >
-            {TYPE_OPTIONS.map((option) => (
-              <option key={option.value} value={option.value}>
-                {option.label}
-              </option>
-            ))}
-          </select>
-        </label>
-      </div>
-
-      {/* ADM-06 AC-1, AC-4, AC-5, AC-13, AC-14, AC-15. The batch bar, BETWEEN THE FILTERS AND THE
-          LIST and OUTSIDE the `<ul>` — a placement decision with a test consequence and it is
-          deliberate (01-plan.md section 2b). ADM-04's AC-9 suite asserts that
-          `[data-testid="pending-entries"]` holds no `form`, and keeping the bar out of the list is
-          what leaves that half of the assertion meaningful after this ticket.
-
-          It is NOT a dialog and it does not cover the list: an admin typing one reason for twelve
-          entries has to be able to look at the twelve entries while they type it.
-
-          RENDERED IN EVERY READY VIEW, including an empty one, because it carries the result
-          sentence — a batch that emptied the page would otherwise take the only record of what it
-          did off the screen with the last row (AC-5).
-
-          `load` and not a splice, exactly as the per-row panel: the rejected entries leave this view
-          because the next read does not return them, and `pending-entries-count` falls for the same
-          reason (AC-12). */}
-      <BulkRejection
-        selectedIds={selected}
-        pageIds={rows.map((entry) => entry.id)}
-        onSelectionChange={setSelected}
-        outcome={outcome}
-        onRejected={async (landed) => {
-          setOutcome(landed);
-          await load();
-        }}
-      />
 
       {/* AC-11. An empty worklist SAYS SO. A screen with no rows and no sentence is
           indistinguishable from one that failed to load, and on this screen that mistake is the
@@ -424,30 +385,6 @@ export default function PendingEntries() {
               data-tentative={entry.tentative}
               className="flex flex-wrap items-center gap-3 px-4 py-3 text-sm"
             >
-              {/* ADM-06 AC-1, AC-14, AC-15. The selection checkbox, FIRST on the row so the set
-                  being composed reads down the left edge of the list. It writes NOTHING (AC-17):
-                  the batch is composed here and sent from the bar above, and there is no interaction
-                  on this screen that writes as a side effect of being used. */}
-              <input
-                data-testid="pending-entry-row-select"
-                type="checkbox"
-                aria-label={`Select the entry starting ${entry.startDate}`}
-                checked={selected.includes(entry.id)}
-                onChange={(event) =>
-                  setSelected((current) =>
-                    event.target.checked
-                      ? current.includes(entry.id)
-                        ? current
-                        : [...current, entry.id]
-                      : current.filter((id) => id !== entry.id),
-                  )
-                }
-                className="size-4 rounded"
-              />
-
-              {/* AC-2. The column that makes this a worklist rather than a list of rows: a queue of
-                  unnamed entries is not the feature, and TEA-03's `member_select_team` is the hard
-                  dependency that makes the name readable at all. */}
               {/* SOLO. The avatar is the transcription's 38px circle rather than a bare glyph, and
                   it sits on `bg-field` the way the sidebar's roster chip does — one shape for "a
                   person" across the product instead of two. */}
@@ -550,48 +487,53 @@ export default function PendingEntries() {
                   SAME component `/entries/:id/edit` mounts, so "a rejection carries a reason" is
                   decided in one place rather than twice.
 
-                  `load` and not a splice: a decided entry leaves this view because the next read
+                  `reload` and not a splice: a decided entry leaves this view because the next read
                   does not return it, and the count above falls for the same reason. */}
-              <EntryDecision entry={entry} onDecided={load} />
+              <EntryDecision entry={entry} onDecided={reload} />
             </li>
           ))}
         </ul>
       )}
 
-      {/* AC-4. Paging and not truncation, which is the one read on this seam that pages: a ceiling
-          turns a long queue into an error, and a queue long enough to trip it is precisely the queue
-          an admin most needs to work through (01-plan.md section 8, rejected alternative 4).
+      {/* SOLO, 2026-09-10 — **LOAD MORE, WHICH REPLACED THE PAGER**, on the operator's instruction:
+          *"Bỏ pagination thay bằng load more"*. ADM-04 AC-4 is rewritten against this control and
+          its argument is UNTOUCHED: this is still paging and not truncation, because a ceiling turns
+          a long queue into an error and a queue long enough to trip it is precisely the queue an
+          admin most needs to work through (01-plan.md § 8, rejected alternative 4). What changed is
+          that the next page is APPENDED rather than swapped in, so working down a long queue never
+          costs the admin their place.
 
-          The count above does not move between pages, because it is the size of the matching set and
-          not of the page. */}
-      <div
-        data-testid="pending-entries-page"
-        data-page={view.page}
-        data-page-size={pageSize}
-        className="flex items-center gap-4 text-sm"
-      >
-        <button
-          data-testid="pending-entries-prev"
-          type="button"
-          disabled={onFirst}
-          onClick={() => setPage((at) => Math.max(0, at - 1))}
-          className="underline disabled:opacity-40"
+          **ABSENT WHEN EVERY ROW IS ON SCREEN, NOT DISABLED.** The old pager rendered `Previous` and
+          `Next` greyed out on a one-page set — visible controls asserting that more exists. A
+          disabled control here would say the same untrue thing, and there is no state to advertise:
+          the list is complete, and a screen that has nothing more to give should say nothing.
+          `pending-entries-page` kept ITS name on the wrapper so the surrounding assertions about
+          where the control lives did not all have to move; what it holds is a different control and
+          the ids inside it are new.
+
+          `data-shown` and `data-total` are on the header's count sentence, not here — this element
+          states what it CAN do and the header states what is true. */}
+      {more ? (
+        <div
+          data-testid="pending-entries-page"
+          data-shown={rows.length}
+          data-page-size={pageSize}
+          className="flex items-center gap-3 text-sm"
         >
-          Previous
-        </button>
-        <span className="opacity-70">
-          Page {view.page + 1} of {pages}
-        </span>
-        <button
-          data-testid="pending-entries-next"
-          type="button"
-          disabled={onLast}
-          onClick={() => setPage((at) => at + 1)}
-          className="underline disabled:opacity-40"
-        >
-          Next
-        </button>
-      </div>
+          <button
+            data-testid="pending-entries-more"
+            type="button"
+            disabled={busy}
+            onClick={() => void loadMore()}
+            className="rounded-pill border border-line bg-card px-4 py-1.5 text-sm font-semibold text-ink-2 transition-colors hover:bg-field hover:text-ink disabled:opacity-40 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
+          >
+            {busy ? "Loading…" : "Load more"}
+          </button>
+          <span className="text-ink-3">
+            {rows.length} of {total} shown
+          </span>
+        </div>
+      ) : null}
 
       <p>
         <Link data-testid="pending-entries-back" to="/" className="text-sm underline">

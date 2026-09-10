@@ -21,6 +21,9 @@ import type { EntryFormValues } from "@/components/EntryForm";
 // The seam, through its one door. Nothing above the seam names an implementation, and this file must
 // never import `./supabase` or `./mock` (RULE-02).
 import { seam } from "@/lib/data";
+// SOLO, 2026-09-10. One entry per unbroken run of the days chosen in the picker, written once so
+// this screen and MonthView.tsx cannot disagree about what a gapped selection means.
+import { createEntriesForDates } from "@/lib/create-entries";
 import type { Entry, Failure } from "@/lib/domain/types";
 // OPS-002. The three label sets, declared once (AC-8). The status words below used to be a
 // three-branch conditional in the row itself, which was a sixth copy of the same three strings.
@@ -57,11 +60,14 @@ export default function NewEntry() {
     void load();
   }, [load]);
 
+  // SOLO, 2026-09-10. The form hands over a SET of days; `createEntriesForDates` writes one entry
+  // per unbroken run and returns the first refusal. The list is re-read either way, so a selection
+  // whose second run was refused shows the first run stored beside the sentence saying why the rest
+  // was not.
   async function onCreate(values: EntryFormValues): Promise<Failure | null> {
-    const result = await seam.createEntry(values);
-    if (!result.ok) return result.error;
+    const failure = await createEntriesForDates(values);
     await load();
-    return null;
+    return failure;
   }
 
   // CAL-02 AC-3. The confirmation is not decoration: a hard delete has no undo and no trash, so the
@@ -87,22 +93,30 @@ export default function NewEntry() {
 
   return (
     <section className="mx-auto flex max-w-xl flex-col gap-8">
-      <EntryForm
-        testIdPrefix="new-entry"
-        title="Book leave or working from home"
-        submitLabel="Save entry"
-        submittingLabel="Saving…"
-        initial={{
-          type: "pto",
-          portion: "full",
-          startDate: "",
-          endDate: "",
-          tentative: false,
-          note: null,
-        }}
-        afterSubmit="clear"
-        onSubmit={onCreate}
-      />
+      {/* SOLO, 2026-09-10. THE CARD, AND DELIBERATELY NOT A DIALOG — the one place this screen
+          departs from the operator's image, and it is a scope decision rather than a taste one.
+          The image draws the modal over the CALENDAR, which is `MonthView.tsx` and is where `Modal`
+          is mounted. This route is the form BESIDE the caller's own entries: a dialog here would
+          cover that list with a backdrop that swallows every click on it, so declaring an entry and
+          then editing it would need a dismissal in between that nothing on the screen asks for.
+          The card carries the same redrawn form; only the backdrop is absent. */}
+      <div className="rounded-card bg-card p-6 shadow-soft md:p-8">
+        <EntryForm
+          testIdPrefix="new-entry"
+          title="Book leave or working from home"
+          submitLabel="Save entry"
+          submittingLabel="Saving…"
+          initial={{
+            type: "pto",
+            portion: "full",
+            dates: [],
+            tentative: false,
+            note: null,
+          }}
+          afterSubmit="clear"
+          onSubmit={onCreate}
+        />
+      </div>
 
       <div className="flex flex-col gap-2">
         <h2 className="text-sm font-medium opacity-70">Your entries</h2>

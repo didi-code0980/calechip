@@ -91,8 +91,14 @@ const toDay = (instant: number): string =>
   new Date(instant).toISOString().slice(0, 10);
 
 /** `day` shifted by whole days, still `yyyy-MM-dd`. UTC, so no daylight-saving boundary can move
- *  the answer by one. */
-const shiftDay = (day: string, by: number): string =>
+ *  the answer by one.
+ *
+ *  EXPORTED as of the day-picker work: `src/lib/date-selection.ts` walks days to build a month grid
+ *  and to gather a selection into runs, and it needs exactly this arithmetic. It is exported rather
+ *  than copied for the reason this whole module exists — `mondayIndex` was duplicated character for
+ *  character in two screens before UIE-02 folded it here, and a third copy of day arithmetic is the
+ *  same defect wearing a different name. */
+export const shiftDay = (day: string, by: number): string =>
   toDay(toInstant(day) + by * DAY_MS);
 
 /**

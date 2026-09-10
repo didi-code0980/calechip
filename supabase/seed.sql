@@ -11,7 +11,7 @@
 -- failure the shared-fixture rule exists to prevent.
 --
 -- Insert order is forced by the foreign keys, none of which cascade: team -> auth user -> member
--- -> allowed_email (`added_by` references `member`, whose id references `auth.users`).
+-- (`allowed_email` was the fourth link in this chain until 2026-09-10, when the table was dropped.)
 
 -- ---------------------------------------------------------------------------------------------
 -- GUARD — this file must not be applied to a hosted project, and until now nothing stopped it.
@@ -88,13 +88,14 @@ values (
 )
 on conflict (id) do nothing;
 
-insert into public.member (id, team_id, display_name, avatar, role, removed_at, created_at)
+insert into public.member (id, team_id, display_name, avatar, role, status, removed_at, created_at)
 values (
   '22222222-2222-4222-8222-222222222222',
   '11111111-1111-4111-8111-111111111111',
   'Quản trị',
   '🦉',
   'admin',
+  'approved',
   null,
   '2026-08-31T00:00:00+00:00'
 )
@@ -103,25 +104,9 @@ on conflict (id) do nothing;
 -- Two allow-list entries, and the pair is the point: one unconsumed and one consumed, so AC-3 has
 -- something to assert against rather than having to consume the first entry as a side effect of an
 -- earlier test.
-insert into public.allowed_email (email, team_id, added_by, added_at, consumed_at)
-values
-  -- Unconsumed: AC-1, AC-2 and AC-4 sign up as this address.
-  (
-    'an@example.com',
-    '11111111-1111-4111-8111-111111111111',
-    '22222222-2222-4222-8222-222222222222',
-    '2026-08-31T00:00:00+00:00',
-    null
-  ),
-  -- Consumed: AC-3. It is on the list and must admit nobody.
-  (
-    'binh@example.com',
-    '11111111-1111-4111-8111-111111111111',
-    '22222222-2222-4222-8222-222222222222',
-    '2026-08-31T00:00:00+00:00',
-    '2026-08-31T00:00:00+00:00'
-  )
-on conflict (email) do nothing;
+-- SOLO, 2026-09-10. The allow-list seed stood here. `public.allowed_email` is dropped by
+-- `20260910100000_solo_member_approval.sql`: everybody signs up, gets a pending member row, and an
+-- admin decides. There is nothing left to seed for it.
 
 -- `khach@example.com` is deliberately absent. It is FIXTURE_UNLISTED_EMAIL, and AC-5 needs an
 -- address that is on no list at all.
@@ -163,13 +148,14 @@ values (
 )
 on conflict (id) do nothing;
 
-insert into public.member (id, team_id, display_name, avatar, role, removed_at, created_at)
+insert into public.member (id, team_id, display_name, avatar, role, status, removed_at, created_at)
 values (
   '33333333-3333-4333-8333-333333333333',
   '11111111-1111-4111-8111-111111111111',
   'Admin',
   '\u2b50',
   'admin',
+  'approved',
   null,
   '2026-09-01T00:00:00+00:00'
 )
@@ -229,13 +215,14 @@ values (
 )
 on conflict (id) do nothing;
 
-insert into public.member (id, team_id, display_name, avatar, role, removed_at, created_at)
+insert into public.member (id, team_id, display_name, avatar, role, status, removed_at, created_at)
 values (
   '66666666-6666-4666-8666-666666666666',
   '44444444-4444-4444-8444-444444444444',
   'Người nhóm khác',
   '🐰',
   'member',
+  'approved',
   null,
   '2026-08-31T00:00:00+00:00'
 )
@@ -266,13 +253,14 @@ values (
 )
 on conflict (id) do nothing;
 
-insert into public.member (id, team_id, display_name, avatar, role, removed_at, created_at)
+insert into public.member (id, team_id, display_name, avatar, role, status, removed_at, created_at)
 values (
   '77777777-7777-4777-8777-777777777777',
   '11111111-1111-4111-8111-111111111111',
   'Đã rời nhóm',
   '🐶',
   'member',
+  'approved',
   '2026-08-31T12:00:00+00:00',
   '2026-08-31T00:00:00+00:00'
 )
@@ -318,13 +306,14 @@ values (
 )
 on conflict (id) do nothing;
 
-insert into public.member (id, team_id, display_name, avatar, role, removed_at, created_at)
+insert into public.member (id, team_id, display_name, avatar, role, status, removed_at, created_at)
 values (
   '88888888-8888-4888-8888-888888888888',
   '11111111-1111-4111-8111-111111111111',
   'Quản trị hai',
   '🦊',
   'admin',
+  'approved',
   null,
   '2026-08-31T00:00:00+00:00'
 )
@@ -384,13 +373,14 @@ values (
 )
 on conflict (id) do nothing;
 
-insert into public.member (id, team_id, display_name, avatar, role, removed_at, created_at)
+insert into public.member (id, team_id, display_name, avatar, role, status, removed_at, created_at)
 values (
   '55555555-5555-4555-8555-555555555555',
   '11111111-1111-4111-8111-111111111111',
   'Thành viên',
   '🐱',
   'member',
+  'approved',
   null,
   '2026-08-31T00:00:00+00:00'
 )
@@ -485,13 +475,14 @@ values (
 )
 on conflict (id) do nothing;
 
-insert into public.member (id, team_id, display_name, avatar, role, removed_at, created_at)
+insert into public.member (id, team_id, display_name, avatar, role, status, removed_at, created_at)
 values (
   'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb',
   '11111111-1111-4111-8111-111111111111',
   'Đã duyệt',
   '🐨',
   'member',
+  'approved',
   null,
   '2026-08-31T00:00:00+00:00'
 )

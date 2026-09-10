@@ -1822,3 +1822,57 @@ register necessarily adds by naming the missing decision — 2 advisory D8, 3 pe
 suite 227 of 229, unchanged by these edits. **No registry write.**
 
 **Changed:** `.ai/standards/ui-design-system.md`, `.ai/board/model-debt.md`, `.ai/steward/context.md`.
+
+### 2026-09-10 — ADR-033 landed, and the allow-list leaves the permanent plane
+
+Operator handed back the text of ADR-033 — Status, Context, Decision, Consequences — as words to
+record. This is the ADR the `solo` run of the same day said it could not write and printed for the
+operator instead; its migration says in terms that it *"must not be applied before it exists"*
+(`supabase/migrations/20260910100000_solo_member_approval.sql:4-11`). It exists now.
+
+**Recorded, not authored, and the seam between the two is marked inside the file.** §§ Context,
+Decision and Consequences are the operator's text reproduced unchanged. § Rationale and § Revert
+condition are mine — the template requires both — and each is grounded in a choice already on disk
+rather than in a preference: the rationale cites the three depths `solo` offered and the one the
+operator took (`:153-155`), and the revert condition is written against the `status = 'approved'`
+clause in `member_team_id`, because that clause is the whole of the defence and has nothing behind it.
+
+**Registry writes, all four:**
+
+- **Added** `.ai/registry/decisions/ADR-033-a-person-joins-by-signing-up-and-an-admin-decides-afterwards.md`.
+- **`ADR-009` status → `SUPERSEDED by ADR-033`**, `doc_version` 2 → 3. **The body is not edited.** It
+  is the record of what was decided first, and TEA-01 and TEA-02 were built against it.
+- **`.ai/standards/data-model.md`** 5 → 6: the `allowed_email` entity is gone, replaced by a
+  paragraph saying where it went; `member.team_id` becomes nullable and `member.status` is added;
+  open question 4 carries both answers, ADR-009's and ADR-033's, in that order.
+- **`.ai/standards/rbac-and-security.md`** 2 → 3: the three allow-list rows become three sign-up
+  rows plus one denial by default — *re-decide somebody already approved* — which is what
+  `member_decide_admin`'s `using` clause already refuses and which nobody has decided.
+- **`.ai/registry/features.md`**: the `TEA-02` row is annotated `RETIRED 2026-09-10 BY ADR-033` and
+  keeps `Status: DONE`, which means merged and #13 was. A feature that shipped and was later
+  reversed is a different fact from one that never shipped; deleting the row would lose it.
+  `doc_version` unmoved, the precedent set at ADR-032.
+
+**One script change, outside the registry.** `scripts/check-docs.mjs` gains
+`src/routes/AllowList.tsx` to `ABSENT_BY_DESIGN` with reason `RETIRED`, beside the `src/routes/Home.tsx`
+row that established the shape. The TEA-02 row names the file in the past tense and D6 would
+otherwise report the citation as a broken link to history.
+
+**Measured, not inferred. Audit: 7 errors, against 7 on this same tree before the run.** Net zero,
+composed of one closed and one opened. Closed: D6 on `src/routes/AllowList.tsx`, by the register
+entry above. Opened: D5 on `/signups` in ADR-033 — **a route, not a command**, which is the known
+limitation already recorded at `.ai/board/model-debt.md:82`. It stands because the string is inside
+the operator's own Decision text and paraphrasing their words to make a check green is the wrong
+trade. The five other D5 errors are `/admin`, `/allow-list`, `/threshold`, `/members` and `/holidays`
+in `features.md`, all present at `HEAD` and all the same false positive; the remaining D6 error is
+MD-031's missing year-view idea file, which `git log --all --diff-filter=A` shows was never added on
+any ref.
+
+**`node --test scripts/tests/check-docs.test.mjs`: 103 of 106.** The three failures are the real-file
+tests — D5 names a command with no file, D6 fails on the shipped tree, the repository does not pass
+its own audit with zero errors — and all three fail for the pre-existing errors above, not for this
+run's edits. **The `104 of 106` recorded on 2026-09-09 is stale**: it predates commits `686aa9f` and
+`a746aa5`, and the D5 real-file test has been failing since `features.md` gained route paths.
+
+**Not done, and it is the operator's call:** the migration is not applied. Dropping
+`public.allowed_email` destroys its rows and git does not reverse it — ADR-033 § Consequences.

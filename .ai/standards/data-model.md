@@ -1,6 +1,6 @@
 ---
-doc_version: 5
-last_updated: 2026-08-31
+doc_version: 6
+last_updated: 2026-09-10
 governed_by: [RULE-01, RULE-04, RULE-09]
 ---
 
@@ -32,16 +32,19 @@ P2 list asks the model to leave room for more.
 | Field | Type | Notes |
 |---|---|---|
 | `id` | uuid, pk, references `auth.users(id)` | **The member's id is the Supabase Auth user id.** Every policy is then `... = auth.uid()` with no lookup, which matters more than it looks: under ADR-005 a policy written loosely fails open, and the shortest correct policy is the one hardest to write wrongly. |
-| `team_id` | uuid, not null, references `team(id)` | INV-07. |
+| `team_id` | uuid, **null**, references `team(id)` | INV-07. **Nullable since [ADR-033](../registry/decisions/ADR-033-a-person-joins-by-signing-up-and-an-admin-decides-afterwards.md)** — the admin picks the team at approval, so there is nothing to write here at sign-up. INV-07 is unaffected: a member with no team has no entries. |
 | `display_name` | text, not null | |
 | `avatar` | text, not null | The mascot or avatar at the head of each row (brief §8). The prototype stores an emoji. |
 | `role` | `member_role`, not null, default `member` | Enum: `member`, `admin`. Rank order and the full permission table are in [rbac-and-security.md](rbac-and-security.md). |
-| `removed_at` | timestamptz, null | Soft delete. Null means active. |
+| `status` | `member_status`, not null, default `pending` | Enum: `pending`, `approved`, `rejected`. [ADR-033](../registry/decisions/ADR-033-a-person-joins-by-signing-up-and-an-admin-decides-afterwards.md). **`public.member_team_id` returns a team only for an `approved` member, and every row-level policy in the product resolves through that function** — so this one column admits or refuses a person everywhere at once. Three values and not a boolean: a rejected person and one still waiting are different answers, and the screen that lists them has to tell them apart. |
+| `removed_at` | timestamptz, null | Soft delete. Null means active. **Orthogonal to `status`** — `status` is the decision on somebody arriving, `removed_at` the decision on somebody leaving. |
 | `created_at` | timestamptz, not null | |
 
 **A member cannot exist before their auth user does**, because the primary key *is* that user's id.
-So "invite a member" is a Supabase Auth invitation, not a row this application inserts on its own —
-see `OPEN QUESTIONS`.
+The row is therefore created by a trigger on `auth.users`, not by an insert this application issues
+— [ADR-033](../registry/decisions/ADR-033-a-person-joins-by-signing-up-and-an-admin-decides-afterwards.md), which
+creates it for **anybody** who confirms an address and leaves `team_id` null and `status` at its
+`pending` default. There is no invitation and no elevated credential anywhere in the flow.
 
 **`removed_at` is what "current member count" means.** INV-04's denominator is the members of a team
 with `removed_at is null`. Their entries stay, which is the operator's decision of 2026-08-31, and
@@ -71,27 +74,11 @@ The unit everything else counts, approves and displays.
 | `date_range` | `daterange`, generated always … stored | [ADR-011](../registry/decisions/ADR-011-inv-01-exclusion-constraint.md). `daterange(start_date, end_date, '[]')` — the `'[]'` is required because `end_date` is inclusive. **Never written**, so the seam's insert and update types must exclude it. Stored canonicalised to `[)`. |
 | `portion_slots` | `int4range`, generated always … stored | [ADR-011](../registry/decisions/ADR-011-inv-01-exclusion-constraint.md). The half-day slot range: `full` → `[0,2)`, `am` → `[0,1)`, `pm` → `[1,2)`. Exists so INV-01's constraint can intersect portions rather than compare them for equality. Never written. |
 
-### `allowed_email`
-
-The gate on membership, from [ADR-009](../registry/decisions/ADR-009-how-a-person-becomes-a-member.md).
-An admin adds an address; the person signs themselves up; a trigger on `auth.users` creates the
-`member` row only if the address is here, and marks the entry consumed.
-
-| Field | Type | Notes |
-|---|---|---|
-| `email` | citext, pk | The address the person will sign up with. Case-insensitive, because an address that differs only in case is the same person and a case-sensitive gate silently refuses them. |
-| `team_id` | uuid, not null, references `team(id)` | Which team they join. |
-| `added_by` | uuid, not null, references `member(id)` | An admin. The only provenance for who let somebody in. |
-| `added_at` | timestamptz, not null | |
-| `consumed_at` | timestamptz, null | Set by the trigger when the `member` row is created. Null means the invitation is still open. |
-
-**The table name is the one invented name in this file**, and it is the Tech Lead's to confirm at
-PLAN — RULE-04 allows a name to exist here *or* in plan section 4. Everything else above comes
-from ADR-009 or from the entities it joins.
-
-**No elevated credential exists anywhere in this flow.** `inviteUserByEmail` was rejected precisely
-because it lives on Supabase's admin surface and needs the service-role key, which under ADR-005 has
-no server to live in. See ADR-009 for the verification.
+**There is no `allowed_email` table**, and there was one until 2026-09-10. ADR-009 gated sign-up on
+an admin typing the address first; [ADR-033](../registry/decisions/ADR-033-a-person-joins-by-signing-up-and-an-admin-decides-afterwards.md)
+reversed the order, dropped the table with `cascade`, and put the gate in `member.status` instead.
+The removal is recorded here rather than silently applied, because a reader who remembers the table
+should be able to see where it went.
 
 ### `holiday`
 
@@ -254,11 +241,16 @@ it**, and each says what it does block.
    range to `[)`, so a one-day entry reads back as `['2026-01-01','2026-01-02')`.
 
 4. ~~**How a `member` row comes into existence.**~~ **Answered 2026-08-31 by
-   [ADR-009](../registry/decisions/ADR-009-how-a-person-becomes-a-member.md):** an admin adds the
-   address to `allowed_email`, the person signs themselves up on the ordinary client, and a trigger on
-   `auth.users` creates the `member` row only if the address is allow-listed. There is no invitation
-   email — the admin tells the person by whatever channel the team already uses, and a story must say
-   so rather than implying one arrives.
+   [ADR-009](../registry/decisions/ADR-009-how-a-person-becomes-a-member.md), and re-answered
+   2026-09-10 by [ADR-033](../registry/decisions/ADR-033-a-person-joins-by-signing-up-and-an-admin-decides-afterwards.md),
+   which supersedes it.** The person signs themselves up on the ordinary client and a trigger on
+   `auth.users` creates the `member` row for **anybody** who confirms an address, with no team and
+   `status = 'pending'`; an admin then approves or rejects them, and an approval writes the admin's
+   own team. There is no invitation email under either answer — the admin tells the person by
+   whatever channel the team already uses, and a story must say so rather than implying one arrives.
+   ADR-009's answer — the allow-list, checked by the trigger before the row was created — is kept in
+   ADR-009 itself rather than restated here; TEA-01 and TEA-02 were built against it and stay
+   readable that way.
 
 5. **Does `updated_at` distinguish an edit by the owner from an edit by an admin?** An admin may edit
    another member's entry and v1 has no change feed, so `approved_by` is the only trace of anything.

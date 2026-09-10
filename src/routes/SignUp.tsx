@@ -1,4 +1,7 @@
 import { useState } from "react";
+// SOLO, 2026-09-10. `Navigate` for the confirmation-off hand-over — see the branch below for why a
+// rendered redirect rather than a `useNavigate` call, and why returning `null` there was wrong.
+import { Navigate } from "react-router-dom";
 import { AVATAR_CHOICES, type Failure } from "@/lib/domain/types";
 // The seam, through its one door. 02-design.md section 6.2: nothing above the seam names an
 // implementation — `@/lib/data` resolves it from the environment, and this file must never import
@@ -24,7 +27,10 @@ import AuthCard, {
 type SignUpFormState =
   | { phase: "editing"; error: Failure | null }
   | { phase: "submitting" }
-  | { phase: "submitted" };
+  | { phase: "submitted" }
+  // SOLO, 2026-09-10. The project does not require confirmation, so the seam handed back a live
+  // session and this screen is finished. It hands over to `/` — see the branch below.
+  | { phase: "signed-in" };
 
 export default function SignUp() {
   const [email, setEmail] = useState("");
@@ -58,7 +64,33 @@ export default function SignUp() {
 
       // AC-5: the success branch is identical whether or not the address was allow-listed. The seam
       // cannot tell the difference and neither can this component — nothing here branches on it.
-      setState(result.ok ? { phase: "submitted" } : { phase: "editing", error: result.error });
+      //
+      // **SOLO, 2026-09-10 — IT NOW BRANCHES ON `needsEmailConfirmation`, AND ON NOTHING ELSE.**
+      // AC-5 is untouched by that: `needsEmailConfirmation` is a fact about the PROJECT'S setting,
+      // identical for every caller, and it is not the allow-list. A reader checking AC-5 should
+      // check that this line still cannot see `entry`, a member row, or a team — and it cannot.
+      //
+      // **THE SEAM HAS ALWAYS RETURNED THIS AND NOBODY READ IT.** `src/lib/data/supabase.ts:535`
+      // derives it as `data.session === null` — what the server actually did — and this component
+      // set `submitted` on every success regardless, so a project with Confirm email OFF returned a
+      // live session and the person was still told to go and open an email that was never sent, on a
+      // TERMINAL screen with `showTabs={false}` and no way forward. That was a defect under the
+      // shipped configuration and not only under the new one.
+      //
+      // WHEN NO CONFIRMATION IS NEEDED the session is already established by the seam, so there is
+      // nothing to navigate to: `App.tsx` re-resolves the membership and renders `/` — the week view
+      // for an allow-listed joiner, `NotOnATeam` for anybody else (TEA-05's shipped states). This
+      // component neither navigates nor reads the member, which is why `signed-in` is not a fourth
+      // phase: it is the ABSENCE of a screen, and rendering nothing is how a route hands over.
+      if (result.ok) {
+        setState(
+          result.value.needsEmailConfirmation
+            ? { phase: "submitted" }
+            : { phase: "signed-in" },
+        );
+      } else {
+        setState({ phase: "editing", error: result.error });
+      }
     } catch {
       setState({
         phase: "editing",
@@ -71,6 +103,24 @@ export default function SignUp() {
   // AuthCard: same ground, same card, same title and subtitle, so this reads as the end of the
   // operation rather than as a different screen. `showTabs={false}` is what keeps TEA-01 AC-13's
   // terminality true — a segmented control here would let somebody click away from a terminal state.
+  // SOLO, 2026-09-10. The session is live, so this screen is finished and hands over to `/`, which
+  // resolves by membership — the week view for an allow-listed joiner, `NotOnATeam` for anybody
+  // else (TEA-05's shipped states).
+  //
+  // **IT MUST NAVIGATE ITSELF, AND THIS WAS GOT WRONG ONCE BEFORE IT WAS GOT RIGHT.** The first
+  // attempt returned `null` on the reasoning that `useSession` would re-resolve and the router would
+  // replace the screen. It does not: `App.tsx:127-129` says `/signup` is *"reachable in EVERY
+  // membership state"* and renders `<SignUp />` unconditionally, so a live session changes nothing
+  // about which route matches. The result was a person signed in behind a blank page — caught by
+  // driving the real build with the flag off, and by nothing in the suite, because the suite pins
+  // the flag on.
+  //
+  // `<Navigate>` AND NOT `useNavigate` IN THE HANDLER: this is the same shape `/signin` uses one
+  // route over for the same situation (`App.tsx:134-142`), a redirect expressed as what the screen
+  // renders rather than as a side effect of a click. `replace` so the browser Back button does not
+  // return to a sign-up form for an account that now exists.
+  if (state.phase === "signed-in") return <Navigate to="/" replace />;
+
   if (state.phase === "submitted") {
     return (
       <AuthCard tab="signup" showTabs={false}>

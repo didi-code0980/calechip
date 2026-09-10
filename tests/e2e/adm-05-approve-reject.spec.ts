@@ -1,4 +1,5 @@
 import { expect, test, type Locator, type Page } from "@playwright/test";
+import { pickRange } from "./support/entry-form";
 
 // ADM-05 — approve or reject an entry, with a reason on rejection.
 //
@@ -102,8 +103,7 @@ async function backToHome(page: Page): Promise<void> {
 /** Declares one entry through CAL-01's form, the only path there is. */
 async function declare(page: Page): Promise<void> {
   await page.getByTestId("home-new-entry-link").click();
-  await page.getByTestId("new-entry-start").fill(UPCOMING.start);
-  await page.getByTestId("new-entry-end").fill(UPCOMING.end);
+  await pickRange(page, "new-entry", UPCOMING.start, UPCOMING.end);
   await page.getByTestId("new-entry-submit").click();
   await expect(page.getByTestId("own-entry-row")).toHaveCount(1);
   await backToHome(page);

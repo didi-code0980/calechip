@@ -76,9 +76,11 @@ const MIGRATED: readonly {
   },
   {
     hubLink: "admin-hub-allow-list-link",
-    path: "/allow-list",
-    landmark: "allow-list-table",
-    refusal: "allow-list-refused",
+    path: "/signups",
+    // SOLO, 2026-09-10. The screen's landmark is its COUNT and not its list: the list is absent
+    // when nobody is waiting, and `signups-count` renders in the ready phase either way.
+    landmark: "signups-count",
+    refusal: "signups-refused",
   },
   {
     hubLink: "admin-hub-threshold-link",

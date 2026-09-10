@@ -8,12 +8,38 @@
 export type MemberRole = "member" | "admin";
 
 /** A row of `public.member`, in application casing. */
+/**
+ * SOLO, 2026-09-10. Where a signed-up person stands with the admins.
+ *
+ * Three values and not a boolean, for the reason the migration records: `pending` and `rejected` are
+ * different answers, and folding them makes a rejected person indistinguishable from one still
+ * waiting on the screen that lists them.
+ */
+export type MemberStatus = "pending" | "approved" | "rejected";
+
 export interface Member {
   id: string; // = the Supabase Auth user id (data-model.md)
-  teamId: string;
+  /**
+   * **NULL UNTIL AN ADMIN APPROVES THEM — SOLO, 2026-09-10.** It was `string` while joining went
+   * through the allow-list, because the team came from the consumed row (ADR-009). The operator
+   * chose "the admin picks the team at approval" when asked, so at sign-up there is nothing to put
+   * here.
+   *
+   * **INV-07 IS NOT WEAKENED BY THIS.** It says an ENTRY is counted only against the team its member
+   * belongs to; a member with no team has no entries, because `entry_insert_own` is keyed on
+   * `member_team_id`, which returns null for anybody not `approved`.
+   */
+  teamId: string | null;
   displayName: string;
   avatar: string;
   role: MemberRole;
+  /**
+   * SOLO, 2026-09-10. **DISPLAYED AND ACTED ON, unlike `role`** — this one really does decide what a
+   * caller may do, but it decides it IN THE DATABASE and not here: `public.member_team_id` returns
+   * null for anything but `approved`, and every row-level policy in the product is keyed on that
+   * function. Reading this field in a component chooses a SCREEN; it grants nothing.
+   */
+  status: MemberStatus;
   removedAt: string | null; // ISO 8601, null means active
   createdAt: string; // ISO 8601
 }
@@ -42,6 +68,16 @@ export interface Session {
 export type Membership =
   | { state: "signed-out" }
   | { state: "member-less"; user: AuthUser }
+  /**
+   * SOLO, 2026-09-10. Signed in, HAS a member row, and an admin has not decided yet — or has
+   * decided against them. A fourth state and not a variant of `member-less`, because the two are
+   * different facts and the screens that follow from them are different sentences: `member-less` is
+   * *the datastore has no row for you*, this is *you are in the queue*.
+   *
+   * The DECISION is not this state's to make. `member_team_id` already refuses everything to
+   * anybody who is not `approved`; routing on this only chooses which true sentence to show.
+   */
+  | { state: "undecided"; user: AuthUser; member: Member }
   | { state: "member"; user: AuthUser; member: Member };
 
 /** Expected failures are returned, not thrown (.ai/standards/coding-standards.md, Error handling). */
@@ -60,6 +96,11 @@ export type FailureCode =
   // password that is correct. Verified on disk: the code is in
   // @supabase/auth-js@2.112.4/dist/module/lib/error-codes.d.ts.
   | "email_not_confirmed"
+  // SOLO, 2026-09-10. GoTrue's `email_address_invalid`, which a HOSTED project returns for an
+  // address it considers undeliverable — an unregistered domain, or one with no MX record. It was
+  // landing in `unknown` and rendering "Something went wrong", which sends somebody to retry an
+  // address that will never be accepted.
+  | "email_address_invalid"
   // CAL-01, 01-plan.md section 4.1. The three expected failures of creating an entry.
   | "overlapping_entry" // AC-7: INV-01's exclusion constraint refused the write (SQLSTATE 23P01)
   | "invalid_date_range" // AC-9: end_date is before start_date
@@ -89,6 +130,18 @@ export type FailureCode =
   // `not_permitted`, applied one layer further in. The distinction is real and not cosmetic: a
   // filtered row means "not yours to touch", and 42501 here means "yours, but not this column".
   | "entry_decision_not_permitted"
+  // SOLO 2026-09-10, the profile screen. Three codes and not one, because the three refusals reach
+  // three different controls: `wrong_password` belongs beside the current-password box and NEVER
+  // beside the new one, and the other two belong beside the field whose value was refused. A single
+  // `not_permitted` here would put every message under the save button, where a member cannot see
+  // which of four inputs to fix.
+  //
+  // `weak_password` above is REUSED for a new password that is too short — GoTrue raises exactly
+  // that code and the sentence already reads correctly on this screen, so a second code for the same
+  // condition would be two names for one fact.
+  | "wrong_password" // the current password given does not match the account
+  | "invalid_display_name" // blank after trimming, or longer than the column allows
+  | "invalid_avatar" // not one of AVATAR_CHOICES
   // ADM-05, AC-3. INV-03 refused: a rejection with no reason. Raised in the SEAM before the write is
   // issued, so the interface never meets the raw 23514 the biconditional check would answer with —
   // the shape ADR-016 section 4 gives `reject_entries`, which raises 22023 with a sentence for the
@@ -112,17 +165,22 @@ export interface Failure {
 
 export type Result<T> = { ok: true; value: T } | { ok: false; error: Failure };
 
-/** A row of `public.allowed_email`, in application casing. TEA-02, 02-design.md section 1.1. */
-export interface AllowedEmail {
-  email: string; // citext in the datastore; already folded by PostgREST on the way out
-  teamId: string;
-  addedBy: string; // member id of the admin who added it
-  addedAt: string; // ISO 8601
-  consumedAt: string | null; // null means the invitation is still open
-}
+/** SOLO, 2026-09-10. `AllowedEmail` and `AddAllowedEmailInput` stood here until the allow-list was
+ *  removed whole — table, policies, seam and screen. TEA-02 is superseded; joining is now sign-up
+ *  plus an admin decision on `Member.status`. The names are recorded here, retired, because a name
+ *  nothing mentions is a name somebody re-adds. */
 
-/** How an entry is displayed (AC-1). Derived, never stored - `consumedAt` is the only source. */
-export type AllowedEmailState = "open" | "joined";
+
+/**
+ * SOLO, 2026-09-10. What an admin decides about a person who has signed up.
+ *
+ * `teamId` is required on an approval and forbidden on a rejection, which is the shape
+ * `member_decide_admin`s `with check` enforces in the database. The union makes that unrepresentable
+ * rather than merely checked.
+ */
+export type MemberDecision =
+  | { approve: true; teamId: string }
+  | { approve: false };
 
 /**
  * The avatar set offered at sign-up (AC-8). `member.avatar` is `text not null` and
@@ -133,7 +191,21 @@ export type AllowedEmailState = "open" | "joined";
  *
  * TODO(project): the contents of this array are a placeholder and are the operator's to set — see
  * `## Open questions` in 02-design.md. The *name*, the *location* and the *type* are decided in
- * design section 1.1 and are not placeholders; only the twelve values are.
+ * design section 1.1 and are not placeholders; only the values are.
+ *
+ * **SOLO, 2026-09-10 — TWENTY MORE, APPENDED, AND NOT ONE OF THE ORIGINAL TWELVE MOVED OR LEFT.**
+ * The profile screen's picker is this array, and the transcription draws thirty-two circles in four
+ * rows of ten. **REMOVING A VALUE IS THE FAILURE MODE HERE AND IT IS NOT REVERSIBLE FROM THE
+ * SCREEN:** `member.avatar` already holds a value for every seeded and signed-up person, and a row
+ * whose avatar is no longer in this array would render everywhere and be unselectable in the
+ * picker — the member could never save their profile again without silently changing their face.
+ * So the twelve are kept in their order and the new ones follow.
+ *
+ * **THE IDENTITY OF EACH NEW EMOJI IS THIS AGENT'S CHOICE AND WAS NOT SPECIFIED.** What is legible
+ * in the transcription is the COUNT and the GRID — thirty-two, ten to a row — not which animal sits
+ * in which circle at 2000px wide. `.ai/standards/ui-design-system.md` § *With no image, the Tech
+ * Lead designs it* covers visual arrangement; the marking is the obligation that comes with it.
+ * They are all animals, which is the one thing the picture does say about the set as a whole.
  */
 export const AVATAR_CHOICES: readonly string[] = [
   "🐱",
@@ -148,6 +220,26 @@ export const AVATAR_CHOICES: readonly string[] = [
   "🐸",
   "🐧",
   "🦉",
+  "🐹",
+  "🐮",
+  "🐷",
+  "🐔",
+  "🐥",
+  "🦄",
+  "🐙",
+  "🦕",
+  "🐢",
+  "🦋",
+  "🐬",
+  "🦩",
+  "🐊",
+  "🦔",
+  "🐿️",
+  "🐺",
+  "🦒",
+  "🐘",
+  "🦥",
+  "🦦",
 ];
 
 // ---------------------------------------------------------------------------

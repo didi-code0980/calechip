@@ -460,21 +460,41 @@ export default function Sidebar({ member, signOut }: SidebarProps) {
           shows beside the sign-out control is deliberately absent (AC-20): what a control DOES is
           behaviour, and the § Visual specification grant does not reach behaviour. */}
       <div className="flex items-center gap-2">
-        <AvatarChip avatar={member.avatar} testId="home-member-avatar" />
-        <div className="flex min-w-0 flex-col">
-          <p
-            data-testid="home-member-name"
-            className="truncate text-xs font-semibold text-ink"
-          >
-            {member.displayName}
-          </p>
-          <p
-            data-testid="home-member-role"
-            className="text-[9px] uppercase tracking-wider text-ink-3"
-          >
-            {roleLabel(member.role)}
-          </p>
-        </div>
+        {/* **SOLO, 2026-09-10 — the chip is now a LINK to `/profile`, and that is the only way in.**
+            The three ids inside it — `home-member-avatar`, `home-member-name`, `home-member-role` —
+            KEEP their names, their text and their nesting order, because `tea-05-sign-in.spec.ts`
+            reads all three by text at :65, :66, :67 and :146 and a rename here breaks a suite this
+            change has no business touching. What moved is the element AROUND them.
+
+            NOT A FOURTH NAV LINK ABOVE (`home-profile-link` is not in the `<nav>`): the pane's nav
+            block is where the team's screens live, and a caller looking for their own account looks
+            at their own name. The account footer already draws the name, the avatar and the role —
+            the three facts the destination is about — so the affordance is the row that shows them.
+
+            NO NEW READ AND NO NEW STATE. Every value here was already on screen; the anchor is
+            wrapped around what was drawn. */}
+        <Link
+          data-testid="home-profile-link"
+          to="/profile"
+          title="Your profile"
+          className="flex min-w-0 flex-1 items-center gap-2 rounded-pill py-0.5 transition-colors hover:bg-field focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
+        >
+          <AvatarChip avatar={member.avatar} testId="home-member-avatar" />
+          <div className="flex min-w-0 flex-col">
+            <p
+              data-testid="home-member-name"
+              className="truncate text-xs font-semibold text-ink"
+            >
+              {member.displayName}
+            </p>
+            <p
+              data-testid="home-member-role"
+              className="text-[9px] uppercase tracking-wider text-ink-3"
+            >
+              {roleLabel(member.role)}
+            </p>
+          </div>
+        </Link>
         <button
           data-testid="home-sign-out"
           type="button"

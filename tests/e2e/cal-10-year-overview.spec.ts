@@ -23,6 +23,7 @@
 // - Three NON-WORKING 2026 holidays (11 June, 15 June, 15 October) and one WORKING Saturday
 //   (13 June, a mandated make-up day). AC-7 turns on the mandated Saturday not being counted.
 import { expect, test, type Locator, type Page } from "@playwright/test";
+import { choosePortion, chooseType, pickRange } from "./support/entry-form";
 
 const PASSWORD = "password123";
 const MEMBER_EMAIL = "thanh@example.com";
@@ -92,10 +93,9 @@ async function declare(
   // The create link is in the TOP BAR and renders on every route inside the shell (UIE-03 AC-12).
   await page.getByTestId("home-new-entry-link").click();
 
-  await page.getByTestId("new-entry-start").fill(fields.start);
-  await page.getByTestId("new-entry-end").fill(fields.end);
-  if (fields.portion) await page.getByTestId("new-entry-portion").selectOption(fields.portion);
-  if (fields.type) await page.getByTestId("new-entry-type").selectOption(fields.type);
+  await pickRange(page, "new-entry", fields.start, fields.end);
+  if (fields.portion) await choosePortion(page, "new-entry", fields.portion);
+  if (fields.type) await chooseType(page, "new-entry", fields.type);
 
   await page.getByTestId("new-entry-submit").click();
   await expect(page.getByTestId("own-entry-row")).toHaveCount(owned);

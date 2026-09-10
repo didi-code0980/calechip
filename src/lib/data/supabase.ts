@@ -10,8 +10,8 @@ import {
 } from "@supabase/supabase-js";
 import type { PostgrestError } from "@supabase/supabase-js";
 import type {
-  AddAllowedEmailInput,
   AddHolidayInput,
+  ChangePasswordInput,
   CreateEntryInput,
   DataSeam,
   SetOverloadThresholdInput,
@@ -20,9 +20,11 @@ import type {
   SignUpOutcome,
   UpdateEntryInput,
   UpdateHolidayInput,
+  UpdateOwnProfileInput,
 } from "./index";
 import type {
-  AllowedEmail,
+  MemberDecision,
+  MemberStatus,
   BulkRejectionOutcome,
   DateRange,
   Entry,
@@ -47,6 +49,7 @@ import type {
 // here and now pages instead. The constant itself still exists — its docblock in ../domain/types
 // records why it was not deleted.
 import {
+  AVATAR_CHOICES,
   HOLIDAY_LIMIT,
   OWN_ENTRY_LIMIT,
   PENDING_PAGE_SIZE,
@@ -80,15 +83,20 @@ export function client(): SupabaseClient {
 // (.ai/standards/architecture.md, "Layers" — code above the seam never sees a column name).
 interface MemberRow {
   id: string;
-  team_id: string;
+  team_id: string | null;
   display_name: string;
   avatar: string;
   role: MemberRole;
+  status: MemberStatus;
   removed_at: string | null;
   created_at: string;
 }
 
-const MEMBER_COLUMNS = "id, team_id, display_name, avatar, role, removed_at, created_at";
+// SOLO, 2026-09-10. `status` joins the list. Selecting it explicitly rather than with `*` is the
+// shape this file already uses everywhere, and it is what makes a column added to the table by a
+// later migration invisible here until somebody names it.
+const MEMBER_COLUMNS =
+  "id, team_id, display_name, avatar, role, status, removed_at, created_at";
 
 function toMember(row: MemberRow): Member {
   return {
@@ -97,32 +105,14 @@ function toMember(row: MemberRow): Member {
     displayName: row.display_name,
     avatar: row.avatar,
     role: row.role,
+    status: row.status,
     removedAt: row.removed_at,
     createdAt: row.created_at,
   };
 }
 
-// TEA-02. The `allowed_email` row as PostgREST returns it. `email` is citext, so the value arriving
-// here is already folded by the datastore and this file does no folding of its own.
-interface AllowedEmailRow {
-  email: string;
-  team_id: string;
-  added_by: string;
-  added_at: string;
-  consumed_at: string | null;
-}
-
-const ALLOWED_EMAIL_COLUMNS = "email, team_id, added_by, added_at, consumed_at";
-
-function toAllowedEmail(row: AllowedEmailRow): AllowedEmail {
-  return {
-    email: row.email,
-    teamId: row.team_id,
-    addedBy: row.added_by,
-    addedAt: row.added_at,
-    consumedAt: row.consumed_at,
-  };
-}
+// SOLO, 2026-09-10. The `allowed_email` row shape, its column list and its mapper stood here until
+// the table was dropped. Nothing in this file models it any more.
 
 // CAL-01. The `entry` row as PostgREST returns it.
 //
@@ -281,6 +271,14 @@ function toFailure(error: AuthError): Failure {
     // this file renders, so the account-existence signal is already at the API and hiding it here
     // would buy nothing while sending somebody to reset a password that is correct. What ADR-009
     // protects — whether an address is on the ALLOW-LIST — stays hidden in both branches.
+    // SOLO, 2026-09-10. Hosted Supabase refuses an address whose domain does not resolve or cannot
+    // receive mail. Nothing in this application can turn that off, so the honest answer is to say
+    // what would work rather than to offer a retry of the same address.
+    case "email_address_invalid":
+      return {
+        code: "email_address_invalid",
+        message: "That email address was not accepted. Use an address at a domain that can receive mail.",
+      };
     case "email_not_confirmed":
       return {
         code: "email_not_confirmed",
@@ -563,85 +561,66 @@ export const seam: DataSeam = {
     return readCurrentMember();
   },
 
-  // TEA-02 AC-1, AC-8. No team parameter: `allowed_email_select_admin` scopes the rows to the
-  // caller's team, and a member receives zero rows rather than an error — which is why an empty
-  // list is the honest return here and a failure shape would be a lie about what the policy did.
-  async listAllowedEmails(): Promise<AllowedEmail[]> {
+  /**
+   * SOLO, 2026-09-10. Everybody waiting on a decision, newest first. Replaces `listAllowedEmails`.
+   *
+   * **THE `is` FILTER ON `team_id` IS NOT THE SECURITY BOUNDARY AND MUST NOT BE READ AS ONE.**
+   * `member_select_pending_admin` is, and it already says `team_id is null and status <> 'approved'`
+   * for an admin. The filters here narrow a read the policy has already decided — the same
+   * relationship every other read in this file has to its own policy.
+   *
+   * A member receives zero rows rather than an error, which is why an empty list is the honest
+   * return and a failure shape would be a lie about what the policy did.
+   *
+   * THROWS on a transport failure, the shape `listMembers` uses.
+   */
+  async listPendingMembers(): Promise<Member[]> {
     const { data, error } = await client()
-      .from("allowed_email")
-      .select(ALLOWED_EMAIL_COLUMNS)
-      .order("added_at", { ascending: false })
-      .returns<AllowedEmailRow[]>();
+      .from("member")
+      .select(MEMBER_COLUMNS)
+      .is("team_id", null)
+      .eq("status", "pending")
+      .order("created_at", { ascending: false })
+      .returns<MemberRow[]>();
 
-    if (error) throw new Error(`listAllowedEmails failed: ${error.message}`);
-    return (data ?? []).map(toAllowedEmail);
+    if (error) throw new Error(`listPendingMembers failed: ${error.message}`);
+    return (data ?? []).map(toMember);
   },
 
-  // TEA-02 AC-2, AC-4, AC-5.
-  //
-  // `team_id` and `added_by` are read from the datastore's own answer about who the caller is, never
-  // from a parameter. The policy's `with check` then re-derives both and refuses a mismatch, so the
-  // two agree by construction and AC-4 is unreachable through this interface.
-  async addAllowedEmail(input: AddAllowedEmailInput): Promise<Result<AllowedEmail>> {
-    const me = await readCurrentMember();
-    if (!me) {
-      return {
-        ok: false,
-        error: { code: "not_permitted", message: "You need to sign in with an admin account." },
-      };
-    }
+  /**
+   * SOLO, 2026-09-10. Approve or reject one waiting sign-up.
+   *
+   * **THE UPDATE NAMES ONLY `status` AND `team_id`, WHICH IS THE COLUMN GRANT AND NOT A CHOICE.**
+   * The migration grants `update (status, team_id)` and nothing else, so an attempt to write a
+   * display name here would be refused by the privilege rather than by this file — ADM-01's lesson
+   * about row-level policies permitting every column of the row they admit.
+   *
+   * **ZERO ROWS UPDATED IS NOT SUCCESS.** `member_decide_admin`'s `using` clause admits only a
+   * pending, teamless row and only for an admin, so a row that fails any of it simply does not match
+   * and the statement changes nothing. The `select` is what tells the two apart — the shape
+   * `removeAllowedEmail` used before it, for the same reason.
+   */
+  async decideMember(memberId: string, decision: MemberDecision): Promise<Result<void>> {
+    const patch = decision.approve
+      ? { status: "approved" as const, team_id: decision.teamId }
+      : { status: "rejected" as const, team_id: null };
 
     const { data, error } = await client()
-      .from("allowed_email")
-      .insert({ email: input.email.trim(), team_id: me.teamId, added_by: me.id })
-      .select(ALLOWED_EMAIL_COLUMNS)
-      .single<AllowedEmailRow>();
-
-    if (error) return { ok: false, error: toPostgrestFailure(error) };
-    return { ok: true, value: toAllowedEmail(data) };
-  },
-
-  // TEA-02 AC-6, AC-7, AC-8.
-  //
-  // A delete that removes ZERO rows is not success (02-design.md section 3). Under row-level
-  // security a refused delete is not an error — it simply matches nothing — so this asks for the
-  // deleted rows back and treats an empty answer as a refusal.
-  //
-  // The one follow-up read is what tells the two refusals apart. `allowed_email_select_admin` shows
-  // an admin their own team's rows consumed and unconsumed alike, so a row that comes back with
-  // `consumed_at` set is AC-7, and no row at all is AC-4 or AC-8. Collapsing them would tell an
-  // admin their own entry does not exist.
-  async removeAllowedEmail(email: string): Promise<Result<void>> {
-    const { data, error } = await client()
-      .from("allowed_email")
-      .delete()
-      .eq("email", email)
-      .select("email")
-      .returns<Array<{ email: string }>>();
+      .from("member")
+      .update(patch)
+      .eq("id", memberId)
+      .select("id")
+      .returns<Array<{ id: string }>>();
 
     if (error) return { ok: false, error: toPostgrestFailure(error) };
     if (data && data.length > 0) return { ok: true, value: undefined };
 
-    const { data: existing } = await client()
-      .from("allowed_email")
-      .select("email, consumed_at")
-      .eq("email", email)
-      .maybeSingle<{ email: string; consumed_at: string | null }>();
-
-    if (existing && existing.consumed_at !== null) {
-      return {
-        ok: false,
-        error: {
-          code: "already_consumed",
-          message:
-            "Someone has already used that address to join the team, so it cannot be removed.",
-        },
-      };
-    }
-
     return {
       ok: false,
-      error: { code: "not_permitted", message: "That address could not be removed." },
+      error: {
+        code: "not_permitted",
+        message: "That sign-up could not be decided. It may already have been.",
+      },
     };
   },
 
@@ -764,6 +743,134 @@ export const seam: DataSeam = {
     }
 
     return { ok: true, value: toMember(row) };
+  },
+
+  // -------------------------------------------------------------------------
+  // SOLO 2026-09-10 — the profile screen's two writes.
+  // -------------------------------------------------------------------------
+
+  // **THE UPDATE NAMES TWO COLUMNS AND `.eq("id", …)` NAMES THE CALLER'S OWN ROW.** Both are
+  // load-bearing and neither is the control:
+  //
+  //  - the CONTROL for "which row" is `member_update_own` plus the trigger clause added by
+  //    `20260910093000_solo_profile_self_update.sql`, which refuses a `display_name` or `avatar`
+  //    change on a row that is not `auth.uid()`'s. It has to be a TRIGGER and not a policy, because
+  //    `member_update_admin` already lets an admin update rows across their team and a `with check`
+  //    cannot see WHICH columns moved — known weakness 6 in `.ai/standards/rbac-and-security.md`;
+  //  - the CONTROL for "which columns" is the column grant. Naming `role` or `team_id` in this
+  //    update would be refused with `42501 permission denied for column` before a policy runs.
+  //
+  // ZERO ROWS BACK IS A REFUSAL, the trap `removeMember` and `createEntry` both record: a filtered
+  // UPDATE returns no representation and PostgREST does not error, so `!error` is not success.
+  //
+  // The avatar is checked against `AVATAR_CHOICES` BEFORE the request, and again by the
+  // `member_avatar_is_offered` check constraint in the migration. Two locks on purpose: the local
+  // one produces a sentence beside the picker, and the remote one is what holds for a caller that
+  // is not this application.
+  async updateOwnProfile(input: UpdateOwnProfileInput): Promise<Result<Member>> {
+    const displayName = input.displayName.trim();
+    if (displayName.length === 0) {
+      return {
+        ok: false,
+        error: { code: "invalid_display_name", message: "Enter a display name." },
+      };
+    }
+    const { data: auth } = await client().auth.getUser();
+    if (!auth.user) {
+      return {
+        ok: false,
+        error: { code: "not_permitted", message: "Sign in again to save your profile." },
+      };
+    }
+
+    // **OR THE ONE THEY ALREADY HAVE.** Rows exist whose avatar was never chosen from this picker —
+    // `supabase/seed.sql:170` holds `⭐` for the operator's own admin account, and TEA-01's
+    // admission trigger writes `'🙂'` when sign-up carries no avatar. Without the second clause,
+    // everyone holding such a value is refused on every save, including one that only changes their
+    // display name. Same rule as `mock.ts`; the migration explains why the column carries no check
+    // constraint of its own.
+    //
+    // THE READ HAPPENS ONLY WHEN THE VALUE IS NOT AN OFFERED ONE, which is the rare path — the
+    // picker cannot produce anything else, so the ordinary save costs no extra round trip.
+    if (!AVATAR_CHOICES.includes(input.avatar)) {
+      const me = await readMember(auth.user.id);
+      if (!me || me.avatar !== input.avatar) {
+        return {
+          ok: false,
+          error: { code: "invalid_avatar", message: "Choose one of the avatars offered." },
+        };
+      }
+    }
+
+    const { data, error } = await client()
+      .from("member")
+      .update({ display_name: displayName, avatar: input.avatar })
+      .eq("id", auth.user.id)
+      .select(MEMBER_COLUMNS)
+      .returns<MemberRow[]>();
+
+    if (error) return { ok: false, error: toPostgrestFailure(error) };
+
+    const row = (data ?? [])[0];
+    if (!row) {
+      return {
+        ok: false,
+        error: { code: "not_permitted", message: "Your profile could not be saved." },
+      };
+    }
+
+    return { ok: true, value: toMember(row) };
+  },
+
+  // **IT RE-AUTHENTICATES FIRST, AND THAT IS THE WHOLE OF WHY THIS FUNCTION IS LONGER THAN ONE
+  // LINE.** `auth.updateUser({ password })` accepts any live session and verifies NOTHING — the
+  // reauthentication flow GoTrue ships (`auth.reauthenticate()`) sends a nonce by email and is a
+  // different product decision. So the current password is checked the only way a client can check
+  // it: by signing in with it.
+  //
+  // **`signInWithPassword` ON A SIGNED-IN CLIENT REPLACES THE SESSION WITH AN EQUIVALENT ONE FOR THE
+  // SAME USER.** That is why the wrong-password branch below is safe to return from: the failed
+  // attempt leaves the existing session untouched, so a member who mistypes their current password
+  // is not signed out by the attempt. On success the session is replaced twice — once here and once
+  // by `updateUser` — and `onAuthStateChange` fires for both, which `useSession` already re-resolves
+  // against.
+  //
+  // The address comes from `auth.getUser()` and NEVER from a parameter. An email on this input would
+  // be a value the caller could vary, which turns a password check into a password oracle for other
+  // accounts.
+  async changePassword(input: ChangePasswordInput): Promise<Result<void>> {
+    const { data: auth } = await client().auth.getUser();
+    const email = auth.user?.email;
+    if (!email) {
+      return {
+        ok: false,
+        error: { code: "not_permitted", message: "Sign in again before changing your password." },
+      };
+    }
+
+    const { error: reauth } = await client().auth.signInWithPassword({
+      email,
+      password: input.currentPassword,
+    });
+
+    if (reauth) {
+      // MAPPED, not passed through. `toFailure` answers `invalid_credentials` here — the code that
+      // means "an address or a password is wrong" on a screen where the address is not in question
+      // and cannot be wrong. The caller is already signed in, so naming the field costs nothing and
+      // puts the message beside the box that is wrong.
+      const failure = toFailure(reauth);
+      if (failure.code === "invalid_credentials") {
+        return {
+          ok: false,
+          error: { code: "wrong_password", message: "That is not your current password." },
+        };
+      }
+      return { ok: false, error: failure };
+    }
+
+    const { error } = await client().auth.updateUser({ password: input.newPassword });
+    if (error) return { ok: false, error: toFailure(error) };
+    return { ok: true, value: undefined };
   },
 
   // -------------------------------------------------------------------------

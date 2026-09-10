@@ -62,6 +62,13 @@ const ABSENT_BY_DESIGN = new Map([
       "it against the mock. ADR-027 phase 1 is where it gets written",
   ],
   [
+    "src/routes/AllowList.tsx",
+    "RETIRED — deleted under ADR-033, which dropped `public.allowed_email` and replaced the " +
+      "allow-list screen with the sign-ups queue at src/routes/NewSignups.tsx. The TEA-02 row in " +
+      ".ai/registry/features.md names this file as what that ticket built, which is true in the " +
+      "past tense and is the record of a feature that shipped and was later reversed",
+  ],
+  [
     "src/routes/Home.tsx",
     "RETIRED — deleted by UIE-02 (8a1c2bb), which relocated its twelve `home-*` selector ids " +
       "unrenamed into the sidebar and top bar. Four citations in .ai/registry/features.md name it, " +

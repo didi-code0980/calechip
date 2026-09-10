@@ -1,4 +1,5 @@
 import { expect, test, type Locator, type Page } from "@playwright/test";
+import { chooseType, pickRange } from "./support/entry-form";
 
 // ADM-04 — the worklist of entries awaiting a decision.
 //
@@ -124,9 +125,8 @@ async function declare(
 ): Promise<void> {
   await page.getByTestId("home-new-entry-link").click();
 
-  await page.getByTestId("new-entry-start").fill(fields.start);
-  await page.getByTestId("new-entry-end").fill(fields.end);
-  if (fields.type) await page.getByTestId("new-entry-type").selectOption(fields.type);
+  await pickRange(page, "new-entry", fields.start, fields.end);
+  if (fields.type) await chooseType(page, "new-entry", fields.type);
 
   await page.getByTestId("new-entry-submit").click();
   await expect(page.getByTestId("own-entry-row")).toHaveCount(owned);
@@ -185,42 +185,55 @@ test.describe("ADM-04 — the worklist of entries awaiting a decision", () => {
     await expect(count(page)).toHaveAttribute("data-shown", "1");
   });
 
-  test("AC-6 and AC-7: the default window hides past-dated entries, and a filter reaches them", async ({
+  test("AC-6 and AC-7: past-dated pending entries are on the list, because there is no window to hide them", async ({
     page,
   }) => {
+    // **REWRITTEN BY `solo` ON 2026-09-10, AND WHAT IT ASSERTS IS THE OPPOSITE OF WHAT IT DID.**
+    // As shipped this read *"the default window hides past-dated entries, and a filter reaches
+    // them"*, and drove `pending-entries-window` through all three windows. The operator removed
+    // the filter — *"Bỏ phần filter"* — so there is no window control and no window to choose.
+    //
+    // **THE CRITERIA SURVIVE THE CONTROL, WHICH IS WHY THIS IS A REWRITE AND NOT A DELETION.** AC-6
+    // was that the default hides past-dated entries; AC-7 was that they are REACHABLE and still
+    // `pending`. AC-6's precondition is gone with the control, and AC-7 is now held more strongly
+    // than it was: reachable in one click instead of two, because the query is pinned to `all`.
+    // That pinning is the whole reason the filter could be removed without hiding anything — see
+    // `src/routes/PendingEntries.tsx` at `queryFor`. Asserting it HERE is what stops a later edit
+    // quietly restoring `upcoming` and making past-dated entries unreachable with no control to
+    // reveal them.
     await signInAt(page, MEMBER_EMAIL);
     await declare(page, UPCOMING, 1);
     await declare(page, PAST, 2);
     await switchTo(page, ADMIN_EMAIL);
     await openWorklist(page);
 
-    // AC-6. The default window, chosen by nobody, shows the one still to come and counts only it.
-    await expect(page.getByTestId("pending-entries-window")).toHaveAttribute(
-      "data-window",
-      "upcoming",
-    );
-    await expect(rows(page)).toHaveCount(1);
-    await expect(rowFor(page, UPCOMING.start)).toHaveCount(1);
-    await expect(rowFor(page, PAST.start)).toHaveCount(0);
-    await expect(count(page)).toHaveAttribute("data-total", "1");
-
-    // AC-7. The past-dated entry is REACHABLE and is still `pending` — nobody ever decided it, and
-    // there is no fourth `entry_status` (01-plan.md section 1, Out of scope).
-    await page.getByTestId("pending-entries-window").selectOption("past");
-    await expect(page.getByTestId("pending-entries-window")).toHaveAttribute("data-window", "past");
-    await expect(rows(page)).toHaveCount(1);
-    await expect(rowFor(page, PAST.start)).toHaveCount(1);
-    await expect(count(page)).toHaveAttribute("data-total", "1");
-
-    // And `all` is the union, so the control advertises the sets it is not showing.
-    await page.getByTestId("pending-entries-window").selectOption("all");
+    // BOTH, from the first paint, with nothing chosen by anybody.
     await expect(rows(page)).toHaveCount(2);
+    await expect(rowFor(page, UPCOMING.start)).toHaveCount(1);
+    await expect(rowFor(page, PAST.start)).toHaveCount(1);
     await expect(count(page)).toHaveAttribute("data-total", "2");
+
+    // AC-7's substance: the past-dated one is still `pending` — nobody ever decided it, and there
+    // is no fourth `entry_status` (01-plan.md section 1, Out of scope).
+    await expect(rowFor(page, PAST.start).getByTestId("entry-decision")).toHaveAttribute(
+      "data-status",
+      "pending",
+    );
+
+    // AND THE CONTROLS ARE GONE, asserted here rather than only in the solo spec, because a filter
+    // reintroduced beside a query pinned to `all` would be a control that changes nothing.
+    await expect(page.getByTestId("pending-entries-window")).toHaveCount(0);
+    await expect(page.getByTestId("pending-entries-type")).toHaveCount(0);
   });
 
-  test("AC-8: work-from-home entries are listed, and the type filter narrows the list and the count", async ({
+  test("AC-8: work-from-home entries are listed beside leave, with no type control to separate them", async ({
     page,
   }) => {
+    // **REWRITTEN BY `solo` ON 2026-09-10.** The second half of this criterion drove
+    // `pending-entries-type` and is gone with the control (*"Bỏ phần filter"*). The FIRST half is
+    // 01-plan.md section 2, Open questions item 1's assumption — *a WFH entry goes through approval
+    // exactly as a PTO entry does* — and it is untouched, still observable, and still the half worth
+    // having: it is a claim about the product, where the filter was a claim about a widget.
     await signInAt(page, MEMBER_EMAIL);
     await declare(page, UPCOMING, 1);
     await switchTo(page, APPROVED_EMAIL);
@@ -229,11 +242,10 @@ test.describe("ADM-04 — the worklist of entries awaiting a decision", () => {
     await switchTo(page, ADMIN_EMAIL);
     await openWorklist(page);
 
-    // 01-plan.md section 2, Open questions item 1's assumption, observed: a WFH entry goes through
-    // approval exactly as a PTO entry does. Both are on the list with no type chosen.
-    await expect(page.getByTestId("pending-entries-type")).toHaveAttribute("data-type", "");
+    // Both kinds on one list, always — there is no longer any way to see one without the other.
     await expect(rows(page)).toHaveCount(2);
     await expect(count(page)).toHaveAttribute("data-total", "2");
+    await expect(rowFor(page, UPCOMING.start)).toHaveAttribute("data-type", "pto");
     await expect(rowFor(page, UPCOMING_WFH.start)).toHaveAttribute("data-type", "wfh");
     await expect(rowFor(page, UPCOMING_WFH.start)).toHaveAttribute(
       "data-member-id",
@@ -244,16 +256,6 @@ test.describe("ADM-04 — the worklist of entries awaiting a decision", () => {
     await expect(rowFor(page, UPCOMING_WFH.start).getByTestId("pending-entry-row-member")).toHaveText(
       APPROVED_NAME,
     );
-
-    await page.getByTestId("pending-entries-type").selectOption("pto");
-    await expect(rows(page)).toHaveCount(1);
-    await expect(rowFor(page, UPCOMING.start)).toHaveCount(1);
-    await expect(count(page)).toHaveAttribute("data-total", "1");
-
-    await page.getByTestId("pending-entries-type").selectOption("wfh");
-    await expect(rows(page)).toHaveCount(1);
-    await expect(rowFor(page, UPCOMING_WFH.start)).toHaveCount(1);
-    await expect(count(page)).toHaveAttribute("data-total", "1");
   });
 
   test("AC-9 and AC-15: no approve control, no reject control, and no employment vocabulary", async ({
@@ -403,22 +405,38 @@ test.describe("ADM-04 — the worklist of entries awaiting a decision", () => {
     await expect(page.getByTestId("edit-entry-form")).toBeVisible();
   });
 
-  test("AC-4: the paging control states where it is and is inert on a set that fits one page", async ({
+  test("AC-4: a set that fits one page offers no load-more control at all", async ({
     page,
   }) => {
+    // **REWRITTEN BY `solo` ON 2026-09-10**, on the operator's instruction *"Bỏ pagination thay
+    // bằng load more"*. AC-4's ARGUMENT is untouched and is why the control still exists in some
+    // form: this is paging and not truncation, because a ceiling turns a long queue into an error
+    // and a queue long enough to trip it is precisely the queue an admin most needs to work through
+    // (01-plan.md section 8, rejected alternative 4).
+    //
+    // **WHAT CHANGED IS THE INERT CASE, AND IT IS NOW ABSENCE RATHER THAN DISABLEMENT.** The pager
+    // rendered `Previous` and `Next` greyed out on a one-page set — two visible controls asserting
+    // that somewhere else exists. A disabled "Load more" would say the same untrue thing, so the
+    // control is not rendered when every row is already on screen. This is the assertion that says
+    // so, and it would fail on a disabled-but-present control exactly as it fails on a working one.
+    //
+    // The arithmetic over a set larger than one page is asserted in `tests/pending-entries.test.ts`
+    // against a set of fifty-four, and the accumulate-and-append behaviour in
+    // `tests/e2e/solo-pending-approval-ui.spec.ts`. Creating fifty-one entries through the form here
+    // would be a browser test that spends four minutes proving something arithmetic.
     await signInAt(page, MEMBER_EMAIL);
     await declare(page, UPCOMING, 1);
     await switchTo(page, ADMIN_EMAIL);
     await openWorklist(page);
 
-    // The arithmetic is asserted in tests/pending-entries.test.ts, against a set of fifty-four.
-    // What is checkable here is that the control exists, names the page and the page size, and does
-    // not offer a journey to a page that does not exist.
-    const paging = page.getByTestId("pending-entries-page");
-    await expect(paging).toHaveAttribute("data-page", "0");
-    await expect(paging).toHaveAttribute("data-page-size", "50");
-    await expect(page.getByTestId("pending-entries-prev")).toBeDisabled();
-    await expect(page.getByTestId("pending-entries-next")).toBeDisabled();
+    await expect(rows(page)).toHaveCount(1);
+    await expect(count(page)).toHaveAttribute("data-total", "1");
+
+    // Nothing to load, so nothing offering to load it — and the retired ids resolve to no node.
+    await expect(page.getByTestId("pending-entries-more")).toHaveCount(0);
+    await expect(page.getByTestId("pending-entries-page")).toHaveCount(0);
+    await expect(page.getByTestId("pending-entries-prev")).toHaveCount(0);
+    await expect(page.getByTestId("pending-entries-next")).toHaveCount(0);
   });
 
   test("AC-9: the admin link is offered to an admin, and it carries no count of its own", async ({

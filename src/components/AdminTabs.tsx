@@ -64,9 +64,9 @@ export const ADMIN_TABS: readonly {
   },
   {
     testId: "admin-hub-allow-list-link",
-    to: "/allow-list",
-    name: "Allow list",
-    blurb: "The addresses allowed to sign up and join this team.",
+    to: "/signups",
+    name: "New sign-ups",
+    blurb: "People who have signed up and are waiting to be let into the team.",
   },
   {
     testId: "admin-hub-threshold-link",

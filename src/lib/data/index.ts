@@ -8,7 +8,7 @@
 // test in tests/ asserts identical exported names and equal arity, which is what makes swapping them
 // a configuration change rather than a rewrite.
 import type {
-  AllowedEmail,
+  MemberDecision,
   BulkRejectionOutcome,
   DateRange,
   Entry,
@@ -33,9 +33,26 @@ export interface SignUpInput {
   avatar: string;
 }
 
-/** TEA-02, 02-design.md section 1.2. */
-export interface AddAllowedEmailInput {
-  email: string;
+// SOLO, 2026-09-10. `AddAllowedEmailInput` stood here until the allow-list was removed whole.
+// Joining is now sign-up plus an admin decision — see `MemberDecision` in the domain types.
+
+/**
+ * SOLO 2026-09-10. The profile screen's two editable facts, sent together because the screen saves
+ * them together — one form, one button, which is what the transcription's *leave all three password
+ * boxes empty* sentence implies about the rest of the page.
+ *
+ * NO `memberId`. The row is the caller's own and is resolved from the session inside the seam.
+ */
+export interface UpdateOwnProfileInput {
+  displayName: string;
+  /** Must be one of `AVATAR_CHOICES`. Both implementations refuse anything else — `invalid_avatar`. */
+  avatar: string;
+}
+
+/** SOLO 2026-09-10. See `changePassword` below for why the current password is here. */
+export interface ChangePasswordInput {
+  currentPassword: string;
+  newPassword: string;
 }
 
 /** TEA-05, 01-plan.md section 4.2. Email and password only — it is what TEA-01's sign-up creates. */
@@ -185,20 +202,35 @@ export interface DataSeam {
   getCurrentMember(): Promise<Member | null>;
 
   /**
-   * AC-1. Every allow-list entry the caller may read, newest first. Takes no team parameter: the
-   * policy scopes the rows to the caller's team, and a parameter would imply the caller could ask
-   * for another team's and be answered.
+   * SOLO, 2026-09-10. Everybody who has signed up and whom no admin has decided on yet, newest
+   * first. Replaces `listAllowedEmails`.
+   *
+   * **`pending` ONLY, AND NOT EVERYTHING THAT IS NOT `approved`.** A rejected person is a decision
+   * already made, and leaving them on a queue whose two controls are *approve* and *reject* would be
+   * a worklist that never empties. `member_select_pending_admin` is deliberately WIDER than this —
+   * `status <> 'approved'` — so a later screen can show what was decided without a migration; which
+   * rows a screen draws is a display decision above the seam, and this is that decision.
+   *
+   * **TAKES NO TEAM PARAMETER, AND HERE THAT IS NOT THE USUAL REASON.** Every other list read on this
+   * seam omits one because the policy scopes rows to the caller's team; `member_select_pending_admin`
+   * scopes by `team_id is null` instead, because a pending person is on no team yet. So the answer
+   * is every waiting sign-up the datastore holds, for any admin.
+   *
+   * THROWS on a transport failure, the shape `listMembers` uses.
    */
-  listAllowedEmails(): Promise<AllowedEmail[]>;
+  listPendingMembers(): Promise<Member[]>;
 
   /**
-   * AC-2, AC-4, AC-5. `teamId` is never a parameter - the policy's `with check` supplies it, so
-   * there is no value a caller could pass that would move an entry to another team.
+   * SOLO, 2026-09-10. Approve or reject one waiting sign-up.
+   *
+   * **THE TEAM IS THE CALLER'S OWN AND IS NOT A PARAMETER THE POLICY TRUSTS.** `MemberDecision`
+   * carries a `teamId` on the approve arm because the SCREEN has to send one, and
+   * `member_decide_admin`s `with check` compares it to `member_team_id(auth.uid())` — so a caller who
+   * sends another team's id is refused rather than obeyed.
+   *
+   * Refused for a non-admin and for a row already decided, both as `not_permitted`.
    */
-  addAllowedEmail(input: AddAllowedEmailInput): Promise<Result<AllowedEmail>>;
-
-  /** AC-6, AC-7, AC-8. Refused by the policy for a consumed entry and for a non-admin. */
-  removeAllowedEmail(email: string): Promise<Result<void>>;
+  decideMember(memberId: string, decision: MemberDecision): Promise<Result<void>>;
 
   // -------------------------------------------------------------------------
   // TEA-03 - the team member list. 02-design.md section 1.2.
@@ -266,6 +298,47 @@ export interface DataSeam {
   promoteMember(memberId: string): Promise<Result<Member>>;
 
   // -------------------------------------------------------------------------
+  // SOLO 2026-09-10 — the profile screen's two writes. No ticket, no plan; ADR-033.
+  // -------------------------------------------------------------------------
+
+  /**
+   * Writes the caller's OWN display name and avatar. There is no `memberId` parameter and there
+   * must never be one: the row written is the caller's, resolved from the session inside the
+   * implementation, so no argument exists that could aim this at somebody else. That is the same
+   * affordance `createEntry` uses for `member_id` and it is the reason `updateMember(id, …)` was
+   * not the shape chosen.
+   *
+   * **THIS IS A NEW PERMISSION AND IT NEEDED A NEW GRANT.** `20260901120000_tea04_member_writes.sql`
+   * withheld `display_name` and `avatar` from EVERYBODY on purpose;
+   * `20260910093000_solo_profile_self_update.sql` grants exactly those two columns and adds
+   * `member_update_own` beside `member_update_admin`. `.ai/standards/rbac-and-security.md` has no
+   * row for this action — the two rows to add are printed for the operator in the reply that
+   * shipped this, because that file is human-owned.
+   *
+   * Returns the updated row. **Zero rows back is a REFUSAL and not an error**, the trap
+   * `removeMember` above records: under row-level security a filtered UPDATE returns no
+   * representation and PostgREST does not raise.
+   */
+  updateOwnProfile(input: UpdateOwnProfileInput): Promise<Result<Member>>;
+
+  /**
+   * Changes the caller's own password. **It takes the CURRENT password and verifies it**, which
+   * `supabase.auth.updateUser({ password })` does NOT do on its own — a live session is all that
+   * call requires, so an unlocked laptop is enough to lock the owner out of their own account. The
+   * implementation re-authenticates first and that is the whole reason `currentPassword` is on this
+   * type; removing it would silently remove the check.
+   *
+   * A wrong current password is `wrong_password` and NEVER `invalid_credentials`: the caller is
+   * already signed in, so there is no address to enumerate here and the message may say plainly
+   * which of the two boxes is wrong.
+   *
+   * The confirmation box on the screen is not in this input. Two boxes that must match is a
+   * typing-mistake check with no meaning below the seam, and sending it would invite a second,
+   * disagreeing copy of the comparison.
+   */
+  changePassword(input: ChangePasswordInput): Promise<Result<void>>;
+
+  // -------------------------------------------------------------------------
   // TEA-05 - sign in, sign out, and the session. 01-plan.md section 4.2.
   // -------------------------------------------------------------------------
 
@@ -292,6 +365,19 @@ export interface DataSeam {
    * null, and nothing above the seam branches on which one arrived. The day a screen needs to tell
    * a deliberate sign-out from a failed refresh, the seam can carry a domain enum of its own
    * (01-plan.md section 9).
+   *
+   * **EVERY IMPLEMENTATION CALLS THE LISTENER ONCE, ASYNCHRONOUSLY, IMMEDIATELY AFTER SUBSCRIBING** —
+   * with the current session, or with `null` when there is none or the read failed. **SUBSCRIBING IS
+   * THEREFORE ALSO A READ, and a caller must not do a `getSession()` of its own beside it.** SOLO
+   * 2026-09-10 promoted this from an accident of the real client to a term of the contract: GoTrue
+   * has always behaved this way (`@supabase/auth-js@2.112.4/dist/module/GoTrueClient.js:3633-3644`,
+   * read on disk), the mock did not, and `useSession` compensated by reading once itself — so every
+   * mount of the application made two `auth.getUser()` calls and two `member` selects, one of which
+   * was discarded by a sequence guard.
+   *
+   * An implementation that stops emitting leaves `useSession` with `resolving` never clearing and
+   * the application on its loading screen for ever. Every acceptance test renders the application
+   * before it does anything else, so the failure is loud rather than subtle.
    */
   onAuthStateChange(listener: (session: Session | null) => void): () => void;
 

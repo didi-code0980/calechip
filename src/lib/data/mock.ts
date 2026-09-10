@@ -6,8 +6,8 @@
 // succeeds and creates nothing. A mock that always created a member would make every component test
 // pass against a broken trigger, which is the one failure a mock seam can cause and not catch.
 import type {
-  AddAllowedEmailInput,
   AddHolidayInput,
+  ChangePasswordInput,
   CreateEntryInput,
   DataSeam,
   SetOverloadThresholdInput,
@@ -16,9 +16,10 @@ import type {
   SignUpOutcome,
   UpdateEntryInput,
   UpdateHolidayInput,
+  UpdateOwnProfileInput,
 } from "./index";
 import type {
-  AllowedEmail,
+  MemberDecision,
   BulkRejectionOutcome,
   DateRange,
   Entry,
@@ -37,7 +38,13 @@ import type {
 // CAL-09 adds TEAM_ENTRY_PAGE_SIZE and TEAM_ENTRY_MAX_PAGES, which are a window and a bound on work
 // for the same reason, and removes MONTH_ENTRY_LIMIT: `listTeamEntriesOverlapping` was its only
 // reader here and now pages instead. The constant still exists and its docblock says why.
+import { requiresEmailConfirmation } from "../config";
+// SOLO, 2026-09-10. `FixtureCredential` is the shape `signIn` already searches, so an account
+// created at sign-up is stored in it rather than in a second shape that would have to be kept
+// compatible with it by hand.
+import type { FixtureCredential } from "../fixtures";
 import {
+  AVATAR_CHOICES,
   HOLIDAY_LIMIT,
   PENDING_PAGE_SIZE,
   ROSTER_LIMIT,
@@ -47,33 +54,29 @@ import {
 } from "../domain/types";
 import {
   FIXTURE_ADMIN,
-  FIXTURE_ALLOWED_EMAIL,
   FIXTURE_APPROVED_ENTRY,
   FIXTURE_APPROVED_MEMBER,
   FIXTURE_APPROVED_MEMBER_CREDENTIAL,
-  FIXTURE_CONSUMED_EMAIL,
   FIXTURE_CREDENTIALS,
   FIXTURE_HOLIDAYS,
   FIXTURE_MEMBER,
   FIXTURE_OTHER_TEAM,
   FIXTURE_OTHER_TEAM_ENTRY,
   FIXTURE_OTHER_TEAM_MEMBER,
+  FIXTURE_PENDING_SIGNUP,
   FIXTURE_REMOVED_MEMBER,
   FIXTURE_SECOND_ADMIN,
   FIXTURE_TEAM,
 } from "../fixtures";
 
-// 02-design.md section 1.1 promotes this row shape to a domain type, so the local interface that
-// stood here is now that type. The alias keeps the name the rest of this file already uses and
-// removes the second copy - two structurally identical declarations are two things to keep true.
-type AllowedEmailRow = AllowedEmail;
+// SOLO, 2026-09-10. `AllowedEmailRow` aliased the domain type until the allow-list was removed
+// whole. Nothing in this file models that table any more.
 
 // AC-4: `allowed_email.email` is citext in the migration, so the database compares without regard to
 // case. The mock has no citext, so it folds on the way in and on the way out — same behaviour, and
 // the fold is in one place so it cannot drift between the two lookups.
 const fold = (email: string): string => email.trim().toLowerCase();
 
-const SEEDED_AT = FIXTURE_ADMIN.createdAt;
 
 // Seeded from the shared fixture module, which holds the same rows as supabase/seed.sql
 // (.ai/standards/architecture.md: "a mock, in memory, seeded from the shared fixture module").
@@ -106,6 +109,11 @@ const members: Member[] = [
   { ...FIXTURE_OTHER_TEAM_MEMBER },
   { ...FIXTURE_REMOVED_MEMBER },
   { ...FIXTURE_APPROVED_MEMBER },
+  // SOLO, 2026-09-10. Waiting on an admin: no team, `pending`. Invisible to every roster read
+  // (`listMembers` filters on `teamId`), so it moves no count and no threshold. LAST in the array
+  // deliberately: two shipped tests index into this list, and inserting ahead of them changed which
+  // member they were about.
+  { ...FIXTURE_PENDING_SIGNUP },
 ];
 
 // TEA-03, 02-design.md section 1.4. `createdAt` ascending, then `id` ascending. The id tiebreaker is
@@ -129,22 +137,20 @@ const byCreatedAtThenId = (a: Member, b: Member): number =>
 // predicate is in the policy or absent from it. ADR-018's revert condition, one table over.
 const teams: Team[] = [{ ...FIXTURE_TEAM }, { ...FIXTURE_OTHER_TEAM }];
 
-const allowedEmails: AllowedEmailRow[] = [
-  {
-    email: fold(FIXTURE_ALLOWED_EMAIL),
-    teamId: FIXTURE_TEAM.id,
-    addedBy: FIXTURE_ADMIN.id,
-    addedAt: SEEDED_AT,
-    consumedAt: null,
-  },
-  {
-    email: fold(FIXTURE_CONSUMED_EMAIL),
-    teamId: FIXTURE_TEAM.id,
-    addedBy: FIXTURE_ADMIN.id,
-    addedAt: SEEDED_AT,
-    consumedAt: SEEDED_AT,
-  },
-];
+// SOLO, 2026-09-10 — accounts created through the sign-up form, when the project is configured not
+// to require email confirmation (`src/lib/config.ts`).
+//
+// **IT IS EMPTY AT MODULE LOAD AND RESETS WITH EVERY DOCUMENT LOAD**, exactly as `members` and
+// `allowedEmails` do. Nothing seeded goes in here: this list is what the running session created,
+// and a fixture that appeared in it would be a seed row with no counterpart in `supabase/seed.sql`
+// — the drift `fixtures.ts` § 5.1 exists to repair.
+//
+// It is searched LAST by `signIn`, so a sign-up that reused a seeded address cannot shadow the
+// fixture's password and change what every other spec file's sign-in means.
+const signedUp: FixtureCredential[] = [];
+
+// SOLO, 2026-09-10. The seeded allow-list stood here. The table is gone; a person who signs up now
+// gets a pending member row instead, and an admin decides.
 
 let nextUserId = 0;
 const newUserId = (): string => `00000000-0000-4000-8000-${String(++nextUserId).padStart(12, "0")}`;
@@ -249,6 +255,28 @@ let currentMemberId: string | null = currentSession ? currentSession.user.id : n
 export function __setCurrentMember(id: string | null): void {
   currentMemberId = id;
 }
+
+// SOLO, 2026-09-10 — the profile screen changes passwords, and `signIn` answers from
+// `FIXTURE_CREDENTIALS`, which is a FROZEN array shared with every other spec file. Rewriting an
+// entry in it would change what `quan@example.com` means for the whole suite, in file order, for
+// the rest of the run.
+//
+// So the change is recorded HERE, keyed by auth user id, and `signIn` consults this map BEFORE the
+// account's own password. Module state, like `members` and `signedUp`: it resets on a document load,
+// so no spec inherits a password another spec set.
+const passwordOverrides = new Map<string, string>();
+
+/** The password that is currently correct for an account — the changed one if there is one. */
+const currentPasswordOf = (account: FixtureCredential): string =>
+  passwordOverrides.get(account.userId) ?? account.password;
+
+/** Every account `signIn` searches, in the order it searches them. Named once because
+ *  `changePassword` has to find the caller in exactly the same list, by the same rule. */
+const accounts = (): FixtureCredential[] => [
+  ...FIXTURE_CREDENTIALS,
+  FIXTURE_APPROVED_MEMBER_CREDENTIAL,
+  ...signedUp,
+];
 
 // TEA-05 AC-6, AC-7, AC-8. The subscribers of `onAuthStateChange`, and a real unsubscribe rather
 // than a no-op: a listener this mock kept forever would survive a hot reload and re-resolve against
@@ -525,26 +553,65 @@ export const seam: DataSeam = {
     const userId = newUserId();
     const now = new Date().toISOString();
 
-    // AC-2 and AC-3 in one step, as the trigger does it in one UPDATE ... RETURNING: only an entry
-    // that is still unconsumed admits anybody, and claiming it and creating the row happen together.
-    const entry = allowedEmails.find((a) => a.email === fold(input.email) && a.consumedAt === null);
+    // **SOLO, 2026-09-10 — EVERY SIGN-UP GETS A MEMBER ROW, AND NOBODY GETS A TEAM.** This is the
+    // mock reproducing the rewritten `admit_allow_listed_member`: no allow-list lookup, `team_id`
+    // null, `status` pending. The allow-list block that stood here consumed an entry and set the
+    // team from it; the table is gone.
+    //
+    // `role` is still hard-coded and still never read from anything the caller supplied — TEA-01
+    // AC-9, and it matters MORE now, because the caller is no longer somebody an admin vouched for
+    // before they arrived.
+    members.push({
+      id: userId,
+      teamId: null,
+      displayName: input.displayName,
+      avatar: input.avatar,
+      role: "member",
+      status: "pending",
+      removedAt: null,
+      createdAt: now,
+    });
 
-    if (entry) {
-      entry.consumedAt = now;
-      members.push({
-        id: userId,
-        teamId: entry.teamId, // INV-07: the team comes from the entry and from nowhere else
-        displayName: input.displayName,
-        avatar: input.avatar,
-        role: "member", // AC-9. Never from anything the caller supplied.
-        removedAt: null,
-        createdAt: now, // AC-2: the same instant as consumedAt
-      });
+    // TEA-01 AC-7 requires Confirm email ON, and under that setting signUp returns no session. That
+    // was unconditional until SOLO, 2026-09-10; the mock now models WHICHEVER setting the project is
+    // configured for, and `playwright.config.ts` pins the flag ON so AC-7 still runs against the one
+    // it was written for. `src/lib/config.ts` carries the reasoning and the warning that goes with
+    // it — this flag does not turn confirmation off in a real project and cannot.
+    if (requiresEmailConfirmation()) {
+      return { ok: true, value: { needsEmailConfirmation: true, session: null } };
     }
 
-    // AC-7 requires Confirm email on, and under that setting signUp returns no session. The mock
-    // models that setting because it is the one the product is specified against.
-    return { ok: true, value: { needsEmailConfirmation: true, session: null } };
+    // **WITHOUT CONFIRMATION THE ACCOUNT HAS TO BECOME SIGN-IN-ABLE, AND THAT IS THE REAL WORK
+    // HERE.** `signIn` above answers from `FIXTURE_CREDENTIALS` and nothing else — a frozen array —
+    // so before this every account created through the form was one that could never sign in again,
+    // under either setting. That was invisible while sign-up ended on a terminal notice: nobody got
+    // as far as trying. It stops being invisible the moment sign-up hands back a session.
+    //
+    // `signedUp` is the mutable half of that list. It is module state and resets on a document load,
+    // exactly as `members` and `allowedEmails` do, so no test inherits an account from another file.
+    signedUp.push({
+      email: input.email,
+      password: input.password,
+      userId,
+      emailConfirmed: true, // Supabase sets `email_confirmed_at` at insert time with Confirm email OFF
+      // SOLO, 2026-09-10. EVERY sign-up now has a member row, so this is never `member-less` — but
+      // that row carries no team until an admin approves it, which is what `status` says.
+      membership: "member",
+    });
+
+    // **AC-5 IS NOW TRUE BY CONSTRUCTION RATHER THAN BY CARE.** It required the success branch to be
+    // identical whether or not the address was allow-listed; there is no allow-list, so there is no
+    // second branch left to keep identical. Everybody gets the same session and the same pending
+    // member row, and what differs afterwards is only what an admin decides.
+    const session: Session = {
+      user: { id: userId, email: input.email, emailConfirmed: true },
+      accessToken: `mock-access-token-${userId}`,
+    };
+    setSession(session);
+    return {
+      ok: true,
+      value: { needsEmailConfirmation: false, session: { ...session } },
+    };
   },
 
   // AC-1, AC-9. Null means "this auth user has no member row" — a normal answer, not an error.
@@ -561,73 +628,58 @@ export const seam: DataSeam = {
     return members.find((m) => m.id === currentMemberId) ?? null;
   },
 
-  // TEA-02 AC-1, AC-8. `allowed_email_select_admin` gives a member no rows rather than an error, so
-  // this returns an empty list and not a failure. Newest first.
-  async listAllowedEmails(): Promise<AllowedEmail[]> {
-    const me = currentAdmin();
-    if (!me) return [];
-    return allowedEmails
-      .filter((a) => a.teamId === me.teamId)
+  /**
+   * SOLO, 2026-09-10. Everybody waiting on a decision, newest first. Replaces `listAllowedEmails`.
+   *
+   * **NOT TEAM-SCOPED, WHICH IS UNLIKE EVERY OTHER LIST READ HERE**, and it reproduces
+   * `member_select_pending_admin` rather than inventing a rule: that policy is
+   * `is_admin(uid) and team_id is null and status <> 'approved'`. A pending person is on no team, so
+   * there is nothing to scope by.
+   *
+   * A member gets an empty list rather than an error, the shape `listAllowedEmails` used, because a
+   * policy that matches no rows is not a refusal.
+   */
+  async listPendingMembers(): Promise<Member[]> {
+    if (!currentAdmin()) return [];
+    return members
+      .filter((m) => m.teamId === null && m.status === "pending")
       .slice()
-      .sort((a, b) => b.addedAt.localeCompare(a.addedAt));
+      .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
+      .map((m) => ({ ...m }));
   },
 
-  // TEA-02 AC-2, AC-4, AC-5.
-  //
-  // `team_id` and `added_by` come from the caller's own member row and from nowhere else, which is
-  // what the policy's `with check` re-derives and refuses a mismatch on. There is no parameter here
-  // that could name another team, so AC-4 has no path through any client this repository builds.
-  async addAllowedEmail(input: AddAllowedEmailInput): Promise<Result<AllowedEmail>> {
+  /**
+   * SOLO, 2026-09-10. Approve or reject one waiting sign-up.
+   *
+   * **THE TEAM WRITTEN IS THE CALLER'S OWN AND NEVER THE ONE THEY SENT**, which is this mock
+   * reproducing `member_decide_admin`'s `with check`: it compares the incoming `team_id` to
+   * `member_team_id(auth.uid())`, so a caller naming another team is refused rather than obeyed.
+   * Checking it here rather than trusting the argument is what makes a component test fail against a
+   * missing policy instead of passing against one.
+   *
+   * The `using` clause admits only rows that are still `pending` with no team, so re-deciding
+   * somebody already on a team is refused — that is `member_update_admin`'s territory.
+   */
+  async decideMember(memberId: string, decision: MemberDecision): Promise<Result<void>> {
     const me = currentAdmin();
-    if (!me) return refused("not_permitted", "Only an admin can add an address.");
+    if (!me) return refused("not_permitted", "Only an admin can decide a sign-up.");
 
-    const email = fold(input.email);
+    const target = members.find(
+      (m) => m.id === memberId && m.teamId === null && m.status === "pending",
+    );
+    if (!target) return refused("not_permitted", "That sign-up is not waiting for a decision.");
 
-    // AC-5. `email` is the PRIMARY KEY and citext, so the clash is global rather than per-team —
-    // an address already allowed on another team collides too. The real datastore raises 23505 for
-    // exactly this, and matching it here is what keeps the two implementations telling one story.
-    if (allowedEmails.some((a) => a.email === email)) {
-      return refused("already_allow_listed", "That address is already on the list.");
+    if (decision.approve && decision.teamId !== me.teamId) {
+      return refused("not_permitted", "An admin can only admit somebody to their own team.");
     }
 
-    const row: AllowedEmailRow = {
-      email,
-      teamId: me.teamId, // INV-07: this is where the joiner's team is fixed
-      addedBy: me.id,
-      addedAt: new Date().toISOString(),
-      consumedAt: null,
-    };
-    allowedEmails.push(row);
-    return { ok: true, value: { ...row } };
-  },
-
-  // TEA-02 AC-6, AC-7, AC-8.
-  //
-  // The order of the three refusals is the policy's, read from the outside: the delete's `using`
-  // clause tests admin, then team, then `consumed_at is null`, so a row that fails any of them
-  // simply does not match and the statement removes nothing. Zero rows removed is NOT success —
-  // 02-design.md section 3 — and the follow-up read is what tells "yours, already used" apart from
-  // "not yours at all", because the two are different sentences on screen.
-  async removeAllowedEmail(email: string): Promise<Result<void>> {
-    const me = currentAdmin();
-    if (!me) return refused("not_permitted", "Only an admin can remove an address.");
-
-    const folded = fold(email);
-    const index = allowedEmails.findIndex((a) => a.email === folded && a.teamId === me.teamId);
-    const row = index === -1 ? undefined : allowedEmails[index];
-
-    if (!row) return refused("not_permitted", "That address is not on the list.");
-
-    // AC-7. `added_by` is the only provenance for who let somebody in
-    // (.ai/standards/data-model.md), and this is the refusal that keeps it.
-    if (row.consumedAt !== null) {
-      return refused(
-        "already_consumed",
-        "Someone has already used that address to join the team, so it cannot be removed.",
-      );
+    if (decision.approve) {
+      target.status = "approved";
+      target.teamId = me.teamId;
+    } else {
+      target.status = "rejected";
+      target.teamId = null;
     }
-
-    allowedEmails.splice(index, 1);
     return { ok: true, value: undefined };
   },
 
@@ -754,6 +806,104 @@ export const seam: DataSeam = {
   },
 
   // -------------------------------------------------------------------------
+  // SOLO 2026-09-10 — the profile screen's two writes.
+  // -------------------------------------------------------------------------
+
+  // **THE REFUSALS HERE REPRODUCE THE MIGRATION, NOT THE SCREEN**, which is the contract every other
+  // function in this file keeps: a mock that accepted a blank name or a stranger's avatar would make
+  // the screen's tests pass against a datastore that refuses both.
+  //
+  // `20260910093000_solo_profile_self_update.sql` is the authority for each branch below:
+  //  - the row written is `auth.uid()`'s and no other — `member_update_own`'s `using` and the
+  //    trigger clause that refuses these two columns on somebody else's row. There is no `memberId`
+  //    parameter, so the mock has nothing to check here and neither does the type;
+  //  - a removed member writes nothing — the same policy's `removed_at is null`;
+  //  - a blank display name is refused by the trigger, which trims and then raises;
+  //  - an avatar outside `AVATAR_CHOICES` is refused by the `member_avatar_is_offered` check.
+  async updateOwnProfile(input: UpdateOwnProfileInput): Promise<Result<Member>> {
+    const me = members.find((m) => m.id === currentMemberId) ?? null;
+    if (!me || me.removedAt !== null) {
+      return refused("not_permitted", "Your profile could not be saved.");
+    }
+
+    // Trimmed HERE and stored trimmed, exactly as the trigger's `btrim` does it. A mock that stored
+    // the untrimmed string would disagree with the datastore about what was saved, one space at a
+    // time, and the disagreement would surface as a roster that renders differently after a reload.
+    const displayName = input.displayName.trim();
+    if (displayName.length === 0) {
+      return {
+        ok: false,
+        error: { code: "invalid_display_name", message: "Enter a display name." },
+      };
+    }
+    // NO UPPER BOUND, and its absence is deliberate. `member.display_name` is `text not null` with
+    // no check constraint (`20260831150024_tea01_membership.sql:34`), `.ai/standards/data-model.md`
+    // records no limit, and sign-up imposes none — so a cap invented here would be a rule the
+    // datastore does not hold and the OTHER screen that writes this column does not apply. The
+    // `invalid_display_name` code covers blank only, which is what the trigger actually raises.
+
+    // **OR THE ONE THEY ALREADY HAVE, AND THE SECOND CLAUSE IS NOT A COURTESY.** Rows exist whose
+    // avatar was never chosen from this picker: `supabase/seed.sql:170` holds `⭐` for the
+    // operator's own admin account, and TEA-01's admission trigger writes `'🙂'` when sign-up
+    // carries no avatar. Without this clause, everyone holding such a value is refused on every
+    // save — including a save that only changes their display name — with a message telling them to
+    // choose an avatar they had not touched. The rule is *keep what you have, or take one that is
+    // offered*, and it is the same rule in `supabase.ts`.
+    if (input.avatar !== me.avatar && !AVATAR_CHOICES.includes(input.avatar)) {
+      return {
+        ok: false,
+        error: { code: "invalid_avatar", message: "Choose one of the avatars offered." },
+      };
+    }
+
+    me.displayName = displayName;
+    me.avatar = input.avatar;
+    return { ok: true, value: { ...me } };
+  },
+
+  // **IT VERIFIES THE CURRENT PASSWORD, and that is the branch worth having a mock for.**
+  // `supabase.auth.updateUser({ password })` verifies nothing — a live session is the whole of its
+  // authorisation — so the check exists only because the real implementation performs it
+  // deliberately. A mock that skipped it would let the screen's tests pass against an implementation
+  // that had quietly dropped the re-authentication, which is the one failure this pair can hide.
+  //
+  // It is keyed on the SESSION and not on the member row: an account with no member row still has a
+  // password, and changing it is not a team matter.
+  async changePassword(input: ChangePasswordInput): Promise<Result<void>> {
+    const session = currentSession;
+    if (!session) {
+      return refused("not_permitted", "Sign in again before changing your password.");
+    }
+
+    const account = accounts().find((c) => c.userId === session.user.id);
+    if (!account) {
+      return refused("not_permitted", "Your account could not be read.");
+    }
+
+    if (currentPasswordOf(account) !== input.currentPassword) {
+      return {
+        ok: false,
+        error: { code: "wrong_password", message: "That is not your current password." },
+      };
+    }
+
+    // The same threshold `signUp` above enforces and the same code, because it is the same
+    // condition — GoTrue raises `weak_password` for both.
+    if (input.newPassword.length < 6) {
+      return {
+        ok: false,
+        error: {
+          code: "weak_password",
+          message: "That password is too weak. Please choose a longer one.",
+        },
+      };
+    }
+
+    passwordOverrides.set(account.userId, input.newPassword);
+    return { ok: true, value: undefined };
+  },
+
+  // -------------------------------------------------------------------------
   // TEA-05. 01-plan.md section 5, "What the mock must reproduce".
   // -------------------------------------------------------------------------
 
@@ -771,6 +921,29 @@ export const seam: DataSeam = {
   // AC-8 is a real-project criterion and section 8.1 records it as one.
   onAuthStateChange(listener: (session: Session | null) => void): () => void {
     sessionListeners.add(listener);
+
+    // **SOLO 2026-09-10 — IT EMITS ONCE ON SUBSCRIBE, BECAUSE THE REAL CLIENT DOES.** GoTrue calls
+    // every new subscriber back with `INITIAL_SESSION` — the session if there is one, `null` if the
+    // read failed — immediately after registering it, unconditionally
+    // (`@supabase/auth-js@2.112.4/dist/module/GoTrueClient.js:3633-3644`, read on disk). Until this
+    // ticket the mock did NOT, so `useSession` had to read once itself AND subscribe, and against
+    // the real client that meant two `auth.getUser()` calls and two `member` selects on every mount.
+    // Now one path serves both implementations, and the divergence that forced the second read is
+    // gone.
+    //
+    // ASYNCHRONOUS, matching the real client, which emits from an async IIFE after awaiting its own
+    // initialisation. A synchronous callback here would run inside the caller's `useEffect` before
+    // the effect had returned its cleanup, which is a state update during an effect body rather than
+    // after it — a shape React tolerates and nobody should rely on.
+    //
+    // The membership check is not a formality: a subscriber that unsubscribed inside the same tick —
+    // which is exactly what React's StrictMode does on its throwaway first mount — must not be
+    // called after its cleanup has run.
+    queueMicrotask(() => {
+      if (!sessionListeners.has(listener)) return;
+      listener(currentSession ? { ...currentSession } : null);
+    });
+
     return () => {
       sessionListeners.delete(listener);
     };
@@ -797,11 +970,17 @@ export const seam: DataSeam = {
   // seed row like every other row in it.
   async signIn(input: SignInInput): Promise<Result<Session>> {
     const email = fold(input.email);
-    const account = [...FIXTURE_CREDENTIALS, FIXTURE_APPROVED_MEMBER_CREDENTIAL].find(
-      (c) => fold(c.email) === email,
-    );
+    // SOLO, 2026-09-10 — `signedUp` is third and last, so a seeded address always wins. A sign-up
+    // that reused a fixture address must not shadow the fixture's password and quietly rewrite what
+    // every other spec file's sign-in means.
+    // SOLO, 2026-09-10 — the list moved into `accounts()` above, unchanged in order and in content,
+    // because `changePassword` must find the caller by exactly the same rule.
+    const account = accounts().find((c) => fold(c.email) === email);
 
-    if (!account || account.password !== input.password) {
+    // `currentPasswordOf` and not `account.password`: a password changed on the profile screen is
+    // held in `passwordOverrides` and the OLD one must stop working in the same call — which is the
+    // only observable difference between a password that changed and one that did not.
+    if (!account || currentPasswordOf(account) !== input.password) {
       return {
         ok: false,
         error: { code: "invalid_credentials", message: "That email or password is not correct." },

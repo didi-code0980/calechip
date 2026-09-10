@@ -39,15 +39,14 @@ export const FIXTURE_ADMIN: Member = {
   displayName: "Quản trị",
   avatar: "🦉",
   role: "admin",
+  status: "approved",
   removedAt: null,
   createdAt: "2026-08-31T00:00:00+00:00",
 };
 
 /** An unconsumed allow-list address. AC-1, AC-2, AC-4 sign up as this one. */
-export const FIXTURE_ALLOWED_EMAIL: string = "an@example.com";
 
 /** A consumed one, for AC-3: it is on the list and must admit nobody. */
-export const FIXTURE_CONSUMED_EMAIL: string = "binh@example.com";
 
 /** Not on the list at all, for AC-5: sign-up succeeds and no member row is created. */
 export const FIXTURE_UNLISTED_EMAIL: string = "khach@example.com";
@@ -72,6 +71,7 @@ export const FIXTURE_MEMBER: Member = {
   displayName: "Thành viên",
   avatar: "🐱",
   role: "member",
+  status: "approved",
   removedAt: null,
   createdAt: "2026-08-31T00:00:00+00:00",
 };
@@ -108,6 +108,7 @@ export const FIXTURE_OTHER_TEAM_MEMBER: Member = {
   displayName: "Người nhóm khác",
   avatar: "🐰",
   role: "member",
+  status: "approved",
   removedAt: null,
   createdAt: "2026-08-31T00:00:00+00:00",
 };
@@ -117,12 +118,35 @@ export const FIXTURE_OTHER_TEAM_MEMBER: Member = {
  * screen does not list it. The two halves are different layers and this fixture is what separates
  * them — a seam that filtered it would pass every component test and leave INV-04 uncomputable.
  */
+/**
+ * SOLO, 2026-09-10. Somebody who has signed up and is waiting for an admin to decide.
+ *
+ * **INVISIBLE TO EVERY ROSTER READ, WHICH IS WHY ADDING IT BREAKS NOTHING.** `listMembers` filters
+ * `m.teamId === me.teamId` and this row's `teamId` is null, so it appears in no team's roster, is
+ * counted by no `currentMemberCount`, and moves no overload threshold. It shows up in exactly one
+ * place: `listPendingMembers`, which is scoped by `team_id is null` instead of by a team.
+ *
+ * It exists so the new sign-ups screen has a row to draw in the suite. Without it that list renders
+ * `signups-empty` in every test and the list markup is never exercised at all.
+ */
+export const FIXTURE_PENDING_SIGNUP: Member = {
+  id: "88888888-8888-4888-8888-888888888888",
+  teamId: null,
+  displayName: "Người mới",
+  avatar: "🐣",
+  role: "member",
+  status: "pending",
+  removedAt: null,
+  createdAt: "2026-09-09T00:00:00+00:00",
+};
+
 export const FIXTURE_REMOVED_MEMBER: Member = {
   id: "77777777-7777-4777-8777-777777777777",
   teamId: FIXTURE_TEAM.id,
   displayName: "Đã rời nhóm",
   avatar: "🐶",
   role: "member",
+  status: "approved",
   removedAt: "2026-08-31T12:00:00+00:00",
   createdAt: "2026-08-31T00:00:00+00:00",
 };
@@ -149,6 +173,7 @@ export const FIXTURE_SECOND_ADMIN: Member = {
   displayName: "Quản trị hai",
   avatar: "🦊",
   role: "admin",
+  status: "approved",
   removedAt: null,
   createdAt: "2026-08-31T00:00:00+00:00",
 };
@@ -319,6 +344,7 @@ export const FIXTURE_APPROVED_MEMBER: Member = {
   displayName: "Đã duyệt",
   avatar: "🐨",
   role: "member",
+  status: "approved",
   removedAt: null,
   createdAt: "2026-08-31T00:00:00+00:00",
 };

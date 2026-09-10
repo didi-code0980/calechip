@@ -1,4 +1,5 @@
 import { expect, test, type Locator, type Page } from "@playwright/test";
+import { choosePortion, chooseType, pickRange } from "./support/entry-form";
 
 // SOLO, 2026-09-09 — the approval queue's row, redrawn.
 //
@@ -24,6 +25,20 @@ import { expect, test, type Locator, type Page } from "@playwright/test";
 // and derives every row from `absenceCountsFor`, so a row and a month cell cannot disagree. Test 2
 // pins the number rather than merely the presence of a sentence, because a warning that appears with
 // the wrong figure is worse than none.
+//
+// **AMENDED 2026-09-10 — THREE CONTROLS WERE REMOVED FROM THIS SCREEN AND TEST 4 NOW ASSERTS THEIR
+// ABSENCE.** The filters, the bulk-rejection bar and the pager are gone on the operator's explicit
+// instruction, which arrived the day after they were explicitly kept. Test 4 was flipped rather than
+// deleted, because an assertion that reversed is a better record than one that disappeared.
+//
+// **⚠️ A DECLARED GAP: THE LOAD-MORE CONTROL'S APPEND BEHAVIOUR IS ASSERTED NOWHERE IN A BROWSER.**
+// `PENDING_PAGE_SIZE` is 50 and the only way to create an entry is CAL-01's form, so reaching a
+// second page here means fifty-one form submissions — a browser test that spends minutes proving
+// something arithmetic, which is the reason `tests/pending-entries.test.ts` already carries the
+// paging arithmetic against a set of fifty-four at the seam. What IS asserted through the interface
+// is the case that fits one page: `tests/e2e/adm-04-worklist.spec.ts` AC-4 requires the control to
+// be ABSENT — not disabled — when every row is on screen. The append itself is unverified, and this
+// note is here so nobody reads the green suite as covering it.
 //
 // THE SUITE DRIVES THE MOCK SEAM (BUG-001 pins it, `tests/e2e/seam.setup.ts` refuses the run
 // otherwise).
@@ -79,10 +94,9 @@ async function declare(
 ): Promise<void> {
   await page.getByTestId("home-new-entry-link").click();
   await expect(page.getByTestId("new-entry-form")).toBeVisible();
-  await page.getByTestId("new-entry-type").selectOption(input.type);
-  await page.getByTestId("new-entry-portion").selectOption("full");
-  await page.getByTestId("new-entry-start").fill(input.date);
-  await page.getByTestId("new-entry-end").fill(input.date);
+  await chooseType(page, "new-entry", input.type);
+  await choosePortion(page, "new-entry", "full");
+  await pickRange(page, "new-entry", input.date, input.date);
   await page.getByTestId("new-entry-tentative").setChecked(false);
   await page.getByTestId("new-entry-submit").click();
   await expect(page.getByTestId("new-entry-error")).toHaveCount(0);
@@ -229,28 +243,43 @@ test.describe("SOLO — the approval queue's row", () => {
 
     const row = rows(page).first();
 
-    // ADM-06's selection checkbox, ADM-04's link to the entry, ADM-05's decision panel. The
-    // transcription draws none of the three; the operator was asked and said its omission was not
-    // an instruction to remove them. This is the assertion that says nothing was quietly lost while
-    // the row was being redrawn.
-    await expect(row.getByTestId("pending-entry-row-select")).toHaveCount(1);
+    // ADM-04's link to the entry and ADM-05's decision panel. The transcription drew neither; when
+    // asked on 2026-09-09 the operator said that omission was not an instruction to remove them.
     await expect(row.getByTestId("pending-entry-row-link")).toHaveAttribute(
       "href",
       /\/entries\/.+\/edit$/,
     );
     await expect(row.getByTestId("entry-decision")).toHaveCount(1);
     await expect(row.getByTestId("entry-decision-reject")).toHaveCount(1);
-
-    // ADM-04's own three verbs, on the screen rather than the row. Both filters are ONE `<select>`
-    // each and neither is collapsed behind a control — ADM-04 01-plan.md § 2: the default window
-    // hides rows, so the control is what advertises the sets it is not showing.
     await expect(page.getByTestId("pending-entries-count")).toBeVisible();
-    await expect(page.getByTestId("pending-entries-window")).toHaveCount(1);
-    await expect(
-      page.getByTestId("pending-entries-window").locator("option"),
-    ).toHaveCount(3);
-    await expect(page.getByTestId("pending-entries-type")).toHaveCount(1);
-    await expect(page.getByTestId("pending-entries-page")).toBeVisible();
+
+    // **AMENDED 2026-09-10, AND THE AMENDMENT IS THE REVERSE OF WHAT STOOD HERE.** This block used
+    // to assert that ADM-06's selection checkbox and ADM-04's two filters and pager were all still
+    // present — written on 2026-09-09 from the operator's answer that the transcription's silence
+    // about them was not an instruction. The next day the instruction came explicitly: *"Bỏ phần
+    // filter"*, *"Bỏ phần Select entries to reject them together"*, *"Bỏ pagination thay bằng load
+    // more"*. So the same names are asserted ABSENT, in the same test, rather than the test being
+    // deleted — an assertion that flipped is a better record than one that vanished.
+    for (const id of [
+      "pending-entry-row-select",
+      "pending-entries-window",
+      "pending-entries-type",
+      "pending-entries-prev",
+      "pending-entries-next",
+      "bulk-reject-submit",
+      "bulk-reject-reason",
+    ]) {
+      await expect(
+        page.getByTestId(id),
+        `${id} was removed on 2026-09-10 and must render for nobody`,
+      ).toHaveCount(0);
+    }
+
+    // **AND THE PANE HOLDS NO SECOND WRITE SURFACE.** ADM-04 AC-9's own suite asserts that the list
+    // holds no `form`; the bulk bar was the one form on this screen outside the list, and with it
+    // gone the only remaining `textarea` is the one a per-row rejection opens — which is closed
+    // here, so there should be none at all.
+    await expect(page.locator("textarea")).toHaveCount(0);
 
     // And the row still declares every fact a test elsewhere reads off it. These attributes are the
     // interface eight other criteria in three suites address, and they survived the redraw.

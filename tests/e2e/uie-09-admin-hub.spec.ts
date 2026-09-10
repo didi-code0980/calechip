@@ -73,8 +73,8 @@ const DESTINATIONS: readonly {
   },
   {
     testId: "admin-hub-allow-list-link",
-    path: "/allow-list",
-    landmarks: ["allow-list-table", "allow-list-empty"],
+    path: "/signups",
+    landmarks: ["signups", "signups-empty"],
   },
   {
     testId: "admin-hub-threshold-link",
@@ -150,7 +150,7 @@ test.describe("UIE-09 — the admin hub", () => {
 
     // And on a route with no period at all, where the whole left cluster is absent. The control is
     // outside that condition, which is what "on any route inside the shell" means.
-    await page.goto("/allow-list");
+    await page.goto("/signups");
     await expect(page.getByTestId("shell-admin-link")).toHaveCount(1);
     await page.getByTestId("shell-admin-link").click();
     await expect(page).toHaveURL(/\/admin$/);
@@ -166,7 +166,7 @@ test.describe("UIE-09 — the admin hub", () => {
     await expect(page.getByTestId("shell-topbar")).toBeVisible();
     await expect(page.getByTestId("shell-admin-link")).toHaveCount(0);
 
-    await page.goto("/allow-list");
+    await page.goto("/signups");
     await expect(page.getByTestId("shell-topbar")).toBeVisible();
     await expect(page.getByTestId("shell-admin-link")).toHaveCount(0);
   });
@@ -396,7 +396,7 @@ test.describe("UIE-09 — the admin hub", () => {
     // A route with no period: the whole cluster is absent exactly as it is today, and the new
     // control is present anyway — which is what makes it a property of the shell rather than of a
     // period screen.
-    await page.goto("/allow-list");
+    await page.goto("/signups");
     await expect(page.getByTestId("shell-period-today")).toHaveCount(0);
     await expect(page.getByTestId("week-anchor")).toHaveCount(0);
     await expect(page.getByTestId("month-anchor")).toHaveCount(0);

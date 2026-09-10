@@ -1,4 +1,5 @@
 import { expect, test, type Page } from "@playwright/test";
+import { choosePortion, chooseType, pickRange, setPartialRange } from "./support/entry-form";
 
 // CAL-02 — edit or delete their own entry.
 //
@@ -56,10 +57,9 @@ interface EntryInput {
 }
 
 async function createEntry(page: Page, input: EntryInput): Promise<void> {
-  await page.getByTestId("new-entry-type").selectOption(input.type ?? "pto");
-  await page.getByTestId("new-entry-portion").selectOption(input.portion ?? "full");
-  await page.getByTestId("new-entry-start").fill(input.start);
-  await page.getByTestId("new-entry-end").fill(input.end);
+  await chooseType(page, "new-entry", input.type ?? "pto");
+  await choosePortion(page, "new-entry", input.portion ?? "full");
+  await pickRange(page, "new-entry", input.start, input.end);
   await page.getByTestId("new-entry-tentative").setChecked(input.tentative ?? false);
   if (input.note !== undefined) await page.getByTestId("new-entry-note").fill(input.note);
   await page.getByTestId("new-entry-submit").click();
@@ -69,10 +69,14 @@ async function createEntry(page: Page, input: EntryInput): Promise<void> {
  *  a test that changes one field leaves the other five holding the entry's own values — which is
  *  what makes AC-6's note-only edit a note-only edit. */
 async function submitEdit(page: Page, input: Partial<EntryInput>): Promise<void> {
-  if (input.type) await page.getByTestId("edit-entry-type").selectOption(input.type);
-  if (input.portion) await page.getByTestId("edit-entry-portion").selectOption(input.portion);
-  if (input.start) await page.getByTestId("edit-entry-start").fill(input.start);
-  if (input.end) await page.getByTestId("edit-entry-end").fill(input.end);
+  if (input.type) await chooseType(page, "edit-entry", input.type);
+  if (input.portion) await choosePortion(page, "edit-entry", input.portion);
+  // SOLO, 2026-09-10. The two date inputs are a month grid now. Naming ONE bound used to leave the
+  // other holding the entry's own value, and `setPartialRange` is that behaviour over a picker: the
+  // bound that was not named is read back off the grid, and the whole range is chosen again.
+  if (input.start !== undefined || input.end !== undefined) {
+    await setPartialRange(page, "edit-entry", input.start, input.end);
+  }
   if (input.tentative !== undefined) {
     await page.getByTestId("edit-entry-tentative").setChecked(input.tentative);
   }
@@ -309,7 +313,10 @@ test.describe("CAL-02 edit or delete their own entry", () => {
     // interface is that the form carries exactly two selects, type and portion, and nothing naming a
     // member.
     const form = page.getByTestId("edit-entry-form");
-    await expect(form.locator("select")).toHaveCount(2);
+    // SOLO, 2026-09-10: the two `<select>`s became segmented button groups, so the count is over
+    // `role="group"`. Two controls, type and portion, and nothing naming a member.
+    await expect(form.locator("select")).toHaveCount(0);
+    await expect(form.locator('[role="group"]')).toHaveCount(2);
     await expect(form.getByTestId("edit-entry-type")).toBeVisible();
     await expect(form.getByTestId("edit-entry-portion")).toBeVisible();
     await expect(form.locator('[data-testid*="member"]')).toHaveCount(0);
@@ -379,20 +386,27 @@ test.describe("CAL-02 edit or delete their own entry", () => {
     );
   });
 
-  test("AC-11: an inverted range is refused on an edit too", async ({ page }) => {
+  test("AC-11: an inverted range cannot be expressed on the edit screen either", async ({ page }) => {
+    // SOLO, 2026-09-10 — the same move CAL-01 AC-9's test records, on the edit route. The two date
+    // inputs became a day picker, so the inverted range this test used to type is unreachable
+    // through the interface. The seam still refuses it, and tests/entry-range-refusals.test.ts
+    // asserts that on `updateEntry` directly.
     await signInAndOpenList(page, MEMBER_EMAIL);
     await createEntry(page, { start: "2026-12-07", end: "2026-12-11" });
     await openEdit(page);
 
-    await submitEdit(page, { start: "2026-12-09", end: "2026-12-05" });
+    const form = page.getByTestId("edit-entry-form");
+    await expect(form.locator('input[type="date"]')).toHaveCount(0);
+    await expect(form.getByTestId("edit-entry-picker").locator("input")).toHaveCount(0);
 
-    const error = page.getByTestId("edit-entry-error");
-    await expect(error).toBeVisible();
+    // The entry keeps the days it had, and they are the ones drawn as chosen.
+    for (const date of ["2026-12-07", "2026-12-11"]) {
+      await expect(
+        page.locator(`[data-testid="edit-entry-day"][data-date="${date}"]`).first(),
+      ).toHaveAttribute("data-selected", "true");
+    }
 
-    const text = (await error.textContent())?.trim() ?? "";
-    expect(text.length).toBeGreaterThan(0);
-    // Not the range-bound error text the generated column raises, and not a SQLSTATE.
-    expect(text).not.toMatch(/range lower bound|23514|daterange/i);
+    await page.getByTestId("edit-entry-submit").click();
 
     await backToList(page);
     await expect(rows(page).first().getByTestId("own-entry-row-dates")).toHaveText(
