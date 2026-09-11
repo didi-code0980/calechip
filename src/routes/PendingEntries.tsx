@@ -70,6 +70,11 @@ import { usePageOverload } from "@/hooks/usePageOverload";
 import { seam } from "@/lib/data";
 import type { Entry, Member } from "@/lib/domain/types";
 import { PORTION_LABELS, TYPE_LABELS } from "@/lib/labels";
+// SOLO, 2026-09-11 — the loading mark that replaced this screen's "Loading…" sentence. The
+// sentence itself is still announced: `Loader.tsx` keeps it as `sr-only` text, because the element
+// below carries `role="status"` and an emptied one announces nothing.
+import Loader from "@/components/Loader";
+import BusySpinner from "@/components/BusySpinner";
 
 // OPS-002 folded these into src/lib/labels.ts. The paragraph that stood here handed the fold to
 // OPS-001, which shipped without doing it; the shared home is a module rather than a component, so
@@ -262,7 +267,7 @@ export default function PendingEntries() {
         role="status"
         className="mx-auto max-w-3xl rounded-2xl bg-white p-8 text-center text-sm opacity-70 shadow-sm"
       >
-        Loading…
+        <Loader label="Loading…" />
       </p>
     );
   }
@@ -524,10 +529,20 @@ export default function PendingEntries() {
             data-testid="pending-entries-more"
             type="button"
             disabled={busy}
+            aria-busy={busy}
             onClick={() => void loadMore()}
             className="rounded-pill border border-line bg-card px-4 py-1.5 text-sm font-semibold text-ink-2 transition-colors hover:bg-field hover:text-ink disabled:opacity-40 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
           >
-            {busy ? "Loading…" : "Load more"}
+            {/* SOLO, 2026-09-11 — **THE LABEL STAYS AND THE SPINNER JOINS IT**, which is the one
+                place in this change where the words were NOT replaced. The eleven full-screen
+                states are a card with nothing in it but the mark; this is a control the reader is
+                about to press again, and a button whose text vanishes mid-press is a button that
+                moved. `BusySpinner` rather than `Loader`: the orbiting mark is 44px and this row
+                is a 30px pill. */}
+            <span className="inline-flex items-center gap-2">
+              Load more
+              {busy ? <BusySpinner testIdPrefix="pending-entries-more" /> : null}
+            </span>
           </button>
           <span className="text-ink-3">
             {rows.length} of {total} shown

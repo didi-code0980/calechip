@@ -44,7 +44,8 @@ const ADMIN_ADDRESSES = [
   "/entries/team",
   "/members",
   "/signups",
-  "/threshold",
+  "/setting", // SOLO, 2026-09-11 — re-addressed from `/threshold` by the operator
+  "/teams", // SOLO, 2026-09-11 — many teams
 ];
 
 /** Addresses inside the shell that are NOT administrative — one with a period cluster and two
@@ -119,7 +120,7 @@ test.describe("SOLO — the Admin control goes back to the calendar", () => {
     // through the control alone.
     await control(page).click();
     await page.getByTestId("admin-hub-threshold-link").click();
-    await expect(page).toHaveURL(/\/threshold$/);
+    await expect(page).toHaveURL(/\/setting$/);
 
     await expect(control(page)).toHaveAttribute("data-state", "calendar");
     await control(page).click();

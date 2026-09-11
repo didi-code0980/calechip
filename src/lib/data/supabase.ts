@@ -9,11 +9,16 @@ import {
   type User,
 } from "@supabase/supabase-js";
 import type { PostgrestError } from "@supabase/supabase-js";
+// SOLO, 2026-09-11. Names the dates an overlap refusal is about — `overlapFailure` below.
+import { clashingDates, overlapMessage, type OverlapCandidate } from "./overlap";
 import type {
   AddHolidayInput,
   ChangePasswordInput,
   CreateEntryInput,
+  CreateTeamInput,
   DataSeam,
+  RenameTeamInput,
+  SetApprovalSettingsInput,
   SetOverloadThresholdInput,
   SetOwnBusyDayInput,
   SignInInput,
@@ -174,16 +179,26 @@ interface TeamRow {
   id: string;
   name: string;
   overload_threshold: number;
+  // SOLO, 2026-09-11. `boolean not null default true`, from 20260911170000_solo_approval_settings.sql.
+  wfh_need_approve: boolean;
+  pto_need_approve: boolean;
   created_at: string;
 }
 
-const TEAM_COLUMNS = "id, name, overload_threshold, created_at";
+// SOLO, 2026-09-11 adds the two approval columns. **EVERY TEAM READ NOW NAMES THEM, SO A BUILD WHERE
+// THAT MIGRATION HAS NOT BEEN APPLIED FAILS EVERY TEAM READ** — PostgREST answers 400 for an unknown
+// column, `getTeam` throws, and each calendar view lands in its `unavailable` state. That is loud on
+// purpose: the alternative, a read that silently omits the columns, would draw the approval screen
+// with both switches reading `undefined` and save whatever the form defaulted to.
+const TEAM_COLUMNS = "id, name, overload_threshold, wfh_need_approve, pto_need_approve, created_at";
 
 function toTeam(row: TeamRow): Team {
   return {
     id: row.id,
     name: row.name,
     overloadThreshold: row.overload_threshold,
+    wfhNeedApprove: row.wfh_need_approve,
+    ptoNeedApprove: row.pto_need_approve,
     createdAt: row.created_at,
   };
 }
@@ -232,6 +247,49 @@ function toBusyDay(row: BusyDayRow): BusyDay {
 // Repeated verbatim in src/lib/data/mock.ts so the two implementations carry the same words — the
 // rule CAL-01's three refusal constants state.
 const BUSY_DAY_REFUSED = "This day could not be marked. You may only mark your own days.";
+
+// SOLO, 2026-09-11. Repeated verbatim in src/lib/data/mock.ts so the two implementations carry the
+// same words.
+const TEAM_RENAME_REFUSED = "Only an admin can rename the team.";
+const EMPTY_TEAM_NAME = "The team needs a name.";
+// SOLO, 2026-09-11 — many teams. Repeated verbatim in src/lib/data/mock.ts.
+const TEAM_CREATE_REFUSED = "Only an admin can create a team.";
+const TEAM_DELETE_REFUSED = "Only an admin can delete a team.";
+const TEAM_NOT_EMPTY =
+  "This team still has people on it and cannot be deleted. Anybody who was removed from it stays " +
+  "on it for history, so a team that has ever had somebody removed can never be deleted.";
+const MEMBER_MOVE_REFUSED = "That person could not be moved.";
+
+/**
+ * SOLO, 2026-09-11 — the SQLSTATEs the seven team functions raise, and a FOURTH mapper rather than
+ * more cases in `toPostgrestFailure`, for the reason `toEntryFailure` records: `23503` here means
+ * "the team still has people on it" and nowhere else in this file means that, and one function
+ * answering two tables with one sentence is how a wrong message reaches a screen.
+ *
+ * MATCHED ON THE SQLSTATE, NEVER ON THE MESSAGE — the function bodies' wording is not a contract.
+ */
+function toTeamFailure(error: PostgrestError, refusal: string): Failure {
+  switch (error.code) {
+    case "23503":
+      return { code: "team_not_empty", message: TEAM_NOT_EMPTY };
+    case "22023":
+      return { code: "empty_team_name", message: EMPTY_TEAM_NAME };
+    case "42501":
+    case "PGRST301": // JWT missing or expired: the request reaches the function as nobody
+      return { code: "not_permitted", message: refusal };
+    default:
+      return { code: "unknown", message: "Something went wrong. Please try again." };
+  }
+}
+
+/** A function returning one `public.team` row answers with an OBJECT, not a one-element array.
+ *  Anything else is a contract violation and is reported as one, never cast and trusted. */
+const isTeamRow = (value: unknown): value is TeamRow =>
+  typeof value === "object" &&
+  value !== null &&
+  !Array.isArray(value) &&
+  typeof (value as TeamRow).id === "string";
+const APPROVAL_SETTINGS_REFUSED = "Only an admin can change which entries need approval.";
 
 function toHoliday(row: HolidayRow): Holiday {
   return {
@@ -357,12 +415,10 @@ function toEntryFailure(error: PostgrestError, refusal: string): Failure {
   switch (error.code) {
     // INV-01's exclusion constraint. AC-7.
     case "23P01":
-      return {
-        code: "overlapping_entry",
-        message:
-          "You already have an entry covering these dates and this portion. " +
-          "Edit the existing entry, or choose a different range.",
-      };
+      // SOLO, 2026-09-11 — the DATELESS form of `overlapMessage`. `createEntry` and `updateEntry`
+      // never reach this case for a 23P01: they route it to `overlapFailure` below, which names the
+      // dates. This remains for any other caller, and says nothing about dates it does not know.
+      return { code: "overlapping_entry", message: overlapMessage([]) };
     // The `entry_end_after_start` check. AC-9's SECOND lock - the seam refuses an inverted range
     // before the request is sent, so reaching this case means a caller that is not this application.
     case "23514":
@@ -432,6 +488,59 @@ const HOLIDAY_DELETE_REFUSED = "Only an admin can remove a day from the holiday 
 // The three refusal sentences, one per verb, held here so the two implementations of the seam can
 // carry the same words — mock.ts repeats these literals for the same reason src/lib/fixtures.ts and
 // supabase/seed.sql repeat theirs.
+// SOLO, 2026-09-11 — the overlap refusal, WITH ITS DATES. The operator asked that the sentence say
+// which dates collide.
+//
+// **THE CONSTRAINT HAS ALREADY DECIDED AND THIS ONLY EXPLAINS.** It runs after a 23P01, so INV-01 is
+// enforced exactly as before; what is added is one read of the owner's entries over the attempted
+// range, and `clashingDates` names the days both ranges and both portions share.
+//
+// **WHY A READ AND NOT THE ERROR'S OWN `details`.** PostgreSQL's exclusion error does carry the
+// conflicting key, but as `(member_id, date_range, portion_slots)=(…, [2026-10-12,2026-10-15), [0,2))`
+// — a canonicalised half-open range in server text, whose shape is PostgreSQL's to change. Parsing it
+// would put ADR-011's canonicalisation footgun one regex away from a sentence a person acts on.
+//
+// **THE OWNER, NOT THE CALLER.** On an edit the collision is with the entry's OWNER's calendar, which
+// under CAL-03 may not be the caller's — so the edit path reads the owner from the row first.
+//
+// **EVERY FAILURE HERE FALLS BACK TO THE DATELESS SENTENCE AND NEVER TO A SQLSTATE.** The refusal is
+// already true; a failed explanation must not turn it into a different error or a thrown one. No
+// limit is set on the read: it is one member's entries over one range, and a capped answer could only
+// shorten the list of dates, never make the refusal wrong.
+async function overlapFailure(
+  memberId: string | null,
+  candidate: OverlapCandidate,
+  excludeId: string | null,
+): Promise<Failure> {
+  const fallback: Failure = { code: "overlapping_entry", message: overlapMessage([]) };
+  try {
+    let owner = memberId;
+    if (owner === null && excludeId !== null) {
+      const { data, error } = await client()
+        .from("entry")
+        .select("member_id")
+        .eq("id", excludeId)
+        .returns<{ member_id: string }[]>();
+      if (error) return fallback;
+      owner = (data ?? [])[0]?.member_id ?? null;
+    }
+    if (owner === null) return fallback;
+
+    const { data, error } = await client()
+      .from("entry")
+      .select(ENTRY_COLUMNS)
+      .eq("member_id", owner)
+      .filter("date_range", "ov", `[${candidate.startDate},${candidate.endDate}]`)
+      .returns<EntryRow[]>();
+    if (error) return fallback;
+
+    const dates = clashingDates((data ?? []).map(toEntry), owner, candidate, excludeId);
+    return { code: "overlapping_entry", message: overlapMessage(dates) };
+  } catch {
+    return fallback;
+  }
+}
+
 const CREATE_REFUSED = "This entry could not be created.";
 const UPDATE_REFUSED = "This entry could not be edited.";
 const DELETE_REFUSED = "This entry could not be deleted.";
@@ -630,9 +739,25 @@ export const seam: DataSeam = {
    * `removeAllowedEmail` used before it, for the same reason.
    */
   async decideMember(memberId: string, decision: MemberDecision): Promise<Result<void>> {
-    const patch = decision.approve
-      ? { status: "approved" as const, team_id: decision.teamId }
-      : { status: "rejected" as const, team_id: null };
+    // SOLO, 2026-09-11 — an APPROVAL is `public.admit_member`, onto any team the admin chose. It is a
+    // `security definer` function for the reason `listTeams` records: the approved row lands on a
+    // team the caller may not be able to SELECT, and an UPDATE whose new row fails the SELECT policy
+    // under a `.select()` is an error rather than a success. The REJECTION below is unchanged.
+    if (decision.approve) {
+      const { error } = await client().rpc("admit_member", {
+        p_member_id: memberId,
+        p_team_id: decision.teamId,
+      });
+      if (error) {
+        return {
+          ok: false,
+          error: toTeamFailure(error, "That sign-up could not be decided. It may already have been."),
+        };
+      }
+      return { ok: true, value: undefined };
+    }
+
+    const patch = { status: "rejected" as const, team_id: null };
 
     const { data, error } = await client()
       .from("member")
@@ -1011,7 +1136,11 @@ export const seam: DataSeam = {
       .select(ENTRY_COLUMNS)
       .returns<EntryRow[]>();
 
-    if (error) return { ok: false, error: toEntryFailure(error, CREATE_REFUSED) };
+    if (error) {
+      // SOLO, 2026-09-11. A collision is explained with its dates; every other refusal is unchanged.
+      if (error.code === "23P01") return { ok: false, error: await overlapFailure(me.id, input, null) };
+      return { ok: false, error: toEntryFailure(error, CREATE_REFUSED) };
+    }
 
     const row = (data ?? [])[0];
     if (!row) {
@@ -1104,7 +1233,12 @@ export const seam: DataSeam = {
       .select(ENTRY_COLUMNS)
       .returns<EntryRow[]>();
 
-    if (error) return { ok: false, error: toEntryFailure(error, UPDATE_REFUSED) };
+    if (error) {
+      // SOLO, 2026-09-11. `null` owner: the edited row's owner is read inside, because under CAL-03
+      // the caller may be an admin editing somebody else's entry.
+      if (error.code === "23P01") return { ok: false, error: await overlapFailure(null, input, entryId) };
+      return { ok: false, error: toEntryFailure(error, UPDATE_REFUSED) };
+    }
 
     const row = (data ?? [])[0];
     if (!row) {
@@ -1268,6 +1402,123 @@ export const seam: DataSeam = {
         ok: false,
         error: { code: "not_permitted", message: "Could not save the threshold." },
       };
+    }
+
+    return { ok: true, value: toTeam(row) };
+  },
+
+  // -------------------------------------------------------------------------
+  // SOLO, 2026-09-11 — many teams. Seven `.rpc()` calls, one per function in
+  // `20260911180000_solo_many_teams.sql`.
+  //
+  // **FUNCTIONS AND NOT TABLE BUILDERS, AND THAT IS THE MIGRATION'S ARGUMENT RATHER THAN A STYLE.**
+  // A cross-team write through `.from("team")` needs the caller to SELECT the other team's row, and
+  // letting an admin SELECT every row would silently turn `getTeam()` into a multi-row error and
+  // `listMembers()` into every team's roster. The functions check `is_admin` in their own bodies and
+  // change no read anybody else makes. `rejectEntries` below was this file's first `.rpc()`; these
+  // follow its shape.
+  //
+  // THE PARAMETER NAMES ARE THE FUNCTIONS' — PostgREST matches RPC arguments by name, so a rename
+  // here is a 404 at runtime and not a type error.
+  // -------------------------------------------------------------------------
+
+  // THROWS on a possibly-truncated answer, the rule `listMembers` states: a short list of teams would
+  // hide a team from the one screen that manages them. `ROSTER_LIMIT` is reused rather than a new
+  // constant — there cannot usefully be more teams than there are people to put on them.
+  async listTeams(): Promise<Team[]> {
+    const { data, error } = await client().rpc("list_teams").limit(ROSTER_LIMIT);
+    if (error) throw new Error(`listTeams failed: ${error.message}`);
+    if (!Array.isArray(data)) throw new Error("listTeams received a body that is not a list");
+    if (data.length >= ROSTER_LIMIT) {
+      throw new Error(
+        `listTeams returned ${data.length} rows at the ${ROSTER_LIMIT} limit: the list may be ` +
+          `truncated and must not be consumed`,
+      );
+    }
+    return (data as TeamRow[]).map(toTeam);
+  },
+
+  // Every team's roster in one read. `listMembers` is untouched and stays the caller's own team.
+  async listAllMembers(): Promise<Member[]> {
+    const { data, error } = await client().rpc("list_all_members").limit(ROSTER_LIMIT);
+    if (error) throw new Error(`listAllMembers failed: ${error.message}`);
+    if (!Array.isArray(data)) throw new Error("listAllMembers received a body that is not a list");
+    if (data.length >= ROSTER_LIMIT) {
+      throw new Error(
+        `listAllMembers returned ${data.length} rows at the ${ROSTER_LIMIT} limit: the roster may ` +
+          `be truncated and must not be consumed`,
+      );
+    }
+    return (data as MemberRow[]).map(toMember);
+  },
+
+  // The empty name is refused BEFORE the round trip, as `createEntry` refuses an inverted range; the
+  // function's own 22023 is the second lock.
+  async createTeam(input: CreateTeamInput): Promise<Result<Team>> {
+    const name = input.name.trim();
+    if (name === "") {
+      return { ok: false, error: { code: "empty_team_name", message: EMPTY_TEAM_NAME } };
+    }
+
+    const { data, error } = await client().rpc("create_team", { p_name: name });
+    if (error) return { ok: false, error: toTeamFailure(error, TEAM_CREATE_REFUSED) };
+    if (!isTeamRow(data)) {
+      return { ok: false, error: { code: "unknown", message: TEAM_CREATE_REFUSED } };
+    }
+    return { ok: true, value: toTeam(data) };
+  },
+
+  async renameTeam(teamId: string, input: RenameTeamInput): Promise<Result<Team>> {
+    const name = input.name.trim();
+    if (name === "") {
+      return { ok: false, error: { code: "empty_team_name", message: EMPTY_TEAM_NAME } };
+    }
+
+    const { data, error } = await client().rpc("rename_team", { p_team_id: teamId, p_name: name });
+    if (error) return { ok: false, error: toTeamFailure(error, TEAM_RENAME_REFUSED) };
+    if (!isTeamRow(data)) {
+      return { ok: false, error: { code: "unknown", message: TEAM_RENAME_REFUSED } };
+    }
+    return { ok: true, value: toTeam(data) };
+  },
+
+  // A function returning `void` answers with no body; success is the absence of an error. The
+  // "no such team" and "not an admin" cases both arrive as 42501 and are one sentence on purpose.
+  async deleteTeam(teamId: string): Promise<Result<void>> {
+    const { error } = await client().rpc("delete_team", { p_team_id: teamId });
+    if (error) return { ok: false, error: toTeamFailure(error, TEAM_DELETE_REFUSED) };
+    return { ok: true, value: undefined };
+  },
+
+  async moveMember(memberId: string, teamId: string): Promise<Result<void>> {
+    const { error } = await client().rpc("move_member", {
+      p_member_id: memberId,
+      p_team_id: teamId,
+    });
+    if (error) return { ok: false, error: toTeamFailure(error, MEMBER_MOVE_REFUSED) };
+    return { ok: true, value: undefined };
+  },
+
+  // SOLO, 2026-09-11. The same statement shape as `setOverloadThreshold` and `renameTeam` above, two
+  // columns over, and for the same reasons: NO `.eq("id", …)` because `team_update_admin` does the
+  // narrowing, and ZERO ROWS BACK IS A REFUSAL because a refused UPDATE under row-level security is
+  // filtered rather than errored.
+  //
+  // **BOTH COLUMNS IN ONE UPDATE, ALWAYS.** The screen saves the pair with one press, and two
+  // statements would open a window in which a failure between them leaves one switch moved and the
+  // other not — a setting nobody chose.
+  async setApprovalSettings(input: SetApprovalSettingsInput): Promise<Result<Team>> {
+    const { data, error } = await client()
+      .from("team")
+      .update({ wfh_need_approve: input.wfhNeedApprove, pto_need_approve: input.ptoNeedApprove })
+      .select(TEAM_COLUMNS)
+      .returns<TeamRow[]>();
+
+    if (error) return { ok: false, error: toPostgrestFailure(error) };
+
+    const row = (data ?? [])[0];
+    if (!row) {
+      return { ok: false, error: { code: "not_permitted", message: APPROVAL_SETTINGS_REFUSED } };
     }
 
     return { ok: true, value: toTeam(row) };

@@ -19,7 +19,7 @@
 // INV-04's: a busy person is at work, and the day that proves the two are separate is the one where
 // somebody is busy and nobody is away. The last test is that day.
 import { describe, expect, it } from "vitest";
-import { busyCountsFor, busyDatesOf, busyMembersFor } from "@/lib/data/busy";
+import { busyCountsFor, busyDatesOf, busyMembersFor, withOwnBusyMark } from "@/lib/data/busy";
 import { absenceCountsFor } from "@/lib/data/absence";
 import {
   FIXTURE_ADMIN,
@@ -193,5 +193,68 @@ describe("the busy count is not the absence count", () => {
 
     expect(busyCountsFor(rows, WEEK, ROSTER).get("2026-09-16")).toBe(3);
     expect(absenceCountsFor([], WEEK, ROSTER).get("2026-09-16")).toBe(0);
+  });
+});
+
+// SOLO, 2026-09-11 (second pass) — the OPTIMISTIC prediction, at the unit level for the same reason
+// the counts are here: it is a pure function over rows. What the screen does with it — the spinner,
+// the revert on a refusal, the calendar not reloading — is `tests/e2e/solo-busy-day.spec.ts`.
+//
+// **THE PROPERTY THAT MATTERS IS THAT THE PREDICTION AGREES WITH THE COUNT.** The views patch rows
+// and then re-derive through `busyCountsFor`, so every test below asserts the COUNT after the patch
+// rather than the array — an array that was right and a count that was wrong is the failure a
+// caller would actually see.
+describe("withOwnBusyMark — the optimistic prediction", () => {
+  it("marking a date I do not hold raises my team's count by exactly one", () => {
+    const rows = [busy(FIXTURE_ADMIN.id, "2026-09-16")];
+    const after = withOwnBusyMark(rows, FIXTURE_MEMBER.id, "2026-09-16", true);
+
+    expect(busyCountsFor(after, WEEK, ROSTER).get("2026-09-16")).toBe(2);
+    expect(busyDatesOf(after, WEEK, FIXTURE_MEMBER.id).has("2026-09-16")).toBe(true);
+  });
+
+  it("unmarking a date I hold lowers it by exactly one, and touches nobody else's row", () => {
+    const rows = [busy(FIXTURE_ADMIN.id, "2026-09-16"), busy(FIXTURE_MEMBER.id, "2026-09-16")];
+    const after = withOwnBusyMark(rows, FIXTURE_MEMBER.id, "2026-09-16", false);
+
+    expect(busyCountsFor(after, WEEK, ROSTER).get("2026-09-16")).toBe(1);
+    expect(busyDatesOf(after, WEEK, FIXTURE_ADMIN.id).has("2026-09-16")).toBe(true);
+  });
+
+  it("is idempotent both ways, because `unique (member_id, date)` makes it so in the datastore", () => {
+    // A press that cannot change anything must not appear to. Marking a date I already hold is the
+    // `ignoreDuplicates` upsert; unmarking one I do not hold is a delete that matches no row.
+    const held = [busy(FIXTURE_MEMBER.id, "2026-09-16")];
+    expect(busyCountsFor(withOwnBusyMark(held, FIXTURE_MEMBER.id, "2026-09-16", true), WEEK, ROSTER).get("2026-09-16")).toBe(1);
+    expect(busyCountsFor(withOwnBusyMark([], FIXTURE_MEMBER.id, "2026-09-16", false), WEEK, ROSTER).get("2026-09-16")).toBe(0);
+  });
+
+  it("leaves every other date alone, so one press never moves a second day's figure", () => {
+    const rows = [busy(FIXTURE_MEMBER.id, "2026-09-16"), busy(FIXTURE_MEMBER.id, "2026-09-18")];
+    const after = withOwnBusyMark(rows, FIXTURE_MEMBER.id, "2026-09-16", false);
+
+    expect(busyCountsFor(after, WEEK, ROSTER).get("2026-09-18")).toBe(1);
+  });
+
+  it("returns a NEW array and leaves the caller's rows untouched — what the revert puts back", () => {
+    // The views hold the pre-press array and restore it when the write is refused. A function that
+    // mutated in place would leave them nothing to restore, and the screen would keep a mark the
+    // datastore never took.
+    const rows = [busy(FIXTURE_ADMIN.id, "2026-09-16")];
+    const after = withOwnBusyMark(rows, FIXTURE_MEMBER.id, "2026-09-16", true);
+
+    expect(after).not.toBe(rows);
+    expect(rows).toHaveLength(1);
+    expect(busyCountsFor(rows, WEEK, ROSTER).get("2026-09-16")).toBe(1);
+  });
+
+  it("predicts a removed member's own row, because that rule is not this function's", () => {
+    // `busyDatesOf` decides what a press DOES and deliberately skips the removed-member rule; the
+    // prediction has to match it, or the button and the count would disagree about the press.
+    // The COUNT still refuses the row — that rule lives in `walk`, where it always did.
+    const after = withOwnBusyMark([], FIXTURE_REMOVED_MEMBER.id, "2026-09-16", true);
+
+    expect(busyDatesOf(after, WEEK, FIXTURE_REMOVED_MEMBER.id).has("2026-09-16")).toBe(true);
+    expect(busyCountsFor(after, WEEK, ROSTER).get("2026-09-16")).toBe(0);
   });
 });

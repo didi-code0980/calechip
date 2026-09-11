@@ -98,7 +98,10 @@ import { dayStatusesFor, holidayReadRange } from "@/lib/data/day-status";
 // **IT IS NOT INV-04.** A busy person is AT WORK, so this number never enters `absenceCountsFor`,
 // never enters `isOverloaded`, and is never drawn as one figure with the absence count — `busy.ts`
 // carries the argument.
-import { busyCountsFor, busyDatesOf, busyMembersFor } from "@/lib/data/busy";
+import { busyCountsFor, busyDatesOf, busyMembersFor, withOwnBusyMark } from "@/lib/data/busy";
+// SOLO, 2026-09-11 (second pass) — the in-flight ring inside the busy badge, the same component the
+// week strip draws. Its own file records why it is a bordered circle rather than an icon.
+import BusySpinner from "@/components/BusySpinner";
 // SOLO, 2026-09-10. One entry per unbroken run of the days chosen in the picker, and the dragged
 // range expanded into the days the picker opens filled.
 import { createEntriesForDates } from "@/lib/create-entries";
@@ -114,7 +117,13 @@ import type { BusyCounts, BusyDay, DateRange, DayStatus, Entry, Failure, Holiday
 // UIE-03 § 4.4. `monthLabel` and `shiftMonth` LEAVE THIS IMPORT with the header that used them: the
 // label was the anchor's text and the shift was the previous/next target, and the top bar computes
 // both now. `mondayIndex` and `isRealMonth` stay — the grid and the route guard are untouched.
-import { isRealMonth, mondayIndex } from "@/lib/period";
+// SOLO, 2026-09-11 adds `currentDay`. See the `today` memo below for why this file reads the
+// day-shaped clock from `period.ts` rather than growing one beside its own `currentMonth()`.
+import { currentDay, isRealMonth, mondayIndex } from "@/lib/period";
+// SOLO, 2026-09-11 — the loading mark that replaced this screen's "Loading…" sentence. The
+// sentence itself is still announced: `Loader.tsx` keeps it as `sr-only` text, because the element
+// below carries `role="status"` and an emptied one announces nothing.
+import Loader from "@/components/Loader";
 
 // ---------------------------------------------------------------------------
 // The month vocabulary. `yyyy-MM` in the URL, `yyyy-MM-dd` everywhere below it.
@@ -337,19 +346,56 @@ export default function MonthView() {
   // pause the whole grid three times.
   const [busyPending, setBusyPending] = useState<string | null>(null);
 
-  // Write, then RE-READ. The same decision `WeekView.tsx` records at length: the figure on screen is
-  // always one the datastore produced, rather than one this screen predicted.
+  // SOLO, 2026-09-11. **THE DAY TO MARK.** Memoised on mount, the same choice `WeekView.tsx` records
+  // and for the same reason: a marker that re-read the clock per render could, past midnight in a
+  // tab nobody reloaded, point at a day outside the month the anchor resolved to.
+  //
+  // `currentDay()` from `period.ts` and NOT a fourth local clock function. This file already holds
+  // `currentMonth()` — which answers a different question, *which month should `/month` redirect
+  // to* — and `period.ts` is where the day-shaped read lives and is already exported. A second
+  // implementation of "what day is it" is exactly the second definition this codebase spends its
+  // whole `absence.ts` header arguing against.
+  const today = useMemo(() => currentDay(), []);
+
+  // SOLO, 2026-09-11 (second pass). **PATCH IN PLACE, THEN WRITE — NO RELOAD AND NO RE-READ.** The
+  // operator asked for this and chose it over the two safer shapes when asked; `WeekView.tsx`'s copy
+  // of this callback carries the argument in full, including what the prediction is blind to and why
+  // a refusal must now be checked rather than discarded. The month grid is where the old `load()`
+  // hurt most: one press blanked all 35 cells, the roster, the entries and the holidays to move one
+  // badge.
+  //
+  // Identical to the week's, deliberately — the two screens draw the same number from the same
+  // module, and the ONE piece of logic that could disagree between them, the prediction itself, is
+  // `withOwnBusyMark` in `busy.ts` and is not written here.
   const toggleBusy = useCallback(
     async (date: string, busy: boolean): Promise<void> => {
+      // The rows to restore come from the RENDERED state and not from inside the updater, and the
+      // patch is a functional update while the revert is not. `WeekView.tsx` records why each of
+      // those two is the way round it is.
+      if (view.phase !== "ready") return;
+      const previous = view.busyDays;
+      const meId = view.me.id;
+
+      setView((current) =>
+        current.phase === "ready"
+          ? { ...current, busyDays: withOwnBusyMark(current.busyDays, meId, date, busy) }
+          : current,
+      );
+
+      const revert = (): void =>
+        setView((current) => (current.phase === "ready" ? { ...current, busyDays: previous } : current));
+
       setBusyPending(date);
       try {
-        await seam.setOwnBusyDay({ date, busy });
+        const result = await seam.setOwnBusyDay({ date, busy });
+        if (!result.ok) revert();
+      } catch {
+        revert();
       } finally {
         setBusyPending(null);
-        await load();
       }
     },
-    [load],
+    [view],
   );
 
   // CAL-08 AC-1 to AC-4, AC-11 and AC-14. The day status of every date IN THE MONTH — the range is
@@ -388,7 +434,7 @@ export default function MonthView() {
   if (view.phase === "loading") {
     return (
       <p data-testid="month-loading" role="status" className="mx-auto max-w-md rounded-2xl bg-white p-8 text-center text-sm opacity-70 shadow-sm">
-        Loading the month…
+        <Loader label="Loading the month…" />
       </p>
     );
   }
@@ -547,6 +593,13 @@ export default function MonthView() {
               // SOLO, 2026-09-11. Out-of-month cells carry no busy figure and no control, exactly as
               // they carry no count and no day status — `busyCountsFor` is keyed on the month's own
               // range, so there is nothing to read for them.
+              // SOLO, 2026-09-11. `inMonth` is deliberately NOT part of this: a grid of whole weeks
+              // draws up to six days of the neighbouring months, and today can be one of them when
+              // the caller has stepped to the month either side. Marking it there is the honest
+              // answer — the cell IS today — and it is the one case where a reader would otherwise
+              // wonder why the marker vanished.
+              const isToday = date === today;
+
               const busyCount = inMonth ? (busyCounts.get(date) ?? 0) : 0;
               const busyHere = inMonth ? (busyPeople.get(date) ?? []) : [];
               const iAmBusy = inMonth && myBusy.has(date);
@@ -565,6 +618,9 @@ export default function MonthView() {
                   // out-of-month cell.
                   data-day-status={status ? (status.nonWorkingReason ?? "working") : ""}
                   data-bridge={status?.bridge ?? false}
+                  // SOLO, 2026-09-11. Read by the spec rather than inferred from a class, the shape
+                  // every other fact about this cell already uses.
+                  data-today={isToday}
                   // AC-13. `onMouseDown` starts the drag and `onMouseEnter` extends it; the release is
                   // handled on `window` above, so letting go outside the grid still produces a range.
                   // A press and a release on one cell is a one-day range, which is the same gesture a
@@ -602,10 +658,41 @@ export default function MonthView() {
                     // cell, which reads as two selected cells. `ring-ink-3` replaces `ring-slate-400`,
                     // the last framework default in the grid — #8f89b3 against the #e4e0f4 hairlines.
                     selected ? "ring-2 ring-inset ring-ink-3" : "",
+                    // SOLO, 2026-09-11 — the border on today.
+                    //
+                    // **INSET, for the reason UIE-06 § 4.9 gives about the selection ring one line
+                    // above:** the cells are separated by 1px hairlines rather than by gutters, so
+                    // an outset ring spills across the hairline onto the neighbour and reads as two
+                    // marked cells.
+                    //
+                    // **IT IS DRAWN UNDER THE SELECTION RING AND NOT INSTEAD OF IT** — both classes
+                    // can be present, the later one wins the paint, and that is the right precedence:
+                    // a drag in progress is what the caller is doing NOW, and losing its feedback to
+                    // a permanent marker would make today the one cell a range cannot visibly start
+                    // on. `ring-primary` is the `+ Book` ink, the one colour on this grid that
+                    // carries no meaning about absence.
+                    isToday && !selected ? "ring-2 ring-inset ring-primary" : "",
                   ].join(" ")}
                 >
                   <div className="flex items-baseline justify-between">
                     <span className="font-medium">{date.slice(8)}</span>
+
+                    {/* SOLO, 2026-09-11 — the badge.
+                        **IT SHARES THE NUMERAL'S LINE AND DOES NOT TAKE ONE.** This grid is what
+                        CLAUDE.md § Visual direction means by *information density wins every time*;
+                        a row of its own would cost every cell in the month a line to say something
+                        about one of them. It sits between the numeral and `month-cell-count`, which
+                        keeps its right-hand slot — UIE-06 § 5.1 gives that slot to the count because
+                        the count is the domain fact.
+                        Absent on all 34 other cells, so nothing moves. */}
+                    {isToday ? (
+                      <span
+                        data-testid="month-cell-today"
+                        className="ml-1 mr-auto rounded-pill bg-primary px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wide text-white"
+                      >
+                        Today
+                      </span>
+                    ) : null}
                     {inMonth && count > 0 ? (
                       <span data-testid="month-cell-count" className="opacity-70">
                         {count}
@@ -687,13 +774,15 @@ export default function MonthView() {
                         data-date={date}
                         data-busy-count={busyCount}
                         data-mine={iAmBusy}
+                        data-pending={busyPending === date}
                         aria-pressed={iAmBusy}
+                        aria-busy={busyPending === date}
                         disabled={busyPending === date}
                         title={busyHere.map((person) => person.displayName).join(", ")}
                         onMouseDown={(event) => event.stopPropagation()}
                         onClick={() => void toggleBusy(date, !iAmBusy)}
                         className={[
-                          "rounded-full px-1.5 py-0.5 text-[10px] font-semibold transition-colors",
+                          "inline-flex items-center gap-1 rounded-full px-1.5 py-0.5 text-[10px] font-semibold transition-colors",
                           "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink",
                           "disabled:opacity-50",
                           iAmBusy ? "bg-busy text-ink" : "border border-current opacity-70",
@@ -701,8 +790,20 @@ export default function MonthView() {
                       >
                         {/* The word, not a bare numeral: this cell already carries `month-cell-count`
                             as a bare numeral, and a second unlabelled figure beside it would read as
-                            part of the same fact. */}
-                        Busy {busyCount}
+                            part of the same fact.
+
+                            SOLO, 2026-09-11 (second pass) — the spinner sits BESIDE the number and
+                            does not replace it, for the reason the week's control records: the press
+                            is optimistic, so the figure is already the new one when this appears and
+                            swapping it out would hide the thing that just changed.
+
+                            **THE BADGE CAN VANISH UNDER THE SPINNER, AND THAT IS CORRECT.** Unsetting
+                            my own mark on a day nobody else marked drops `busyCount` to 0 and
+                            `iAmBusy` to false, and the enclosing test renders nothing — so the
+                            spinner leaves with the badge rather than spinning over a cell with no
+                            number left to wait for. A refused write puts both back. */}
+                        <span>Busy {busyCount}</span>
+                        {busyPending === date ? <BusySpinner testIdPrefix="month-cell-busy" /> : null}
                       </button>
                     </div>
                   ) : null}

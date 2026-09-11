@@ -78,8 +78,15 @@ const DESTINATIONS: readonly {
   },
   {
     testId: "admin-hub-threshold-link",
-    path: "/threshold",
+    path: "/setting", // SOLO, 2026-09-11 — re-addressed from `/threshold` by the operator
     landmarks: ["threshold-current"],
+  },
+  // SOLO, 2026-09-11 — many teams. The sixth destination, on the operator's choice of a tab of its
+  // own. Every loop below now walks it too, which is what makes AC-4 and AC-9 cover the new screen.
+  {
+    testId: "admin-hub-teams-link",
+    path: "/teams",
+    landmarks: ["teams-list"],
   },
 ];
 
@@ -186,11 +193,14 @@ test.describe("UIE-09 — the admin hub", () => {
     await expect(page.getByTestId("shell-admin-link")).toHaveCount(0);
   });
 
-  test("AC-3: the hub lists exactly five destinations and no sixth", async ({ page }) => {
+  test("AC-3: the hub lists exactly six destinations and no seventh", async ({ page }) => {
     await openHubAsAdmin(page);
 
+    // **AMENDED BY SOLO 2026-09-11: FIVE BECAME SIX, AND THE TITLE MOVED WITH IT.** The operator put
+    // team management in a tab of its own. What the criterion is for is unchanged and still able to
+    // fail: the list is exactly `DESTINATIONS`, in order, and nothing else crept in.
     const rows = page.getByTestId("admin-hub-link");
-    await expect(rows).toHaveCount(5);
+    await expect(rows).toHaveCount(6);
 
     // The five addresses, read off the rows rather than off the copy — and in § 2b's order, which is
     // by how often an admin needs each and not alphabetical.
@@ -307,7 +317,7 @@ test.describe("UIE-09 — the admin hub", () => {
     await expect(page.getByTestId("admin-hub-unavailable")).toHaveCount(0);
     await expect(page.getByTestId("admin-hub-refused")).toHaveCount(0);
     await expect(page.getByTestId("admin-hub-loading")).toHaveCount(0);
-    await expect(page.getByTestId("admin-hub-link")).toHaveCount(5);
+    await expect(page.getByTestId("admin-hub-link")).toHaveCount(6); // six since SOLO 2026-09-11
   });
 
   test("AC-9: the hub's selectors are new, and collide with nothing", async ({ page }) => {

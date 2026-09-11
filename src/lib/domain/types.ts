@@ -108,6 +108,19 @@ export type FailureCode =
   // `not_permitted`: that code's message is written about the allow-list, and one code carrying two
   // sentences is how a wrong message reaches a screen.
   | "entry_not_permitted"
+  // SOLO, 2026-09-11. `renameTeam` was given a name that is empty once trimmed. The column is
+  // `not null` and a not-null column accepts `''` happily, so without this the product would show a
+  // team with no name everywhere it draws one.
+  //
+  // NOT `not_permitted`, which means the policy refused the caller. This one means the caller is
+  // allowed and the value is not — a different sentence for the screen to show, and beside a
+  // different control.
+  | "empty_team_name"
+  // SOLO, 2026-09-11 — many teams. `delete_team` refused because people still name the team: an
+  // active member, or a REMOVED one kept for history (ADR-013) — `member.team_id` is
+  // `on delete restrict`. NOT `not_permitted`: the caller is allowed and the team is not empty, and
+  // the sentence says what that means.
+  | "team_not_empty"
   // SOLO, 2026-09-11. The insert or the delete on `public.busy_day` was refused by its policy — a
   // caller with no team, a removed member, or somebody's date that is not their own.
   //
@@ -403,6 +416,15 @@ export interface Team {
   name: string;
   /** The Threshold. A SHARE, not a count. Compared with `>`, never `>=` — INV-04, AC-7. */
   overloadThreshold: number;
+  /**
+   * SOLO, 2026-09-11. `wfh_need_approve` — the operator's own name, `WFH_NEED_APPROVE`. When `false`,
+   * a NEW WFH entry is stored already `approved`, with `approvedBy` null because no member decided it.
+   * The datastore does that and this flag only reports it: `src/lib/data/approval.ts` says why the
+   * application could not.
+   */
+  wfhNeedApprove: boolean;
+  /** SOLO, 2026-09-11. `pto_need_approve` — the same switch for PTO, independent of the one above. */
+  ptoNeedApprove: boolean;
   createdAt: string; // ISO 8601
 }
 

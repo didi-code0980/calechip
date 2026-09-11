@@ -86,14 +86,33 @@ test.describe("SOLO — marking a day busy", () => {
     await expect(control).toHaveAttribute("data-busy-count", "0");
     await expect(control).toHaveAttribute("aria-pressed", "false");
 
+    // SOLO, 2026-09-11 (second pass) — **THE ASSERTION THIS TEST'S NAME HAS ALWAYS CLAIMED AND NEVER
+    // MADE.** Stamp a property on a DIFFERENT day's column, in the browser, before the press. A
+    // property survives a re-render and does NOT survive the node being unmounted and rebuilt, which
+    // is exactly what the old `await load()` did to all seven columns to move one number. If this
+    // reads `undefined` after the press, the calendar reloaded.
+    await day(page, "2026-09-15").evaluate((node) => {
+      (node as HTMLElement & { __survives?: string }).__survives = "yes";
+    });
+
     await control.click();
 
-    // The figure is one the DATASTORE produced: the press writes and then re-reads, rather than
-    // predicting the count. `MonthView.tsx` and `WeekView.tsx` both record why there is no
-    // optimistic update on a screen whose whole purpose is that somebody trusts the number.
+    // The count moves immediately: the press is OPTIMISTIC (the operator chose that shape on
+    // 2026-09-11 over a scoped re-read), so this is the prediction `withOwnBusyMark` made, and the
+    // write behind it only ever puts the number back on a refusal.
     await expect(control).toHaveAttribute("data-mine", "true");
     await expect(control).toHaveAttribute("data-busy-count", "1");
     await expect(control).toHaveAttribute("aria-pressed", "true");
+
+    // Still the same node. Nothing unmounted.
+    const survived = await day(page, "2026-09-15").evaluate(
+      (node) => (node as HTMLElement & { __survives?: string }).__survives,
+    );
+    expect(survived).toBe("yes");
+
+    // And the in-flight ring is gone once the write settles — it is drawn only while the press is
+    // unresolved, so a spinner still on screen here would mean a promise that never finished.
+    await expect(day(page, QUIET).getByTestId("week-day-busy-spinner")).toHaveCount(0);
   });
 
   test("2: pressing it again unmarks the day — the same control, both ways", async ({ page }) => {

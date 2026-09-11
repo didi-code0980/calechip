@@ -154,3 +154,43 @@ export function busyDatesOf(
   }
   return dates;
 }
+
+/**
+ * The caller's own mark, applied to the rows a view is holding, WITHOUT a read.
+ *
+ * **THIS IS THE OPTIMISTIC PREDICTION AND IT LIVES HERE FOR THE REASON THE HEADER GIVES.** The
+ * operator asked, 2026-09-11, that a press update the busy figure without the calendar reloading:
+ * the press writes, the number moves immediately, and only a REFUSED write puts it back. That makes
+ * the on-screen count briefly a number this application predicted rather than one the datastore
+ * produced — the trade the operator chose, knowing it — so the prediction is one function in the
+ * module that does the counting, never a splice written inside a view. Two views predicting
+ * separately is exactly the second arithmetic this file exists to prevent.
+ *
+ * **IT PREDICTS ONLY THE CALLER'S OWN ROW, WHICH IS ALL A PRESS CAN KNOW.** Somebody else marking
+ * the same date between the last read and this press is not represented here and cannot be: the
+ * next read of the range carries them. The prediction is therefore exact for the half it covers —
+ * `busy_day` is `unique (member_id, date)`, so marking a date I already hold changes nothing and
+ * unmarking one I do not hold changes nothing, both of which this function returns unchanged.
+ *
+ * **THE SYNTHETIC ROW'S `id` AND `createdAt` NEVER REACH A SCREEN.** `busyCountsFor`,
+ * `busyMembersFor` and `busyDatesOf` read `memberId` and `date` and nothing else; the two remaining
+ * fields exist because `BusyDay` has them. `id` is marked so a row that somehow outlived its write
+ * is recognisable in a debugger rather than looking like a datastore id.
+ *
+ * @returns a new array. The caller's previous array is untouched and is what a failed write is
+ *          reverted to.
+ */
+export function withOwnBusyMark(
+  busyDays: readonly BusyDay[],
+  memberId: string,
+  date: string,
+  busy: boolean,
+): BusyDay[] {
+  const without = busyDays.filter((row) => !(row.memberId === memberId && row.date === date));
+  if (!busy) return without;
+
+  return [
+    ...without,
+    { id: `optimistic:${memberId}:${date}`, memberId, date, createdAt: new Date().toISOString() },
+  ];
+}

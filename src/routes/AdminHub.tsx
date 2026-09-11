@@ -22,6 +22,10 @@ import { Link } from "react-router-dom";
 // never import `@/lib/data/supabase` or `@/lib/data/mock` (RULE-02).
 import { seam } from "@/lib/data";
 import type { Member } from "@/lib/domain/types";
+// SOLO, 2026-09-11 — the loading mark that replaced this screen's sentence. The sentence itself is
+// still announced: `Loader.tsx` keeps it as `sr-only` text, because the element below carries
+// `role="status"` and an emptied one announces nothing.
+import Loader from "@/components/Loader";
 
 /**
  * The four phases `Threshold.tsx:45-48` established, so a reader meets no new shape here. `loading`
@@ -77,7 +81,7 @@ export default function AdminHub() {
         role="status"
         className="mx-auto max-w-2xl rounded-card bg-card p-8 text-center text-sm opacity-70 shadow-soft"
       >
-        Opening the admin area…
+        <Loader label="Opening the admin area…" />
       </p>
     );
   }

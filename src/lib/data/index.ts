@@ -106,6 +106,45 @@ export interface UpdateEntryInput {
 }
 
 /**
+ * SOLO, 2026-09-11 — many teams. A new team's name, and nothing else: the threshold takes the column
+ * default and `created_at` is the datastore's. A SEPARATE interface from `RenameTeamInput` for the
+ * reason `CreateEntryInput` and `UpdateEntryInput` are two — the two diverge the day one of them
+ * grows a field, and an alias would make them look interchangeable to a caller.
+ */
+export interface CreateTeamInput {
+  /** Both implementations trim, and refuse what is left empty. */
+  name: string;
+}
+
+/**
+ * SOLO, 2026-09-11. The team's new name, and nothing else.
+ *
+ * NO `teamId` in the body — it is `renameTeam`'s first argument, the way `deleteTeam` and
+ * `moveMember` take theirs. NO `overloadThreshold`: the grant in
+ * `20260911160000_solo_team_name_update.sql` names `name` alone, so a second field here would be a
+ * field the datastore refuses, which is the shape `CreateEntryInput` and `SetOverloadThresholdInput`
+ * both already refuse to take.
+ */
+export interface RenameTeamInput {
+  /** Trimmed by the caller or not; both implementations trim, and refuse what is left empty. */
+  name: string;
+}
+
+/**
+ * SOLO, 2026-09-11. Whether each entry type waits for an admin — the operator's `WFH_NEED_APPROVE`
+ * and `PTO_NEED_APPROVE`.
+ *
+ * **BOTH FLAGS, ALWAYS, AND NOTHING ELSE.** They are one decision an admin makes on one form and
+ * saves with one press; sending one at a time would let a stale value held by the form overwrite the
+ * other. `overloadThreshold` and `name` are NOT here for the reason `setOverloadThreshold` and
+ * `renameTeam` each record — a field the grant does not name is a field the datastore refuses.
+ */
+export interface SetApprovalSettingsInput {
+  wfhNeedApprove: boolean;
+  ptoNeedApprove: boolean;
+}
+
+/**
  * SOLO, 2026-09-11. One date and which way to move it.
  *
  * NO `memberId`, for the reason `setOwnBusyDay` records: the policy supplies it from `auth.uid()`.
@@ -236,10 +275,11 @@ export interface DataSeam {
   /**
    * SOLO, 2026-09-10. Approve or reject one waiting sign-up.
    *
-   * **THE TEAM IS THE CALLER'S OWN AND IS NOT A PARAMETER THE POLICY TRUSTS.** `MemberDecision`
-   * carries a `teamId` on the approve arm because the SCREEN has to send one, and
-   * `member_decide_admin`s `with check` compares it to `member_team_id(auth.uid())` — so a caller who
-   * sends another team's id is refused rather than obeyed.
+   * **SOLO, 2026-09-11 — THE TEAM IS NOW ANY TEAM THE ADMIN CHOOSES.** It used to be the caller's
+   * own: `member_decide_admin`s `with check` compared the incoming `team_id` to
+   * `member_team_id(auth.uid())`. The operator decided every admin manages every team, so an
+   * APPROVAL goes through `public.admit_member`, which checks `is_admin` and that the team exists
+   * and nothing about ownership. A REJECTION is unchanged and is still the table update.
    *
    * Refused for a non-admin and for a row already decided, both as `not_permitted`.
    */
@@ -583,6 +623,94 @@ export interface DataSeam {
    * constraint behind this and section 6 says why.
    */
   setOverloadThreshold(input: SetOverloadThresholdInput): Promise<Result<Team>>;
+
+  /**
+   * SOLO, 2026-09-11 — many teams. Every team on the system, for an ADMIN; an empty list for anybody
+   * else.
+   *
+   * **A FUNCTION CALL AND NOT A TABLE READ, AND THE REASON IS THE OTHER READS.** `team_select_own`
+   * still admits only the caller's own row, and `getTeam()` depends on that: it reads `team` with no
+   * filter and `maybeSingle()`. Widening the table policy so an admin could list every team would
+   * have turned that call into a multi-row error for every admin, on every screen that reads the
+   * threshold. `public.list_teams()` is `security definer`, tests `is_admin` in its own body, and
+   * leaves the table's policies as they were. Every cross-team function below is shaped the same
+   * way for the same reason; `20260911180000_solo_many_teams.sql` carries the argument in full.
+   *
+   * THROWS on a transport failure and on a possibly-truncated answer, the shape `listMembers` uses.
+   */
+  listTeams(): Promise<Team[]>;
+
+  /**
+   * SOLO, 2026-09-11. Every member row on ANY team, for an admin — REMOVED ones included, because the
+   * screen needs them to say why a team cannot be deleted. Pending sign-ups have no team and are
+   * `listPendingMembers`'.
+   *
+   * **`listMembers()` IS UNCHANGED AND STAYS THE CALLER'S OWN TEAM.** It is INV-04's denominator on
+   * every calendar screen, so it must never start returning other teams' people for an admin — which
+   * is exactly what widening `member`'s select policy would have done. A separate function, so the
+   * two cannot be mistaken for each other.
+   *
+   * THROWS on a transport failure and on a possibly-truncated answer.
+   */
+  listAllMembers(): Promise<Member[]>;
+
+  /**
+   * SOLO, 2026-09-11. Creates an EMPTY team. Admin only (`public.create_team`); its threshold is the
+   * column default, 0.5. `empty_team_name` for a name that is empty once trimmed.
+   */
+  createTeam(input: CreateTeamInput): Promise<Result<Team>>;
+
+  /**
+   * SOLO, 2026-09-11. Renames ANY team, by id. Admin only (`public.rename_team`).
+   *
+   * **IT TAKES A `teamId` NOW, WHICH `setOverloadThreshold` STILL REFUSES TO.** That function omits
+   * one because its policy scopes the write to the caller's own team, and the THRESHOLD IS STILL
+   * THE CALLER'S OWN TEAM ONLY. The operator decided on 2026-09-11 that every admin manages every
+   * team, so for a NAME the team is the caller's choice, and the function checks `is_admin` rather
+   * than ownership.
+   *
+   * `empty_team_name` for an empty name; `not_permitted` for a non-admin or a team that is not there.
+   */
+  renameTeam(teamId: string, input: RenameTeamInput): Promise<Result<Team>>;
+
+  /**
+   * SOLO, 2026-09-11. Deletes a team, and ONLY AN EMPTY ONE — the operator's decision.
+   *
+   * **"EMPTY" IS THE FOREIGN KEY'S DEFINITION, NOT A COUNT OF ACTIVE PEOPLE.** A removed member still
+   * names the team (ADR-013 keeps them for history), so a team whose people have all been removed
+   * still cannot be deleted — and never can be. `team_not_empty` says so; `member.team_id ... on
+   * delete restrict` is the second lock behind the function's own test.
+   */
+  deleteTeam(teamId: string): Promise<Result<void>>;
+
+  /**
+   * SOLO, 2026-09-11. Moves an APPROVED, not-removed member onto another team. Admin only
+   * (`public.move_member`), and ANY admin, between any two teams — the operator's decision.
+   *
+   * **HISTORY FOLLOWS THE PERSON, AND THE OPERATOR WAS TOLD SO BEFORE CHOOSING IT.** An entry has no
+   * `team_id`; INV-07 counts it against the team its member is on NOW. So after a move every past
+   * absence of that person leaves the old team's calendar and appears in the new team's past, and the
+   * old team's past counts change. INV-07 holds as written; what changes is which team it names.
+   *
+   * It writes `team_id` and nothing else — not the role, not the removal, not the status.
+   */
+  moveMember(memberId: string, teamId: string): Promise<Result<void>>;
+
+  /**
+   * SOLO, 2026-09-11. Sets whether a NEW WFH entry and a NEW PTO entry wait for an admin, for the
+   * caller's OWN team. Admin only; the policy is the control and this function is the affordance.
+   *
+   * **IT CHANGES WHAT HAPPENS TO THE NEXT ENTRY AND NOTHING ELSE.** No entry already stored moves:
+   * one that is pending stays pending and sits in the worklist until an admin decides it — the
+   * operator chose that over a sweep that would approve a backlog in one press nobody reviewed. The
+   * approval itself happens in the datastore at insert time
+   * (`20260911170000_solo_approval_settings.sql`), because the insert grant withholds `status` from
+   * every caller; this function only moves the two switches it reads.
+   *
+   * TAKES NO TEAM PARAMETER, and RETURNS THE UPDATED ROW with ZERO ROWS BACK A REFUSAL — both for
+   * the reasons `setOverloadThreshold` spells out above, under the same `team_update_admin` policy.
+   */
+  setApprovalSettings(input: SetApprovalSettingsInput): Promise<Result<Team>>;
 
   /**
    * CAL-04 AC-1 to AC-6, AC-12. Every entry of the caller's team whose date range OVERLAPS `range`.

@@ -44,7 +44,8 @@ const TABS = [
   { testId: "admin-hub-team-entries-link", path: "/entries/team" },
   { testId: "admin-hub-members-link", path: "/members" },
   { testId: "admin-hub-allow-list-link", path: "/signups" },
-  { testId: "admin-hub-threshold-link", path: "/threshold" },
+  { testId: "admin-hub-threshold-link", path: "/setting" },
+  { testId: "admin-hub-teams-link", path: "/teams" }, // SOLO, 2026-09-11 — many teams, the sixth
 ];
 
 async function signIn(page: Page, email: string): Promise<void> {
@@ -57,7 +58,7 @@ async function signIn(page: Page, email: string): Promise<void> {
 }
 
 test.describe("SOLO — the admin area is a tab strip", () => {
-  test("1: pressing Admin opens the strip, and it carries the same five destinations", async ({
+  test("1: pressing Admin opens the strip, and it carries the six destinations", async ({
     page,
   }) => {
     await signIn(page, ADMIN_EMAIL);
@@ -70,8 +71,10 @@ test.describe("SOLO — the admin area is a tab strip", () => {
     // **THE SAME FIVE ROWS UIE-09 SHIPPED, IN THE SAME ORDER, UNDER THE SAME IDS.** This is the
     // assertion that says the change is a re-layout and not a migration — read off the rendered
     // rows, so a strip that quietly dropped or reordered one fails here.
+    // Six since SOLO 2026-09-11 — the Teams tab. Still read off the rendered rows and compared in
+    // order, so a strip that dropped or reordered one still fails.
     const rows = strip.getByTestId("admin-hub-link");
-    await expect(rows).toHaveCount(5);
+    await expect(rows).toHaveCount(6);
     expect(
       await rows.evaluateAll((nodes) =>
         nodes.map((n) => n.getAttribute("data-to")),
@@ -163,7 +166,7 @@ test.describe("SOLO — the admin area is a tab strip", () => {
     // not until somebody looked.
     await page.goto("/admin");
     await expect(page.getByTestId("admin-hub-refused")).toBeVisible();
-    await page.goto("/threshold");
+    await page.goto("/setting");
     await expect(page.getByTestId("threshold-refused")).toBeVisible();
   });
 

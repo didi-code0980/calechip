@@ -175,12 +175,14 @@ test.describe("SOLO — new sign-ups replace the allow-list", () => {
       ).not.toMatch(DIACRITIC);
     }
 
-    // TWO CONTROLS PER ROW AND NO THIRD. The team control is disabled: it states which team the
-    // approval will write, and the policy accepts no other, so an enabled picker would offer a
-    // journey the datastore refuses.
+    // TWO CONTROLS PER ROW AND NO THIRD. **AMENDED BY SOLO 2026-09-11:** the team control was
+    // disabled because `member_decide_admin` accepted only the admin's own team. The operator decided
+    // every admin manages every team, so the picker is live and offers every team; approval goes
+    // through `admit_member`. The fixtures carry two teams, so two options.
     const row = page.getByTestId("signup-row").first();
     await expect(row.locator("button")).toHaveCount(2);
-    await expect(row.getByTestId("signup-row-team")).toBeDisabled();
+    await expect(row.getByTestId("signup-row-team")).toBeEnabled();
+    await expect(row.getByTestId("signup-row-team").locator("option")).toHaveCount(2);
     await expect(page.locator("form")).toHaveCount(0);
   });
 });

@@ -109,7 +109,7 @@ export default function TopBar({ isAdmin }: TopBarProps) {
       className="flex h-[70px] shrink-0 flex-wrap items-center gap-3 px-6"
     >
       {/* AC-15. The whole left cluster and the whole switcher are ABSENT on a route that has no
-          period — `/allow-list`, `/entries/new`, `/threshold` and the rest. Absent, not disabled:
+          period — `/allow-list`, `/entries/new`, `/setting` and the rest. Absent, not disabled:
           a disabled previous-period control on a screen with no period asserts that a period exists
           and is merely unavailable. `shell-topbar` and `home-new-entry-link` still render. */}
       {nav !== null ? (
@@ -170,7 +170,17 @@ export default function TopBar({ isAdmin }: TopBarProps) {
       <div className="ml-auto flex items-center gap-3">
         {/* AC-14. Three segments, and each target KEEPS THE DATE — `month-year` from
             `/month/2027-04` reaches `/year/2027` and not the current year. The targets are the ones
-            the screens' own cross-view links already compute (§ 4.5). */}
+            the screens' own cross-view links already compute (§ 4.5).
+
+            **AMENDED BY SOLO 2026-09-11, AND THE EXCEPTION IS `weekTo` FROM A MONTH OR A YEAR.**
+            Those two now reach `/week`, which the week screen resolves to TODAY. The operator was
+            shown AC-14's contract and chose against it for this one segment: *"khi mở lịch tuần
+            default luôn là today"*. `src/lib/period.ts` carries the reasoning at both sites.
+
+            **THE SENTENCE ABOVE IS STILL TRUE OF EVERY OTHER TARGET** — `month-year`, `week-month`,
+            `week-year`, `year-month` all keep the date, and the `month-week` case was the one where
+            "the date" had to be invented anyway: a month has no week and a year has no week, so the
+            old values picked the 1st. */}
         {/* `nav !== null` and not `segments.length > 0`, which is the same condition one inference
             away: the segment name below reads `nav.kind`, and only the null test narrows it. */}
         {nav !== null ? (
@@ -208,7 +218,7 @@ export default function TopBar({ isAdmin }: TopBarProps) {
             address rather than opening a menu: § 8, rejected alternative 1.
 
             IT SITS OUTSIDE THE `nav !== null` CONDITION AND RENDERS ON EVERY ROUTE INSIDE THE SHELL,
-            including the ones with no period — `/allow-list`, `/threshold`, `/admin` itself. AC-11
+            including the ones with no period — `/allow-list`, `/setting`, `/admin` itself. AC-11
             is the criterion that says adding an always-present control did not disturb the
             conditionally-present cluster above it.
 

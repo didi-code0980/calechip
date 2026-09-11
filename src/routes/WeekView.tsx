@@ -155,7 +155,7 @@ import { dayStatusesFor, holidayReadRange } from "@/lib/data/day-status";
 // SOLO, 2026-09-11. The busy count's one definition, imported the same way and for the same reason
 // as the two above. **IT IS NOT INV-04 AND THE TWO NUMBERS ARE NEVER ADDED** — `busy.ts`'s header
 // carries that at length. A busy person is at work; the strip below draws the two facts separately.
-import { busyCountsFor, busyDatesOf, busyMembersFor } from "@/lib/data/busy";
+import { busyCountsFor, busyDatesOf, busyMembersFor, withOwnBusyMark } from "@/lib/data/busy";
 import type { AbsenceCounts, AbsenceDetail, BusyCounts, BusyDay, DateRange, DayStatus, Entry, Holiday, Member } from "@/lib/domain/types";
 import { PORTION_LABELS, TYPE_LABELS } from "@/lib/labels";
 // UIE-02 § 4.5. `mondayIndex` and `isRealDay` were declared BELOW, in this file; the shell's top bar
@@ -164,6 +164,13 @@ import { PORTION_LABELS, TYPE_LABELS } from "@/lib/labels";
 // and the two deletions under it are the whole of UIE-02's edit to this screen — no rendered output
 // changes here, which is what keeps `Out of scope` item 1 true and zero spec files in scope.
 import { currentDay, isRealDay, mondayIndex } from "@/lib/period";
+// SOLO, 2026-09-11 (second pass) — the in-flight ring inside the busy pill. Its own file records why
+// it is a bordered circle rather than an icon, and why it announces nothing of its own.
+import BusySpinner from "@/components/BusySpinner";
+// SOLO, 2026-09-11 — the loading mark that replaced this screen's "Loading…" sentence. The
+// sentence itself is still announced: `Loader.tsx` keeps it as `sr-only` text, because the element
+// below carries `role="status"` and an emptied one announces nothing.
+import Loader from "@/components/Loader";
 
 // ---------------------------------------------------------------------------
 // The week vocabulary. `yyyy-MM-dd` in the URL and everywhere below it.
@@ -257,6 +264,18 @@ export default function WeekView({ landing = false }: WeekViewProps) {
   // the same stability `/week/:day` gets for free from the URL. A bare `currentDay()` in the render
   // body would re-resolve at midnight mid-session and move the week under the caller silently.
   const landingDay = useMemo(() => currentDay(), []);
+
+  // SOLO, 2026-09-11. **THE DAY TO MARK, AND IT IS MEMOISED ON MOUNT FOR THE SAME REASON THE ANCHOR
+  // ABOVE IS.** A marker that re-read the clock per render would, in a tab left open past midnight,
+  // point at a day OUTSIDE the week the anchor resolved to — the screen contradicting itself about
+  // what day it is, which is worse than a marker that is one day stale in a session nobody reloaded.
+  // The two reads move together or not at all.
+  //
+  // `currentDay()` reads LOCAL date parts, unlike every comparison in `day-status.ts`, and that is
+  // correct here rather than inconsistent: those compare stored dates to each other and must not
+  // drift with the machine, while this answers *what day is it for the person looking at the
+  // screen*, which is a local question. `period.ts` records the same argument for its own use.
+  const today = useMemo(() => currentDay(), []);
   const anchorDay = day !== undefined && isRealDay(day) ? day : landing ? landingDay : null;
 
   // Any day of a week produces the SAME screen, so a link from any date works and `/week/2026-10-07`
@@ -395,27 +414,61 @@ export default function WeekView({ landing = false }: WeekViewProps) {
   // in a row is three pauses of the whole strip.
   const [busyPending, setBusyPending] = useState<string | null>(null);
 
-  // **NO OPTIMISTIC UPDATE, AND THAT IS THE DECISION.** The press writes and then RE-READS, so the
-  // number on screen is always one the datastore produced. An optimistic toggle would have to
-  // predict the count — including what happens when somebody else marked the same day between the
-  // read and the press — and a count that flickered to a wrong value and back is worse than one that
-  // arrives a moment later, on a screen whose entire purpose is for somebody to trust the number.
+  // SOLO, 2026-09-11 (second pass). **THE PRESS NO LONGER RELOADS THE CALENDAR, AND IT IS NOW
+  // OPTIMISTIC.** Both halves are the operator's decision, made explicitly when asked and recorded
+  // here because the previous text of this comment argued the opposite at length.
   //
-  // A FAILED WRITE FALLS THROUGH TO THE SAME RE-READ. The refusal paths are a caller with no member
-  // row and a removed member, neither of whom is looking at this screen — it renders `not-on-a-team`
-  // for both — so there is no message to show that would not be about an unreachable state. The
-  // re-read is what makes the control tell the truth either way.
+  // What it used to do: `await load()`, which sets `phase: "loading"` and re-reads the roster, the
+  // entries, the holidays and the busy rows. The whole week blanked and redrew to move one number.
+  //
+  // What it does now: patch `busyDays` IN PLACE through `withOwnBusyMark` — `phase` stays `ready`,
+  // so nothing unmounts and the three `useMemo`s below recompute the count, the avatars and my own
+  // marks from the patched rows. The write runs after, and only a REFUSAL puts the rows back.
+  //
+  // **THE COST, ACCEPTED: the figure is briefly one this screen predicted rather than one the
+  // datastore produced.** The prediction is exact for the caller's own row and blind to everybody
+  // else's — `withOwnBusyMark` carries why that is all a press can know — so a date somebody else
+  // marked in the meantime reads one short until the next read of the range. The operator chose
+  // immediacy over that, for a number nobody acts on within the second it is stale.
+  //
+  // **A REFUSED WRITE REVERTS, AND IT CHECKS THE RESULT TO KNOW.** `setOwnBusyDay` returns a
+  // `Result` and the old code discarded it, which was harmless while every press ended in a re-read
+  // and is not harmless now: a discarded refusal would leave a mark on screen that the datastore
+  // never took. A throw reverts the same way. The revert restores the exact array captured before
+  // the press rather than recomputing one, so a second press mid-flight cannot resurrect a row.
   const toggleBusy = useCallback(
     async (date: string, busy: boolean): Promise<void> => {
+      // **THE ROWS TO RESTORE ARE READ FROM THE RENDERED STATE, NOT FROM INSIDE THE UPDATER.** React
+      // does not promise to run a functional update synchronously — with another update already
+      // queued it runs at render time — so a `previous` assigned in there is still null on the line
+      // after, and the revert would have nothing to put back. This closure is the state this press
+      // was drawn against, which is exactly what the press should undo.
+      if (view.phase !== "ready") return;
+      const previous = view.busyDays;
+      const meId = view.me.id;
+
+      // The PATCH is still a functional update, for the opposite reason: it must apply to whatever
+      // rows are current when it lands, not to the ones this closure captured.
+      setView((current) =>
+        current.phase === "ready"
+          ? { ...current, busyDays: withOwnBusyMark(current.busyDays, meId, date, busy) }
+          : current,
+      );
+
+      const revert = (): void =>
+        setView((current) => (current.phase === "ready" ? { ...current, busyDays: previous } : current));
+
       setBusyPending(date);
       try {
-        await seam.setOwnBusyDay({ date, busy });
+        const result = await seam.setOwnBusyDay({ date, busy });
+        if (!result.ok) revert();
+      } catch {
+        revert();
       } finally {
         setBusyPending(null);
-        await load();
       }
     },
-    [load],
+    [view],
   );
 
   // CAL-08 AC-6 and AC-11. The day status of the seven days, from the same module the month grid
@@ -446,7 +499,7 @@ export default function WeekView({ landing = false }: WeekViewProps) {
         role="status"
         className="mx-auto max-w-md rounded-2xl bg-white p-8 text-center text-sm opacity-70 shadow-sm"
       >
-        Loading the week…
+        <Loader label="Loading the week…" />
       </p>
     );
   }
@@ -571,6 +624,11 @@ export default function WeekView({ landing = false }: WeekViewProps) {
             // SOLO, 2026-09-11. The three busy facts about this date, read from the three maps built
             // in one pass above. `busyCount` is a HEAD COUNT and `count` is INV-04's weighted
             // absence figure — they are drawn as two separate things and never summed.
+            // SOLO, 2026-09-11. Exactly one of the seven is true, and on a week that is not this
+            // week none of them is — the marker is simply absent, which is the honest rendering of
+            // "today is not on this screen".
+            const isToday = date === today;
+
             const busyCount = busyCounts.get(date) ?? 0;
             const busyHere = busyPeople.get(date) ?? [];
             const iAmBusy = myBusy.has(date);
@@ -588,6 +646,9 @@ export default function WeekView({ landing = false }: WeekViewProps) {
                 // three values and the same separate `data-bridge` — a bridge day IS a working day.
                 data-day-status={status ? (status.nonWorkingReason ?? "working") : ""}
                 data-bridge={status?.bridge ?? false}
+                // SOLO, 2026-09-11. Read by the spec rather than inferred from a class, the shape
+                // `data-count`, `data-day-status` and `data-bridge` beside it already use.
+                data-today={isToday}
                 // § 4.3. The tokens UIE-01 and UIE-02 shipped, in place of the three Tailwind
                 // defaults CAL-05 had to use before they existed — `bg-white` -> `bg-card`,
                 // `shadow-sm` -> `shadow-soft`. **UIE-05 § 4.4 TOOK THE THIRD ONE BACK**: the day
@@ -601,7 +662,24 @@ export default function WeekView({ landing = false }: WeekViewProps) {
                 // above the entries in a grid track that stretches to the tallest day, and `min-w-0`
                 // is the other half of AC-15 — without it the day refuses to shrink below its
                 // content and a long note widens the pane rather than wrapping.
-              className="flex min-w-0 flex-col rounded-2xl bg-card p-4 shadow-soft"
+              className={[
+                  "flex min-w-0 flex-col rounded-2xl bg-card p-4 shadow-soft",
+                  // SOLO, 2026-09-11 — the operator asked for a border on today.
+                  //
+                  // **`ring` AND NOT `border`, AND INSET.** A real border would add 2px to the box
+                  // and make today's column a different WIDTH from the other six, which on a
+                  // seven-column grid reads as a layout bug rather than as a marker. A ring is
+                  // painted and occupies no space; `ring-inset` keeps it off the 2px gutter between
+                  // columns, where an outset ring would touch its neighbour.
+                  //
+                  // `--color-primary` is the ink the `+ Book` button is filled with — the darkest
+                  // thing in the palette and the one colour on this screen that carries no domain
+                  // meaning. Peach, mint, lavender, pink and butter each already mean something
+                  // about a day (UIE-06 § 4.6 on why a colour may not mean two things), and today is
+                  // not a fact about absence at all. It is also NOT the lavender holiday tint, which
+                  // can legitimately be on the same column at the same time.
+                  isToday ? "ring-2 ring-inset ring-primary" : "",
+                ].join(" ")}
               >
                 <h2
                   data-testid="week-day-label"
@@ -631,9 +709,34 @@ export default function WeekView({ landing = false }: WeekViewProps) {
                   {/* UIE-05 AC-6. `dd/MM` — `14/09` — sliced out of the `yyyy-MM-dd` this component
                       already holds. No date library, no locale and no new import: § Language governs
                       STRINGS, and a numeric format is outside it. It stays inside `week-day-label`,
-                      which is where AC-6 puts it and what keeps the selector contract intact. */}
-                  <span className="font-normal opacity-60">
-                    {`${date.slice(8, 10)}/${date.slice(5, 7)}`}
+                      which is where AC-6 puts it and what keeps the selector contract intact.
+
+                      **SOLO, 2026-09-11 — THE BADGE SHARES THIS LINE, AND A SCREENSHOT IS WHY.**
+                      Written first as a third child of the label, which is a `flex flex-col`: it
+                      became a THIRD STACKED LINE, pushed `11/09` down, and made today's column's
+                      header ~34px taller than the other six — a seven-column grid with one column
+                      out of step, which reads as a layout bug rather than as a marker. The comment
+                      that stood here claimed it "costs no line"; it cost one, and the picture is
+                      what said so.
+                      Paired with the DATE rather than with the weekday name because the date is two
+                      digits and a slash: `TODAY 11/09` fits a ~161px column where
+                      `Wednesday TODAY` would wrap and cost the line back. */}
+                  <span className="flex items-center justify-center gap-1">
+                    {/* The half of the request a border alone does not answer. A ring is a difference
+                        somebody has to NOTICE and then guess the meaning of; the word says it. It
+                        also carries the marker to a screen reader, which a painted ring reaches not
+                        at all. ENGLISH (§ Language), like every other string this screen authors. */}
+                    {isToday ? (
+                      <span
+                        data-testid="week-day-today"
+                        className="rounded-pill bg-primary px-1.5 py-0.5 text-[10px] font-bold uppercase leading-none tracking-wide text-white"
+                      >
+                        Today
+                      </span>
+                    ) : null}
+                    <span className="font-normal opacity-60">
+                      {`${date.slice(8, 10)}/${date.slice(5, 7)}`}
+                    </span>
                   </span>
 
                   {/* CAL-08 AC-6. Named whenever a row exists, of EITHER kind, and the badge is
@@ -875,19 +978,29 @@ export default function WeekView({ landing = false }: WeekViewProps) {
                     data-date={date}
                     data-busy-count={busyCount}
                     data-mine={iAmBusy}
+                    data-pending={busyPending === date}
                     aria-pressed={iAmBusy}
+                    aria-busy={busyPending === date}
                     disabled={busyPending === date}
                     onClick={() => void toggleBusy(date, !iAmBusy)}
                     className={[
-                      "rounded-pill px-2 py-0.5 text-xs font-semibold transition-colors",
+                      "inline-flex items-center gap-1 rounded-pill px-2 py-0.5 text-xs font-semibold transition-colors",
                       "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink",
                       "disabled:opacity-50",
                       iAmBusy ? "bg-busy text-ink" : "border border-line text-ink-3 hover:text-ink",
                     ].join(" ")}
                   >
                     {/* The word is visible and the number is beside it, because a bare figure on a
-                        strip that already carries `0/4` would read as a second absence count. */}
-                    Busy {busyCount}
+                        strip that already carries `0/4` would read as a second absence count.
+
+                        SOLO, 2026-09-11 (second pass) — the spinner the operator asked for. **IT
+                        SITS BESIDE THE NUMBER AND DOES NOT REPLACE IT.** The count is already the
+                        new one when this appears, because the press is optimistic; swapping the
+                        figure out for a spinner would hide the very thing the press just changed,
+                        and would also change the pill's width mid-press. What it says is "the write
+                        is still in flight", which is the only fact the button still owes. */}
+                    <span>Busy {busyCount}</span>
+                    {busyPending === date ? <BusySpinner testIdPrefix="week-day-busy" /> : null}
                   </button>
 
                   {busyHere.map((person) => (

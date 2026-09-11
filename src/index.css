@@ -187,3 +187,76 @@
      The line for that file is printed in the reply for the operator to paste. */
   --color-busy: #ffe9a8; /* butter */
 }
+
+/* -------------------------------------------------------------------------------------------
+   SOLO, 2026-09-11 — THE LOADING MARK. The operator: *"thay đổi text lúc loading như 'loading the
+   week...' bằng loading ví dụ như icon ở loading.html"*, and then, an hour later, *"tôi mới update
+   lại loading.html"*.
+
+   **THE SKETCH CHANGED FROM AN ORBIT TO A SWEEP, AND THIS FILE FOLLOWED IT RATHER THAN KEEPING
+   BOTH.** The first version of these rules reproduced a 50px core with two dots orbiting it; the
+   operator replaced that sketch with a 120×20 bar whose highlight travels left to right. Keeping the
+   orbit beside the bar would leave the product with two answers to "is something happening", which
+   is the same mistake as two definitions of a count. The class names are unchanged, so the fourteen
+   call sites and `Loader.tsx` did not move.
+
+   **IT IS PLAIN CSS AND NOT UTILITIES, WHICH IS A LIMIT RATHER THAN A PREFERENCE.** The mark is one
+   element whose BACKGROUND POSITION is animated — a gradient layer sliding across a flat layer.
+   Tailwind has no class for a multi-layer background shorthand and none for animating its position,
+   and the arbitrary-value form would be longer than the rules below and unreadable at the call site.
+   `src/components/Loader.tsx` is the only thing that names these classes.
+
+   **THE GEOMETRY IS `loading.html`'s, EXPRESSED AGAINST ONE WIDTH VARIABLE.** The sketch hard-codes
+   120px, 20px and 50px; below, the height is a sixth of the width and the highlight is five twelfths
+   of it, so `--cc-size` changes the mark's size and nothing else. The animation is the sketch's
+   exactly: the highlight starts one highlight-width off the left edge and ends one off the right, so
+   the bar is empty at both ends of every cycle rather than snapping.
+
+   **THE COLOURS ARE NOT THE SKETCH's LIGHTBLUE AND PURPLE, AND THAT IS THE OPERATOR'S STANDING
+   DECISION**, taken 2026-09-11 about the previous sketch and unchanged by the new one: the mark is
+   painted in the product's own tokens. It is `--color-line` under `--color-ink-2`, which are the two
+   here that carry NO domain meaning — peach, mint, lavender, pink and butter each mean something on
+   the calendar (on leave, working from home, a national holiday, a crowded day, busy), and UIE-06
+   § 4.6 refused to give one colour two meanings on one grid. A spinner in peach would be a leave
+   colour on a screen that has no entries on it yet.
+
+   **IT IS ROUNDED WHERE THE SKETCH IS SQUARE.** `CLAUDE.md` § Visual direction is "pastel and
+   rounded on the surface", and every other surface in the product carries a radius; a hard-cornered
+   rectangle in the middle of a 26px card would be the only square thing on screen. The radius clips
+   the highlight for free — a background is painted inside the border box, so no `overflow` rule is
+   needed. */
+@keyframes cc-sweep {
+  100% {
+    background-position: right calc(var(--cc-size) * -0.417) top 0;
+  }
+}
+
+.cc-loader {
+  --cc-size: 7.5rem; /* 120px — the sketch's own width */
+  width: var(--cc-size);
+  height: calc(var(--cc-size) / 6);
+  border-radius: var(--radius-pill);
+  background:
+    linear-gradient(90deg, transparent, var(--color-ink-2))
+      left calc(var(--cc-size) * -0.417) top 0 / calc(var(--cc-size) * 0.417) 100% no-repeat,
+    var(--color-line);
+  animation: cc-sweep 1s infinite linear;
+}
+
+/* The sidebar's roster line is 10px uppercase type in a narrow column, where a 120px bar is wider
+   than the label above it. Half size, same proportions — one modifier rather than a prop that writes
+   a style attribute, so every size in the product is one of two values. */
+.cc-loader-sm {
+  --cc-size: 3.75rem;
+}
+
+/* The mark is decorative and the sentence beside it is the announcement, so a reader who asked the
+   system for less motion loses nothing by the bar standing still — `Loader.tsx` records that the
+   text is always present and is only ever visually hidden. The highlight rests off the left edge,
+   which leaves a plain track rather than a bar frozen mid-sweep pretending to be a progress figure:
+   this mark has never known how far along anything is. */
+@media (prefers-reduced-motion: reduce) {
+  .cc-loader {
+    animation: none;
+  }
+}

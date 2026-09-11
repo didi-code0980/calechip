@@ -70,9 +70,36 @@ export const ADMIN_TABS: readonly {
   },
   {
     testId: "admin-hub-threshold-link",
-    to: "/threshold",
-    name: "Overload threshold",
-    blurb: "The share of the team above which a day is called crowded.",
+    // SOLO, 2026-09-11, later the same day — `to` MOVED TO `/setting` AND `name` TO `Settings`, on the
+    // operator's instruction, when the approval switches joined this screen. `testId` still does not
+    // move, for the reason the paragraph below gives: sixty-nine assertions address it. The sentence
+    // below that says `to` is "deliberately untouched" is superseded by that decision.
+    to: "/setting",
+    // **SOLO, 2026-09-11 — RENAMED FROM `Overload threshold`, AND ONLY THE WORD MOVED.** The screen
+    // at `/threshold` now carries the team's name and size as well as the threshold, so the tab is
+    // named for the screen rather than for one of its two controls. `testId` and `to` are
+    // deliberately untouched: UIE-09 AC-3 reads the five `data-to` values and their order, and
+    // sixty-nine assertions across ten spec files address these ids — none of them reads a name.
+    //
+    // **THE PARAGRAPH BELOW ABOUT LABELS IS WHY THIS IS SAFE AND THE 2026-09-09 SHORTENING WAS NOT.**
+    // That one broke `adm-04-worklist.spec.ts:441`, which pins `Pending approvals` — a different
+    // tab, whose label a shipped criterion does assert. Checked before renaming: no spec reads this
+    // one's.
+    name: "Settings",
+    blurb:
+      "The team's name and size, the share above which a day is called crowded, and which entries need approval.",
+  },
+  {
+    // SOLO, 2026-09-11 — many teams. **THE SIXTH TAB, AND A TAB RATHER THAN A SECTION OF
+    // `Settings`**, on the operator's choice: `/setting` is ONE team's settings and this is every
+    // team. The cost is UIE-09 AC-3's "exactly five destinations and no sixth", amended in its spec
+    // rather than quietly passing. LAST, because § 2b orders by how often an admin needs each and
+    // creating a team is the rarest thing here. `ADMIN_ADDRESSES` below derives from this array, so
+    // the top bar's Calendar face and the strip both reach `/teams` without a second list.
+    testId: "admin-hub-teams-link",
+    to: "/teams",
+    name: "Teams",
+    blurb: "Every team on the system. Create, rename or delete one, and move people between them.",
   },
 ];
 

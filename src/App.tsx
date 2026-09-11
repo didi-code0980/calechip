@@ -26,9 +26,15 @@ import PendingEntries from "./routes/PendingEntries";
 import Profile from "./routes/Profile";
 import TeamEntries from "./routes/TeamEntries";
 import Threshold from "./routes/Threshold";
+// SOLO, 2026-09-11 — many teams. The sixth admin tab.
+import Teams from "./routes/Teams";
 import NotOnATeam from "./routes/NotOnATeam";
 import SignIn from "./routes/SignIn";
 import SignUp from "./routes/SignUp";
+// SOLO, 2026-09-11 — the loading mark that replaced this screen's "Loading…" sentence. The
+// sentence itself is still announced: `Loader.tsx` keeps it as `sr-only` text, because the element
+// below carries `role="status"` and an emptied one announces nothing.
+import Loader from "@/components/Loader";
 
 /**
  * UIE-02 § 4.6 and § 4.7 — the non-member arm of the shell layout route, and the home of the `p-8`
@@ -112,7 +118,7 @@ export default function App() {
             role="status"
             className="mx-auto my-8 max-w-md rounded-2xl bg-white p-8 text-center text-sm opacity-70 shadow-sm"
           >
-            Loading…
+            <Loader label="Loading…" />
           </p>
         ) : (
           <Routes>
@@ -406,9 +412,28 @@ export default function App() {
                   whoever reaches them. */}
 {/* SOLO, 2026-09-09 — the admin tab strip, block 3 of 3. See block 1 above for why three. */}
               <Route element={<AdminLayout isAdmin={membership.state === "member" && membership.member.role === "admin"} />}>
+                {/* SOLO, 2026-09-11 — RE-ADDRESSED FROM `/threshold` TO `/setting` ON THE OPERATOR'S
+                    INSTRUCTION, when the screen gained the approval switches beside the name and the
+                    threshold. The guard is unchanged and so is the component. UIE-09's comment below
+                    that "`/threshold` is still `/threshold`" was true when written and is superseded
+                    by this decision, not contradicted by an oversight.
+
+                    `/threshold` REDIRECTS RATHER THAN DISAPPEARING. A bookmark or a link pasted into a
+                    chat last week should still land on the screen it meant, and the catch-all at the
+                    bottom would otherwise send it to `/` with no word about why. */}
                 <Route
-                  path="/threshold"
+                  path="/setting"
                   element={membership.state === "member" ? <Threshold /> : <Navigate to="/" replace />}
+                />
+                <Route path="/threshold" element={<Navigate to="/setting" replace />} />
+
+                {/* SOLO, 2026-09-11 — many teams. The sixth admin address, inside this layout block so
+                    the tab strip draws above it. The guard is its neighbours' shape and is an
+                    affordance: `Teams.tsx` refuses a member in place, and every write is refused by
+                    its own `security definer` function whoever reaches it. */}
+                <Route
+                  path="/teams"
+                  element={membership.state === "member" ? <Teams /> : <Navigate to="/" replace />}
                 />
 
                 {/* UIE-09. The admin hub — one screen naming every administrative destination, and

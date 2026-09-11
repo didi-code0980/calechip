@@ -51,6 +51,10 @@ import type { Entry, Failure } from "@/lib/domain/types";
 // OPS-002. The status words moved to src/lib/labels.ts, which is their ONE declaration (AC-8) —
 // TeamEntries.tsx held a second, already-English copy of the same three strings.
 import { STATUS_LABELS } from "@/lib/labels";
+// SOLO, 2026-09-11 — the loading mark that replaced this screen's "Loading…" sentence. The
+// sentence itself is still announced: `Loader.tsx` keeps it as `sr-only` text, because the element
+// below carries `role="status"` and an emptied one announces nothing.
+import Loader from "@/components/Loader";
 
 // Three states and not two. "Still loading" and "no such entry of yours" are different facts, and
 // rendering the refusal while the read is in flight would show `edit-entry-not-found` on every load
@@ -134,7 +138,7 @@ export default function EditEntry() {
         role="status"
         className="mx-auto max-w-xl rounded-2xl bg-white p-8 text-center text-sm opacity-70 shadow-sm"
       >
-        Loading…
+        <Loader label="Loading…" />
       </p>
     );
   }

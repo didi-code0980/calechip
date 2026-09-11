@@ -67,6 +67,10 @@ import { TYPE_LABELS } from "@/lib/labels";
 // top bar's now. `MONTH_ABBR` and `isRealYear` stay: the twelve column headings and the route guard
 // are untouched.
 import { MONTH_ABBR, isRealYear } from "@/lib/period";
+// SOLO, 2026-09-11 — the loading mark that replaced this screen's "Loading…" sentence. The
+// sentence itself is still announced: `Loader.tsx` keeps it as `sr-only` text, because the element
+// below carries `role="status"` and an emptied one announces nothing.
+import Loader from "@/components/Loader";
 
 // ---------------------------------------------------------------------------
 // The year vocabulary. `yyyy` in the URL, `yyyy-MM-dd` everywhere below it.
@@ -271,7 +275,7 @@ export default function YearView() {
         role="status"
         className="mx-auto max-w-md rounded-card bg-card p-8 text-center text-sm opacity-70 shadow-soft"
       >
-        Loading the year…
+        <Loader label="Loading the year…" />
       </p>
     );
   }

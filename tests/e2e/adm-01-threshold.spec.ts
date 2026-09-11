@@ -39,7 +39,9 @@ import { choosePortion, chooseType, pickRange } from "./support/entry-form";
 // FIXTURE_TEAM's seeded `overload_threshold` is 0.5, which the screen speaks as 50%.
 
 const SIGNIN = "/signin";
-const THRESHOLD = "/threshold";
+// SOLO, 2026-09-11 — the screen moved to `/setting` on the operator's instruction; `/threshold`
+// now redirects there. Only the address changed: every `threshold-*` id below is the same control.
+const THRESHOLD = "/setting";
 const PASSWORD = "password123";
 
 const ADMIN_EMAIL = "quan@example.com";

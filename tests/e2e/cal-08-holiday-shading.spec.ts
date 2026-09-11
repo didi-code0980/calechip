@@ -408,12 +408,27 @@ test.describe("CAL-08 — holidays and bridge days in the calendar views", () =>
       name: await monthCell(page, "2026-10-15").getByTestId("month-cell-holiday").textContent(),
     };
 
-    // Switching views keeps the date, which is CAL-05's and CAL-06's own criterion — so the month
-    // and the week are reached by walking the product's links rather than by typing an address. The
-    // YEAR is the one exception, and CAL-10 is why: see the comment on it below.
-    await page.getByTestId("month-week").click(); // /week/2026-10-01
-    await page.getByTestId("week-next").click(); // week of 2026-10-05
-    await page.getByTestId("week-next").click(); // week of 2026-10-12
+    // **AMENDED BY SOLO 2026-09-11, AND THE CLAUSE THAT MOVED IS NAMED RATHER THAN QUIETLY DROPPED.**
+    // This read *"Switching views keeps the date ... so the month and the week are reached by walking
+    // the product's links rather than by typing an address"*, and it walked `month-week` to
+    // `/week/2026-10-01` and then stepped twice. `month-week` now opens TODAY's week — the operator
+    // was shown the keeps-the-date contract and chose against it for this one segment — so two steps
+    // land wherever this run's clock puts them, which is a test that passes or fails by the date.
+    //
+    // The link is still followed and its NEW contract is asserted here in passing, which is worth
+    // more than the old walk was: it is the only place in the suite that would notice the segment
+    // silently going back to keeping the date.
+    await page.getByTestId("month-week").click();
+    await expect(page.getByTestId("week-anchor")).toBeVisible();
+
+    // **AND THEN THE OCTOBER WEEK IS REACHED BY ADDRESS, WHICH IS THE COST.** There is no link from
+    // a month to a NAMED week any more, so this leg cannot be walked. A `page.goto` is safe in this
+    // test and in no way a general licence: AC-11 writes nothing, and every row it reads is a
+    // fixture one, so resetting the mock's module state resets it to exactly what this test reads.
+    //
+    // WHAT THE CRITERION IS FOR IS UNTOUCHED: three surfaces, one date, one answer. How the browser
+    // arrived at the third surface was never the claim.
+    await page.goto("/week/2026-10-15");
     await expect(weekDay(page, "2026-10-15")).toHaveCount(1);
 
     const fromTheWeek = {

@@ -70,6 +70,10 @@ import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useRoster } from "@/hooks/useRoster";
 import type { Member, MemberRole, Result } from "@/lib/domain/types";
+// SOLO, 2026-09-11 — the loading mark that replaced this screen's "Loading…" sentence. The
+// sentence itself is still announced: `Loader.tsx` keeps it as `sr-only` text, because the element
+// below carries `role="status"` and an emptied one announces nothing.
+import Loader from "@/components/Loader";
 
 export interface SidebarProps {
   member: Member;
@@ -298,7 +302,7 @@ export default function Sidebar({ member, signOut }: SidebarProps) {
             role="status"
             className="text-[10px] uppercase tracking-wider text-ink-3"
           >
-            Loading the team…
+            <Loader label="Loading the team…" size="sm" />
           </p>
         ) : roster.phase === "unavailable" ? (
           <p

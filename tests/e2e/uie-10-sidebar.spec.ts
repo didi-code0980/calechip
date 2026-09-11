@@ -84,7 +84,7 @@ const MIGRATED: readonly {
   },
   {
     hubLink: "admin-hub-threshold-link",
-    path: "/threshold",
+    path: "/setting", // SOLO, 2026-09-11 — re-addressed from `/threshold` by the operator
     landmark: "threshold-current",
     refusal: "threshold-refused",
   },

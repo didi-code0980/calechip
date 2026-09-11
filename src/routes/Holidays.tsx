@@ -43,6 +43,10 @@ import HolidayForm, { EFFECT_LABEL, type HolidayFormValues } from "@/components/
 // never import `./supabase` or `./mock` (RULE-02).
 import { seam } from "@/lib/data";
 import type { DateRange, Failure, Holiday, Member } from "@/lib/domain/types";
+// SOLO, 2026-09-11 — the loading mark that replaced this screen's "Loading…" sentence. The
+// sentence itself is still announced: `Loader.tsx` keeps it as `sr-only` text, because the element
+// below carries `role="status"` and an emptied one announces nothing.
+import Loader from "@/components/Loader";
 
 // ---------------------------------------------------------------------------
 // The year vocabulary. `yyyy` in the URL, `yyyy-MM-dd` everywhere below it — the shape CAL-06
@@ -185,7 +189,7 @@ export default function Holidays() {
         role="status"
         className="mx-auto max-w-md rounded-2xl bg-white p-8 text-center text-sm opacity-70 shadow-sm"
       >
-        Loading the calendar…
+        <Loader label="Loading the calendar…" />
       </p>
     );
   }

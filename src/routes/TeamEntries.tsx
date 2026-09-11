@@ -33,6 +33,10 @@ import { Link } from "react-router-dom";
 import { seam } from "@/lib/data";
 import type { Entry, Failure, Member } from "@/lib/domain/types";
 import { PORTION_LABELS, STATUS_LABELS, TYPE_LABELS } from "@/lib/labels";
+// SOLO, 2026-09-11 — the loading mark that replaced this screen's "Loading…" sentence. The
+// sentence itself is still announced: `Loader.tsx` keeps it as `sr-only` text, because the element
+// below carries `role="status"` and an emptied one announces nothing.
+import Loader from "@/components/Loader";
 
 // OPS-002 is the ticket the paragraph that stood here named: "the ticket that translates the other
 // thirteen files folds these into one place." The three maps are now in src/lib/labels.ts and this
@@ -114,7 +118,7 @@ export default function TeamEntries() {
         role="status"
         className="mx-auto max-w-3xl rounded-2xl bg-white p-8 text-center text-sm opacity-70 shadow-sm"
       >
-        Loading…
+        <Loader label="Loading…" />
       </p>
     );
   }

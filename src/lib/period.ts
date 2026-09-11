@@ -349,7 +349,16 @@ export function periodNavFor(pathname: string): PeriodNav | null {
       prevTo: `/month/${shiftMonth(anchor, -1)}`,
       nextTo: `/month/${shiftMonth(anchor, 1)}`,
       todayTo: "/month",
-      weekTo: `/week/${anchor}-01`,
+      // **SOLO, 2026-09-11 — THE `Week` SEGMENT OPENS TODAY'S WEEK, NOT THIS MONTH'S FIRST ONE.**
+      // It read `/week/${anchor}-01`, which is what "each target keeps the date" yields for a month
+      // whose date is a month. The operator was shown that contract and chose against it: *"khi mở
+      // lịch tuần default luôn là today"*.
+      //
+      // **THE ANCHORLESS ADDRESS, NOT `/week/${currentDay()}`**, so this module still holds exactly
+      // one clock read and it is still the one for `/`. `WeekView.tsx:440` redirects `/week` to
+      // today's week within a render, which is the same discipline `todayTo` above keeps — the
+      // SCREEN resolves the clock, and the shell never needs to know what day it is.
+      weekTo: "/week",
       monthTo: `/month/${anchor}`,
       yearTo: `/year/${anchor.slice(0, 4)}`,
     };
@@ -391,9 +400,16 @@ export function periodNavFor(pathname: string): PeriodNav | null {
       prevTo: `/year/${shiftYear(anchor, -1)}${suffix}`,
       nextTo: `/year/${shiftYear(anchor, 1)}${suffix}`,
       todayTo,
-      // January, which is where `YearView.tsx:347`'s own month link goes. `weekTo` has no
-      // counterpart on that screen and is the first day of the year for the same reason.
-      weekTo: `/week/${anchor}-01-01`,
+      // **SOLO, 2026-09-11 — TODAY'S WEEK, for the reason the month branch above records.** It read
+      // `/week/${anchor}-01-01`: January the 1st, because `YearView.tsx:347`'s own month link goes
+      // to January and `weekTo` had no counterpart on that screen to copy. A year has no week that
+      // "keeping the date" names, which is why the old value had to invent one — and inventing the
+      // 1st of January is exactly the answer the operator called wrong.
+      //
+      // `monthTo` IS DELIBERATELY UNCHANGED and still goes to January. The request names the week
+      // calendar and nothing else, and the month switcher from a year is a different control with a
+      // different complaint behind it, or none.
+      weekTo: "/week",
       monthTo: `/month/${anchor}-01`,
       yearTo: `/year/${anchor}`,
     };

@@ -23,6 +23,11 @@ export const FIXTURE_TEAM: Team = {
   id: "11111111-1111-4111-8111-111111111111",
   name: "CaleChip",
   overloadThreshold: 0.5,
+  // SOLO, 2026-09-11. Both `true`, which is the columns' default and today's behaviour — every entry
+  // waits. `supabase/seed.sql` names neither column, so the seeded row gets the default and this
+  // transcription stays exact.
+  wfhNeedApprove: true,
+  ptoNeedApprove: true,
   createdAt: "2026-08-31T00:00:00+00:00",
 };
 
@@ -95,6 +100,11 @@ export const FIXTURE_OTHER_TEAM: Team = {
   id: FIXTURE_OTHER_TEAM_ID,
   name: "Nhóm khác",
   overloadThreshold: 0.5,
+  // SOLO, 2026-09-11. Both `true`, which is the columns' default and today's behaviour — every entry
+  // waits. `supabase/seed.sql` names neither column, so the seeded row gets the default and this
+  // transcription stays exact.
+  wfhNeedApprove: true,
+  ptoNeedApprove: true,
   // CAL-04, and the same transcription as FIXTURE_TEAM above: supabase/seed.sql:196 already inserts
   // this literal. `team_select_own` means no caller on FIXTURE_TEAM can ever read this row, which is
   // CAL-04 AC-12 on the team table.

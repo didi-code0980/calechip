@@ -9,7 +9,10 @@ import type {
   AddHolidayInput,
   ChangePasswordInput,
   CreateEntryInput,
+  CreateTeamInput,
   DataSeam,
+  RenameTeamInput,
+  SetApprovalSettingsInput,
   SetOverloadThresholdInput,
   SetOwnBusyDayInput,
   SignInInput,
@@ -25,7 +28,6 @@ import type {
   BusyDay,
   DateRange,
   Entry,
-  EntryPortion,
   EntryStatus,
   Holiday,
   Member,
@@ -45,6 +47,13 @@ import { requiresEmailConfirmation } from "../config";
 // created at sign-up is stored in it rather than in a second shape that would have to be kept
 // compatible with it by hand.
 import type { FixtureCredential } from "../fixtures";
+// SOLO, 2026-09-11. The one answer to "does this type wait for an admin", which `createEntry` below
+// runs in place of `entry_apply_approval_setting()`. Imported rather than inlined so the mock holds no
+// second copy of the rule — `approval.ts` records why the SQL one is unavoidable and this is not.
+import { needsApproval } from "./approval";
+// SOLO, 2026-09-11. INV-01's comparison, and the dates it collides on — one predicate for the refusal
+// and the sentence. See the note where `PORTION_SLOTS` used to be.
+import { clashingDates, overlapMessage } from "./overlap";
 import {
   AVATAR_CHOICES,
   HOLIDAY_LIMIT,
@@ -138,6 +147,12 @@ const byCreatedAtThenId = (a: Member, b: Member): number =>
 // the read to `id = member_team_id(auth.uid())`, and a one-team fixture passes whether that
 // predicate is in the policy or absent from it. ADR-018's revert condition, one table over.
 const teams: Team[] = [{ ...FIXTURE_TEAM }, { ...FIXTURE_OTHER_TEAM }];
+
+// SOLO, 2026-09-11 — many teams. The id a team created through the product gets, in the shape the
+// other generators use: an `aa` prefix, which no other table's ids in this file or the fixtures use.
+let nextTeamId = 0;
+const newTeamId = (): string =>
+  `aa000000-0000-4000-8000-${String(++nextTeamId).padStart(12, "0")}`;
 
 // SOLO, 2026-09-10 — accounts created through the sign-up form, when the project is configured not
 // to require email confirmation (`src/lib/config.ts`).
@@ -309,7 +324,17 @@ const currentAdmin = (): Member | null => {
 // `FailureCode`: the narrow list is what stops this file returning a code no mock path can produce,
 // and a code added here is a code some function below must actually be able to reach.
 const refused = (
-  code: "not_permitted" | "already_allow_listed" | "already_consumed" | "holiday_date_taken",
+  // SOLO, 2026-09-11 adds `empty_team_name`. The union is written out rather than widened to
+  // `FailureCode` on purpose: it is the list of codes a MOCK refusal may carry, and every addition
+  // is a deliberate one. Widening it would let a typo in a code reach a screen as a failure nobody
+  // wrote a sentence for.
+  code:
+    | "not_permitted"
+    | "already_allow_listed"
+    | "already_consumed"
+    | "holiday_date_taken"
+    | "empty_team_name"
+    | "team_not_empty",
   message: string,
 ): { ok: false; error: { code: typeof code; message: string } } => ({
   ok: false,
@@ -401,6 +426,19 @@ const HOLIDAY_DATE_TAKEN = "The calendar already has a row for that date. Edit t
 // the same words — the rule CAL-01's three refusal constants state.
 const BUSY_DAY_REFUSED = "This day could not be marked. You may only mark your own days.";
 
+// SOLO, 2026-09-11. Repeated verbatim in src/lib/data/supabase.ts so the two implementations carry
+// the same words — the rule CAL-01's three refusal constants state.
+const TEAM_RENAME_REFUSED = "Only an admin can rename the team.";
+const EMPTY_TEAM_NAME = "The team needs a name.";
+// SOLO, 2026-09-11 — many teams. Repeated verbatim in src/lib/data/supabase.ts.
+const TEAM_CREATE_REFUSED = "Only an admin can create a team.";
+const TEAM_DELETE_REFUSED = "Only an admin can delete a team.";
+const TEAM_NOT_EMPTY =
+  "This team still has people on it and cannot be deleted. Anybody who was removed from it stays " +
+  "on it for history, so a team that has ever had somebody removed can never be deleted.";
+const MEMBER_MOVE_REFUSED = "That person could not be moved.";
+const APPROVAL_SETTINGS_REFUSED = "Only an admin can change which entries need approval.";
+
 let nextEntryId = 0;
 const newEntryId = (): string => `ee000000-0000-4000-8000-${String(++nextEntryId).padStart(12, "0")}`;
 
@@ -409,26 +447,14 @@ const newEntryId = (): string => `ee000000-0000-4000-8000-${String(++nextEntryId
 // constraint `entry_no_overlapping_portion` (ADR-011 section 3), and this exists so AC-7 and AC-8
 // are observable end-to-end without a provisioned project.
 //
-// The slot semantics are ADR-011's table, not a paraphrase of it: `full` covers both halves of the
-// day, `am` the first, `pm` the second. Two entries conflict when the same member's date ranges
-// intersect AND their slot sets intersect - which is why `full` conflicts with everything while `am`
-// and `pm` do not conflict with each other. A test for equal `portion` would accept `full` beside
-// `am`, which is the exact failure ADR-011 exists to record.
-const PORTION_SLOTS: Record<EntryPortion, readonly number[]> = {
-  full: [0, 1],
-  am: [0],
-  pm: [1],
-};
-
-// Inclusive on both ends, as `end_date` is (data-model.md). String comparison is correct for
-// `yyyy-MM-dd` and no Date is constructed - plan section 4.5.
-// CAL-02 widens the second parameter from `CreateEntryInput` to the two fields it actually reads,
-// so `updateEntry` uses the same comparison rather than a second one that could drift from it.
-const datesIntersect = (a: Entry, b: { startDate: string; endDate: string }): boolean =>
-  a.startDate <= b.endDate && b.startDate <= a.endDate;
-
-const slotsIntersect = (a: EntryPortion, b: EntryPortion): boolean =>
-  PORTION_SLOTS[a].some((slot) => PORTION_SLOTS[b].includes(slot));
+// SOLO, 2026-09-11 — **THE PREDICATE MOVED TO `./overlap.ts` AND IS NOT WRITTEN HERE ANY MORE.** It
+// was `PORTION_SLOTS`, `datesIntersect` and `slotsIntersect`, used at exactly the two clash sites in
+// `createEntry` and `updateEntry`. The operator asked that the refusal name the colliding dates, and
+// the dates must come from the same test that refuses — so `clashingDates` is now both: a non-empty
+// answer IS the refusal, and its contents are the sentence. Keeping the old helpers beside it would
+// have been two copies of INV-01's comparison in one file, free to disagree about a half day.
+// ADR-011's slot table — `full` both halves, `am` the first, `pm` the second — is in that file,
+// unchanged.
 
 // ---------------------------------------------------------------------------
 // CAL-03. 01-plan.md section 5, "the subtle shape is the mock's team scoping".
@@ -677,11 +703,11 @@ export const seam: DataSeam = {
   /**
    * SOLO, 2026-09-10. Approve or reject one waiting sign-up.
    *
-   * **THE TEAM WRITTEN IS THE CALLER'S OWN AND NEVER THE ONE THEY SENT**, which is this mock
-   * reproducing `member_decide_admin`'s `with check`: it compares the incoming `team_id` to
-   * `member_team_id(auth.uid())`, so a caller naming another team is refused rather than obeyed.
-   * Checking it here rather than trusting the argument is what makes a component test fail against a
-   * missing policy instead of passing against one.
+   * **SOLO, 2026-09-11 — THE TEAM WRITTEN IS THE ONE THE ADMIN CHOSE, AS LONG AS IT EXISTS.** This
+   * is `public.admit_member` reproduced: it tests `is_admin` and the team's existence and nothing
+   * about which team the admin is on. It used to reproduce `member_decide_admin`'s `with check`,
+   * which confined an approval to the admin's own team; the operator decided every admin manages
+   * every team.
    *
    * The `using` clause admits only rows that are still `pending` with no team, so re-deciding
    * somebody already on a team is refused — that is `member_update_admin`'s territory.
@@ -695,13 +721,13 @@ export const seam: DataSeam = {
     );
     if (!target) return refused("not_permitted", "That sign-up is not waiting for a decision.");
 
-    if (decision.approve && decision.teamId !== me.teamId) {
-      return refused("not_permitted", "An admin can only admit somebody to their own team.");
+    if (decision.approve && !teams.some((t) => t.id === decision.teamId)) {
+      return refused("not_permitted", "That team does not exist.");
     }
 
     if (decision.approve) {
       target.status = "approved";
-      target.teamId = me.teamId;
+      target.teamId = decision.teamId;
     } else {
       target.status = "rejected";
       target.teamId = null;
@@ -1080,23 +1106,14 @@ export const seam: DataSeam = {
 
     // AC-7 and AC-8, and the pair is the test: AC-7 asserts the refusal and AC-8 asserts it is not
     // over-broad.
-    const clash = entries.some(
-      (e) =>
-        e.memberId === me.id && datesIntersect(e, input) && slotsIntersect(e.portion, input.portion),
-    );
-    if (clash) {
-      return {
-        ok: false,
-        error: {
-          code: "overlapping_entry",
-          message:
-            "You already have an entry covering these dates and this portion. " +
-            "Edit the existing entry, or choose a different range.",
-        },
-      };
+    const clash = clashingDates(entries, me.id, input);
+    if (clash.length > 0) {
+      return { ok: false, error: { code: "overlapping_entry", message: overlapMessage(clash) } };
     }
 
     const now = new Date().toISOString();
+    const myTeam = teams.find((t) => t.id === memberTeamId(me.id));
+    const autoApproved = myTeam !== undefined && !needsApproval(myTeam, input.type);
     const row: Entry = {
       id: newEntryId(),
       memberId: me.id,
@@ -1107,11 +1124,18 @@ export const seam: DataSeam = {
       tentative: input.tentative,
       // AC-6 and AC-11. `status` is the column default and never the caller's, and `tentative` does
       // not touch it - glossary.md keeps the two axes apart deliberately.
-      status: "pending",
+      //
+      // SOLO, 2026-09-11 — `entry_apply_approval_setting()`, reproduced. When the member's team says
+      // this type needs no approval, the row is stored `approved` with `approvedBy` null: no member
+      // decided it, and naming an admin would put a name on a decision nobody took. The CALLER still
+      // cannot choose the status — `CreateEntryInput` carries none — so this is the datastore's
+      // decision made on their behalf, exactly as the trigger makes it. A team that cannot be found
+      // leaves the entry `pending`, which is the trigger's fail-closed direction too.
+      status: autoApproved ? "approved" : "pending",
       rejectionReason: null,
       note: input.note,
       approvedBy: null,
-      approvedAt: null,
+      approvedAt: autoApproved ? now : null,
       createdAt: now,
       updatedAt: now,
     };
@@ -1212,23 +1236,9 @@ export const seam: DataSeam = {
     // never with the admin's own — and this is the line an implementation written from the admin's
     // point of view gets wrong, in both directions at once: it would refuse an edit that clashes
     // with the ADMIN's calendar and accept one that double-books the OWNER.
-    const clash = entries.some(
-      (e) =>
-        e.id !== row.id &&
-        e.memberId === row.memberId &&
-        datesIntersect(e, input) &&
-        slotsIntersect(e.portion, input.portion),
-    );
-    if (clash) {
-      return {
-        ok: false,
-        error: {
-          code: "overlapping_entry",
-          message:
-            "You already have an entry covering these dates and this portion. " +
-            "Edit the existing entry, or choose a different range.",
-        },
-      };
+    const clash = clashingDates(entries, row.memberId, input, row.id);
+    if (clash.length > 0) {
+      return { ok: false, error: { code: "overlapping_entry", message: overlapMessage(clash) } };
     }
 
     // INV-02, reproduced. THIS IS A SECOND IMPLEMENTATION OF AN INVARIANT: the real mechanism is
@@ -1404,6 +1414,123 @@ export const seam: DataSeam = {
     if (!row) return refused("not_permitted", "Could not save the threshold.");
 
     row.overloadThreshold = input.overloadThreshold;
+    return { ok: true, value: { ...row } };
+  },
+
+  // -------------------------------------------------------------------------
+  // SOLO, 2026-09-11 — many teams. The seven `security definer` functions in
+  // `20260911180000_solo_many_teams.sql`, reproduced. Each one's FIRST test is `is_admin`, as each
+  // function body's is; that line is the whole control, and a mock that skipped it would let every
+  // component test pass against a function that forgot it.
+  // -------------------------------------------------------------------------
+
+  // `public.list_teams()`: every team for an admin, nothing for anybody else, `created_at` then `id`.
+  async listTeams(): Promise<Team[]> {
+    if (!currentAdmin()) return [];
+    return teams
+      .slice()
+      .sort((a, b) =>
+        a.createdAt === b.createdAt ? a.id.localeCompare(b.id) : a.createdAt.localeCompare(b.createdAt),
+      )
+      .map((t) => ({ ...t }));
+  },
+
+  // `public.list_all_members()`: every member on ANY team, removed ones included, for an admin.
+  // Pending sign-ups have no team and are `listPendingMembers`'. `listMembers` above is unchanged and
+  // stays the caller's own team — it is INV-04's denominator and must never widen.
+  async listAllMembers(): Promise<Member[]> {
+    if (!currentAdmin()) return [];
+    return members
+      .filter((m) => m.teamId !== null)
+      .slice()
+      .sort(byCreatedAtThenId)
+      .map((m) => ({ ...m }));
+  },
+
+  // `public.create_team`. The empty name is refused FIRST here, as supabase.ts refuses it before the
+  // round trip — the two implementations tell one story from the caller's side. The threshold is the
+  // column default.
+  async createTeam(input: CreateTeamInput): Promise<Result<Team>> {
+    const name = input.name.trim();
+    if (name === "") return refused("empty_team_name", EMPTY_TEAM_NAME);
+    if (!currentAdmin()) return refused("not_permitted", TEAM_CREATE_REFUSED);
+
+    // Every column takes its default, as the function's `insert ... (name)` does: 0.5, and both
+    // approval switches ON — `20260911170000_solo_approval_settings.sql` declares them
+    // `boolean not null default true`, so a new team starts requiring approval like every team did.
+    const row: Team = {
+      id: newTeamId(),
+      name,
+      overloadThreshold: 0.5,
+      wfhNeedApprove: true,
+      ptoNeedApprove: true,
+      createdAt: new Date().toISOString(),
+    };
+    teams.push(row);
+    return { ok: true, value: { ...row } };
+  },
+
+  // `public.rename_team`: ANY team, by id. It used to reproduce `team_update_admin` and resolve the
+  // row from the caller; the operator decided every admin manages every team.
+  async renameTeam(teamId: string, input: RenameTeamInput): Promise<Result<Team>> {
+    const name = input.name.trim();
+    if (name === "") return refused("empty_team_name", EMPTY_TEAM_NAME);
+    if (!currentAdmin()) return refused("not_permitted", TEAM_RENAME_REFUSED);
+
+    const row = teams.find((t) => t.id === teamId);
+    if (!row) return refused("not_permitted", TEAM_RENAME_REFUSED);
+
+    row.name = name;
+    return { ok: true, value: { ...row } };
+  },
+
+  // `public.delete_team`: only an EMPTY team, and "empty" is the foreign key's test — ANY member row
+  // naming it, removed ones included. `members.some` with no `removedAt` filter is that test; adding
+  // one would let this mock delete a team the datastore refuses.
+  async deleteTeam(teamId: string): Promise<Result<void>> {
+    if (!currentAdmin()) return refused("not_permitted", TEAM_DELETE_REFUSED);
+
+    const at = teams.findIndex((t) => t.id === teamId);
+    if (at === -1) return refused("not_permitted", TEAM_DELETE_REFUSED);
+    if (members.some((m) => m.teamId === teamId)) return refused("team_not_empty", TEAM_NOT_EMPTY);
+
+    teams.splice(at, 1);
+    return { ok: true, value: undefined };
+  },
+
+  // `public.move_member`: an approved, not-removed member, onto a team that exists. `teamId` is the
+  // ONLY field written — role, removal and status are untouched, so an admin moving somebody gains
+  // no power to promote or remove them on a team the admin is not on.
+  async moveMember(memberId: string, teamId: string): Promise<Result<void>> {
+    if (!currentAdmin()) return refused("not_permitted", MEMBER_MOVE_REFUSED);
+    if (!teams.some((t) => t.id === teamId)) return refused("not_permitted", MEMBER_MOVE_REFUSED);
+
+    const target = members.find(
+      (m) =>
+        m.id === memberId && m.teamId !== null && m.status === "approved" && m.removedAt === null,
+    );
+    if (!target) return refused("not_permitted", MEMBER_MOVE_REFUSED);
+
+    target.teamId = teamId;
+    return { ok: true, value: undefined };
+  },
+
+  // SOLO, 2026-09-11. `team_update_admin` with `grant update (wfh_need_approve, pto_need_approve)`,
+  // reproduced — the same two refusals in the same order as `setOverloadThreshold` and `renameTeam`
+  // above, because it is the same policy.
+  //
+  // **NO ENTRY IS TOUCHED.** The operator chose that switching a type to "no approval" applies to
+  // entries written from then on; a pending row stays pending. A mock that swept them here would
+  // pass a test the datastore fails.
+  async setApprovalSettings(input: SetApprovalSettingsInput): Promise<Result<Team>> {
+    const me = currentAdmin();
+    if (!me) return refused("not_permitted", APPROVAL_SETTINGS_REFUSED);
+
+    const row = teams.find((t) => t.id === memberTeamId(me.id));
+    if (!row) return refused("not_permitted", APPROVAL_SETTINGS_REFUSED);
+
+    row.wfhNeedApprove = input.wfhNeedApprove;
+    row.ptoNeedApprove = input.ptoNeedApprove;
     return { ok: true, value: { ...row } };
   },
 

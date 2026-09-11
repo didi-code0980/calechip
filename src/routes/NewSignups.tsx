@@ -12,8 +12,13 @@
 // `is_admin` — and any decision they issued by hand would be refused by the policy and by nothing in
 // `src/` (ADR-005).
 //
-// **THE TEAM CONTROL OFFERS EXACTLY ONE OPTION TODAY, AND THAT IS THE POLICY SPEAKING RATHER THAN A
-// PLACEHOLDER.** The operator asked for the admin to choose the team at approval.
+// **SOLO, 2026-09-11 — THE TEAM CONTROL NOW OFFERS EVERY TEAM, and the paragraph below is kept as
+// the record of why it once offered one.** The operator decided every admin manages every team, so
+// an approval goes through `public.admit_member`, which checks `is_admin` and that the team exists
+// and nothing about ownership. The picker defaults to the admin's own team.
+//
+// **(Superseded.) THE TEAM CONTROL OFFERS EXACTLY ONE OPTION TODAY, AND THAT IS THE POLICY SPEAKING
+// RATHER THAN A PLACEHOLDER.** The operator asked for the admin to choose the team at approval.
 // `member_decide_admin`'s `with check` compares the team written to `member_team_id(auth.uid())`, so
 // the only team an admin can admit somebody to is their own — a picker offering another team would
 // be offering a journey the datastore refuses. v1 has one team
@@ -25,6 +30,10 @@ import { Link } from "react-router-dom";
 // never import `@/lib/data/supabase` or `@/lib/data/mock` (RULE-02).
 import { seam } from "@/lib/data";
 import type { Failure, Member, Team } from "@/lib/domain/types";
+// SOLO, 2026-09-11 — the loading mark that replaced this screen's "Loading…" sentence. The
+// sentence itself is still announced: `Loader.tsx` keeps it as `sr-only` text, because the element
+// below carries `role="status"` and an emptied one announces nothing.
+import Loader from "@/components/Loader";
 
 /**
  * The four phases `AllowList.tsx` established and this screen keeps, so a reader meets no new shape.
@@ -36,12 +45,16 @@ type View =
   | { phase: "loading" }
   | { phase: "refused" }
   | { phase: "unavailable" }
-  | { phase: "ready"; rows: Member[]; team: Team };
+  // SOLO, 2026-09-11 adds `teams` — every team the picker offers. `team` stays: it is the default.
+  | { phase: "ready"; rows: Member[]; team: Team; teams: Team[] };
 
 export default function NewSignups() {
   const [view, setView] = useState<View>({ phase: "loading" });
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<Failure | null>(null);
+  // SOLO, 2026-09-11. The team chosen for each waiting person, keyed by member id. Absent means the
+  // default — the admin's own team — so a row nobody touched approves exactly as it always did.
+  const [chosen, setChosen] = useState<Record<string, string>>({});
 
   const load = useCallback(async (): Promise<void> => {
     setView({ phase: "loading" });
@@ -61,9 +74,11 @@ export default function NewSignups() {
       // TWO READS. `getTeam()` is not decoration here — it is the value the approve control sends,
       // and the screen must not invent it from the admin's own `teamId` field because that is the
       // same fact read from a row rather than from the policy's own source.
-      const [rows, team] = await Promise.all([
+      const [rows, team, teams] = await Promise.all([
         seam.listPendingMembers(),
         seam.getTeam(),
+        // SOLO, 2026-09-11. Every team, for the picker. Independent of the other two reads.
+        seam.listTeams(),
       ]);
 
       if (!team) {
@@ -71,7 +86,7 @@ export default function NewSignups() {
         return;
       }
 
-      setView({ phase: "ready", rows, team });
+      setView({ phase: "ready", rows, team, teams });
     } catch {
       setView({ phase: "unavailable" });
     }
@@ -102,7 +117,7 @@ export default function NewSignups() {
 
     const result = await seam.decideMember(
       member.id,
-      approve ? { approve: true, teamId: team.id } : { approve: false },
+      approve ? { approve: true, teamId: chosen[member.id] ?? team.id } : { approve: false },
     );
 
     setBusy(null);
@@ -120,7 +135,7 @@ export default function NewSignups() {
         role="status"
         className="mx-auto max-w-3xl rounded-card bg-card p-8 text-center text-sm text-ink-2 shadow-soft"
       >
-        Loading…
+        <Loader label="Loading…" />
       </p>
     );
   }
@@ -162,7 +177,10 @@ export default function NewSignups() {
     );
   }
 
-  const { rows, team } = view;
+  const { rows, team, teams } = view;
+  // `listTeams()` answers every team for an admin, which always includes their own; the fallback is
+  // for a build where the many-teams migration has not been applied and the function is missing.
+  const options = teams.length > 0 ? teams : [team];
 
   return (
     <section className="mx-auto flex max-w-3xl flex-col gap-4">
@@ -231,21 +249,27 @@ export default function NewSignups() {
                 </span>
               </div>
 
-              {/* THE TEAM THE APPROVAL WILL WRITE. A `<select>` with the one option the policy can
-                  accept — see the header note. It is disabled rather than absent so the screen
-                  states which team a person is being admitted to, which is the fact an admin is
-                  actually deciding. */}
+              {/* THE TEAM THE APPROVAL WILL WRITE, and since SOLO 2026-09-11 the admin chooses it from
+                  every team. `data-team-id` is the CHOSEN team, so a spec reads what the approval
+                  will write rather than what the admin happens to be on. */}
               <label className="flex items-center gap-2 text-xs text-ink-3">
                 <span>Team</span>
                 <select
                   data-testid="signup-row-team"
-                  data-team-id={team.id}
-                  value={team.id}
-                  disabled
-                  onChange={() => undefined}
+                  data-team-id={chosen[person.id] ?? team.id}
+                  value={chosen[person.id] ?? team.id}
+                  disabled={busy !== null}
+                  onChange={(event) => {
+                    const teamId = event.target.value;
+                    setChosen((all) => ({ ...all, [person.id]: teamId }));
+                  }}
                   className="rounded-lg border border-line bg-field px-2 py-1 text-ink-2"
                 >
-                  <option value={team.id}>{team.name}</option>
+                  {options.map((option) => (
+                    <option key={option.id} value={option.id}>
+                      {option.name}
+                    </option>
+                  ))}
                 </select>
               </label>
 
