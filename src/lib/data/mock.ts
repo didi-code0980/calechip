@@ -11,6 +11,7 @@ import type {
   CreateEntryInput,
   DataSeam,
   SetOverloadThresholdInput,
+  SetOwnBusyDayInput,
   SignInInput,
   SignUpInput,
   SignUpOutcome,
@@ -21,6 +22,7 @@ import type {
 import type {
   MemberDecision,
   BulkRejectionOutcome,
+  BusyDay,
   DateRange,
   Entry,
   EntryPortion,
@@ -343,6 +345,26 @@ const refused = (
 const entries: Entry[] = [{ ...FIXTURE_APPROVED_ENTRY }, { ...FIXTURE_OTHER_TEAM_ENTRY }];
 
 // ---------------------------------------------------------------------------
+// SOLO, 2026-09-11. The mock's `busy_day` table.
+// ---------------------------------------------------------------------------
+//
+// **SEEDED EMPTY, UNLIKE `entries`.** The two fixture entries exist because nobody can create them
+// through the product — `entry_insert_own` admits only `member_id = auth.uid()`, so an approved row
+// and another team's row are unreachable from a suite that signs in on FIXTURE_TEAM. A busy day has
+// neither problem: it needs no approval and a test creates one with one press, so a seeded row would
+// be a row every count has to remember to subtract.
+//
+// Module state, like `members` and `entries`: it resets on a document load, which is why the e2e
+// helpers that walk browser history avoid `page.goto` mid-test.
+const busyDays: BusyDay[] = [];
+
+// The id shape `newEntryId` and `newHolidayId` already use — a `bb` prefix, so a reader can tell at
+// a glance which table an id belongs to.
+let nextBusyDayId = 0;
+const newBusyDayId = (): string =>
+  `bb000000-0000-4000-8000-${String(++nextBusyDayId).padStart(12, "0")}`;
+
+// ---------------------------------------------------------------------------
 // ADM-02. 01-plan.md sections 4.3 and 4.5.
 // ---------------------------------------------------------------------------
 
@@ -374,6 +396,10 @@ const HOLIDAY_ADD_REFUSED = "Only an admin can add to the holiday calendar.";
 const HOLIDAY_UPDATE_REFUSED = "Only an admin can change the holiday calendar.";
 const HOLIDAY_DELETE_REFUSED = "Only an admin can remove a day from the holiday calendar.";
 const HOLIDAY_DATE_TAKEN = "The calendar already has a row for that date. Edit that row instead.";
+
+// SOLO, 2026-09-11. Repeated verbatim in src/lib/data/supabase.ts so the two implementations carry
+// the same words — the rule CAL-01's three refusal constants state.
+const BUSY_DAY_REFUSED = "This day could not be marked. You may only mark your own days.";
 
 let nextEntryId = 0;
 const newEntryId = (): string => `ee000000-0000-4000-8000-${String(++nextEntryId).padStart(12, "0")}`;
@@ -1456,6 +1482,108 @@ export const seam: DataSeam = {
     }
 
     return assembled.map((e) => ({ ...e }));
+  },
+
+  // -------------------------------------------------------------------------
+  // SOLO, 2026-09-11. The busy day.
+  // -------------------------------------------------------------------------
+
+  // `busy_day_select_team`, reproduced. The team filter is applied to the WHOLE array before the
+  // first window is taken, which is the mock's copy of a policy filtering every request in the real
+  // one — a window taken before the filter would page over another team's rows and then drop them,
+  // which reads as a short page rather than as a scope error. `listTeamEntriesOverlapping` above
+  // records the same reasoning at length.
+  //
+  // `sameTeam` and not `===`: `member_team_id` is null for a removed member and `null = null` is
+  // NULL in SQL rather than true, so a removed member's marks are invisible here exactly as their
+  // entries are.
+  //
+  // IT FILTERS NO MEMBER AND COUNTS NOTHING. `busyCountsFor` applies the removed-member rule, and it
+  // is the only thing that may — the same division of labour `absenceCountsFor` has with this file.
+  async listTeamBusyDaysOverlapping(range: DateRange): Promise<BusyDay[]> {
+    const mine = memberTeamId(currentMemberId);
+
+    const matched = busyDays
+      .filter((b) => sameTeam(memberTeamId(b.memberId), mine))
+      .filter((b) => b.date >= range.start && b.date <= range.end)
+      .slice()
+      .sort((a, b) => (a.date === b.date ? a.id.localeCompare(b.id) : a.date.localeCompare(b.date)));
+
+    const matching = matched.length;
+    const assembled: BusyDay[] = [];
+    const seen = new Set<string>();
+
+    for (let request = 0; request < TEAM_ENTRY_MAX_PAGES; request += 1) {
+      const from = assembled.length;
+      const rows = matched.slice(from, from + TEAM_ENTRY_PAGE_SIZE);
+
+      // The same two refusals supabase.ts carries, and NEITHER CAN FIRE HERE: the count and the
+      // windows come from one array, so a row cannot be skipped or repeated between them. They are
+      // written because the two implementations must tell one story, not because the mock can
+      // truncate — the reason `listTeamEntriesOverlapping` gives for its own copies.
+      for (const row of rows) {
+        if (seen.has(row.id)) {
+          throw new Error(
+            `listTeamBusyDaysOverlapping received busy day ${row.id} twice across pages: the ` +
+              `result is not a set and must not be counted`,
+          );
+        }
+        seen.add(row.id);
+        assembled.push(row);
+      }
+
+      if (assembled.length >= matching) break;
+      if (rows.length === 0) break;
+    }
+
+    if (assembled.length !== matching) {
+      throw new Error(
+        `listTeamBusyDaysOverlapping assembled ${assembled.length} rows while ${matching} match: ` +
+          `the range may be incomplete and must not be counted`,
+      );
+    }
+
+    return assembled.map((b) => ({ ...b }));
+  },
+
+  // `busy_day_insert_own` and `busy_day_delete_own`, reproduced.
+  //
+  // ONE REFUSAL AND IT IS THE POLICY'S: a caller with no session, no member row, or a removed one
+  // has nothing `auth.uid()` resolves to. `status` is not tested here for the same reason no other
+  // mock write tests it — `member_team_id` is what gates approval in the real datastore, and the
+  // mock's `memberTeamId` is that function.
+  //
+  // IDEMPOTENT IN BOTH DIRECTIONS, which is the contract `setOwnBusyDay` states and the reason the
+  // real one can be a bare `upsert` and a bare `delete`: marking a marked day writes nothing and
+  // succeeds, and unmarking an unmarked one deletes nothing and succeeds. A toggle whose next read
+  // is the truth must not report "there was nothing there" as a failure.
+  async setOwnBusyDay(input: SetOwnBusyDayInput): Promise<Result<void>> {
+    const me = members.find((m) => m.id === currentMemberId && m.removedAt === null) ?? null;
+    if (!me || memberTeamId(me.id) === null) {
+      return {
+        ok: false,
+        error: { code: "busy_not_permitted", message: BUSY_DAY_REFUSED },
+      };
+    }
+
+    const at = busyDays.findIndex((b) => b.memberId === me.id && b.date === input.date);
+
+    if (input.busy) {
+      // `unique (member_id, date)` reproduced. The constraint is the real mechanism; this exists so
+      // a double press is observable end-to-end without a provisioned project.
+      if (at === -1) {
+        busyDays.push({
+          id: newBusyDayId(),
+          memberId: me.id,
+          date: input.date,
+          createdAt: new Date().toISOString(),
+        });
+      }
+    } else if (at !== -1) {
+      busyDays.splice(at, 1);
+    }
+
+    return { ok: true, value: undefined };
   },
 
   // -------------------------------------------------------------------------

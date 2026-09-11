@@ -124,6 +124,24 @@ async function signInAt(
   await expect(page.getByTestId("shell-sidebar")).toBeVisible();
 }
 
+/**
+ * SOLO 2026-09-11. Stand on the calendar, pressing the top-bar control only if it is currently
+ * showing its `Calendar` face — which it is on the six admin addresses and nowhere else.
+ *
+ * **IT PRESSES A CONTROL RATHER THAN CALLING `page.goto("/")`**, which would be one line shorter and
+ * would reload the document: the mock seam keeps its state in module scope, so a reload inside a
+ * test discards whatever earlier steps created. Five shipped spec files already avoid `goto` in
+ * mid-test helpers for exactly this reason.
+ */
+async function returnToCalendar(page: Page): Promise<void> {
+  const control = page.getByTestId("shell-admin-link");
+  if ((await control.getAttribute("data-state")) === "calendar") {
+    await control.click();
+    await expect(page).toHaveURL(/\/$/);
+  }
+  await expect(control).toHaveAttribute("data-state", "admin");
+}
+
 test.describe("UIE-10 — the sidebar after the migration", () => {
   test("AC-1: the four admin links are gone from the sidebar, for both roles", async ({
     page,
@@ -178,7 +196,16 @@ test.describe("UIE-10 — the sidebar after the migration", () => {
 
     // Not one character typed after the sign-in: the top-bar control, then the hub row. That is the
     // whole of what this ticket cost an admin, and it is asserted rather than assumed.
+    //
+    // **THE TWO STEPS ARE COUNTED FROM THE CALENDAR, AND SOLO 2026-09-11 IS WHY THAT SENTENCE HAD TO
+    // BE WRITTEN DOWN.** The loop used to press the control from wherever the previous iteration
+    // left it — which, after the first destination, was an admin screen. The control now has two
+    // faces and on an admin screen it is the way back to the calendar, so the loop returns there
+    // FIRST and then counts. The claim UIE-10 AC-3 makes is unchanged: an address the sidebar gave
+    // up is two steps from the screen an admin lands on, and the return itself is not one of them.
     for (const destination of MIGRATED) {
+      await returnToCalendar(page);
+
       await page.getByTestId("shell-admin-link").click();
       await expect(page.getByTestId("admin-hub")).toBeVisible();
 

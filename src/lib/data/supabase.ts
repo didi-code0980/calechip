@@ -15,6 +15,7 @@ import type {
   CreateEntryInput,
   DataSeam,
   SetOverloadThresholdInput,
+  SetOwnBusyDayInput,
   SignInInput,
   SignUpInput,
   SignUpOutcome,
@@ -26,6 +27,7 @@ import type {
   MemberDecision,
   MemberStatus,
   BulkRejectionOutcome,
+  BusyDay,
   DateRange,
   Entry,
   EntryPortion,
@@ -203,6 +205,33 @@ interface HolidayRow {
 }
 
 const HOLIDAY_COLUMNS = "id, date, name, kind, created_at";
+
+// SOLO, 2026-09-11. The `busy_day` row, in datastore casing.
+//
+// FOUR COLUMNS AND NO FIFTH. There is no `status`, no `tentative`, no `note` and no `updated_at`:
+// the row is never edited, only created and destroyed, so there is nothing an update timestamp could
+// record. `src/lib/domain/types.ts` carries the reasoning for each absence.
+interface BusyDayRow {
+  id: string;
+  member_id: string;
+  date: string;
+  created_at: string;
+}
+
+const BUSY_DAY_COLUMNS = "id, member_id, date, created_at";
+
+function toBusyDay(row: BusyDayRow): BusyDay {
+  return {
+    id: row.id,
+    memberId: row.member_id,
+    date: row.date,
+    createdAt: row.created_at,
+  };
+}
+
+// Repeated verbatim in src/lib/data/mock.ts so the two implementations carry the same words — the
+// rule CAL-01's three refusal constants state.
+const BUSY_DAY_REFUSED = "This day could not be marked. You may only mark your own days.";
 
 function toHoliday(row: HolidayRow): Holiday {
   return {
@@ -1349,6 +1378,124 @@ export const seam: DataSeam = {
     }
 
     return assembled.map(toEntry);
+  },
+
+  // -------------------------------------------------------------------------
+  // SOLO, 2026-09-11. The busy day.
+  // -------------------------------------------------------------------------
+
+  // **A PLAIN TWO-SIDED FILTER ON A SCALAR COLUMN**, the shape `listHolidays` uses — and this is
+  // where ADR-011's `date_range=ov.` pattern deliberately does NOT transfer. An entry SPANS a range
+  // and needed a generated column because PostgREST filters columns rather than expressions; a busy
+  // day IS one date, served by the btree index `unique (member_id, date)` already builds. Copying
+  // that shape would be cost with no property bought — ADR-015 § 6's reasoning for holidays.
+  //
+  // **NO `.eq("team_id", …)`, AND THAT IS NOT THE HOLIDAY REASON.** `busy_day` has no `team_id`
+  // column, but unlike `holiday` it IS team-scoped: `busy_day_select_team` joins through
+  // `member_team_id`, so the policy narrows the read and a filter here would be a second, weaker
+  // copy of it. Every other team-scoped read in this file says the same.
+  //
+  // **IT PAGES AND ASSEMBLES**, CAL-09's shape and for CAL-09's reason: a short read here does not
+  // error, it draws a quieter day than the team really has. The completeness check compares what was
+  // assembled against the datastore's own exact count, which detects a shortened window, a skipped
+  // row and an exhausted bound alike WITHOUT knowing the cap's value.
+  async listTeamBusyDaysOverlapping(range: DateRange): Promise<BusyDay[]> {
+    const assembled: BusyDayRow[] = [];
+    const seen = new Set<string>();
+    let matching: number | null = null;
+
+    for (let request = 0; request < TEAM_ENTRY_MAX_PAGES; request += 1) {
+      // THE OFFSET IS THE NUMBER OF ROWS IN HAND, not `request * TEAM_ENTRY_PAGE_SIZE` — a page
+      // shortened by a lowered cap then costs another request rather than opening a gap.
+      const from = assembled.length;
+      const to = from + TEAM_ENTRY_PAGE_SIZE - 1;
+
+      const { data, error, count } = await client()
+        .from("busy_day")
+        .select(BUSY_DAY_COLUMNS, { count: "exact" })
+        .gte("date", range.start)
+        .lte("date", range.end)
+        .order("date", { ascending: true })
+        .order("id", { ascending: true })
+        .range(from, to)
+        .returns<BusyDayRow[]>();
+
+      if (error) throw new Error(`listTeamBusyDaysOverlapping failed: ${error.message}`);
+
+      // The count is asked for explicitly, so a null one means the datastore did not answer the half
+      // completeness is decided on. Falling back to `rows.length` would report a page as the whole
+      // range — the silent short calendar, arriving by a new route.
+      if (count === null || count === undefined) {
+        throw new Error(
+          "listTeamBusyDaysOverlapping got no exact count: completeness must never be derived " +
+            "from the number of rows received",
+        );
+      }
+
+      // The FIRST count is the target. Later counts are read and ignored: a count that grew means a
+      // concurrent write, and refusing on it would fail the week view whenever anybody pressed the
+      // control. What an offset walk can actually LOSE is caught below.
+      if (matching === null) matching = count;
+
+      const rows = data ?? [];
+
+      for (const row of rows) {
+        if (seen.has(row.id)) {
+          throw new Error(
+            `listTeamBusyDaysOverlapping received busy day ${row.id} twice across pages: the ` +
+              `result is not a set and must not be counted`,
+          );
+        }
+        seen.add(row.id);
+        assembled.push(row);
+      }
+
+      if (assembled.length >= matching) break;
+      if (rows.length === 0) break; // no progress; the comparison below is the refusal
+    }
+
+    if (matching === null || assembled.length !== matching) {
+      throw new Error(
+        `listTeamBusyDaysOverlapping assembled ${assembled.length} rows while ` +
+          `${matching ?? "no"} match: the range may be incomplete and must not be counted`,
+      );
+    }
+
+    return assembled.map(toBusyDay);
+  },
+
+  // **AN UPSERT AND A DELETE, AND NEITHER NEEDS TO READ FIRST.**
+  //
+  // The MARK is `upsert` on `(member_id, date)`, which is what makes a double press succeed rather
+  // than raising the 23505 the unique constraint would otherwise return. `member_id` is NOT sent:
+  // the column default is `auth.uid()` and `busy_day_insert_own`s `with check` compares against it,
+  // so a caller cannot name somebody else's row — the shape `createEntry` records for `entry`.
+  //
+  // The UNMARK is `delete().eq("date", …)`, with NO member filter, and that is the policy doing the
+  // narrowing rather than a second copy of it here: `busy_day_delete_own` admits only
+  // `member_id = auth.uid()`, so this statement cannot reach another person's row even though it
+  // names no member.
+  //
+  // **ZERO ROWS BACK IS NOT A REFUSAL HERE, WHICH IS THE OPPOSITE OF `updateHoliday`.** Under
+  // row-level security a refused DELETE is FILTERED and matches no row — indistinguishable from
+  // there having been nothing to delete. For a toggle those two ARE the same outcome: the day is not
+  // marked, the next read says so, and reporting "nothing happened" as a failure would put an error
+  // on screen for a press that left the world in exactly the state the person asked for. The insert
+  // path is where a real refusal is observable, and it errors.
+  async setOwnBusyDay(input: SetOwnBusyDayInput): Promise<Result<void>> {
+    if (input.busy) {
+      const { error } = await client()
+        .from("busy_day")
+        .upsert({ date: input.date }, { onConflict: "member_id,date", ignoreDuplicates: true });
+
+      if (error) return { ok: false, error: { code: "busy_not_permitted", message: BUSY_DAY_REFUSED } };
+      return { ok: true, value: undefined };
+    }
+
+    const { error } = await client().from("busy_day").delete().eq("date", input.date);
+
+    if (error) return { ok: false, error: { code: "busy_not_permitted", message: BUSY_DAY_REFUSED } };
+    return { ok: true, value: undefined };
   },
 
   // -------------------------------------------------------------------------

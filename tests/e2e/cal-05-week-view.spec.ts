@@ -239,15 +239,34 @@ test.describe("CAL-05 — week view", () => {
       rowFor(page, "2026-09-15", APPROVED_MEMBER_ID).getByTestId("week-row-approver"),
     ).toContainText(ADMIN_NAME);
 
-    // And there is no control of any kind — for either role, since the screen branches on neither.
+    // And there is no control over an ENTRY — for either role, since the screen branches on neither.
     // 01-plan.md section 3 names this the weakest mechanism in the plan: the denial is held by
     // ABSENCE, and this is where the absence is checked rather than assumed.
     await expect(page.locator('[data-testid="week-row"] button')).toHaveCount(0);
     await expect(page.locator('[data-testid="week-row"] input')).toHaveCount(0);
-    await expect(page.locator('[data-testid="week-day"] button')).toHaveCount(0);
     await expect(page.locator('[data-testid="week-day"] form')).toHaveCount(0);
     await expect(page.locator('[data-testid="week-day"] select')).toHaveCount(0);
     await expect(page.locator('[data-testid="week-day"] textarea')).toHaveCount(0);
+
+    // **NARROWED BY SOLO 2026-09-11, AND THE CLAUSE THAT MOVED IS NAMED RATHER THAN QUIETLY
+    // DROPPED.** This line read `'[data-testid="week-day"] button'` → 0. That was the right
+    // assertion while the day column held nothing anybody could press; the busy control is a button
+    // inside `week-day`, so the literal count is now 7 and the old line would fail.
+    //
+    // **WHAT THE CRITERION IS FOR SURVIVES, AND IS STILL CAPABLE OF FAILING.** AC-8 is about
+    // APPROVAL — *"displaying who approved is not approving"* — and about this screen offering no
+    // way to act on an ENTRY. A busy day is not an entry: it is the caller's own statement about
+    // their own workload, it has no status, and nobody approves it. So the rule becomes *every
+    // button inside a week day is the busy toggle, and there are exactly seven of them* — one per
+    // day, none of them touching an entry. An approve, reject, edit or delete control added here
+    // later still fails this test, which a bare `toHaveCount(7)` would not.
+    const dayButtons = page.locator('[data-testid="week-day"] button');
+    await expect(dayButtons).toHaveCount(7);
+    expect(
+      await dayButtons.evaluateAll((nodes) =>
+        nodes.map((node) => node.getAttribute("data-testid")),
+      ),
+    ).toEqual(Array.from({ length: 7 }, () => "week-day-busy"));
     // No edit or delete route is offered either: the only links on this screen are the four in the
     // header, which are navigation and not action.
     await expect(page.locator('[data-testid="week-day"] a')).toHaveCount(0);

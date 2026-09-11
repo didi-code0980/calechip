@@ -152,7 +152,11 @@ import { absenceCountsFor, absentEntriesFor, addDays, currentMemberCount, eachDa
 // that module and is not exported — a `isSaturday(d)` written here would be the second definition
 // .ai/registry/features.md:95 forbids, and this file draws no weekend distinction anyway.
 import { dayStatusesFor, holidayReadRange } from "@/lib/data/day-status";
-import type { AbsenceCounts, AbsenceDetail, DateRange, DayStatus, Entry, Holiday, Member } from "@/lib/domain/types";
+// SOLO, 2026-09-11. The busy count's one definition, imported the same way and for the same reason
+// as the two above. **IT IS NOT INV-04 AND THE TWO NUMBERS ARE NEVER ADDED** — `busy.ts`'s header
+// carries that at length. A busy person is at work; the strip below draws the two facts separately.
+import { busyCountsFor, busyDatesOf, busyMembersFor } from "@/lib/data/busy";
+import type { AbsenceCounts, AbsenceDetail, BusyCounts, BusyDay, DateRange, DayStatus, Entry, Holiday, Member } from "@/lib/domain/types";
 import { PORTION_LABELS, TYPE_LABELS } from "@/lib/labels";
 // UIE-02 § 4.5. `mondayIndex` and `isRealDay` were declared BELOW, in this file; the shell's top bar
 // needs both, and `mondayIndex` was DUPLICATED here and in MonthView.tsx character for character.
@@ -212,7 +216,17 @@ type View =
   | { phase: "loading" }
   | { phase: "not-on-a-team" } // the caller has no member row, or has been removed
   | { phase: "unavailable" } // a throw from either read, including the truncation assertion
-  | { phase: "ready"; roster: Member[]; entries: Entry[]; holidays: Holiday[] };
+  // SOLO, 2026-09-11 adds `me` and `busyDays`. `me` was read and discarded before — only its
+  // nullness was used — and the busy control needs the caller's own id to know whether a press marks
+  // or unmarks. Reading it again in the handler would be a second `getCurrentMember()` per press.
+  | {
+      phase: "ready";
+      me: Member;
+      roster: Member[];
+      entries: Entry[];
+      holidays: Holiday[];
+      busyDays: BusyDay[];
+    };
 
 interface WeekViewProps {
   /**
@@ -284,13 +298,20 @@ export default function WeekView({ landing = false }: WeekViewProps) {
       // deciding whether Monday is a bridge day needs the Sunday before it — which for a seven-day
       // range is outside it. The pad is one exported function rather than an expression here, so the
       // three views cannot disagree about it (CAL-08 01-plan.md section 8, rejected alternative 2).
-      const [roster, entries, holidays] = await Promise.all([
+      //
+      // SOLO, 2026-09-11 adds the FOURTH read, in the same `Promise.all` rather than after it: it is
+      // independent of the other three and a sequential await would add a round trip to every week.
+      // It throws on a truncated answer exactly as the entry read does, and lands in the same
+      // `unavailable` branch — a short busy read draws a quieter day than the team really has, which
+      // is the same silent wrong answer AC-15 exists for.
+      const [roster, entries, holidays, busyDays] = await Promise.all([
         seam.listMembers(),
         seam.listTeamEntriesOverlapping(range),
         seam.listHolidays(holidayReadRange(range)),
+        seam.listTeamBusyDaysOverlapping(range),
       ]);
 
-      setView({ phase: "ready", roster, entries, holidays });
+      setView({ phase: "ready", me, roster, entries, holidays, busyDays });
     } catch {
       // AC-15. All three reads throw on a transport failure and on a possibly-truncated answer
       // (`MONTH_ENTRY_LIMIT`, reused rather than joined by a second constant — section 4.2). This
@@ -335,6 +356,67 @@ export default function WeekView({ landing = false }: WeekViewProps) {
   // written here. The roster is the UNFILTERED one `seam.listMembers()` returns (ADR-013), which is
   // the shape both functions require and the same shape MonthView.tsx feeds them.
   const activeMembers = view.phase === "ready" ? currentMemberCount(view.roster) : 0;
+
+  // SOLO, 2026-09-11. **THE BUSY COUNT, THE BUSY PEOPLE AND MY OWN MARKS — THREE DERIVATIONS FROM
+  // ONE PASS**, the shape `absent` and `counts` above already use and for the same reason: a second
+  // filter written here would be a second chance to disagree with the number beside it.
+  //
+  // **NONE OF THESE IS INV-04 AND NONE IS EVER ADDED TO IT.** The strip below draws `0/4` for
+  // absences and a separate busy figure; a reader who saw one number would be reading a fact the
+  // product does not hold.
+  const busyCounts = useMemo<BusyCounts>(
+    () =>
+      view.phase === "ready" && range
+        ? busyCountsFor(view.busyDays, range, view.roster)
+        : new Map<string, number>(),
+    [view, range],
+  );
+
+  const busyPeople = useMemo(
+    () =>
+      view.phase === "ready" && range
+        ? busyMembersFor(view.busyDays, range, view.roster)
+        : new Map<string, readonly Member[]>(),
+    [view, range],
+  );
+
+  // Which of the seven days I have marked. It decides what a press DOES, so it deliberately does not
+  // apply the removed-member rule the counts apply — `busy.ts` records that asymmetry.
+  const myBusy = useMemo(
+    () =>
+      view.phase === "ready" && range
+        ? busyDatesOf(view.busyDays, range, view.me.id)
+        : new Set<string>(),
+    [view, range],
+  );
+
+  // The date whose control is mid-write. **ONE AT A TIME AND NOT A BOOLEAN**: a boolean would
+  // disable all seven controls while one is saving, which on a week where somebody marks three days
+  // in a row is three pauses of the whole strip.
+  const [busyPending, setBusyPending] = useState<string | null>(null);
+
+  // **NO OPTIMISTIC UPDATE, AND THAT IS THE DECISION.** The press writes and then RE-READS, so the
+  // number on screen is always one the datastore produced. An optimistic toggle would have to
+  // predict the count — including what happens when somebody else marked the same day between the
+  // read and the press — and a count that flickered to a wrong value and back is worse than one that
+  // arrives a moment later, on a screen whose entire purpose is for somebody to trust the number.
+  //
+  // A FAILED WRITE FALLS THROUGH TO THE SAME RE-READ. The refusal paths are a caller with no member
+  // row and a removed member, neither of whom is looking at this screen — it renders `not-on-a-team`
+  // for both — so there is no message to show that would not be about an unreachable state. The
+  // re-read is what makes the control tell the truth either way.
+  const toggleBusy = useCallback(
+    async (date: string, busy: boolean): Promise<void> => {
+      setBusyPending(date);
+      try {
+        await seam.setOwnBusyDay({ date, busy });
+      } finally {
+        setBusyPending(null);
+        await load();
+      }
+    },
+    [load],
+  );
 
   // CAL-08 AC-6 and AC-11. The day status of the seven days, from the same module the month grid
   // reads — which is what makes the two screens unable to disagree about a date (CAL-08 AC-11).
@@ -485,6 +567,13 @@ export default function WeekView({ landing = false }: WeekViewProps) {
             // UIE-07 AC-1, AC-2. Read beside `people` and `status`, from INV-04's map and not from
             // `people.length` — the two differ on exactly the days this ticket exists for.
             const count = counts.get(date) ?? 0;
+
+            // SOLO, 2026-09-11. The three busy facts about this date, read from the three maps built
+            // in one pass above. `busyCount` is a HEAD COUNT and `count` is INV-04's weighted
+            // absence figure — they are drawn as two separate things and never summed.
+            const busyCount = busyCounts.get(date) ?? 0;
+            const busyHere = busyPeople.get(date) ?? [];
+            const iAmBusy = myBusy.has(date);
 
             return (
               <section
@@ -751,6 +840,69 @@ export default function WeekView({ landing = false }: WeekViewProps) {
                   </ul>
                 )}
 
+                {/* SOLO, 2026-09-11 — the busy strip, and the control that writes it.
+                    The operator: *"cho phép user mark ngày cụ thể nào đó là bận, người khác sẽ thấy
+                    được số member bận trong ngày đó"*, so that somebody arranging an event can see
+                    which days are heavy. They chose a press on the day itself, and count PLUS names.
+
+                    **`mt-auto` IS HERE AND THE COUNT STRIP BELOW GAVE UP ITS OWN, WHICH IS THE ONE
+                    CHARACTER OF UIE-07's ELEMENT THIS CHANGE TOUCHES.** Written first with BOTH
+                    carrying it, and a screenshot is what rejected that: CSS distributes free space
+                    EQUALLY among every auto margin in the box, so two `mt-auto` siblings take half
+                    the slack each and this pill floated in the middle of the column with the strip
+                    still at the bottom. One auto margin pins the pair. `week-day-count` keeps its
+                    id, its text, its `data-current-members` and its whole appearance — UIE-07
+                    asserts those and asserts no class, so every one of its criteria still passes.
+
+                    **ONE ELEMENT IS BOTH THE FIGURE AND THE CONTROL.** A separate "mark busy" button
+                    beside a separate number would spend two rows of a 161px column on one fact.
+                    `aria-pressed` is what makes the button a toggle to a screen reader rather than
+                    an action with a surprising result.
+
+                    **IT IS NOT THE OVERLOAD STATE AND NOT THE ABSENCE COUNT.** Butter, not pink and
+                    not peach: UIE-06 § 4.6 refused giving one colour two meanings on one grid, and a
+                    busy person is at work — the opposite of what every other colour on this screen
+                    means. `src/index.css` carries the token's reasoning.
+
+                    **THE NAMES ARE AVATARS, NOT A LIST.** The column is ~161px wide and a stacked
+                    list of display names is the density CLAUDE.md § Visual direction says the grid
+                    never pays. Each avatar carries `title` and `data-member-id`, which is how the
+                    month cell already names the people it draws. */}
+                <div className="mt-auto flex flex-wrap items-center gap-1 pt-2">
+                  <button
+                    type="button"
+                    data-testid="week-day-busy"
+                    data-date={date}
+                    data-busy-count={busyCount}
+                    data-mine={iAmBusy}
+                    aria-pressed={iAmBusy}
+                    disabled={busyPending === date}
+                    onClick={() => void toggleBusy(date, !iAmBusy)}
+                    className={[
+                      "rounded-pill px-2 py-0.5 text-xs font-semibold transition-colors",
+                      "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink",
+                      "disabled:opacity-50",
+                      iAmBusy ? "bg-busy text-ink" : "border border-line text-ink-3 hover:text-ink",
+                    ].join(" ")}
+                  >
+                    {/* The word is visible and the number is beside it, because a bare figure on a
+                        strip that already carries `0/4` would read as a second absence count. */}
+                    Busy {busyCount}
+                  </button>
+
+                  {busyHere.map((person) => (
+                    <span
+                      key={person.id}
+                      data-testid="week-day-busy-avatar"
+                      data-member-id={person.id}
+                      title={person.displayName}
+                      className="inline-flex items-center rounded-full bg-busy px-1.5 py-0.5 text-xs"
+                    >
+                      {person.avatar}
+                    </span>
+                  ))}
+                </div>
+
                 {/* UIE-07 AC-1, AC-7, AC-8, AC-10, AC-11. THE MIRROR OF THE HEADER STRIP above —
                     same full-bleed negative margin, same hairline token, same centred small type,
                     `border-t` and `rounded-b-2xl` where the header has `border-b` and
@@ -806,7 +958,10 @@ export default function WeekView({ landing = false }: WeekViewProps) {
                 <p
                   data-testid="week-day-count"
                   data-current-members={activeMembers}
-                  className="-mx-4 -mb-4 mt-auto rounded-b-2xl border-t border-line px-4 py-2 text-center text-sm text-ink-3"
+                  // SOLO, 2026-09-11: `mt-auto` REMOVED, and the busy strip immediately above now
+                  // carries the column's only auto margin. Two of them split the free space rather
+                  // than stacking — see the block above, which is where the reasoning lives.
+                  className="-mx-4 -mb-4 rounded-b-2xl border-t border-line px-4 py-2 text-center text-sm text-ink-3"
                 >
                   <span className="sr-only">Absence count: </span>
                   {count}/{activeMembers}

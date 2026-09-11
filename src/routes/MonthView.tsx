@@ -94,11 +94,16 @@ import {
 // weekend rule is inside that module and is not exported — a `isSaturday(d)` written here would be
 // the second definition .ai/registry/features.md:95 forbids.
 import { dayStatusesFor, holidayReadRange } from "@/lib/data/day-status";
+// SOLO, 2026-09-11. The busy count's one definition, imported the same way and for the same reason.
+// **IT IS NOT INV-04.** A busy person is AT WORK, so this number never enters `absenceCountsFor`,
+// never enters `isOverloaded`, and is never drawn as one figure with the absence count — `busy.ts`
+// carries the argument.
+import { busyCountsFor, busyDatesOf, busyMembersFor } from "@/lib/data/busy";
 // SOLO, 2026-09-10. One entry per unbroken run of the days chosen in the picker, and the dragged
 // range expanded into the days the picker opens filled.
 import { createEntriesForDates } from "@/lib/create-entries";
 import { datesInRange } from "@/lib/date-selection";
-import type { DateRange, DayStatus, Entry, Failure, Holiday, Member, Team } from "@/lib/domain/types";
+import type { BusyCounts, BusyDay, DateRange, DayStatus, Entry, Failure, Holiday, Member, Team } from "@/lib/domain/types";
 // UIE-02 § 4.5. `MONTH_NAMES`, `mondayIndex`, `shiftMonth`, `monthLabel` and the month shape test
 // were declared BELOW, in this file; the shell's top bar needs all of them, and `mondayIndex` was
 // DUPLICATED here and in WeekView.tsx character for character. Moving each definition into one pure
@@ -161,7 +166,18 @@ type View =
   | { phase: "loading" }
   | { phase: "not-on-a-team" } // the caller has no member row, or has been removed
   | { phase: "unavailable" } // a throw from any read, including AC-11's truncation assertion
-  | { phase: "ready"; team: Team; roster: Member[]; entries: Entry[]; holidays: Holiday[] };
+  // SOLO, 2026-09-11 adds `me` and `busyDays`. `me` was read and discarded before — only its
+  // nullness was used — and the busy control needs the caller's own id to know whether a press marks
+  // or unmarks.
+  | {
+      phase: "ready";
+      me: Member;
+      team: Team;
+      roster: Member[];
+      entries: Entry[];
+      holidays: Holiday[];
+      busyDays: BusyDay[];
+    };
 
 /** The drag in progress: where it started and where the pointer is now. Order-free — a drag upwards
  *  through the grid is the same range as the same drag downwards. */
@@ -213,11 +229,18 @@ export default function MonthView() {
       // range is PADDED: `dayStatusesFor` is not total on its own range, because deciding whether
       // the 1st of the month is a bridge day needs the day before it. The pad is one exported
       // function rather than an expression here, so the three views cannot disagree about it.
-      const [team, roster, entries, holidays] = await Promise.all([
+      //
+      // SOLO, 2026-09-11 adds the FIFTH read, in the same `Promise.all` rather than after it: it is
+      // independent of the other four and a sequential await would add a round trip to every month.
+      // It throws on a truncated answer exactly as the entry read does and lands in the same
+      // `unavailable` branch, for the reason AC-11 gives about the threshold: a grid that drew a
+      // believable partial answer would say nothing about what it had not been given.
+      const [team, roster, entries, holidays, busyDays] = await Promise.all([
         seam.getTeam(),
         seam.listMembers(),
         seam.listTeamEntriesOverlapping(range),
         seam.listHolidays(holidayReadRange(range)),
+        seam.listTeamBusyDaysOverlapping(range),
       ]);
 
       // AC-7 and AC-14 need the threshold, and a grid drawn without it is exactly the failure AC-11
@@ -233,7 +256,7 @@ export default function MonthView() {
         return;
       }
 
-      setView({ phase: "ready", team, roster, entries, holidays });
+      setView({ phase: "ready", me, team, roster, entries, holidays, busyDays });
     } catch {
       // All four reads throw on a transport failure and on a possibly-truncated answer. AC-11 is
       // this branch: a capped read SUMS what it was given, so a day that was overloaded renders
@@ -278,6 +301,55 @@ export default function MonthView() {
         ? absentMembersFor(view.entries, range, view.roster)
         : new Map<string, readonly Member[]>(),
     [view, range],
+  );
+
+  // SOLO, 2026-09-11. The busy count, the busy people and my own marks — three derivations from one
+  // pass, the shape `counts` and `absent` above already use.
+  //
+  // **NONE OF THESE REACHES `isOverloaded`.** A day is crowded when too many people are AWAY; adding
+  // a busy person to that comparison would report the team as short-staffed on a day when everybody
+  // is at their desk. The two numbers sit in the same cell and are never summed.
+  const busyCounts = useMemo<BusyCounts>(
+    () =>
+      view.phase === "ready" && range
+        ? busyCountsFor(view.busyDays, range, view.roster)
+        : new Map<string, number>(),
+    [view, range],
+  );
+
+  const busyPeople = useMemo(
+    () =>
+      view.phase === "ready" && range
+        ? busyMembersFor(view.busyDays, range, view.roster)
+        : new Map<string, readonly Member[]>(),
+    [view, range],
+  );
+
+  const myBusy = useMemo(
+    () =>
+      view.phase === "ready" && range
+        ? busyDatesOf(view.busyDays, range, view.me.id)
+        : new Set<string>(),
+    [view, range],
+  );
+
+  // The date mid-write. One at a time rather than a boolean, so marking three days in a row does not
+  // pause the whole grid three times.
+  const [busyPending, setBusyPending] = useState<string | null>(null);
+
+  // Write, then RE-READ. The same decision `WeekView.tsx` records at length: the figure on screen is
+  // always one the datastore produced, rather than one this screen predicted.
+  const toggleBusy = useCallback(
+    async (date: string, busy: boolean): Promise<void> => {
+      setBusyPending(date);
+      try {
+        await seam.setOwnBusyDay({ date, busy });
+      } finally {
+        setBusyPending(null);
+        await load();
+      }
+    },
+    [load],
   );
 
   // CAL-08 AC-1 to AC-4, AC-11 and AC-14. The day status of every date IN THE MONTH — the range is
@@ -472,6 +544,13 @@ export default function MonthView() {
               const status = inMonth ? dayStatuses.get(date) : undefined;
               const holiday = status?.holiday ?? null;
 
+              // SOLO, 2026-09-11. Out-of-month cells carry no busy figure and no control, exactly as
+              // they carry no count and no day status — `busyCountsFor` is keyed on the month's own
+              // range, so there is nothing to read for them.
+              const busyCount = inMonth ? (busyCounts.get(date) ?? 0) : 0;
+              const busyHere = inMonth ? (busyPeople.get(date) ?? []) : [];
+              const iAmBusy = inMonth && myBusy.has(date);
+
               return (
                 <div
                   key={date}
@@ -570,6 +649,62 @@ export default function MonthView() {
                     >
                       {holiday.name}
                     </span>
+                  ) : null}
+
+                  {/* SOLO, 2026-09-11 — the busy figure, and the control that writes it.
+                      The operator's purpose: somebody arranging an event needs to see which days are
+                      heavy, where "heavy" means people who are AT WORK with their hands full.
+
+                      **ONE ELEMENT IS BOTH THE FIGURE AND THE CONTROL**, the same choice
+                      `WeekView.tsx` records: a separate button beside a separate number would spend
+                      two of a cell's few lines on one fact, on the screen CLAUDE.md § Visual
+                      direction says information density wins every time.
+
+                      **IT DOES NOT REPLACE `month-cell-count` AND IS NEVER ADDED TO IT.** That
+                      number is INV-04's absence count and drives the crowded-day fill; this one
+                      counts people who are present. Two numbers in one cell is the honest rendering
+                      of two different facts, and butter is a fifth colour precisely so neither can
+                      be mistaken for the other (`src/index.css`).
+
+                      **IT IS DRAWN ONLY WHEN SOMEBODY IS BUSY, OR WHEN IT IS MINE TO UNSET** — the
+                      rule `month-cell-count` already follows (`count > 0`), for the reason UIE-07
+                      gives for departing from it in the week: a control on all 35 cells of a quiet
+                      month is 35 pieces of furniture for a feature nobody used that month. An empty
+                      cell's press target is the cell itself, which opens the entry form; marking a
+                      day busy from a month with no marks starts in the week view, which draws the
+                      control on all seven days.
+
+                      **`onMouseDown` STOPS PROPAGATION, AND WITHOUT THAT LINE THE CONTROL IS
+                      UNUSABLE.** The cell starts a date-range drag on mouse down (AC-13); a press on
+                      a button inside it would both toggle the mark AND open the entry form on a
+                      one-day range. `stopPropagation` on the button is the narrowest fix — the cell
+                      keeps its gesture everywhere else in its own area. */}
+                  {inMonth && (busyCount > 0 || iAmBusy) ? (
+                    <div className="flex justify-end">
+                      <button
+                        type="button"
+                        data-testid="month-cell-busy"
+                        data-date={date}
+                        data-busy-count={busyCount}
+                        data-mine={iAmBusy}
+                        aria-pressed={iAmBusy}
+                        disabled={busyPending === date}
+                        title={busyHere.map((person) => person.displayName).join(", ")}
+                        onMouseDown={(event) => event.stopPropagation()}
+                        onClick={() => void toggleBusy(date, !iAmBusy)}
+                        className={[
+                          "rounded-full px-1.5 py-0.5 text-[10px] font-semibold transition-colors",
+                          "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink",
+                          "disabled:opacity-50",
+                          iAmBusy ? "bg-busy text-ink" : "border border-current opacity-70",
+                        ].join(" ")}
+                      >
+                        {/* The word, not a bare numeral: this cell already carries `month-cell-count`
+                            as a bare numeral, and a second unlabelled figure beside it would read as
+                            part of the same fact. */}
+                        Busy {busyCount}
+                      </button>
+                    </div>
                   ) : null}
 
                   {/* INV-04: a view shows a member's avatar exactly when that member's entry is counted.

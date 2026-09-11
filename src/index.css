@@ -172,4 +172,18 @@
   /* UIE-06 § 4.6 and AC-7. The whole cell background of an overloaded day, drawn by
      MonthView.tsx — not a legend swatch. Same value as the `bg-rose-100` it replaces. */
   --color-overload: #ffe4e6; /* soft pink */
+
+  /* SOLO, 2026-09-11. The busy day — somebody who is AT WORK with their hands full.
+     A FIFTH TOKEN AND NOT A REUSE OF ONE OF THE FOUR, and the four are why: peach and mint already
+     mean away-on-leave and working-from-home, lavender means the nation is not working, and pink
+     means the day is crowded with ABSENCES. A busy person is none of those, and giving one colour
+     two meanings on one grid is the specific mistake UIE-06 § 4.6 refused when it declined to paint
+     pink on a working day.
+     Butter yellow: warm, legible against the peach and mint chips beside it, and the one warm hue
+     the palette had not spent. It reads as attention rather than as alarm, which is the charter's
+     standing instruction about `--color-overload` applied to a milder fact.
+     LIKE THE FOUR ABOVE IT HAS NO DOCUMENT BEHIND IT. § Colour in .ai/standards/ui-design-system.md
+     is human plane under RULE-01 — a developer may write a token here and may not record it there.
+     The line for that file is printed in the reply for the operator to paste. */
+  --color-busy: #ffe9a8; /* butter */
 }

@@ -137,21 +137,36 @@ async function openHubAsAdmin(page: Page): Promise<void> {
 }
 
 test.describe("UIE-09 — the admin hub", () => {
-  test("AC-1: an admin reaches the hub from the top bar, on any route inside the shell", async ({
+  // **AMENDED BY SOLO 2026-09-11, AND THE TITLE CHANGED WITH IT.** As shipped this read *"on any
+  // route inside the shell"*, and its second half proved it by standing on `/signups` — which is one
+  // of the six ADMIN addresses. That control now has two faces: on an admin address it reads
+  // `Calendar` and goes to `/`, which is the operator's request and which makes the old second half
+  // assert the opposite of what the product does.
+  //
+  // **THE SUBSTANCE THE CRITERION WAS PROTECTING IS UNTOUCHED AND IS STILL ASSERTED HERE**: the
+  // control is OUTSIDE the `nav !== null` condition, so it renders on a route with no period at all
+  // where the whole left cluster is absent. `/entries/new` is such a route and is not administrative
+  // — `TopBar.tsx`'s AC-15 comment names it in that list — so it proves the same property the old
+  // line did without asserting a destination that changed. AC-11 below reads the same fact across
+  // every kind of route and needed no edit.
+  test("AC-1: an admin reaches the hub from the top bar, on any non-admin route inside the shell", async ({
     page,
   }) => {
     await signInAtHub(page, ADMIN_EMAIL);
 
     // On the week view, which is where signing in lands.
     await expect(page.getByTestId("shell-admin-link")).toHaveCount(1);
+    await expect(page.getByTestId("shell-admin-link")).toHaveAttribute("data-state", "admin");
     await page.getByTestId("shell-admin-link").click();
     await expect(page).toHaveURL(/\/admin$/);
     await expect(page.getByTestId("admin-hub")).toBeVisible();
 
     // And on a route with no period at all, where the whole left cluster is absent. The control is
-    // outside that condition, which is what "on any route inside the shell" means.
-    await page.goto("/signups");
+    // outside that condition, which is what "on any non-admin route inside the shell" means.
+    await page.goto("/entries/new");
+    await expect(page.getByTestId("shell-period-today")).toHaveCount(0);
     await expect(page.getByTestId("shell-admin-link")).toHaveCount(1);
+    await expect(page.getByTestId("shell-admin-link")).toHaveAttribute("data-state", "admin");
     await page.getByTestId("shell-admin-link").click();
     await expect(page).toHaveURL(/\/admin$/);
     await expect(page.getByTestId("admin-hub")).toBeVisible();
@@ -214,8 +229,17 @@ test.describe("UIE-09 — the admin hub", () => {
       // to that screen's own ticket and that this one never touches.
       await expect(landmarkOf(page, destination.landmarks)).toBeVisible();
 
-      // Back to the hub through the control, so the whole loop is one page lifetime and one
-      // session. The next destination is followed from the same rendered list.
+      // **BACK TO THE HUB THROUGH THE CONTROL, WHICH IS NOW TWO PRESSES OF IT AND NOT ONE.** SOLO
+      // 2026-09-11: standing on a destination the control is the way back to the CALENDAR, so the
+      // return leg is `Calendar` and then `Admin`. What this criterion is for is unchanged and is
+      // what the two lines still buy — the whole loop is one page lifetime and one session, with no
+      // address typed, so the next destination is followed from a freshly rendered list rather than
+      // from a page that was reloaded out from under the mock seam's module state.
+      await expect(page.getByTestId("shell-admin-link")).toHaveAttribute("data-state", "calendar");
+      await page.getByTestId("shell-admin-link").click();
+      await expect(page).toHaveURL(/\/$/);
+
+      await expect(page.getByTestId("shell-admin-link")).toHaveAttribute("data-state", "admin");
       await page.getByTestId("shell-admin-link").click();
       await expect(page.getByTestId("admin-hub")).toBeVisible();
     }

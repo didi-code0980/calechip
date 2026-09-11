@@ -77,6 +77,43 @@ export const ADMIN_TABS: readonly {
 ];
 
 /**
+ * The hub's own address, named once so the two readers below agree with each other by construction.
+ */
+export const ADMIN_HUB = "/admin";
+
+/**
+ * SOLO, 2026-09-11 — **THE SIX ADMIN ADDRESSES, DERIVED AND NEVER TYPED OUT A SECOND TIME.** The hub
+ * plus the five `ADMIN_TABS` point at, which is what `AdminLayout` wraps in `App.tsx`.
+ *
+ * **IT EXISTS BECAUSE `TopBar` SITS ABOVE `AdminLayout` IN THE TREE AND CANNOT ASK IT ANYTHING.**
+ * The top bar is rendered by `AppShell`, which is the layout route ABOVE the admin layout route, so
+ * the router's own answer to *is this an admin screen* — the thing `AdminLayout.tsx`'s header
+ * insists on — is not reachable from up there: an outlet context flows down, and `useMatches()`
+ * needs a data router, which this application does not use (`App.tsx` mounts `<BrowserRouter>`).
+ *
+ * **SO THE PATHNAME TEST IS THE ONE HONEST OPTION LEFT, AND THIS ARRAY IS WHAT KEEPS IT CHEAP TO
+ * KEEP TRUE.** `AdminLayout.tsx`'s objection to a `useLocation()` conditional is that the list of
+ * admin screens then has to be extended by hand and the failure is silent. That objection still
+ * stands and this does not answer it — it only narrows it to ONE list, the one the strip already
+ * renders from. A seventh admin address added to `App.tsx` and NOT to `ADMIN_TABS` gets neither the
+ * strip nor the toggle, and the two are wrong together rather than separately.
+ */
+export const ADMIN_ADDRESSES: readonly string[] = [
+  ADMIN_HUB,
+  ...ADMIN_TABS.map((tab) => tab.to),
+];
+
+/**
+ * Whether `pathname` is one of the six.
+ *
+ * **AN EXACT MATCH AND NOT A PREFIX**, which is safe here and would not be under a prefix test:
+ * `/members` is an admin address and `/year/2026/members` is not, and `/entries/team` sits beside
+ * `/entries/new` and `/entries/:id/edit`, neither of which is administrative.
+ */
+export const isAdminAddress = (pathname: string): boolean =>
+  ADMIN_ADDRESSES.includes(pathname);
+
+/**
  * The strip. Rendered by `AdminLayout` on the six admin addresses and nowhere else.
  *
  * **`NavLink` AND NOT `Link`, WHICH IS THE WHOLE REASON A TAB IS DIFFERENT FROM A LINK.** A tab has

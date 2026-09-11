@@ -282,12 +282,32 @@ test.describe("UIE-07 — the week view's per-day absence count", () => {
 
     // AC-12. The strip is a `<p>` holding two `<span>`s, so CAL-05 AC-8's absence mechanism is
     // untouched. Re-asserted here rather than inferred from a spec file this ticket never opens.
+    //
+    // **THE STRIP ITSELF IS STILL EXACTLY WHAT AC-12 SAYS IT IS**, and these two lines are the half
+    // of the criterion that did not move: whatever else the day column grows, `week-day-count`
+    // holds no control and no link.
     await expect(page.locator('[data-testid="week-day-count"] button')).toHaveCount(0);
     await expect(page.locator('[data-testid="week-day-count"] a')).toHaveCount(0);
-    await expect(page.locator('[data-testid="week-day"] button')).toHaveCount(0);
     await expect(page.locator('[data-testid="week-day"] form')).toHaveCount(0);
     await expect(page.locator('[data-testid="week-day"] select')).toHaveCount(0);
     await expect(page.locator('[data-testid="week-day"] textarea')).toHaveCount(0);
     await expect(page.locator('[data-testid="week-day"] a')).toHaveCount(0);
+
+    // **NARROWED BY SOLO 2026-09-11, THE SAME WAY AND FOR THE SAME REASON AS CAL-05 AC-8** — which
+    // this block says in its own first sentence it is re-asserting, so the two had to move together
+    // or stop agreeing. The line that stood here read `'[data-testid="week-day"] button'` → 0, and
+    // the busy toggle is a button inside `week-day`.
+    //
+    // WHAT AC-12 IS FOR SURVIVES AND CAN STILL FAIL: the absence count grew no control, and the
+    // only button in the column is the busy toggle — one per day, touching no entry and no
+    // threshold. An overload control, an approve button or an edit link added to this column later
+    // still fails here, which a bare `toHaveCount(7)` would not.
+    const dayButtons = page.locator('[data-testid="week-day"] button');
+    await expect(dayButtons).toHaveCount(7);
+    expect(
+      await dayButtons.evaluateAll((nodes) =>
+        nodes.map((node) => node.getAttribute("data-testid")),
+      ),
+    ).toEqual(Array.from({ length: 7 }, () => "week-day-busy"));
   });
 });

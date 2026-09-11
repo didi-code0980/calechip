@@ -10,6 +10,7 @@
 import type {
   MemberDecision,
   BulkRejectionOutcome,
+  BusyDay,
   DateRange,
   Entry,
   EntryPortion,
@@ -102,6 +103,18 @@ export interface UpdateEntryInput {
   endDate: string; // yyyy-MM-dd, inclusive
   tentative: boolean;
   note: string | null;
+}
+
+/**
+ * SOLO, 2026-09-11. One date and which way to move it.
+ *
+ * NO `memberId`, for the reason `setOwnBusyDay` records: the policy supplies it from `auth.uid()`.
+ * NO range — the gesture is a press on one day, and the row is one date (`BusyDay`).
+ */
+export interface SetOwnBusyDayInput {
+  date: string; // yyyy-MM-dd
+  /** `true` marks it, `false` unmarks it. Both are idempotent. */
+  busy: boolean;
 }
 
 /** ADM-01, 01-plan.md section 4.1.
@@ -596,6 +609,63 @@ export interface DataSeam {
    * error, which is what lets absenceCountsFor be handed the set and called once.
    */
   listTeamEntriesOverlapping(range: DateRange): Promise<Entry[]>;
+
+  // -------------------------------------------------------------------------
+  // SOLO, 2026-09-11 — the busy day. One range read and one write.
+  //
+  // **TWO FUNCTIONS AND NOT FOUR.** There is no `listOwnBusyDays`: the caller's own marks are a
+  // subset of the team's, and `busyDatesOf` in `src/lib/data/busy.ts` takes them out of the rows
+  // this read already returns. A second read would be a second answer to *which days are mine*,
+  // free to disagree on screen with the number drawn beside it. There is no `removeOwnBusyDay`
+  // either — see `setOwnBusyDay`.
+  // -------------------------------------------------------------------------
+
+  /**
+   * SOLO, 2026-09-11. Every busy-day row of the caller's team whose date falls inside `range`.
+   *
+   * **A PLAIN TWO-SIDED FILTER ON A SCALAR COLUMN**, the shape `listHolidays` uses and not the
+   * `date_range=ov.` shape entries need: a busy day IS one date, so there is no range to overlap,
+   * no generated column and no `btree_gist`. ADR-011's pattern is deliberately not copied here for
+   * the reason ADR-015 § 6 gives for holidays — cost with no property bought.
+   *
+   * **TEAM-SCOPED, unlike `listHolidays`.** `busy_day_select_team` is keyed on `member_team_id`,
+   * exactly as `entry_select_team` is, so INV-07's mechanism is the one already in the product.
+   *
+   * **IT PAGES AND ASSEMBLES RATHER THAN TRUNCATING**, and it refuses an answer it cannot prove
+   * complete — CAL-09's shape, reused because the failure it prevents is the same one: a short read
+   * here does not error, it draws a quieter day than the team really has, which is the silent wrong
+   * answer that BUG-002 closed for entries. A caller receives every matching row or an error.
+   *
+   * THROWS on a transport failure and on a possibly-truncated answer.
+   */
+  listTeamBusyDaysOverlapping(range: DateRange): Promise<BusyDay[]>;
+
+  /**
+   * SOLO, 2026-09-11. Mark or unmark ONE date as busy, for the CALLER. Idempotent in both
+   * directions: marking a marked day succeeds and changes nothing, and so does unmarking an
+   * unmarked one.
+   *
+   * **ONE FUNCTION WITH A BOOLEAN, NOT `addBusyDay` AND `removeBusyDay`.** The gesture the operator
+   * chose is a toggle on the day itself, and a toggle has exactly one call site; two functions
+   * would make the SCREEN decide which datastore operation a press is, from state it read a moment
+   * earlier. That decision belongs where the row's existence is known, which is inside the seam.
+   *
+   * **NO `memberId`.** The row is the caller's own and is resolved from the session inside the
+   * seam — `busy_day_insert_own`s `with check` supplies it from `auth.uid()`. A parameter would
+   * imply a caller could pass somebody else's and be answered, which is the reasoning `createEntry`
+   * and `addAllowedEmail` both recorded before it.
+   *
+   * **NO APPROVAL PATH, AND THAT IS THE OPERATOR'S DECISION RATHER THAN AN OMISSION** — *"vẫn đi
+   * làm bình thường. Nên không cần approve"*. There is no `status` on the row to move, so nothing
+   * here can be pending and no admin screen has anything to decide.
+   *
+   * Returns `busy_not_permitted` when the policy refuses: a caller with no member row, a removed
+   * member, or one who is not `approved`. A refused INSERT is an error under row-level security; a
+   * refused DELETE is FILTERED and matches no row, so the unmark path cannot distinguish "refused"
+   * from "there was nothing there" — and it must not try, because both mean the same thing to a
+   * toggle whose next read is the truth.
+   */
+  setOwnBusyDay(input: SetOwnBusyDayInput): Promise<Result<void>>;
 
   // -------------------------------------------------------------------------
   // ADM-02 — the national holiday calendar, read only. 01-plan.md section 4.2.

@@ -37,6 +37,7 @@
 // `shell-topbar`, `shell-period-today` and `home-new-entry-link` keep their names: nothing on a
 // screen was ever called those, so there was nothing to adopt (UIE-03 AC-14).
 import { Link, useLocation } from "react-router-dom";
+import { isAdminAddress } from "./AdminTabs";
 import { periodNavFor, type PeriodKind } from "@/lib/period";
 
 const ICON_BUTTON =
@@ -71,6 +72,13 @@ export interface TopBarProps {
 export default function TopBar({ isAdmin }: TopBarProps) {
   const { pathname } = useLocation();
   const nav = periodNavFor(pathname);
+
+  // SOLO, 2026-09-11. **THE ONE CONTROL HAS TWO FACES, AND WHICH ONE IS SHOWING IS A FACT ABOUT THE
+  // ADDRESS.** Standing on any of the six admin screens it is the way back to the calendar; standing
+  // anywhere else inside the shell it is the way in. `isAdminAddress` is the list the tab strip
+  // already renders from — `AdminTabs.tsx` records why the pathname is what answers this here and
+  // why the router cannot.
+  const onAdmin = isAdminAddress(pathname);
 
   // UIE-03 § 4.3. No `testId` field any more: a segment's name depends on WHERE IT GOES *and*
   // WHERE IT IS — `week-month` from a week, `month-week` from a month — so it is `<nav.kind>-<kind>`
@@ -206,10 +214,35 @@ export default function TopBar({ isAdmin }: TopBarProps) {
 
             ABSENT FOR A MEMBER, NOT DISABLED (AC-2). A disabled control asserts that an area exists
             and is merely unavailable, which is the opposite of what the sidebar's own four
-            admin-only links say by simply not being there. */}
+            admin-only links say by simply not being there.
+
+            **SOLO, 2026-09-11 — ONE ELEMENT, ONE ID, TWO FACES.** On the six admin addresses it
+            reads `Calendar` and points at `/`; everywhere else inside the shell it is UIE-09's
+            `Admin` pointing at `/admin`. It is the SAME CONTROL — the way between the calendar and
+            the admin area — so it keeps `shell-admin-link` rather than splitting into two ids: the
+            twelve `toHaveCount(0)` denials across the suite assert that a MEMBER is offered no way
+            in, and a second id would have left half of them asserting about a name that renders for
+            nobody, which is the exact defect UIE-10 AC-4 was written to undo.
+
+            `data-state` IS THE FACE, AND IT EXISTS BECAUSE THE ID NO LONGER NAMES THE DESTINATION.
+            `calendar` or `admin`, read rather than inferred from the label, so a spec standing on an
+            admin screen can say which one it expects instead of finding out by where the click
+            lands. AC-12's no-diacritic rule covers both words: they are English.
+
+            **THE FIVE ADMIN SCREENS NOW HAVE ONE WAY OUT AND NOT TWO.** Reaching the hub from
+            `/threshold` was this control; it is now the strip's absence of a hub tab plus this
+            control's other face, so the hub is reached from a destination by going back to the
+            calendar and in again. That is the cost the operator accepted when they chose all six
+            addresses over `/admin` alone, and it is why UIE-09 AC-1 and AC-4 and UIE-10 AC-3 are
+            rewritten rather than merely passing. */}
         {isAdmin ? (
-          <Link data-testid="shell-admin-link" to="/admin" className={PILL_OUTLINE}>
-            Admin
+          <Link
+            data-testid="shell-admin-link"
+            data-state={onAdmin ? "calendar" : "admin"}
+            to={onAdmin ? "/" : "/admin"}
+            className={PILL_OUTLINE}
+          >
+            {onAdmin ? "Calendar" : "Admin"}
           </Link>
         ) : null}
 

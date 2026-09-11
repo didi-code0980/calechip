@@ -108,6 +108,12 @@ export type FailureCode =
   // `not_permitted`: that code's message is written about the allow-list, and one code carrying two
   // sentences is how a wrong message reaches a screen.
   | "entry_not_permitted"
+  // SOLO, 2026-09-11. The insert or the delete on `public.busy_day` was refused by its policy — a
+  // caller with no team, a removed member, or somebody's date that is not their own.
+  //
+  // NOT `entry_not_permitted`: a busy day is not an entry, and that code's message is written about
+  // one. One code carrying two sentences is how a wrong message reaches a screen.
+  | "busy_not_permitted"
   // ADM-03, 01-plan.md section 4.1. AC-6, AC-7: `unique (date)` refused the write (SQLSTATE 23505).
   //
   // NOT `already_allow_listed`, which is the other 23505 this seam maps and whose message names an
@@ -515,6 +521,63 @@ export interface AbsenceDetail {
   entry: Entry;
   member: Member;
 }
+
+// ---------------------------------------------------------------------------
+// SOLO, 2026-09-11 — the busy day.
+//
+// **A `BusyDay` IS NOT AN `Entry`, AND THAT IS THE WHOLE DESIGN.** A member marking a day busy is
+// saying *I am at work and my hands are full* — the operator's words: *"task nhiều hoặc có plan sau
+// ngày nghỉ chứ vẫn đi làm bình thường"*. The person is PRESENT. Four consequences follow, and each
+// is why a third value on `EntryType` was refused rather than merely not chosen:
+//
+//   * **INV-04.** The absence count is *"the sum ... of 1 per `full` portion and 0.5 per `am` or
+//     `pm`, with PTO and WFH counted alike"*, and that number drives the crowded-day warning. A busy
+//     person added to it would make the product say the team is short-staffed on a day when nobody
+//     is away. Excluding a third type from the sum instead would edit INV-04, which is
+//     `.ai/registry/**` and needs a human and an ADR (RULE-01). A separate row and a separate number
+//     touch it not at all — INV-04 forbids a SECOND DEFINITION OF THE ABSENCE COUNT, not a second
+//     number about a day.
+//   * **INV-02**, an approved entry returning to `pending` when it is edited. The operator asked for
+//     no approval at all, so a busy day has no `status` to return to and nothing to revoke.
+//   * **INV-01, INV-05, INV-06** are all statements about entries with portions, tentativeness and
+//     ranges. A busy day has none: it is one member, one date, marked or not marked.
+//   * **INV-07** holds by the same mechanism entries use — the row is reached through
+//     `member_team_id`, so it is only ever counted against its member's team.
+//
+// `invariants_touched` for this work is `[]`, and that is an argued `[]` rather than an unfilled
+// one: the shape was chosen so that it would be, and the paragraph above is the argument.
+// ---------------------------------------------------------------------------
+
+/**
+ * A row of `public.busy_day`, in application casing. One member, one date, marked.
+ *
+ * **ONE DATE AND NOT A RANGE**, unlike `Entry`. The operator's request is *"mark ngày cụ thể nào
+ * đó"* and the gesture they chose is a press on the day itself, so a range would be a shape with no
+ * caller. Marking a run of days is five presses, and five rows, which is also what makes unmarking
+ * one of them a single delete rather than a range split.
+ *
+ * **NO `status`, NO `tentative`, NO `portion`, NO `note`.** Each absence is the operator's decision
+ * rather than an omission: no approval was asked for, a half-day of busy is not a distinction
+ * anybody asked to draw, and a reason field is a thing to read that nobody committed to reading.
+ * The row's whole content is that it exists.
+ */
+export interface BusyDay {
+  id: string;
+  memberId: string;
+  date: string; // yyyy-MM-dd
+  createdAt: string;
+}
+
+/**
+ * How many members marked each date busy. Keys are `yyyy-MM-dd`; EVERY date in the range is present,
+ * including those with a count of 0 — the same contract `AbsenceCounts` keeps, so a caller iterating
+ * one map can index the other without a fallback.
+ *
+ * **IT IS A WHOLE NUMBER AND `AbsenceCounts` IS NOT.** An absence weighs 0.5 for a half day
+ * (INV-06); a busy day has no portion, so this counts people and the two numbers are never added,
+ * compared or drawn as one figure.
+ */
+export type BusyCounts = ReadonlyMap<string, number>;
 
 // ---------------------------------------------------------------------------
 // ADM-02. 01-plan.md section 4.1.
