@@ -83,6 +83,14 @@ const DESTINATIONS: readonly {
   },
   // SOLO, 2026-09-11 — many teams. The sixth destination, on the operator's choice of a tab of its
   // own. Every loop below now walks it too, which is what makes AC-4 and AC-9 cover the new screen.
+  // SOLO 2026-09-12 — Public holidays, moved into the panel on the operator's instruction. BEFORE
+  // `Teams`, which is the order `ADMIN_TABS` declares and § 2b's rule for it: the swap days are
+  // announced once a year, which is rarer than everything above and commoner than creating a team.
+  {
+    testId: "admin-hub-holidays-link",
+    path: "/holidays",
+    landmarks: ["holidays-year"],
+  },
   {
     testId: "admin-hub-teams-link",
     path: "/teams",
@@ -193,14 +201,15 @@ test.describe("UIE-09 — the admin hub", () => {
     await expect(page.getByTestId("shell-admin-link")).toHaveCount(0);
   });
 
-  test("AC-3: the hub lists exactly six destinations and no seventh", async ({ page }) => {
+  test("AC-3: the hub lists exactly seven destinations and no eighth", async ({ page }) => {
     await openHubAsAdmin(page);
 
-    // **AMENDED BY SOLO 2026-09-11: FIVE BECAME SIX, AND THE TITLE MOVED WITH IT.** The operator put
-    // team management in a tab of its own. What the criterion is for is unchanged and still able to
-    // fail: the list is exactly `DESTINATIONS`, in order, and nothing else crept in.
+    // **AMENDED TWICE, AND THE TITLE MOVED EACH TIME.** SOLO 2026-09-11: five became six, when the
+    // operator put team management in a tab of its own. SOLO 2026-09-12: six became seven, when the
+    // operator moved Public holidays into the panel. What the criterion is for is unchanged and
+    // still able to fail: the list is exactly `DESTINATIONS`, in order, and nothing else crept in.
     const rows = page.getByTestId("admin-hub-link");
-    await expect(rows).toHaveCount(6);
+    await expect(rows).toHaveCount(DESTINATIONS.length);
 
     // The five addresses, read off the rows rather than off the copy — and in § 2b's order, which is
     // by how often an admin needs each and not alphabetical.
@@ -322,7 +331,9 @@ test.describe("UIE-09 — the admin hub", () => {
     await expect(page.getByTestId("admin-hub-unavailable")).toHaveCount(0);
     await expect(page.getByTestId("admin-hub-refused")).toHaveCount(0);
     await expect(page.getByTestId("admin-hub-loading")).toHaveCount(0);
-    await expect(page.getByTestId("admin-hub-link")).toHaveCount(6); // six since SOLO 2026-09-11
+    // Read off `DESTINATIONS` rather than typed: the number moved twice (five to six on 2026-09-11,
+    // six to seven on 2026-09-12) and a literal here went stale each time.
+    await expect(page.getByTestId("admin-hub-link")).toHaveCount(DESTINATIONS.length);
   });
 
   test("AC-9: the hub's selectors are new, and collide with nothing", async ({ page }) => {
@@ -357,7 +368,11 @@ test.describe("UIE-09 — the admin hub", () => {
     await expect(page.getByTestId("home-new-entry-link")).toHaveCount(1);
     await expect(page.getByTestId("home-week-link")).toHaveCount(1);
     await expect(page.getByTestId("home-year-link")).toHaveCount(1);
-    await expect(page.getByTestId("home-holidays-link")).toHaveCount(1);
+    // SOLO 2026-09-12. Zero FOR AN ADMIN, and this caller is one: the operator moved Public holidays
+    // into the admin panel, so an admin's route to it is the tab and a member's is still this link.
+    // The clause this criterion is really about is unchanged — no `home-*` id is RENAMED, and none
+    // is DUPLICATED onto the hub, which is what would break a strict-mode click.
+    await expect(page.getByTestId("home-holidays-link")).toHaveCount(0);
 
     // The singular new ids each resolve to exactly one node on this page. `admin-hub-link` is the
     // one that does not, deliberately: it names a ROW and there are five, the way
@@ -373,7 +388,7 @@ test.describe("UIE-09 — the admin hub", () => {
     }
   });
 
-  test("AC-10: the sidebar keeps its three general links, for both roles", async ({ page }) => {
+  test("AC-10: the sidebar keeps its general links, and the third is a member's alone", async ({ page }) => {
     // **AMENDED BY UIE-10, AND THE TITLE CHANGED WITH IT.** As shipped this criterion read *"the
     // sidebar is unchanged … including all four `home-*-link` admin links for the admin"*, and it
     // described the DOUBLE EXPOSURE UIE-09 deliberately left behind: the four links in the sidebar
@@ -411,6 +426,11 @@ test.describe("UIE-09 — the admin hub", () => {
     }
     await expect(page.getByTestId("home-week-link")).toHaveCount(1);
     await expect(page.getByTestId("home-year-link")).toHaveCount(1);
+    // **SOLO 2026-09-12 — ONE FOR A MEMBER, AND ZERO FOR THE ADMIN ABOVE.** The operator moved
+    // Public holidays into the admin panel, so an admin's route is the tab and a member's is still
+    // this link. Asserting BOTH sides here is what makes the criterion able to fail in either
+    // direction: the admin keeping it would be a duplicate route and a second node for the id, and
+    // the member losing it would cut them off from a calendar they are entitled to read.
     await expect(page.getByTestId("home-holidays-link")).toHaveCount(1);
   });
 

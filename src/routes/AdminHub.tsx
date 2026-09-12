@@ -27,8 +27,8 @@ import { useCallback, useEffect, useState } from "react";
 // met any more.
 //
 // **WHAT REPLACES IT WAS ALREADY THERE**, which is why the link was redundant rather than merely
-// unwanted: `TopBar.tsx:75-80` says in terms that its one control *"standing on any of the six admin
-// screens is the way back to the calendar"*, and the top bar renders above every screen inside the
+// unwanted: `TopBar.tsx:75-80` says in terms that its one control *"standing on any admin screen is
+// the way back to the calendar"*, and the top bar renders above every screen inside the
 // shell. A second way out, in prose, at the bottom of the page, below the fold on a long worklist.
 // The seam, through its one door: nothing above the seam names an implementation, so this file must
 // never import `@/lib/data/supabase` or `@/lib/data/mock` (RULE-02).

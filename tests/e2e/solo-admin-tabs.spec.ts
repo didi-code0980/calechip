@@ -45,6 +45,10 @@ const TABS = [
   { testId: "admin-hub-members-link", path: "/members" },
   { testId: "admin-hub-allow-list-link", path: "/signups" },
   { testId: "admin-hub-threshold-link", path: "/setting" },
+  // SOLO 2026-09-12 — Public holidays joined the strip on the operator's instruction. It is the one
+  // destination whose screen is not admin-only: the route is guarded on a session, so a member who
+  // types it reads the calendar and simply sees no strip. What is admin-only is the TAB.
+  { testId: "admin-hub-holidays-link", path: "/holidays" },
   { testId: "admin-hub-teams-link", path: "/teams" }, // SOLO, 2026-09-11 — many teams, the sixth
 ];
 
@@ -58,7 +62,7 @@ async function signIn(page: Page, email: string): Promise<void> {
 }
 
 test.describe("SOLO — the admin area is a tab strip", () => {
-  test("1: pressing Admin opens the strip, and it carries the six destinations", async ({
+  test("1: pressing Admin opens the strip, and it carries every destination", async ({
     page,
   }) => {
     await signIn(page, ADMIN_EMAIL);
@@ -74,7 +78,9 @@ test.describe("SOLO — the admin area is a tab strip", () => {
     // Six since SOLO 2026-09-11 — the Teams tab. Still read off the rendered rows and compared in
     // order, so a strip that dropped or reordered one still fails.
     const rows = strip.getByTestId("admin-hub-link");
-    await expect(rows).toHaveCount(6);
+    // Read off `TABS` rather than typed — the number has moved twice and a literal went stale both
+    // times: six on SOLO 2026-09-11 (Teams), seven on SOLO 2026-09-12 (Public holidays).
+    await expect(rows).toHaveCount(TABS.length);
     expect(
       await rows.evaluateAll((nodes) =>
         nodes.map((n) => n.getAttribute("data-to")),
@@ -122,7 +128,14 @@ test.describe("SOLO — the admin area is a tab strip", () => {
 
     for (const tab of TABS) {
       await page.goto(tab.path);
-      await expect(page).toHaveURL(new RegExp(`${tab.path}$`));
+      // **THE OPTIONAL YEAR IS `/holidays` AND ONLY `/holidays`.** That screen resolves the current
+      // year from the caller's clock and puts it in the address, so typing `/holidays` LANDS on
+      // `/holidays/2026` — `App.tsx` routes both and `Holidays.tsx` records why the year is not a
+      // second route. Every other destination in this list lands on exactly what was typed, and the
+      // group is optional rather than a special case so this loop still says so.
+      await expect(page).toHaveURL(new RegExp(`${tab.path}(/[0-9]{4})?$`));
+      // And the strip renders on the resolved address too, which is what `isAdminAddress`' child
+      // rule buys: under the exact match it was, `/holidays/2026` was not an admin address.
       await expect(page.getByTestId("admin-tabs")).toBeVisible();
     }
 

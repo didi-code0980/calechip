@@ -242,19 +242,24 @@ export default function App() {
                   safe with no session: it calls getCurrentMember(), gets null, and renders
                   `allow-list-refused`. A guard here would add no protection and would put this
                   ticket's routing decisions on top of another ticket's acceptance criteria. */}
-{/* **SOLO, 2026-09-09 — THE ADMIN TAB STRIP, AND WHY THERE ARE THREE OF THESE BLOCKS
+{/* **SOLO, 2026-09-09 — THE ADMIN TAB STRIP, AND WHY THERE ARE SEVERAL OF THESE BLOCKS
                   RATHER THAN ONE.** `AdminLayout` draws `AdminTabs` above whatever the child route
                   renders, so the ROUTER decides which screens carry the strip — the same shape
                   `BareLayout` and `AppShell` above already use, and not a `useLocation()` test
                   inside a component (`AdminLayout.tsx` records why at length).
 
-                  The six admin addresses fall into three ADJACENT PAIRS in this table, and they are
-                  wrapped where they lie instead of being gathered into one block. Gathering them
-                  would move six route blocks and roughly a hundred and thirty lines of the reasoning
-                  attached to them, and it would reorder a table whose order carries a documented
-                  argument — `/entries/pending` sits above `/entries/:id/edit` and the comment there
-                  explains why. Three two-line wrappers cost less than that and change no matching:
-                  none of the six paths is a prefix of another, and the `*` catch-all stays last.
+                  The admin addresses fall into ADJACENT RUNS in this table, and they are wrapped
+                  where they lie instead of being gathered into one block. Gathering them would move
+                  every one of those route blocks and roughly a hundred and thirty lines of the
+                  reasoning attached to them, and it would reorder a table whose order carries a
+                  documented argument — `/entries/pending` sits above `/entries/:id/edit` and the
+                  comment there explains why. A two-line wrapper per run costs less than that and
+                  changes no matching: no admin path is a prefix of another, and the `*` catch-all
+                  stays last.
+
+                  SOLO, 2026-09-12: a FOURTH block, around `/holidays` and `/holidays/:year`, when
+                  the operator moved Public holidays into the panel. It is the only run whose routes
+                  are not admin-guarded — see the block itself.
 
                   `isAdmin` AND NOT THE `Member`: the layout's one question is whether to draw the
                   strip, and a member must not be handed a list of the five administrative addresses
@@ -480,18 +485,28 @@ export default function App() {
                   the read returns nothing, and an unguarded screen would then render AC-10's
                   past-the-horizon notice and tell a stranger the calendar is short (AC-6). It is an
                   affordance either way — `grant select … to authenticated` is the control. */}
-              <Route
-                path="/holidays"
-                element={
-                  membership.state === "signed-out" ? <Navigate to="/" replace /> : <Holidays />
-                }
-              />
-              <Route
-                path="/holidays/:year"
-                element={
-                  membership.state === "signed-out" ? <Navigate to="/" replace /> : <Holidays />
-                }
-              />
+              {/* SOLO, 2026-09-12 — **UNDER `AdminLayout` SO THE TAB STRIP DRAWS, AND THE GUARD
+                  IS UNCHANGED.** The operator moved `Public holidays` into the admin panel. The two
+                  are separate questions and only the first moved: `AdminLayout` decides whether the
+                  STRIP renders and takes `isAdmin` for it, while the `element` below still admits
+                  any signed-in caller — so a member who types this address reads the calendar
+                  exactly as before and simply sees no strip above it. Making this route admin-only
+                  would contradict `Read the holiday calendar` in
+                  .ai/standards/rbac-and-security.md, which is human plane under RULE-01. */}
+              <Route element={<AdminLayout isAdmin={membership.state === "member" && membership.member.role === "admin"} />}>
+                <Route
+                  path="/holidays"
+                  element={
+                    membership.state === "signed-out" ? <Navigate to="/" replace /> : <Holidays />
+                  }
+                />
+                <Route
+                  path="/holidays/:year"
+                  element={
+                    membership.state === "signed-out" ? <Navigate to="/" replace /> : <Holidays />
+                  }
+                />
+              </Route>
               {/* **SOLO, 2026-09-10 — the personal profile screen.** No ticket and no plan;
                   `.claude/agents/solo.md` and ADR-033 are the authority, and `Profile.tsx` carries
                   the reasoning.

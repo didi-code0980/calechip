@@ -81,9 +81,31 @@ async function signIn(page: Page, email: string): Promise<void> {
 /** Signs in and reaches the calendar through its LINK, which keeps one page lifetime. */
 async function openHolidays(page: Page, email: string): Promise<void> {
   await signIn(page, email);
-  await expect(page.getByTestId("home-holidays-link")).toBeVisible();
-  await page.getByTestId("home-holidays-link").click();
+  await reachHolidays(page);
   await expect(page.getByTestId("holidays-year")).toBeVisible();
+}
+
+/** The role-dependent walk to `/holidays`, from anywhere inside the shell. */
+async function reachHolidays(page: Page): Promise<void> {
+  // SOLO 2026-09-12. **THE ROUTE TO `/holidays` NOW DEPENDS ON THE ROLE, AND THIS BRANCH IS THAT
+  // FACT.** The operator moved Public holidays into the admin panel: an admin reaches it through the
+  // tab strip, a member through the sidebar link, and NEITHER ROLE IS OFFERED BOTH. Branching on
+  // which control exists rather than on the email keeps one page lifetime for both — a `page.goto`
+  // would reload the module the mock's tables live in and lose the setup.
+  // **WAIT FOR THE SHELL BEFORE COUNTING ANYTHING.** `count()` does not auto-wait, so called while
+  // `useSession` is still resolving it answers zero for BOTH controls and the branch below picks the
+  // wrong arm and hangs. The sidebar renders for either role, so it is the one landmark that means
+  // "the shell is up" without already assuming which role is reading.
+  await expect(page.getByTestId("shell-sidebar")).toBeVisible();
+
+  const sidebarLink = page.getByTestId("home-holidays-link");
+  if ((await sidebarLink.count()) > 0) {
+    await sidebarLink.click();
+  } else {
+    const tab = page.getByTestId("admin-hub-holidays-link");
+    if ((await tab.count()) === 0) await page.getByTestId("shell-admin-link").click();
+    await page.getByTestId("admin-hub-holidays-link").click();
+  }
 }
 
 /** Every row's date, in the order the screen drew them. AC-4 turns on the ORDER, so this reads the
@@ -288,16 +310,35 @@ test.describe("ADM-02 the national holiday calendar", () => {
     expect(await drawnDates(page)).toEqual(onOurTeam);
   });
 
-  test("AC-15: the link is offered to both roles", async ({ page }) => {
+  test("AC-15: a route to the calendar is offered to both roles", async ({ page }) => {
+    // **AMENDED BY SOLO 2026-09-12, AND THE TITLE MOVED WITH IT.** As shipped this read *"the LINK
+    // is offered to both roles"* and asserted one id in one place for both. The operator moved
+    // Public holidays into the admin panel, so the two roles are now offered DIFFERENT controls.
+    //
+    // What the criterion protects is untouched and is what is asserted below: a member is not cut
+    // off from the national calendar. `Read the holiday calendar` is checked for both roles in
+    // .ai/standards/rbac-and-security.md, `Holidays.tsx` has no `refused` phase because of it, and
+    // the route is still guarded on a SESSION rather than on a role.
+    //
+    // **AND NEITHER ROLE IS OFFERED BOTH**, which is the other half and the one that could regress
+    // silently: a `home-holidays-link` left rendering for an admin would be a second route for them
+    // and, worse, a second node for every strict-mode click on that id (UIE-02 AC-6).
     await signIn(page, ADMIN_EMAIL);
-    await expect(page.getByTestId("home-holidays-link")).toBeVisible();
+    await expect(page.getByTestId("home-holidays-link")).toHaveCount(0);
+    await page.getByTestId("shell-admin-link").click();
+    await expect(page.getByTestId("admin-hub-holidays-link")).toBeVisible();
+    await page.getByTestId("admin-hub-holidays-link").click();
+    await expect(page.getByTestId("holidays-year")).toBeVisible();
 
     await page.getByTestId("home-sign-out").click();
     await expect(page.getByTestId("sign-in-submit")).toBeVisible();
 
-    // Unlike `home-allow-list-link`, `home-team-entries-link` and `home-threshold-link`, this one
-    // carries no role condition — the permission behind it carries no role predicate either.
+    // The member keeps the sidebar link and is offered no strip at all.
     await signIn(page, MEMBER_EMAIL);
     await expect(page.getByTestId("home-holidays-link")).toBeVisible();
+    await expect(page.getByTestId("shell-admin-link")).toHaveCount(0);
+    await page.getByTestId("home-holidays-link").click();
+    await expect(page.getByTestId("holidays-year")).toBeVisible();
+    await expect(page.getByTestId("admin-tabs")).toHaveCount(0);
   });
 });

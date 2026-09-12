@@ -49,10 +49,18 @@ const REMOVED_ADMIN_LINKS = [
   "home-threshold-link",
 ];
 
-/** The three AC-2 keeps. § 1 refuses to empty the nav block on two verified facts: the top bar
- *  renders no period cluster at all on the eight non-period routes, and `/holidays` is linked from
- *  exactly one place in the product while being guarded on a session rather than a role. */
-const KEPT_LINKS = ["home-week-link", "home-year-link", "home-holidays-link"];
+/** The two AC-2 keeps for EVERY role. § 1 refuses to empty the nav block on a verified fact: the
+ *  top bar renders no period cluster at all on the eight non-period routes, so on three of those
+ *  these are the only route back to a calendar. */
+const KEPT_LINKS = ["home-week-link", "home-year-link"];
+
+/** **SOLO 2026-09-12 — THE THIRD LINK, NOW A MEMBER'S AND NOT AN ADMIN'S.** As shipped, AC-2 kept
+ *  three links for both roles, on the ground that `/holidays` was linked from exactly one place in
+ *  the product while being guarded on a session rather than a role. The operator moved Public
+ *  holidays into the admin panel; an admin's route is the tab, a member's is this link, and the
+ *  criterion is asserted in both directions below rather than narrowed to the half that still
+ *  passes — an admin still carrying it would be a second route AND a second node for the id. */
+const MEMBER_ONLY_LINK = "home-holidays-link";
 
 /** The four addresses the sidebar gave up, each with its hub row and its own screen's refusal. The
  *  hub's fifth row, `/members`, is UIE-09's and is not one of the four this ticket migrated. */
@@ -167,7 +175,7 @@ test.describe("UIE-10 — the sidebar after the migration", () => {
     }
   });
 
-  test("AC-2: the three general links stay, for both roles", async ({
+  test("AC-2: the general links stay, and the holidays link is a member's alone", async ({
     page,
   }) => {
     for (const email of [ADMIN_EMAIL, MEMBER_EMAIL]) {
@@ -181,6 +189,11 @@ test.describe("UIE-10 — the sidebar after the migration", () => {
             `${id} must resolve to exactly one node on ${path} for ${email}`,
           ).toHaveCount(1);
         }
+
+        await expect(
+          page.getByTestId(MEMBER_ONLY_LINK),
+          `${MEMBER_ONLY_LINK} is a member's route and an admin's is the tab — on ${path} for ${email}`,
+        ).toHaveCount(email === MEMBER_EMAIL ? 1 : 0);
       }
 
       await page.goto("/week");

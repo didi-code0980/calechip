@@ -169,7 +169,15 @@ async function addHoliday(
   name: string,
   expectedRows: number,
 ): Promise<void> {
-  await page.getByTestId("home-holidays-link").click();
+  // SOLO 2026-09-12. The operator moved Public holidays into the admin panel, so an admin no longer
+  // has `home-holidays-link` in the sidebar. This walks the strip instead: standing on another admin
+  // screen the tab is already there, and standing on the calendar the top-bar control opens the hub
+  // first. Both are client-side, so the mock's tables survive.
+  {
+    const tab = page.getByTestId("admin-hub-holidays-link");
+    if ((await tab.count()) === 0) await page.getByTestId("shell-admin-link").click();
+    await page.getByTestId("admin-hub-holidays-link").click();
+  }
   await expect(page.getByTestId("holiday-add-form")).toBeVisible();
 
   await page.getByTestId("holiday-add-date").fill(date);
@@ -371,7 +379,7 @@ test.describe("CAL-08 — holidays and bridge days in the calendar views", () =>
     await page.getByTestId("threshold-save").click();
     await expect(page.getByTestId("threshold-saved")).toBeVisible();
     // SOLO 2026-09-12. The back link is gone from every admin screen. `addHoliday` opens the
-    // calendar through `home-holidays-link`, which is in the sidebar and renders here too.
+    // calendar through the strip's `admin-hub-holidays-link`, which is on this screen already.
 
     // ADM-03's control, used to put a holiday on a date somebody is already away on. This is the
     // only visible consequence of that ticket, which is 01-plan.md section 1's point.

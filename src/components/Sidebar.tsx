@@ -412,32 +412,42 @@ export default function Sidebar({ member, signOut }: SidebarProps) {
           navigation site needed the inserted hub step either way, so relocation would have saved the
           id text on nine lines and nothing else.
 
-          **THE THREE GENERAL LINKS STAY (AC-2), and that is a decision rather than an omission.**
-          The top bar renders no switcher at all on the eight non-period routes — `periodNavFor`
-          returns null (`src/lib/period.ts`) and `TopBar.tsx` gates the whole cluster on it — so on
-          three of those the week and year links here are the only route back to a calendar. And
-          `/holidays` is linked from exactly one place in the product, this one, while being guarded
-          on a SESSION rather than a role, so no admin control can adopt it without breaking ADM-02
-          AC-15 and taking the national calendar away from every member.
+          **TWO OF THE THREE GENERAL LINKS STAY UNCONDITIONALLY (AC-2), and that is a decision
+          rather than an omission.** The top bar renders no switcher at all on the eight non-period
+          routes — `periodNavFor` returns null (`src/lib/period.ts`) and `TopBar.tsx` gates the whole
+          cluster on it — so on three of those the week and year links here are the only route back
+          to a calendar.
+
+          **THE THIRD IS NOW RENDERED FOR A MEMBER AND NOT FOR AN ADMIN — SOLO, 2026-09-12.** The
+          paragraph that stood here said `/holidays` was linked from exactly one place in the product
+          while being guarded on a session rather than a role, so that no admin control could adopt
+          it "without breaking ADM-02 AC-15 and taking the national calendar away from every member".
+          The operator instructed the move into the admin panel; the condition below is what lets the
+          tab exist without the consequence that warning named. AN ADMIN'S ROUTE IS THE TAB, A
+          MEMBER'S IS THIS LINK, AND NEITHER ROLE IS OFFERED TWO — which is also what keeps UIE-02
+          AC-6 true, since a second node carrying this id would fail every strict-mode click on it.
+
+          ADM-02 AC-15 — *the link is offered to both roles* — is REWORDED rather than broken: what
+          it protects is that a member is not cut off from the national calendar, and that still
+          holds. The route is still guarded on a session and not on a role, so an admin who types
+          `/holidays` and a member who types it are answered identically.
 
           Each of the three is linked with NO anchor, so the screen resolves the current period from
           the caller's clock — a date computed here would be a second clock in a second file, and this
           component holds none. */}
-      <nav className="flex flex-col gap-0.5">
+      {/* <nav className="flex flex-col gap-0.5">
         <Link data-testid="home-week-link" to="/week" className={NAV_LINK}>
           This week
         </Link>
         <Link data-testid="home-year-link" to="/year" className={NAV_LINK}>
           The year
         </Link>
-        <Link
-          data-testid="home-holidays-link"
-          to="/holidays"
-          className={NAV_LINK}
-        >
-          Public holidays
-        </Link>
-      </nav>
+        {member.role === "admin" ? null : (
+          <Link data-testid="home-holidays-link" to="/holidays" className={NAV_LINK}>
+            Public holidays
+          </Link>
+        )}
+      </nav> */}
 
       {/* § 4.9. The spacer that pins the legend and the account footer to the bottom. */}
       <div className="flex-1" />

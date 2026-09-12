@@ -37,7 +37,7 @@ export default function AdminLayout({ isAdmin }: AdminLayoutProps) {
   // `useOutletContext` reads the context of the NEAREST enclosing outlet, so a nested layout that
   // renders `<Outlet />` with no `context` prop hands its children `null` — and every screen under
   // this layout is a child of THIS outlet, not of `AppShell`'s. Without this line
-  // `useShellContext()` returns null on all six admin addresses and only there, which is the worst
+  // `useShellContext()` returns null on every admin address and only there, which is the worst
   // shape a defect can have: the same hook works on `/profile` and crashes on `/entries/team`.
   //
   // **IT FORWARDS, IT DOES NOT BUILD.** The object is the shell's own, passed through unchanged, so

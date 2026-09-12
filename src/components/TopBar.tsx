@@ -74,7 +74,7 @@ export default function TopBar({ isAdmin }: TopBarProps) {
   const nav = periodNavFor(pathname);
 
   // SOLO, 2026-09-11. **THE ONE CONTROL HAS TWO FACES, AND WHICH ONE IS SHOWING IS A FACT ABOUT THE
-  // ADDRESS.** Standing on any of the six admin screens it is the way back to the calendar; standing
+  // ADDRESS.** Standing on any admin screen it is the way back to the calendar; standing
   // anywhere else inside the shell it is the way in. `isAdminAddress` is the list the tab strip
   // already renders from — `AdminTabs.tsx` records why the pathname is what answers this here and
   // why the router cannot.
@@ -226,7 +226,7 @@ export default function TopBar({ isAdmin }: TopBarProps) {
             and is merely unavailable, which is the opposite of what the sidebar's own four
             admin-only links say by simply not being there.
 
-            **SOLO, 2026-09-11 — ONE ELEMENT, ONE ID, TWO FACES.** On the six admin addresses it
+            **SOLO, 2026-09-11 — ONE ELEMENT, ONE ID, TWO FACES.** On an admin address it
             reads `Calendar` and points at `/`; everywhere else inside the shell it is UIE-09's
             `Admin` pointing at `/admin`. It is the SAME CONTROL — the way between the calendar and
             the admin area — so it keeps `shell-admin-link` rather than splitting into two ids: the

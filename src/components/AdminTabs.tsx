@@ -90,6 +90,25 @@ export const ADMIN_TABS: readonly {
       "The team's name and size, the share above which a day is called crowded, and which entries need approval.",
   },
   {
+    // SOLO, 2026-09-12 — **THE SEVENTH TAB, ON THE OPERATOR'S INSTRUCTION** *"move Public holidays
+    // into admin panel"*. It is the only tab whose screen is NOT admin-only, and that asymmetry is
+    // deliberate and is carried in one place: `Sidebar.tsx` still renders `home-holidays-link`, now
+    // FOR A MEMBER ONLY. Reading the national calendar is a both-roles permission in
+    // `.ai/standards/rbac-and-security.md`, `Holidays.tsx:97-98` has no `refused` phase because of
+    // it, and `Sidebar.tsx` warned in terms that `/holidays` is linked from exactly one place in the
+    // product so that no admin control could adopt it "without taking the national calendar away
+    // from every member". Each role now has exactly one route to it and neither has two.
+    //
+    // BEFORE `Teams`, because § 2b orders by how often an admin needs each: the government announces
+    // the swap days once a year, which is rarer than everything above and commoner than creating a
+    // team.
+    testId: "admin-hub-holidays-link",
+    to: "/holidays",
+    name: "Public holidays",
+    blurb:
+      "The national calendar: public holidays, and the swap and compensatory days announced each year.",
+  },
+  {
     // SOLO, 2026-09-11 — many teams. **THE SIXTH TAB, AND A TAB RATHER THAN A SECTION OF
     // `Settings`**, on the operator's choice: `/setting` is ONE team's settings and this is every
     // team. The cost is UIE-09 AC-3's "exactly five destinations and no sixth", amended in its spec
@@ -109,8 +128,12 @@ export const ADMIN_TABS: readonly {
 export const ADMIN_HUB = "/admin";
 
 /**
- * SOLO, 2026-09-11 — **THE SIX ADMIN ADDRESSES, DERIVED AND NEVER TYPED OUT A SECOND TIME.** The hub
- * plus the five `ADMIN_TABS` point at, which is what `AdminLayout` wraps in `App.tsx`.
+ * SOLO, 2026-09-11 — **THE ADMIN ADDRESSES, DERIVED AND NEVER TYPED OUT A SECOND TIME.** The hub
+ * plus every address `ADMIN_TABS` points at, which is what `AdminLayout` wraps in `App.tsx`.
+ *
+ * **THE COUNT IS DELIBERATELY NOT IN THIS SENTENCE ANY MORE — SOLO 2026-09-12.** It read "the six"
+ * and had already been wrong once; `/holidays` made seven. A number written beside a list that is
+ * derived FROM that list is a second declaration of its length, and it is the copy that goes stale.
  *
  * **IT EXISTS BECAUSE `TopBar` SITS ABOVE `AdminLayout` IN THE TREE AND CANNOT ASK IT ANYTHING.**
  * The top bar is rendered by `AppShell`, which is the layout route ABOVE the admin layout route, so
@@ -122,7 +145,7 @@ export const ADMIN_HUB = "/admin";
  * KEEP TRUE.** `AdminLayout.tsx`'s objection to a `useLocation()` conditional is that the list of
  * admin screens then has to be extended by hand and the failure is silent. That objection still
  * stands and this does not answer it — it only narrows it to ONE list, the one the strip already
- * renders from. A seventh admin address added to `App.tsx` and NOT to `ADMIN_TABS` gets neither the
+ * renders from. A further admin address added to `App.tsx` and NOT to `ADMIN_TABS` gets neither the
  * strip nor the toggle, and the two are wrong together rather than separately.
  */
 export const ADMIN_ADDRESSES: readonly string[] = [
@@ -131,17 +154,24 @@ export const ADMIN_ADDRESSES: readonly string[] = [
 ];
 
 /**
- * Whether `pathname` is one of the six.
+ * Whether `pathname` is one of them.
  *
- * **AN EXACT MATCH AND NOT A PREFIX**, which is safe here and would not be under a prefix test:
- * `/members` is an admin address and `/year/2026/members` is not, and `/entries/team` sits beside
- * `/entries/new` and `/entries/:id/edit`, neither of which is administrative.
+ * **AN ADMIN ADDRESS OR A CHILD OF ONE**, widened from an exact match by SOLO 2026-09-12 when
+ * `/holidays` joined the list: that screen has a second route, `/holidays/:year`, and under the
+ * exact test the top bar's control flipped to its *go in* face the moment an admin pressed *next
+ * year* — the one screen where changing the year is the normal thing to do.
+ *
+ * **THE CHILD TEST IS A `startsWith(a + "/")` AND NOT A BARE PREFIX**, which is what keeps the
+ * hazard the exact match was protecting against: the trailing slash is checked against every
+ * address on the list, and `/year/2026/members` does not begin with `/members/`, `/entries/new`
+ * and `/entries/abc/edit` do not begin with `/entries/team/`, and `/setting` has no sibling it
+ * could swallow. A bare `startsWith` would have been wrong for the first of those.
  */
 export const isAdminAddress = (pathname: string): boolean =>
-  ADMIN_ADDRESSES.includes(pathname);
+  ADMIN_ADDRESSES.some((a) => pathname === a || pathname.startsWith(`${a}/`));
 
 /**
- * The strip. Rendered by `AdminLayout` on the six admin addresses and nowhere else.
+ * The strip. Rendered by `AdminLayout` on the admin addresses and nowhere else.
  *
  * **`NavLink` AND NOT `Link`, WHICH IS THE WHOLE REASON A TAB IS DIFFERENT FROM A LINK.** A tab has
  * to say which one you are on, and `NavLink` derives that from the router's own matched location —

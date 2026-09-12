@@ -56,8 +56,7 @@ async function signIn(page: Page, email: string): Promise<void> {
  *  lifetime, so the mock's tables survive the whole test. */
 async function openCalendar(page: Page, email: string, year = EMPTY_YEAR): Promise<void> {
   await signIn(page, email);
-  await expect(page.getByTestId("home-holidays-link")).toBeVisible();
-  await page.getByTestId("home-holidays-link").click();
+  await reachHolidays(page);
   await expect(page.getByTestId("holidays-year")).toBeVisible();
 
   // By address rather than by pressing *next* the right number of times, so this helper does not
@@ -406,3 +405,26 @@ test.describe("ADM-03 add, edit or delete a holiday or swap day", () => {
     expect(await drawnDates(page)).toEqual(asMember);
   });
 });
+
+/** The role-dependent walk to `/holidays`, from anywhere inside the shell. */
+async function reachHolidays(page: Page): Promise<void> {
+  // SOLO 2026-09-12. **THE ROUTE TO `/holidays` NOW DEPENDS ON THE ROLE, AND THIS BRANCH IS THAT
+  // FACT.** The operator moved Public holidays into the admin panel: an admin reaches it through the
+  // tab strip, a member through the sidebar link, and NEITHER ROLE IS OFFERED BOTH. Branching on
+  // which control exists rather than on the email keeps one page lifetime for both — a `page.goto`
+  // would reload the module the mock's tables live in and lose the setup.
+  // **WAIT FOR THE SHELL BEFORE COUNTING ANYTHING.** `count()` does not auto-wait, so called while
+  // `useSession` is still resolving it answers zero for BOTH controls and the branch below picks the
+  // wrong arm and hangs. The sidebar renders for either role, so it is the one landmark that means
+  // "the shell is up" without already assuming which role is reading.
+  await expect(page.getByTestId("shell-sidebar")).toBeVisible();
+
+  const sidebarLink = page.getByTestId("home-holidays-link");
+  if ((await sidebarLink.count()) > 0) {
+    await sidebarLink.click();
+  } else {
+    const tab = page.getByTestId("admin-hub-holidays-link");
+    if ((await tab.count()) === 0) await page.getByTestId("shell-admin-link").click();
+    await page.getByTestId("admin-hub-holidays-link").click();
+  }
+}
