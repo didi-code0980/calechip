@@ -95,6 +95,7 @@ interface MemberRow {
   avatar: string;
   role: MemberRole;
   status: MemberStatus;
+  last_sign_in_at: string | null;
   removed_at: string | null;
   created_at: string;
 }
@@ -103,7 +104,7 @@ interface MemberRow {
 // shape this file already uses everywhere, and it is what makes a column added to the table by a
 // later migration invisible here until somebody names it.
 const MEMBER_COLUMNS =
-  "id, team_id, display_name, avatar, role, status, removed_at, created_at";
+  "id, team_id, display_name, avatar, role, status, last_sign_in_at, removed_at, created_at";
 
 function toMember(row: MemberRow): Member {
   return {
@@ -113,6 +114,7 @@ function toMember(row: MemberRow): Member {
     avatar: row.avatar,
     role: row.role,
     status: row.status,
+    lastSignInAt: row.last_sign_in_at,
     removedAt: row.removed_at,
     createdAt: row.created_at,
   };
@@ -878,6 +880,28 @@ export const seam: DataSeam = {
   // this path and the column is therefore writable in the direction that must be refused (AC-5).
   //
   // Zero rows back is a refusal, for the same reason as `removeMember` above.
+  // SOLO, 2026-09-10. `member_update_admin`s `with check` re-derives the destination and refuses a
+  // mismatch, so no value sent here can move somebody to a team the caller is not on.
+  async setMemberTeam(memberId: string, teamId: string): Promise<Result<Member>> {
+    const { data, error } = await client()
+      .from("member")
+      .update({ team_id: teamId })
+      .eq("id", memberId)
+      .select(MEMBER_COLUMNS)
+      .returns<MemberRow[]>();
+
+    if (error) return { ok: false, error: toPostgrestFailure(error) };
+
+    const row = (data ?? [])[0];
+    if (!row) {
+      return {
+        ok: false,
+        error: { code: "not_permitted", message: "That member could not be moved." },
+      };
+    }
+    return { ok: true, value: toMember(row) };
+  },
+
   async promoteMember(memberId: string): Promise<Result<Member>> {
     const { data, error } = await client()
       .from("member")

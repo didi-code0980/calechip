@@ -168,7 +168,8 @@ test.describe("SOLO — new sign-ups replace the allow-list", () => {
 
     // § Language. The seeded person's display name is DATA belonging to them and is excluded, the
     // same distinction UIE-10 AC-11 draws for the roster.
-    for (const id of ["signups-count", "signups-back"]) {
+    // SOLO 2026-09-12: `signups-back` left this list with the link itself.
+    for (const id of ["signups-count"]) {
       expect(
         await page.getByTestId(id).innerText(),
         `${id} renders interface copy and must carry no diacritic`,

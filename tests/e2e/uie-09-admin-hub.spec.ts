@@ -289,8 +289,13 @@ test.describe("UIE-09 — the admin hub", () => {
     // A denial is not a transport failure. AC-8's second half, asserted from the other side.
     await expect(page.getByTestId("admin-hub-unavailable")).toHaveCount(0);
 
-    // And there is a way out.
-    await expect(page.getByTestId("admin-hub-back")).toBeVisible();
+    // And there is a way out. **IT IS THE SIDEBAR NOW AND NOT THIS SCREEN'S OWN LINK** — the
+    // operator removed `admin-hub-back` from all six admin screens on 2026-09-12. The criterion
+    // is about a refused caller not being stranded, which is still asserted; what changed is
+    // which control carries it. `shell-admin-link` cannot be the answer here: the caller is a
+    // member and it does not render for one.
+    await expect(page.getByTestId("admin-hub-back")).toHaveCount(0);
+    await expect(page.getByTestId("home-week-link")).toBeVisible();
   });
 
   test("AC-7: a caller with no member row is sent to `/`, which resolves by membership", async ({
@@ -359,7 +364,10 @@ test.describe("UIE-09 — the admin hub", () => {
     // `shell-roster-row` and `year-month-card` already do.
     await expect(page.getByTestId("shell-admin-link")).toHaveCount(1);
     await expect(page.getByTestId("admin-hub")).toHaveCount(1);
-    await expect(page.getByTestId("admin-hub-back")).toHaveCount(1);
+    // SOLO 2026-09-12. Zero, not one: the back link is gone from all six admin screens. Kept as
+    // an assertion rather than dropped from this list, for the reason the list exists — it is
+    // about which ids this screen owns, and "none" is an answer.
+    await expect(page.getByTestId("admin-hub-back")).toHaveCount(0);
     for (const destination of DESTINATIONS) {
       await expect(page.getByTestId(destination.testId)).toHaveCount(1);
     }

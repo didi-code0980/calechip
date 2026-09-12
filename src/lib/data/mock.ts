@@ -620,6 +620,9 @@ export const seam: DataSeam = {
       avatar: input.avatar,
       role: "member",
       status: "pending",
+      // A sign-up IS a sign-in in the mock: `signUp` hands back a live session when the project does
+      // not confirm addresses, so GoTrue would have stamped this at the same moment.
+      lastSignInAt: now,
       removedAt: null,
       createdAt: now,
     });
@@ -835,6 +838,19 @@ export const seam: DataSeam = {
   // for a row that is already admin. If this divergence is judged wrong at review, the correction is
   // to make THIS report success, not to add a policy clause: the datastore is the authority on what
   // the policy does, and there is nothing here to enforce.
+  // SOLO, 2026-09-10. The mock reproduces the POLICY: an admin, the caller's own team on both sides.
+  async setMemberTeam(memberId: string, teamId: string): Promise<Result<Member>> {
+    const me = currentAdmin();
+    if (!me) return refused("not_permitted", "Only an admin can move a member.");
+    if (teamId !== me.teamId) {
+      return refused("not_permitted", "An admin can only move somebody to their own team.");
+    }
+    const target = members.find((m) => m.id === memberId && m.teamId === me.teamId);
+    if (!target) return refused("not_permitted", "That member is not on your team.");
+    target.teamId = teamId;
+    return { ok: true, value: { ...target } };
+  },
+
   async promoteMember(memberId: string): Promise<Result<Member>> {
     const me = currentAdmin();
     if (!me) return refused("not_permitted", "Only an admin can promote a member.");

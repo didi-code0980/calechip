@@ -350,6 +350,21 @@ export interface DataSeam {
    */
   promoteMember(memberId: string): Promise<Result<Member>>;
 
+  /**
+   * SOLO, 2026-09-10. Move a member to a team.
+   *
+   * **`member_update_admin`s `with check` IS THE CONTROL AND IT PINS THE DESTINATION TO THE CALLER'S
+   * OWN TEAM** — `team_id = member_team_id(auth.uid())`. So today this can only ever write the team
+   * the member is already on, because `member_select_team` scoped the caller's view to that same
+   * team. It is not inert by design: it becomes a real move the day there is a second team AND a
+   * policy that lets an admin write a team id they are not on, which is a security decision on its
+   * own.
+   *
+   * ZERO ROWS RETURNED IS A REFUSAL, not a success — the shape `removeMember` and `promoteMember`
+   * already document.
+   */
+  setMemberTeam(memberId: string, teamId: string): Promise<Result<Member>>;
+
   // -------------------------------------------------------------------------
   // SOLO 2026-09-10 — the profile screen's two writes. No ticket, no plan; ADR-033.
   // -------------------------------------------------------------------------

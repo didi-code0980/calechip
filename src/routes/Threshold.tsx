@@ -36,7 +36,12 @@
 // share on both sides. The two conversions below are the only ones in the product, and putting them
 // in `src/lib/` would create a second place that knows the representation (01-plan.md section 5).
 import { useCallback, useEffect, useState } from "react";
-import { Link } from "react-router-dom";
+// SOLO, 2026-09-12. **RESTORED.** On 2026-09-10 this import was deleted because `pnpm lint` failed
+// on it: another session had removed the `threshold-back` link and left the import orphaned. That
+// link is on the screen again (:593) and the import was not restored with it, so `pnpm typecheck`
+// failed with `Cannot find name 'Link'` twice. Recorded rather than silently re-added, because the
+// round trip is the useful part: this file has now been edited by two sessions in two days, and the
+// only thing that caught either half was a typecheck nobody ran.
 // The seam, through its one door: nothing above the seam names an implementation, so this file must
 // never import `@/lib/data/supabase` or `@/lib/data/mock`.
 import { seam } from "@/lib/data";
@@ -291,11 +296,6 @@ export default function Threshold() {
         <p className="mt-2 text-sm opacity-70">
           Only an admin can change the share of the team above which a day is called crowded.
         </p>
-        <p className="mt-4">
-          <Link data-testid="threshold-back" to="/" className="text-sm underline">
-            Back to the start
-          </Link>
-        </p>
       </section>
     );
   }
@@ -313,11 +313,6 @@ export default function Threshold() {
             prevent. */}
         <p className="mt-2 text-sm opacity-70">
           The setting could not be read just now. Try again in a moment.
-        </p>
-        <p className="mt-4">
-          <Link data-testid="threshold-back" to="/" className="text-sm underline">
-            Back to the start
-          </Link>
         </p>
       </section>
     );
@@ -595,12 +590,6 @@ export default function Threshold() {
           {approvalSaving ? "Saving…" : "Save approval settings"}
         </button>
       </form>
-
-      <p>
-        <Link data-testid="threshold-back" to="/" className="text-sm underline">
-          Back to the start
-        </Link>
-      </p>
     </section>
   );
 }

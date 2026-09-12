@@ -237,7 +237,11 @@ test.describe("CAL-03 edit or delete another member's entry, as an admin", () =>
     // it would restore the seeded row and fail against a correct implementation. The property the
     // criterion is after — the delete reached the datastore rather than only the screen — is what
     // this round trip observes, because the list is re-read from the seam on every arrival.
-    await page.getByTestId("team-entries-back").click();
+    // SOLO 2026-09-12. The `*-back` link is gone from all six admin screens at the operator's
+    // instruction; `shell-admin-link` is what TopBar.tsx:75-80 already called the way back to the
+    // calendar from an admin address, and it is a client-side navigation, so the mock's module
+    // state survives it where a `page.goto` would not.
+    await page.getByTestId("shell-admin-link").click();
     await expect(page.getByTestId("home-sign-out")).toBeVisible();
     await openTeamList(page);
     await expect(teamRow(page, APPROVED_ENTRY_ID)).toHaveCount(0);
@@ -361,7 +365,8 @@ test.describe("CAL-03 edit or delete another member's entry, as an admin", () =>
     // and portion — the same assertion CAL-01 AC-10 makes for both roles, repeated here because this
     // is the ticket that would have been tempted to add a third. SOLO, 2026-09-10: the two were
     // `<select>`s and are segmented button groups now.
-    await page.getByTestId("team-entries-back").click();
+    // SOLO 2026-09-12. The back link is gone; `openOwnList` clicks `home-new-entry-link`, which
+    // renders on every screen inside the shell.
     await openOwnList(page);
     await expect(page.locator("#root select, form select")).toHaveCount(0);
     await expect(page.getByTestId("new-entry-form").locator('[role="group"]')).toHaveCount(2);
@@ -504,7 +509,8 @@ test.describe("CAL-03 edit or delete another member's entry, as an admin", () =>
     // The list shows the whole team, the caller's own rows included — it is not "everybody else's".
     await expect(teamRow(page, APPROVED_ENTRY_ID)).toHaveCount(1);
 
-    await page.getByTestId("team-entries-back").click();
+    // SOLO 2026-09-12. The back link is gone; `home-sign-out` is a sidebar control and is on
+    // this screen already, so the hop through `/` is not needed.
     await signOutFromHome(page);
 
     await signInAs(page, MEMBER_EMAIL);
@@ -613,7 +619,11 @@ test.describe("CAL-03 edit or delete another member's entry, as an admin", () =>
     // `/entries/<id>/edit` is a document load, which reloads the module the entry table lives in and
     // restores the seeded row — so a `page.goto` here would fail against a CORRECT implementation.
     // The round trip below re-reads the list from the seam without reloading it.
-    await page.getByTestId("team-entries-back").click();
+    // SOLO 2026-09-12. The `*-back` link is gone from all six admin screens at the operator's
+    // instruction; `shell-admin-link` is what TopBar.tsx:75-80 already called the way back to the
+    // calendar from an admin address, and it is a client-side navigation, so the mock's module
+    // state survives it where a `page.goto` would not.
+    await page.getByTestId("shell-admin-link").click();
     await expect(page.getByTestId("home-sign-out")).toBeVisible();
     await openTeamList(page);
     await expect(teamRow(page, APPROVED_ENTRY_ID)).toHaveCount(0);

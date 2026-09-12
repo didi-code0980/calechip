@@ -169,6 +169,19 @@
   --color-wfh: #a9e2cd; /* mint */
   --color-holiday: #c9bff0; /* lavender */
 
+  /* SOLO 2026-09-10 — the INK that goes ON those fills, for the week grid's type caption. The
+     operator's screenshot draws that caption in a darkened version of the chip's own colour, and
+     the three fills above are backgrounds: #a9e2cd as text on a mint chip is unreadable. Named for
+     what they mean, like their fills — `-ink` is the same suffix scheme `--color-ink-2` already
+     uses for "the darker one you write with".
+
+     EACH IS PICKED FOR CONTRAST ON ITS OWN FILL AT THE OPACITY THE CHIP USES, not sampled from the
+     screenshot: the chip is `bg-wfh/50` over `--color-card`, so the caption sits on roughly #d4f0e6
+     and #ffe5d4 respectively. There is no holiday equivalent because no holiday surface writes on
+     its own fill today; add one when something does rather than now. */
+  --color-pto-ink: #a0491a;
+  --color-wfh-ink: #17694e;
+
   /* UIE-06 § 4.6 and AC-7. The whole cell background of an overloaded day, drawn by
      MonthView.tsx — not a legend swatch. Same value as the `bg-rose-100` it replaces. */
   --color-overload: #ffe4e6; /* soft pink */

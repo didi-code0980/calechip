@@ -25,7 +25,6 @@
 // (`.ai/standards/data-model.md`), so the control is honest and will simply grow options the day a
 // second team and a cross-team admit policy both exist.
 import { useCallback, useEffect, useState } from "react";
-import { Link } from "react-router-dom";
 // The seam, through its one door. Nothing above the seam names an implementation, and this file must
 // never import `@/lib/data/supabase` or `@/lib/data/mock` (RULE-02).
 import { seam } from "@/lib/data";
@@ -150,11 +149,6 @@ export default function NewSignups() {
         <p className="mt-2 text-sm text-ink-2">
           Only an admin decides who joins the team.
         </p>
-        <p className="mt-4">
-          <Link data-testid="signups-back" to="/" className="text-sm underline">
-            Back to home
-          </Link>
-        </p>
       </section>
     );
   }
@@ -168,11 +162,6 @@ export default function NewSignups() {
       >
         <h1 className="text-xl font-semibold text-ink">This list could not be read</h1>
         <p className="mt-2 text-sm text-ink-2">Try again in a moment.</p>
-        <p className="mt-4">
-          <Link data-testid="signups-back" to="/" className="text-sm underline">
-            Back to home
-          </Link>
-        </p>
       </section>
     );
   }
@@ -183,7 +172,7 @@ export default function NewSignups() {
   const options = teams.length > 0 ? teams : [team];
 
   return (
-    <section className="mx-auto flex max-w-3xl flex-col gap-4">
+    <section className="flex w-full flex-col gap-4">
       <header>
         <h1 className="text-xl font-semibold text-ink">New sign-ups</h1>
         {/* THE COUNT IS THE ROWS, and here that is honest rather than sloppy: this read is not paged
@@ -296,12 +285,6 @@ export default function NewSignups() {
           ))}
         </ul>
       )}
-
-      <p>
-        <Link data-testid="signups-back" to="/" className="text-sm underline">
-          Back to home
-        </Link>
-      </p>
     </section>
   );
 }

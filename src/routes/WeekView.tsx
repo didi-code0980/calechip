@@ -157,7 +157,12 @@ import { dayStatusesFor, holidayReadRange } from "@/lib/data/day-status";
 // carries that at length. A busy person is at work; the strip below draws the two facts separately.
 import { busyCountsFor, busyDatesOf, busyMembersFor, withOwnBusyMark } from "@/lib/data/busy";
 import type { AbsenceCounts, AbsenceDetail, BusyCounts, BusyDay, DateRange, DayStatus, Entry, Holiday, Member } from "@/lib/domain/types";
-import { PORTION_LABELS, TYPE_LABELS } from "@/lib/labels";
+// SOLO, 2026-09-12. `TYPE_CODES` REPLACES `TYPE_LABELS` IN THIS IMPORT, which is the whole fix for
+// `Uncaught ReferenceError: TYPE_CODES is not defined` at :912. The row below was changed to render
+// the short code and the import was never widened, so the module compiled — Vite does not typecheck
+// — and threw on first render. `TYPE_LABELS` goes because nothing in this file reads it any more:
+// the only occurrence left is the sentence at :905 explaining that every OTHER surface still uses it.
+import { PORTION_LABELS, TYPE_CODES } from "@/lib/labels";
 // UIE-02 § 4.5. `mondayIndex` and `isRealDay` were declared BELOW, in this file; the shell's top bar
 // needs both, and `mondayIndex` was DUPLICATED here and in MonthView.tsx character for character.
 // Moving each definition into one pure module deletes a copy rather than making a third. This import
@@ -800,54 +805,79 @@ export default function WeekView({ landing = false }: WeekViewProps) {
                           data-member-id={member.id}
                           data-entry-id={entry.id}
                           className={[
-                            // UIE-05 AC-7. **A DELIBERATE THREE-ROW STACK, not a wrapping row.**
-                            // Same element, same seven children, same selectors — what changes is
-                            // that the name and the type no longer share a line and the three
-                            // secondary facts are demoted rather than wrapped.
-                            "flex flex-col gap-1 rounded-xl px-3 py-2 text-sm",
-                            // PTO peach, WFH mint (CLAUDE.md § Visual direction), matching the month
-                            // grid's chips so one person reads the same on both screens.
-                            entry.type === "wfh" ? "bg-emerald-100" : "bg-orange-100",
+                            // SOLO 2026-09-10 — **A CAPSULE WITH AN ACCENTED LEFT EDGE**, from the
+                            // operator's screenshot. UIE-05's three-row stack is not undone: the same
+                            // seven children and the same seven selectors are all still here, and the
+                            // three secondary facts are still demoted rather than hidden. What changed
+                            // is that the avatar now sits BESIDE the text column instead of above it,
+                            // which is what buys the second line back.
+                            //
+                            // `rounded-[1.5rem]` AND NOT `rounded-full`: at the two-line height the
+                            // screenshot draws, half the height IS 1.5rem, so the two are identical
+                            // there — and they stop being identical the moment a note or an approver
+                            // adds a third line, where `rounded-full` turns a paragraph into a lozenge.
+                            // A fixed radius reproduces the picture and survives the row growing.
+                            "flex min-w-0 items-start gap-2 rounded-[1.5rem] py-1.5 pl-1.5 pr-3 text-sm",
+                            // **THE LEFT ARC IS A LEFT BORDER ON A ROUNDED BOX**, which is what makes
+                            // it a crescent rather than a bar — no extra element, nothing to position.
+                            //
+                            // **AND THE FILL IS NOW THE SEMANTIC TOKEN.** This file was still on
+                            // `bg-emerald-100` / `bg-orange-100` while UIE-06 moved the month grid to
+                            // `bg-wfh` / `bg-pto` on 2026-09-05, so the two screens have been drawing
+                            // one person in two different mints for five days. `/50` is what makes the
+                            // fill the paler tint of the screenshot while the arc keeps the token at
+                            // full strength — one colour, two weights, and a repaint still changes one
+                            // hex in `src/index.css`.
+                            entry.type === "wfh"
+                              ? "border-l-4 border-l-wfh bg-wfh/50"
+                              : "border-l-4 border-l-pto bg-pto/50",
                             // AC-9. Tentative is a dashed border at reduced opacity, so that "is
                             // listed" and "is settled" stay visually separate: a tentative entry is
                             // listed on exactly the same terms as any other (INV-05) and drawn so
-                            // nobody reads the list as certainty.
+                            // nobody reads the list as certainty. THE DASH IS ON THE OTHER THREE SIDES
+                            // ONLY — the left edge is the type accent, and dashing it would make the
+                            // two signals fight over one stroke.
                             entry.tentative
-                              ? "border border-dashed border-current opacity-70"
-                              : "border border-transparent",
+                              ? "border-y border-r border-dashed border-y-current border-r-current opacity-70"
+                              // **SIDE-SCOPED, AND THE UNSCOPED FORM WAS A REAL BUG FOR ONE
+                              // ITERATION.** `border-transparent` sets `border-color` on ALL FOUR
+                              // sides, so it overwrote `border-l-pto` and the accent arc rendered
+                              // invisible while every class looked right in the source.
+                              : "border-y border-r border-y-transparent border-r-transparent",
                           ].join(" ")}
                         >
-                          {/* UIE-05 AC-7 and AC-8. **ROW 1 — the avatar bubble, the name, the star.**
+                          {/* UIE-05 AC-7. A CIRCULAR BUBBLE rather than a bare glyph. `shrink-0` keeps
+                              it round when the name beside it wraps. SOLO 2026-09-10: `h-8 w-8` and a
+                              solid white fill, per the screenshot — it is out of the text column now,
+                              so the pixels it costs are no longer pixels taken off the name. */}
+                          <span
+                            data-testid="week-row-avatar"
+                            aria-hidden="true"
+                            className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-card text-base leading-none"
+                          >
+                            {member.avatar}
+                          </span>
 
-                              **THE STAR IS INLINE WITH THE NAME AND IS NOT A THIRD FLEX CHILD, AND
-                              THAT IS A MEASURED CORRECTION RATHER THAN A PREFERENCE.** Written as
-                              three flex children with a `shrink-0` star, the rendered column at
-                              1280px left the name about 24px and `Đã duyệt` broke MID-WORD, as
-                              `Đã / du / yệt` — a Vietnamese name pulled apart across three lines on
-                              the screen CLAUDE.md § Visual direction asks to set the diacritics
-                              correctly on. Inline, the star flows after the last word instead of
-                              reserving a column of its own, and the name wraps between words. */}
-                          <div className="flex min-w-0 items-start gap-2">
-                            {/* UIE-05 AC-7. A CIRCULAR BUBBLE rather than a bare glyph, which is the
-                                one thing the image's chip does that this file did not. `shrink-0`
-                                keeps it round when the name beside it wraps; `h-6 w-6` rather than
-                                `h-7 w-7` for the same reason the star moved — at ~137px of column
-                                every 4px of bubble is 4px the name does not get. */}
-                            <span
-                              data-testid="week-row-avatar"
-                              aria-hidden="true"
-                              className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-white/70 text-sm leading-none"
-                            >
-                              {member.avatar}
-                            </span>
+                          <div className="flex min-w-0 flex-1 flex-col gap-0.5">
+                            {/* UIE-05 AC-7 and AC-8. **ROW 1 — the name and the star.**
 
-                            <span className="min-w-0 flex-1 leading-snug">
-                              {/* `break-words` is a LAST RESORT and not the normal case: it breaks a
-                                  word only when the word cannot fit a line of its own, so with the
-                                  width above it wraps between words and clips nothing. `truncate`
-                                  was rejected outright — a clipped name is a person the screen has
-                                  stopped naming. */}
-                              <span data-testid="week-row-name" className="break-words font-medium">
+                                **THE STAR IS INLINE WITH THE NAME AND IS NOT A SIBLING FLEX CHILD, AND
+                                THAT IS A MEASURED CORRECTION RATHER THAN A PREFERENCE.** Written as two
+                                flex children with a `shrink-0` star, the rendered column at 1280px left
+                                the name about 24px and `Đã duyệt` broke MID-WORD, as `Đã / du / yệt` —
+                                a Vietnamese name pulled apart across three lines on the screen
+                                CLAUDE.md § Visual direction asks to set the diacritics correctly on.
+                                Inline, the star flows after the last word instead of reserving a column
+                                of its own, and the name wraps between words.
+
+                                `break-words` is a LAST RESORT and not the normal case: it breaks a word
+                                only when the word cannot fit a line of its own. `truncate` was rejected
+                                outright — a clipped name is a person the screen has stopped naming. */}
+                            <span className="min-w-0 leading-snug">
+                              <span
+                                data-testid="week-row-name"
+                                className="break-words font-semibold text-ink"
+                              >
                                 {member.displayName}
                               </span>
 
@@ -856,87 +886,97 @@ export default function WeekView({ landing = false }: WeekViewProps) {
                                   CLAUDE.md § Visual direction asks that an approved entry carry a
                                   small star, and beside the name is where it is legible at a glance.
                                   **THE NAME OF THE APPROVER STAYS ON ROW 3** — a bare star says only
-                                  that somebody approved, and CAL-05's registry row is about WHO,
-                                  which is the whole of v1's audit answer. */}
+                                  that somebody approved, and CAL-05's registry row is about WHO, which
+                                  is the whole of v1's audit answer. SOLO 2026-09-10: the screenshot
+                                  draws it gold, so it is an emoji rather than a glyph inheriting body
+                                  ink. */}
                               {approver ? (
-                                <span aria-hidden="true" className="ml-1">
-                                  ★
+                                <span aria-hidden="true" className="ml-1 text-[0.75em]">
+                                  ⭐
                                 </span>
                               ) : null}
                             </span>
-                          </div>
 
-                          {/* UIE-05 AC-7 and AC-9. **ROW 2 — the type and the portion.** The image
-                              collapses these to a bare uppercase code; `Leave` / `Working from home`
-                              is OPS-002 AC-7, which requires every screen naming an entry's type to
-                              state that the member is WORKING and forbids a word meaning "away", and
-                              src/lib/labels.ts:21-29 records that choice deliberately. A code states
-                              neither. */}
-                          <div className="flex flex-wrap items-center gap-2">
-                            <span data-testid="week-row-type" data-type={entry.type} className="opacity-70">
-                              {TYPE_LABELS[entry.type]}
-                            </span>
+                            {/* UIE-05 AC-7 and AC-9. **ROW 2 — the type and the portion**, demoted
+                                under the name as a small uppercase caption.
 
-                            {/* AC-3 and AC-4. `data-portion` is the attribute the criteria turn on, and
-                                it is read off the entry on EVERY date the entry covers — which is why a
-                                five-day `pm` entry renders five afternoons and cannot render a whole day
-                                in the middle (INV-06). **UIE-05 MOVED THIS PILL AND DID NOT DROP IT**,
-                                which the image does: it is INV-06's only visible surface in the whole
-                                product, so dropping it would make that invariant invisible on the one
-                                screen that shows it. */}
-                            <span
-                              data-testid="week-row-portion"
-                              data-portion={entry.portion}
-                              className="rounded-full bg-white/70 px-2 py-0.5"
-                            >
-                              {PORTION_LABELS[entry.portion]}
-                            </span>
-                          </div>
+                                **THE CODE IS HERE AT THE OPERATOR'S INSTRUCTION AND IT CONTRADICTS
+                                OPS-002 AC-7**, which requires every screen naming an entry's type to
+                                state that the member is WORKING. `WFH` states nothing to a reader who
+                                does not know the domain — that is the criterion's whole point, and the
+                                screenshot of 2026-09-10 asks for the code anyway. `TYPE_CODES`'
+                                docblock in `src/lib/labels.ts` carries the same warning beside the map,
+                                so neither end of this can be read without meeting it. Every OTHER
+                                surface still renders `TYPE_LABELS`. */}
+                            <div className="flex flex-wrap items-center gap-1.5 text-[0.6875rem] font-bold uppercase leading-none tracking-wide">
+                              <span
+                                data-testid="week-row-type"
+                                data-type={entry.type}
+                                className={entry.type === "wfh" ? "text-wfh-ink" : "text-pto-ink"}
+                              >
+                                {TYPE_CODES[entry.type]}
+                              </span>
 
-                          {/* UIE-05 AC-9. **ROW 3 — DEMOTION, NOT DISCLOSURE.** Smaller and lighter,
-                              and every one of these renders AT REST: no hover, no click, no expansion.
-                              UIE-04 refused hiding them even behind an expand, where the information
-                              still existed; this reproduces the image's silhouette and much of its
-                              density without amending an acceptance criterion. The row itself is
-                              absent when it would be empty. */}
-                          {entry.tentative || hasNote || approver ? (
-                            <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 text-xs">
-                              {/* AC-9's marking. The dashed border above says it visually; this says it in
-                                  words, because a border is not readable to somebody who cannot see it. */}
-                              {entry.tentative ? (
-                                <span data-testid="week-row-tentative" className="opacity-70">
-                                  Tentative
-                                </span>
-                              ) : null}
-
-                              {/* AC-6. Present only when there is a note — an empty note element is a row
-                                  that claims something was said. The note is readable by the whole team,
-                                  which follows from `entry_select_team` being a row-level select policy
-                                  (ADR-005) and is a consequence to be aware of rather than a decision this
-                                  screen takes. Demoting it changes how PROMINENT it is and not who may
-                                  read it. */}
-                              {hasNote ? (
-                                <span data-testid="week-row-note" className="basis-full break-words opacity-80">
-                                  {entry.note}
-                                </span>
-                              ) : null}
-
-                              {/* AC-7 and AC-8. DISPLAYING who approved, and nothing else: this is a name,
-                                  not a control. A pending entry renders no approver at all rather than an
-                                  empty one. The star that stood at the head of this sentence is now on row
-                                  1; the words and `data-approver-id` are unchanged, which is what
-                                  cal-05-week-view.spec.ts:216's `toContainText(ADMIN_NAME)` reads. */}
-                              {approver ? (
-                                <span
-                                  data-testid="week-row-approver"
-                                  data-approver-id={approver.id}
-                                  className="basis-full opacity-70"
-                                >
-                                  Approved by {approver.displayName}
-                                </span>
-                              ) : null}
+                              {/* AC-3 and AC-4. `data-portion` is the attribute the criteria turn on, and
+                                  it is read off the entry on EVERY date the entry covers — which is why a
+                                  five-day `pm` entry renders five afternoons and cannot render a whole day
+                                  in the middle (INV-06). **UIE-05 MOVED THIS PILL AND DID NOT DROP IT**,
+                                  and neither does this: the screenshot has no portion on any of its rows
+                                  because every row it draws is a whole day, and this is INV-06's only
+                                  visible surface in the whole product. Dropping it would make that
+                                  invariant invisible on the one screen that shows it. */}
+                              <span
+                                data-testid="week-row-portion"
+                                data-portion={entry.portion}
+                                className="whitespace-nowrap rounded-full bg-card/70 px-1.5 py-0.5 font-semibold text-ink-2"
+                              >
+                                {PORTION_LABELS[entry.portion]}
+                              </span>
                             </div>
-                          ) : null}
+
+                            {/* UIE-05 AC-9. **ROW 3 — DEMOTION, NOT DISCLOSURE.** Smaller and lighter,
+                                and every one of these renders AT REST: no hover, no click, no expansion.
+                                UIE-04 refused hiding them even behind an expand, where the information
+                                still existed. The row itself is absent when it would be empty. */}
+                            {entry.tentative || hasNote || approver ? (
+                              <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 text-xs">
+                                {/* AC-9's marking. The dashed border above says it visually; this says it in
+                                    words, because a border is not readable to somebody who cannot see it. */}
+                                {entry.tentative ? (
+                                  <span data-testid="week-row-tentative" className="opacity-70">
+                                    Tentative
+                                  </span>
+                                ) : null}
+
+                                {/* AC-6. Present only when there is a note — an empty note element is a row
+                                    that claims something was said. The note is readable by the whole team,
+                                    which follows from `entry_select_team` being a row-level select policy
+                                    (ADR-005) and is a consequence to be aware of rather than a decision this
+                                    screen takes. Demoting it changes how PROMINENT it is and not who may
+                                    read it. */}
+                                {hasNote ? (
+                                  <span data-testid="week-row-note" className="basis-full break-words opacity-80">
+                                    {entry.note}
+                                  </span>
+                                ) : null}
+
+                                {/* AC-7 and AC-8. DISPLAYING who approved, and nothing else: this is a name,
+                                    not a control. A pending entry renders no approver at all rather than an
+                                    empty one. The star that stood at the head of this sentence is now on row
+                                    1; the words and `data-approver-id` are unchanged, which is what
+                                    cal-05-week-view.spec.ts:216's `toContainText(ADMIN_NAME)` reads. */}
+                                {approver ? (
+                                  <span
+                                    data-testid="week-row-approver"
+                                    data-approver-id={approver.id}
+                                    className="basis-full opacity-70"
+                                  >
+                                    Approved by {approver.displayName}
+                                  </span>
+                                ) : null}
+                              </div>
+                            ) : null}
+                          </div>
                         </li>
                       );
                     })}

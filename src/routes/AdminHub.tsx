@@ -17,7 +17,19 @@
 // destination and a partial failure state, which is `ticket.yaml` § 9's named size risk and is a
 // different ticket.
 import { useCallback, useEffect, useState } from "react";
-import { Link } from "react-router-dom";
+// SOLO, 2026-09-12. **THE `admin-hub-back` LINKS ARE GONE, AND THIS TIME IT IS A DECISION.** The
+// note that stood here recorded a removal on 2026-09-10 that had been reverted, and set the test for
+// telling the two apart: *"a removal that skipped its own sibling and left three criteria asserting
+// the opposite reads as an oversight, not a decision. If it was a decision, deleting these four
+// lines and flipping those three assertions is the whole of it."* The operator instructed the
+// removal in words on 2026-09-12, all FOURTEEN links went in one sweep across all six admin screens,
+// and the eleven assertions that followed one were rewritten with it. Neither half of that test is
+// met any more.
+//
+// **WHAT REPLACES IT WAS ALREADY THERE**, which is why the link was redundant rather than merely
+// unwanted: `TopBar.tsx:75-80` says in terms that its one control *"standing on any of the six admin
+// screens is the way back to the calendar"*, and the top bar renders above every screen inside the
+// shell. A second way out, in prose, at the bottom of the page, below the fold on a long worklist.
 // The seam, through its one door: nothing above the seam names an implementation, so this file must
 // never import `@/lib/data/supabase` or `@/lib/data/mock` (RULE-02).
 import { seam } from "@/lib/data";
@@ -98,11 +110,6 @@ export default function AdminHub() {
         <p className="mt-2 text-sm text-ink-2">
           Only an admin can approve entries, manage the team and change the team&rsquo;s settings.
         </p>
-        <p className="mt-4">
-          <Link data-testid="admin-hub-back" to="/" className="text-sm underline">
-            Back to the start
-          </Link>
-        </p>
       </section>
     );
   }
@@ -120,17 +127,12 @@ export default function AdminHub() {
         <p className="mt-2 text-sm text-ink-2">
           Your account could not be read just now. Try again in a moment.
         </p>
-        <p className="mt-4">
-          <Link data-testid="admin-hub-back" to="/" className="text-sm underline">
-            Back to the start
-          </Link>
-        </p>
       </section>
     );
   }
 
   return (
-    <section data-testid="admin-hub" className="mx-auto flex max-w-2xl flex-col gap-6">
+    <section data-testid="admin-hub" className="flex w-full flex-col gap-6">
       <header>
         <h1 className="text-xl font-semibold text-ink">Admin</h1>
         <p className="mt-2 text-sm text-ink-2">
@@ -154,12 +156,6 @@ export default function AdminHub() {
           anchors' `title` instead of staying as a second, fuller list.
 
           SOLO, 2026-09-09. `.claude/agents/solo.md`; there is no ticket and no plan for this. */}
-
-      <p>
-        <Link data-testid="admin-hub-back" to="/" className="text-sm underline">
-          Back to the start
-        </Link>
-      </p>
     </section>
   );
 }

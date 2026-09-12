@@ -23,7 +23,41 @@
 // intact and only its surface is gone — re-mounting a bar later needs a component and nothing else,
 // and no schema change was made on live data to undo something a UI decision can undo for free.
 //
-// **THE FILTERS AND THE PAGER ARE GONE TOO, FROM THE SAME INSTRUCTION**: *"Bỏ phần filter"* and
+// **THE `Open` LINK IS GONE AND THE WHOLE ENTRY IS ON THE ROW — SOLO, 2026-09-10**, on the
+// operator's instruction against an image: *"bỏ nút open"*, *"Show đầy đủ thông tin request ngay
+// từng row"*. The two halves are one decision: a link to a detail screen is only worth a row's width
+// while the row is a summary, and the instruction is that it should stop being one.
+//
+// **THIS REVERSES ADM-04 AC-14**, which reads *each row links to that entry's own edit screen*. It
+// is reversed rather than quietly dropped, and `tests/e2e/adm-04-worklist.spec.ts` now asserts the
+// link ABSENT in the same test that asserted it present — the convention
+// `tests/e2e/solo-pending-approval-ui.spec.ts` set when the filters went.
+//
+// **NO CAPABILITY IS LOST AND THAT IS WHY THIS IS CHEAP.** `/entries/:id/edit` is unchanged and
+// still reachable: CAL-03's team list at `/entries/team` carries `team-entry-row-edit` on every row,
+// which is the same route for the same entries. What is gone is a second door to it from a screen
+// whose job is deciding, not editing.
+//
+// **WHAT "EVERYTHING" MEANS HERE IS EVERY COLUMN OF THE ROW, and it is a short list because the row
+// already carried most of it**: who, both bounds, the type, the portion, whether it is tentative,
+// and the crowded-day sentence. The note stopped being TRUNCATED — a decision about somebody's week
+// should not turn on a sentence cut off mid-word — and `createdAt` is drawn, which is the one field
+// of `Entry` a reader of this queue could previously only get by opening the entry.
+//
+// **THE IMAGE PUTS A GROUP IN PARENTHESES AFTER EACH NAME — `(Core Engineering)`, `(Backend Team)`,
+// `(Design / Product)` — AND NOTHING IS DRAWN THERE.** `public.member` has no group, department or
+// squad column and `Member` has no such field (`src/lib/domain/types.ts:20-42`); v1 has exactly one
+// team, so even the team's own name would be the same parenthetical on every row. Inventing a field
+// to fill a mockup is what `CLAUDE.md` § *Working agreements* forbids in as many words, and the
+// carve-out it makes for `/solo` is the ARRANGEMENT of a screen, never its data.
+//
+// **THE IMAGE ALSO PUTS A PINK `5` ON THE APPROVALS TAB, AND THAT IS STILL NOT DRAWN.**
+// `src/components/AdminTabs.tsx:15-21` records that the operator was asked on 2026-09-09 and chose
+// to leave it out, because a count on a tab is a seam read, a loading state and a refusal path on a
+// component that makes no seam call at all. This instruction was about the rows and did not reopen
+// that.
+//
+// **THE FILTERS AND THE PAGER ARE GONE TOO, FROM AN EARLIER INSTRUCTION**: *"Bỏ phần filter"* and
 // *"Bỏ pagination thay bằng load more"*. What that costs ADM-04 is named at the query and at the
 // list below. This screen now LISTS and COUNTS; it no longer FILTERS, and it pages by ACCUMULATING
 // rather than by replacing.
@@ -62,13 +96,12 @@
 // stage and that the arrangement below is the Tech Lead's own — borrowed wholesale from
 // TeamEntries.tsx, which is the nearest thing the product has to this screen.
 import { useCallback, useEffect, useState } from "react";
-import { Link } from "react-router-dom";
 // The seam, through its one door. Nothing above the seam names an implementation, and this file must
 // never import `./supabase` or `./mock` (RULE-02).
 import EntryDecision from "@/components/EntryDecision";
 import { usePageOverload } from "@/hooks/usePageOverload";
 import { seam } from "@/lib/data";
-import type { Entry, Member } from "@/lib/domain/types";
+import type { Entry, EntryType, Member } from "@/lib/domain/types";
 import { PORTION_LABELS, TYPE_LABELS } from "@/lib/labels";
 // SOLO, 2026-09-11 — the loading mark that replaced this screen's "Loading…" sentence. The
 // sentence itself is still announced: `Loader.tsx` keeps it as `sr-only` text, because the element
@@ -88,13 +121,54 @@ import BusySpinner from "@/components/BusySpinner";
  * `currentMonth`, WeekView.tsx's `today` and YearView.tsx's `currentYear` all record the same
  * exception for the same reason: this answers "what day is it for the person looking at the screen".
  */
+/**
+ * SOLO, 2026-09-10 — **A LEAVE ROW AND A WORK-FROM-HOME ROW DO NOT LOOK THE SAME.** The operator's
+ * instruction: *"ở page pending approval. Tôi muốn UI của row WFH và row PTO khác nhau"*.
+ *
+ * **THE COLOURS ARE NOT CHOSEN HERE AND NOTHING NEW IS PICKED.** `CLAUDE.md` § *Visual direction*
+ * fixes PTO to peach and WFH to mint, UIE-01 and UIE-06 made them `--color-pto` and `--color-wfh`,
+ * and this screen is now the fifth surface to spend them — the month grid's avatar chips, the
+ * sidebar's legend, the entry form's type tabs and `EntryDecision`'s approve control are the other
+ * four. A queue that used a sixth vocabulary for the same distinction would be the defect UIE-06 § 1
+ * describes, where a legend and the thing it explains were painted from two different palettes.
+ *
+ * **AND THE COLOUR IS NEVER THE ONLY SIGNAL.** UIE-01 AC-4's rule holds here: the type is also the
+ * WORD, in full, on every row — `Leave` or `Working from home` — so a reader who cannot separate
+ * peach from mint loses nothing. The fill is what makes the distinction survive a glance down a
+ * queue of six.
+ *
+ * **WHY IT MATTERS MORE ON THIS SCREEN THAN ANYWHERE ELSE.** `glossary.md` calls a WFH member being
+ * read as absent the single most costly confusion in the domain, and this is the one screen where
+ * somebody acts on the distinction rather than merely reading it.
+ */
+const TYPE_STRIPE: Record<EntryType, string> = {
+  pto: "border-l-pto",
+  wfh: "border-l-wfh",
+};
+
+const TYPE_PILL: Record<EntryType, string> = {
+  pto: "bg-pto",
+  wfh: "bg-wfh",
+};
+
 /** SOLO. The stable empty page handed to `usePageOverload` on the three non-`ready` phases. A fresh
  *  `[]` would be a new dependency on every render; this is one array for the life of the module. */
 const NO_ROWS: readonly Entry[] = [];
 
 function localToday(): string {
-  const now = new Date();
-  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
+  return localDayOf(new Date());
+}
+
+/**
+ * A timestamp as the reader's own `yyyy-MM-dd`.
+ *
+ * SOLO, 2026-09-10. Extracted from `localToday` when the row began drawing `createdAt`, so the two
+ * cannot answer the same question differently — the queue's `today` and the day a row says it was
+ * declared are read off the same clock in the same format.
+ */
+function localDayOf(at: string | Date): string {
+  const when = typeof at === "string" ? new Date(at) : at;
+  return `${when.getFullYear()}-${String(when.getMonth() + 1).padStart(2, "0")}-${String(when.getDate()).padStart(2, "0")}`;
 }
 
 // Four phases, the shape TeamEntries.tsx and MemberList.tsx use. AC-12: "still loading", "this is not
@@ -285,11 +359,6 @@ export default function PendingEntries() {
           Only an admin decides on an entry. Everything listed here is readable by the whole team on
           the team&rsquo;s entries page.
         </p>
-        <p className="mt-4">
-          <Link data-testid="pending-entries-back" to="/" className="text-sm underline">
-            Back to home
-          </Link>
-        </p>
       </section>
     );
   }
@@ -307,11 +376,6 @@ export default function PendingEntries() {
         <p className="mt-2 text-sm opacity-70">
           Nothing is listed rather than part of it. A short list here would look like a queue with
           nothing left in it. Please reload the page.
-        </p>
-        <p className="mt-4">
-          <Link data-testid="pending-entries-back" to="/" className="text-sm underline">
-            Back to home
-          </Link>
         </p>
       </section>
     );
@@ -336,7 +400,7 @@ export default function PendingEntries() {
   const more = rows.length < total;
 
   return (
-    <section className="mx-auto flex max-w-3xl flex-col gap-4">
+    <section className="flex w-full flex-col gap-4">
       <header>
         <h1 className="text-xl font-semibold">Waiting for a decision</h1>
 
@@ -388,7 +452,11 @@ export default function PendingEntries() {
               data-start-date={entry.startDate}
               data-end-date={entry.endDate}
               data-tentative={entry.tentative}
-              className="flex flex-wrap items-center gap-3 px-4 py-3 text-sm"
+              // SOLO, 2026-09-10 — the type's own colour as a left edge. A STRIPE and not a row
+              // background: the fills on this palette are pastels chosen to sit UNDER text on the
+              // calendar, and a whole row of one would fight the crowded-day sentence, which is the
+              // only thing on this screen allowed to shout.
+              className={`flex flex-wrap items-center gap-3 border-l-4 px-4 py-3 text-sm ${TYPE_STRIPE[entry.type]}`}
             >
               {/* SOLO. The avatar is the transcription's 38px circle rather than a bare glyph, and
                   it sits on `bg-field` the way the sidebar's roster chip does — one shape for "a
@@ -412,7 +480,23 @@ export default function PendingEntries() {
                   >
                     {ownerName(entry.memberId)}
                   </span>
-                  <span className="text-ink-3">{TYPE_LABELS[entry.type]}</span>
+                  {/* SOLO, 2026-09-10. The type was grey text beside the name, which is what made
+                      a leave row and a work-from-home row identical at a glance. It is a filled pill
+                      now, in the type's own colour, and it gained a selector: `data-type` on the
+                      element that CARRIES the colour is what lets a spec assert the two agree
+                      without reading a class off the row itself. */}
+                  <span
+                    data-testid="pending-entry-row-type"
+                    data-type={entry.type}
+                    className={`rounded-pill px-2 py-0.5 text-xs font-bold text-ink ${TYPE_PILL[entry.type]}`}
+                  >
+                    {TYPE_LABELS[entry.type]}
+                  </span>
+
+                  {/* The portion stays plain, deliberately. It is a different axis — INV-06, one
+                      portion for the whole entry — and giving it a fill too would make the row two
+                      competing badges with no way to tell which one answers *is this person at
+                      work*. */}
                   <span className="text-ink-3">
                     {PORTION_LABELS[entry.portion]}
                   </span>
@@ -446,12 +530,44 @@ export default function PendingEntries() {
                     </span>
                   ) : null}
 
-                  {entry.note ? (
-                    <span className="truncate text-xs text-ink-3">
-                      {entry.note}
-                    </span>
-                  ) : null}
+                  {/* SOLO, 2026-09-10. **`createdAt`, WHICH WAS THE ONE FIELD ONLY THE EDIT
+                      SCREEN SHOWED.** With the `Open` link gone it has nowhere else to be read, and
+                      on a queue it is the field that says which of two entries has been waiting.
+
+                      **THE LOCAL CALENDAR DAY, AND `new Date(...)` IS CORRECT HERE — the one place
+                      in this product where it is.** The trap every other file records is about
+                      DATE-ONLY strings: `new Date('2026-04-30')` parses as UTC midnight and a local
+                      read west of UTC yields the previous day. `createdAt` is a full ISO 8601
+                      timestamp with an offset, so parsing it is unambiguous, and the local day is
+                      the honest answer to *when was this declared* for the person reading it.
+                      Slicing the string to ten characters would print the UTC day instead — wrong by
+                      one for anything declared before 07:00 in Vietnam.
+
+                      The exact value stays on `data-created-at`, unrounded, so a test reads the
+                      timestamp and a person reads the day. */}
+                  <span
+                    data-testid="pending-entry-row-declared"
+                    data-created-at={entry.createdAt}
+                    className="font-mono text-xs text-ink-3"
+                  >
+                    declared {localDayOf(entry.createdAt)}
+                  </span>
                 </p>
+
+                {/* SOLO, 2026-09-10. **THE NOTE, IN FULL AND ON ITS OWN LINE.** It was `truncate`d
+                    into the dates line, which is exactly the shape that sends somebody to the edit
+                    screen to read the rest — the screen this instruction removed the link to. It is
+                    the member's own words and is the one piece of user content on this screen, so it
+                    wraps rather than being clipped (`.ai/standards/ui-design-system.md` § Language
+                    is about interface copy and does not reach it). */}
+                {entry.note ? (
+                  <p
+                    data-testid="pending-entry-row-note"
+                    className="whitespace-pre-wrap break-words text-xs text-ink-2"
+                  >
+                    {entry.note}
+                  </p>
+                ) : null}
 
                 {/* SOLO — the crowded-day sentence. `usePageOverload` computes it for the whole page
                     from ONE set of reads and INV-04's single implementation; see that file for why
@@ -476,17 +592,13 @@ export default function PendingEntries() {
                 ))}
               </div>
 
-              {/* ADM-04 AC-14. The SAME route the owner and CAL-03's team list already use, and
-                  it keeps its name, its destination and its position —
-                  tests/e2e/adm-04-worklist.spec.ts clicks it and ADM-05 01-plan.md section 7
-                  requires that suite to pass UNEDITED. */}
-              <Link
-                data-testid="pending-entry-row-link"
-                to={`/entries/${entry.id}/edit`}
-                className="ml-auto underline"
-              >
-                Open
-              </Link>
+              {/* **ADM-04 AC-14's `Open` LINK STOOD HERE AND IS REMOVED — SOLO, 2026-09-10.** The
+                  header records the instruction and what it costs; the route it pointed at is
+                  unchanged and `/entries/team` still reaches it on every row.
+
+                  `ml-auto` moved onto the decision panel's wrapper below, which is what keeps the
+                  two controls hard against the right edge now that nothing separates them from the
+                  text column. */}
 
               {/* ADM-05 AC-1, AC-2. The decision, on the surface the feature row names. It is the
                   SAME component `/entries/:id/edit` mounts, so "a rejection carries a reason" is
@@ -494,7 +606,9 @@ export default function PendingEntries() {
 
                   `reload` and not a splice: a decided entry leaves this view because the next read
                   does not return it, and the count above falls for the same reason. */}
-              <EntryDecision entry={entry} onDecided={reload} />
+              <div className="ml-auto shrink-0">
+                <EntryDecision entry={entry} onDecided={reload} />
+              </div>
             </li>
           ))}
         </ul>
@@ -549,12 +663,6 @@ export default function PendingEntries() {
           </span>
         </div>
       ) : null}
-
-      <p>
-        <Link data-testid="pending-entries-back" to="/" className="text-sm underline">
-          Back to home
-        </Link>
-      </p>
     </section>
   );
 }

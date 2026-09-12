@@ -45,6 +45,7 @@ export const FIXTURE_ADMIN: Member = {
   avatar: "🦉",
   role: "admin",
   status: "approved",
+  lastSignInAt: "2026-09-09T08:00:00+00:00",
   removedAt: null,
   createdAt: "2026-08-31T00:00:00+00:00",
 };
@@ -77,6 +78,7 @@ export const FIXTURE_MEMBER: Member = {
   avatar: "🐱",
   role: "member",
   status: "approved",
+  lastSignInAt: "2026-09-09T08:00:00+00:00",
   removedAt: null,
   createdAt: "2026-08-31T00:00:00+00:00",
 };
@@ -119,6 +121,7 @@ export const FIXTURE_OTHER_TEAM_MEMBER: Member = {
   avatar: "🐰",
   role: "member",
   status: "approved",
+  lastSignInAt: "2026-09-09T08:00:00+00:00",
   removedAt: null,
   createdAt: "2026-08-31T00:00:00+00:00",
 };
@@ -146,6 +149,7 @@ export const FIXTURE_PENDING_SIGNUP: Member = {
   avatar: "🐣",
   role: "member",
   status: "pending",
+  lastSignInAt: "2026-09-09T08:00:00+00:00",
   removedAt: null,
   createdAt: "2026-09-09T00:00:00+00:00",
 };
@@ -157,6 +161,7 @@ export const FIXTURE_REMOVED_MEMBER: Member = {
   avatar: "🐶",
   role: "member",
   status: "approved",
+  lastSignInAt: "2026-09-09T08:00:00+00:00",
   removedAt: "2026-08-31T12:00:00+00:00",
   createdAt: "2026-08-31T00:00:00+00:00",
 };
@@ -184,6 +189,7 @@ export const FIXTURE_SECOND_ADMIN: Member = {
   avatar: "🦊",
   role: "admin",
   status: "approved",
+  lastSignInAt: "2026-09-09T08:00:00+00:00",
   removedAt: null,
   createdAt: "2026-08-31T00:00:00+00:00",
 };
@@ -355,6 +361,7 @@ export const FIXTURE_APPROVED_MEMBER: Member = {
   avatar: "🐨",
   role: "member",
   status: "approved",
+  lastSignInAt: "2026-09-09T08:00:00+00:00",
   removedAt: null,
   createdAt: "2026-08-31T00:00:00+00:00",
 };

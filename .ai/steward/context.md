@@ -1876,3 +1876,53 @@ run's edits. **The `104 of 106` recorded on 2026-09-09 is stale**: it predates c
 
 **Not done, and it is the operator's call:** the migration is not applied. Dropping
 `public.allowed_email` destroys its rows and git does not reverse it — ADR-033 § Consequences.
+
+### 2026-09-10 — the member-list run gets a registry row, renumbered, with one of its facts corrected
+
+Operator handed over `solo`'s report of the member-tab rebuild, ending in a `features.md` row printed
+for pasting. Registered it. Three things were decided in the writing rather than transcribed.
+
+**Renumbered `TEA-07` → `TEA-06`.** `TEA-06` had never been allocated, and neither token appeared in
+any file in the repository — verified by grep across the tree before writing — so nothing had to be
+re-pointed. A TEA series that skips 06 reads for ever afterwards as a ticket somebody lost, and no
+later reader could tell that it never existed. IDs go in registration order, not work order.
+
+**Corrected the regression's mechanism, because the row outlives the chat.** The run reported that
+`71bd1c0 "update UI"` flipped `VITE_REQUIRE_EMAIL_CONFIRMATION` from `"true"` to `"false"`. It did
+not: that commit *introduced* the flag. `git log --diff-filter=A -- src/lib/config.ts` returns
+`71bd1c0`, and the string appears in no file at `71bd1c0^`. What the commit actually did is add the
+`playwright.config.ts` line under a twelve-line comment opening **"PINNED ON"** above the value
+`"false"` — **a comment contradicting its own value, in the commit that wrote both.** TEA-01's six
+failures are the first thing that read the value instead of the comment. The fix the run applied is
+right and the diagnosis was not, which is the kind of error that only costs something later.
+
+**Re-measured what was cheap to re-measure and attributed the rest.** `pnpm test`: **252 passed,
+exit 0**, which matches the run's figure. `pnpm typecheck`, `pnpm lint` and `playwright test` (239)
+are the run's own and are marked as such in the row rather than restated as mine.
+
+**Registry write, one:** `.ai/registry/features.md` gains the `TEA-06` row. `doc_version` and
+`last_updated` unmoved — the precedent from ADR-032 and ADR-033, both of which edited this file
+without touching either.
+
+**Audit after: 7 errors, against 7 on this tree before the run.** Net zero, and none of them is in the
+new row: the four files it cites all exist. The seven are the six known D5 route-not-a-command false
+positives (`.ai/board/model-debt.md:82`) and MD-031's missing idea file.
+
+**Three debt rows opened, and the operator should read MD-033 and MD-034 as a pair:**
+
+- **MD-033** — `supabase/db.sql`, the ADR-026 target schema, has not been updated for any of the
+  three migrations written on 2026-09-10. `public.member` there still says `team_id uuid not null`
+  and has neither `status` nor `last_sign_in_at`, and `public.allowed_email` is still a table
+  although ADR-033 dropped it. **This is the `db.sql` debt the run named, and it is real.** Not
+  repaired in this run: it is a schema transcription of three migrations, two of which are unapplied,
+  and doing it inside a run whose task was a registry row would be the scope drift the standing
+  instructions name.
+- **MD-034** — nothing in the repository records which migrations have been applied, so "unapplied"
+  is only ever a claim in a chat message. `20260910093000_solo_profile_self_update.sql` is the live
+  case: named in no ADR, no feature row and no session log, and its state is unknowable from disk.
+- **MD-035** — solo work reaches the tree with no `features.md` row, and MD-032's claim that it lands
+  "under `OTHERS`" points at a section of that file which does not exist. Today the operator copies a
+  row out of a transcript, which is a manual step nobody is assigned.
+
+**Not done, and still the operator's:** the migrations are unapplied, and `20260910100000` must run
+before `20260910140000` because `member.status` is its prerequisite.

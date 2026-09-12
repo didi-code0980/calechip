@@ -22,7 +22,6 @@
 // the sidebar never unmounts. Recorded rather than fixed — a roster that re-reads on a write is a
 // different change.
 import { useCallback, useEffect, useState } from "react";
-import { Link } from "react-router-dom";
 // The seam, through its one door. Nothing above the seam names an implementation, and this file must
 // never import `@/lib/data/supabase` or `@/lib/data/mock` (RULE-02).
 import { seam } from "@/lib/data";
@@ -139,11 +138,6 @@ export default function Teams() {
         <h1 className="text-xl font-semibold text-ink">This page is for admins</h1>
         {/* It names no team: somebody who is not an admin learns here only that admins exist. */}
         <p className="mt-2 text-sm text-ink-2">Only an admin manages the teams.</p>
-        <p className="mt-4">
-          <Link data-testid="teams-back" to="/" className="text-sm underline">
-            Back to the start
-          </Link>
-        </p>
       </section>
     );
   }
@@ -157,11 +151,6 @@ export default function Teams() {
       >
         <h1 className="text-xl font-semibold text-ink">The teams could not be read</h1>
         <p className="mt-2 text-sm text-ink-2">Try again in a moment.</p>
-        <p className="mt-4">
-          <Link data-testid="teams-back" to="/" className="text-sm underline">
-            Back to the start
-          </Link>
-        </p>
       </section>
     );
   }
@@ -391,12 +380,6 @@ export default function Teams() {
           );
         })}
       </ul>
-
-      <p>
-        <Link data-testid="teams-back" to="/" className="text-sm underline">
-          Back to the start
-        </Link>
-      </p>
     </section>
   );
 }

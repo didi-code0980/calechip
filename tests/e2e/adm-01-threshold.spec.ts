@@ -117,7 +117,11 @@ test.describe("ADM-01 set the overload threshold", () => {
 
     // Leave and come back. Nothing the previous screen held survives — the component unmounts and
     // the value on the second visit came from `getTeam()`, which is the whole of this criterion.
-    await page.getByTestId("threshold-back").click();
+    // SOLO 2026-09-12. The `*-back` link is gone from all six admin screens at the operator's
+    // instruction; `shell-admin-link` is what TopBar.tsx:75-80 already called the way back to the
+    // calendar from an admin address, and it is a client-side navigation, so the mock's module
+    // state survives it where a `page.goto` would not.
+    await page.getByTestId("shell-admin-link").click();
     await openThresholdFromShell(page);
 
     await expect(page.getByTestId("threshold-current")).toContainText("60%");
@@ -241,7 +245,8 @@ test.describe("ADM-01 set the overload threshold", () => {
     // To the month grid by links only, so the save above survives. CAL-04's screen reads
     // `team.overloadThreshold` and needs no change for this to hold — if it did, this criterion
     // would be describing a CAL-04 defect (01-plan.md section 7).
-    await page.getByTestId("threshold-back").click();
+    // SOLO 2026-09-12. The back link is gone; `home-week-link` is a SIDEBAR control and renders
+    // on every screen inside the shell, so the hop through `/` it used to take is not needed.
     await page.getByTestId("home-week-link").click();
     await expect(page.getByTestId("week-month")).toBeVisible();
     await page.getByTestId("week-month").click();
@@ -258,7 +263,8 @@ test.describe("ADM-01 set the overload threshold", () => {
     await save(page, "0");
     await expect(page.getByTestId("threshold-saved")).toBeVisible();
 
-    await page.getByTestId("threshold-back").click();
+    // SOLO 2026-09-12. As above — the back link is gone and `home-new-entry-link` is reachable
+    // from this screen without returning to `/` first.
     await page.getByTestId("home-new-entry-link").click();
     await expect(page.getByTestId("new-entry-form")).toBeVisible();
 

@@ -370,7 +370,8 @@ test.describe("CAL-08 — holidays and bridge days in the calendar views", () =>
     await page.getByTestId("threshold-input").fill("10");
     await page.getByTestId("threshold-save").click();
     await expect(page.getByTestId("threshold-saved")).toBeVisible();
-    await page.getByTestId("threshold-back").click();
+    // SOLO 2026-09-12. The back link is gone from every admin screen. `addHoliday` opens the
+    // calendar through `home-holidays-link`, which is in the sidebar and renders here too.
 
     // ADM-03's control, used to put a holiday on a date somebody is already away on. This is the
     // only visible consequence of that ticket, which is 01-plan.md section 1's point.

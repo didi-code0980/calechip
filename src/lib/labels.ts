@@ -32,6 +32,26 @@ export const TYPE_LABELS: Record<EntryType, string> = {
   wfh: "Working from home",
 };
 
+/**
+ * The three-letter code for a type, for a slot too narrow to hold a sentence.
+ *
+ * **THIS IS A SECOND SET, NOT A SECOND DECLARATION OF `TYPE_LABELS`** — which is the distinction
+ * OPS-002 AC-8 turns on. It lives in this module, beside the labels, so a repaint of the vocabulary
+ * still happens in one file and a screen still imports rather than restating; what AC-8 forbids is
+ * the same set declared twice in two places, and that is not this.
+ *
+ * **IT DOES NOT SATISFY OPS-002 AC-7 AND MUST NOT BE USED WHERE THAT CRITERION APPLIES.** AC-7
+ * requires that a reader who does not know the domain sees, in the label for `wfh`, that the member
+ * is WORKING — the single most costly confusion in the glossary. `WFH` is an initialism and states
+ * nothing to such a reader. It is used on the week grid at the operator's instruction of 2026-09-10
+ * (a screenshot: the chip carries `WFH` and `PTO` under the name), and that instruction is the only
+ * thing that licenses it. **Every other surface keeps `TYPE_LABELS`.**
+ */
+export const TYPE_CODES: Record<EntryType, string> = {
+  pto: "PTO",
+  wfh: "WFH",
+};
+
 /** INV-06: one portion for the whole entry, so one label for the whole range. There is deliberately
  *  no per-date control — a trip leaving Wednesday afternoon and returning Monday morning is up to
  *  three entries, and the form does not pretend otherwise. */

@@ -126,10 +126,13 @@ test.describe("SOLO — the admin area is a tab strip", () => {
       await expect(page.getByTestId("admin-tabs")).toBeVisible();
     }
 
-    // And `/admin` is still `/admin`, still its own screen, and still carries its own back control.
+    // And `/admin` is still `/admin` and still its own screen. **THE BACK CONTROL IS GONE, AND
+    // THIS ASSERTION IS FLIPPED RATHER THAN DELETED** — the operator removed it from all six
+    // admin screens on 2026-09-12, and an assertion that the thing is absent is what keeps the
+    // removal from being undone by a later session reading this file for the shape of the screen.
     await page.goto("/admin");
     await expect(page.getByTestId("admin-hub")).toBeVisible();
-    await expect(page.getByTestId("admin-hub-back")).toHaveCount(1);
+    await expect(page.getByTestId("admin-hub-back")).toHaveCount(0);
 
     // NO TAB IS ACTIVE ON `/admin` ITSELF, which is correct rather than an oversight: `/admin` is
     // not one of the five, and lighting a tab you are not on would be a lie about where you are.

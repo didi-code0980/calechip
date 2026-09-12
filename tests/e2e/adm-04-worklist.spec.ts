@@ -346,7 +346,10 @@ test.describe("ADM-04 — the worklist of entries awaiting a decision", () => {
     // criterion is written the way it is: `entry_select_team` admits the whole team's rows to both
     // roles, so the same member reads the same entries at /entries/team. A refusal that were load
     // bearing would make this next assertion fail.
-    await page.getByTestId("pending-entries-back").click();
+    // SOLO 2026-09-12. The back link is gone. **NOT `shell-admin-link` here** — the caller is a
+    // MEMBER and that control does not render for one (it is the very thing the next assertion
+    // checks). The sidebar is what a refused member leaves by, and this is that walk.
+    await page.getByTestId("home-week-link").click();
     await expect(page.getByTestId("home-sign-out")).toBeVisible();
     // Also rewritten onto `shell-admin-link` (UIE-10 AC-4). It named `home-team-entries-link` and
     // the two ids used to be different nodes; since UIE-10 both denials are carried by the one
@@ -386,22 +389,53 @@ test.describe("ADM-04 — the worklist of entries awaiting a decision", () => {
     await expect(page.getByTestId("pending-entries-loading")).toHaveCount(0);
   });
 
-  test("AC-14: each row links to that entry's own edit screen, and the worklist adds no editing", async ({
+  test("AC-14 REVERSED: the row carries the whole entry and links to no edit screen", async ({
     page,
   }) => {
+    // **THE ASSERTION IS FLIPPED, NOT DELETED — `solo`, 2026-09-10**, on the operator's instruction
+    // against an image: *"bỏ nút open"*, *"Show đầy đủ thông tin request ngay từng row"*. AC-14 read
+    // *each row links to that entry's own edit screen*; it no longer does, and a test that vanished
+    // would leave no record that it once did.
+    //
+    // **THE ROUTE IS NOT GONE AND THIS TEST SAYS SO** at the end: `/entries/:id/edit` still renders
+    // for the same entry, still for an admin, and CAL-03's team list still reaches it on every row.
+    // What was removed is a door, not a room.
     await signInAt(page, MEMBER_EMAIL);
     await declare(page, UPCOMING, 1);
     await switchTo(page, ADMIN_EMAIL);
     await openWorklist(page);
 
-    const entryId = await rowFor(page, UPCOMING.start).getAttribute("data-entry-id");
+    const row = rowFor(page, UPCOMING.start);
+    const entryId = await row.getAttribute("data-entry-id");
     expect(entryId).toBeTruthy();
 
-    await rowFor(page, UPCOMING.start).getByTestId("pending-entry-row-link").click();
+    await expect(row.getByTestId("pending-entry-row-link")).toHaveCount(0);
+    await expect(row.locator("a")).toHaveCount(0);
 
-    // The SAME route the owner and CAL-03's team list already use. There is one edit screen and not
-    // an admin copy of one, which is what keeps the six editable fields decided in one place.
-    await expect(page).toHaveURL(new RegExp(`/entries/${entryId}/edit$`));
+    // What replaced it: everything a decision needs, on the row. The dates and the member were
+    // always here; the note is no longer truncated and `createdAt` is drawn, which is the field that
+    // previously required opening the entry.
+    await expect(row.getByTestId("pending-entry-row-member")).toBeVisible();
+    await expect(row.getByTestId("pending-entry-row-dates")).toBeVisible();
+    await expect(row.getByTestId("pending-entry-row-declared")).toHaveAttribute(
+      "data-created-at",
+      /.+/,
+    );
+    await expect(row.getByTestId("entry-decision-approve")).toBeVisible();
+    await expect(row.getByTestId("entry-decision-reject")).toBeVisible();
+
+    // The edit screen itself is untouched and still admits this admin for this entry — reached
+    // through CAL-03's team list, which is the affordance that replaced the removed link.
+    //
+    // CLICKED AND NEVER `page.goto`: a full navigation discards the in-memory seam's module state,
+    // the session with it, so the assertion would land on the sign-in screen and say nothing about
+    // the edit route. tests/e2e/cal-01-create-entry.spec.ts:30 records the same trap.
+    await page.getByTestId("admin-hub-team-entries-link").click();
+    await expect(page.getByTestId("team-entries-loading")).toBeHidden();
+    await page
+      .locator(`[data-testid="team-entry-row"][data-entry-id="${entryId}"]`)
+      .getByTestId("team-entry-row-edit")
+      .click();
     await expect(page.getByTestId("edit-entry-form")).toBeVisible();
   });
 

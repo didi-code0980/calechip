@@ -164,6 +164,24 @@ test.describe("SOLO — the approval queue's row", () => {
       await expect(approve).toHaveClass(
         new RegExp(`\\bbg-${type === "pto" ? "pto" : "wfh"}\\b`),
       );
+
+      // **SOLO, 2026-09-10 — THE ROW ITSELF CARRIES THE TYPE NOW, NOT JUST THE CONTROL.** The
+      // operator's instruction: *"Tôi muốn UI của row WFH và row PTO khác nhau"*. Two places say
+      // it — the left edge and the type pill — and both are read against the row's own `data-type`
+      // rather than against a list, for the reason the block above records.
+      await expect(row).toHaveClass(
+        new RegExp(`\\bborder-l-${type === "pto" ? "pto" : "wfh"}\\b`),
+      );
+
+      const badge = row.getByTestId("pending-entry-row-type");
+      await expect(badge).toHaveAttribute("data-type", type ?? "");
+      await expect(badge).toHaveClass(
+        new RegExp(`\\bbg-${type === "pto" ? "pto" : "wfh"}\\b`),
+      );
+
+      // **AND THE COLOUR IS NEVER THE ONLY SIGNAL** — UIE-01 AC-4's rule. The word is on the row in
+      // full, so the distinction survives a reader who cannot separate peach from mint.
+      await expect(badge).toHaveText(type === "pto" ? "Leave" : "Working from home");
     }
 
     // BOTH TOKENS ACTUALLY APPEAR, which is what makes the loop a test rather than a tautology: a
@@ -243,12 +261,19 @@ test.describe("SOLO — the approval queue's row", () => {
 
     const row = rows(page).first();
 
-    // ADM-04's link to the entry and ADM-05's decision panel. The transcription drew neither; when
-    // asked on 2026-09-09 the operator said that omission was not an instruction to remove them.
-    await expect(row.getByTestId("pending-entry-row-link")).toHaveAttribute(
-      "href",
-      /\/entries\/.+\/edit$/,
-    );
+    // **AMENDED 2026-09-10 AND THE LINK'S ASSERTION IS NOW THE REVERSE OF WHAT STOOD HERE**, which
+    // is this test's own convention two paragraphs down. It used to assert ADM-04's `Open` link had
+    // an `href` to the edit screen, written on 2026-09-09 from the operator's answer that the
+    // transcription's silence about it was not an instruction. The instruction came on 2026-09-10
+    // with an image: *"bỏ nút open"*. So the same name is asserted ABSENT, in the same test.
+    //
+    // ADM-05's decision panel is untouched and is still asserted present, as it always was.
+    await expect(row.getByTestId("pending-entry-row-link")).toHaveCount(0);
+
+    // And what the instruction's other half put there instead: *"Show đầy đủ thông tin request ngay
+    // từng row"*. The note is no longer truncated into the dates line and `createdAt` is drawn.
+    await expect(row.getByTestId("pending-entry-row-declared")).toHaveCount(1);
+
     await expect(row.getByTestId("entry-decision")).toHaveCount(1);
     await expect(row.getByTestId("entry-decision-reject")).toHaveCount(1);
     await expect(page.getByTestId("pending-entries-count")).toBeVisible();

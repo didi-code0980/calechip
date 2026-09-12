@@ -23,8 +23,9 @@
 // **THIS COMPONENT MAKES NO SEAM CALL AND HAS NO STATE.** It re-reads nothing, so it adds no phase
 // to any screen below it. Each of the six destinations keeps its own loading, refusal and failure
 // states untouched — including `/admin` itself, whose four phases `AdminHub.tsx` still owns.
-import { Outlet } from "react-router-dom";
+import { Outlet, useOutletContext } from "react-router-dom";
 import AdminTabs from "./AdminTabs";
+import type { ShellContext } from "./AppShell";
 
 export interface AdminLayoutProps {
   /** Whether the signed-in caller is an admin. Resolved once in `App.tsx`; never re-read here. */
@@ -32,10 +33,33 @@ export interface AdminLayoutProps {
 }
 
 export default function AdminLayout({ isAdmin }: AdminLayoutProps) {
+  // **THE SHELL'S CONTEXT IS FORWARDED, AND A BARE `<Outlet />` IS WHAT MADE THAT NECESSARY.**
+  // `useOutletContext` reads the context of the NEAREST enclosing outlet, so a nested layout that
+  // renders `<Outlet />` with no `context` prop hands its children `null` — and every screen under
+  // this layout is a child of THIS outlet, not of `AppShell`'s. Without this line
+  // `useShellContext()` returns null on all six admin addresses and only there, which is the worst
+  // shape a defect can have: the same hook works on `/profile` and crashes on `/entries/team`.
+  //
+  // **IT FORWARDS, IT DOES NOT BUILD.** The object is the shell's own, passed through unchanged, so
+  // there is still exactly one `ShellContext` in the application and this file adds no fact to it.
+  // `THIS COMPONENT MAKES NO SEAM CALL AND HAS NO STATE` above is unchanged — a context read is not
+  // a read of the datastore.
+  const shell = useOutletContext<ShellContext>();
+
   return (
-    <>
+    // **THE ADMIN AREA'S MEASURE IS DECIDED HERE, ONCE.** It used to be decided six times: the tab
+    // strip capped itself at `max-w-3xl`, three list screens at `max-w-3xl` and two at `max-w-2xl`,
+    // so the strip visibly overhung the card beneath it on `/members` and `/admin` and every new
+    // admin screen had to guess a number. The screens keep their own narrow caps for the states that
+    // WANT to be narrow — a refusal, a spinner, a form — and only the ready list fills this column.
+    //
+    // `max-w-6xl` and not full bleed: these are tables of six or seven columns, and a row stretched
+    // across an ultrawide monitor separates the name from its buttons by half a metre of nothing.
+    // `.ai/standards/ui-design-system.md` names no content width, so this is a choice and not a
+    // citation — it is one token, in one file, and changing it moves the whole admin area together.
+    <div className="mx-auto w-full max-w-6xl">
       {isAdmin ? <AdminTabs /> : null}
-      <Outlet />
-    </>
+      <Outlet context={shell} />
+    </div>
   );
 }

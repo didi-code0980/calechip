@@ -40,6 +40,17 @@ export interface Member {
    * function. Reading this field in a component chooses a SCREEN; it grants nothing.
    */
   status: MemberStatus;
+  /**
+   * SOLO, 2026-09-10. When GoTrue last saw them, copied onto this row by a trigger on
+   * `auth.users` — `auth` is not exposed through PostgREST, so the browser cannot read the original.
+   *
+   * **NULL MEANS NEVER, NOT UNKNOWN.** An account that has signed in has a GoTrue timestamp, and the
+   * migration backfills every one that existed when it ran.
+   *
+   * DISPLAY ONLY. No policy, trigger or count consults it; a stale value makes a cell say the wrong
+   * date and grants nobody anything.
+   */
+  lastSignInAt: string | null; // ISO 8601
   removedAt: string | null; // ISO 8601, null means active
   createdAt: string; // ISO 8601
 }

@@ -167,7 +167,7 @@ export default function AdminTabs() {
     <nav
       data-testid="admin-tabs"
       aria-label="Admin"
-      className="mx-auto mb-6 max-w-3xl overflow-x-auto rounded-card bg-card p-1.5 shadow-soft"
+      className="mb-6 w-full overflow-x-auto rounded-card bg-card p-1.5 shadow-soft"
     >
       {/* AN ORDERED LIST, because § 2b's order is a claim about how often each is needed and `<ol>`
           is the element that says so. UIE-09 AC-3 reads `data-to` off these rows and compares the

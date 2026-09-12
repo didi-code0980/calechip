@@ -105,6 +105,27 @@ export default function EntryDecision({ entry, onDecided }: EntryDecisionProps) 
       className="flex flex-col gap-2"
     >
       <div className="flex flex-wrap items-center gap-2">
+        {/* SOLO, 2026-09-10 — **REJECT IS DRAWN FIRST AND APPROVE SECOND**, which is the order the
+            operator's image puts them in on the approval queue. It reads as the safer reading order
+            too: the control that needs a reason typed sits before the one that lands in a click.
+            Nothing else about either control moved, and both keep their ids — the order is not
+            asserted anywhere, because a spec that pinned it would be pinning a layout. */}
+        {/* AC-2 and AC-5. It OPENS THE FIELD and writes nothing. On an already-rejected entry it is
+            how the reason is re-worded, which is the same field on the same form. */}
+        <button
+          data-testid="entry-decision-reject"
+          type="button"
+          disabled={busy || open}
+          onClick={() => {
+            setOpen(true);
+            setError(null);
+            setReason(entry.rejectionReason ?? "");
+          }}
+          className={`${DECISION_PILL} border border-line bg-card text-ink-2 hover:bg-field hover:text-ink`}
+        >
+          {entry.status === "rejected" ? "Change the reason" : "Reject"}
+        </button>
+
         {/* AC-11. Absent when the entry is already approved — `approved` to `approved` is not a
             decision, and a control that re-approved would rewrite `approved_at` for nothing. Every
             other transition this product offers is reachable from here. */}
@@ -125,22 +146,6 @@ export default function EntryDecision({ entry, onDecided }: EntryDecisionProps) 
             <span aria-hidden="true"> ★</span>
           </button>
         )}
-
-        {/* AC-2 and AC-5. It OPENS THE FIELD and writes nothing. On an already-rejected entry it is
-            how the reason is re-worded, which is the same field on the same form. */}
-        <button
-          data-testid="entry-decision-reject"
-          type="button"
-          disabled={busy || open}
-          onClick={() => {
-            setOpen(true);
-            setError(null);
-            setReason(entry.rejectionReason ?? "");
-          }}
-          className={`${DECISION_PILL} border border-line bg-card text-ink-2 hover:bg-field hover:text-ink`}
-        >
-          {entry.status === "rejected" ? "Change the reason" : "Reject"}
-        </button>
       </div>
 
       {open ? (

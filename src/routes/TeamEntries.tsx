@@ -31,6 +31,7 @@ import { Link } from "react-router-dom";
 // The seam, through its one door. Nothing above the seam names an implementation, and this file must
 // never import `./supabase` or `./mock` (RULE-02).
 import { seam } from "@/lib/data";
+import { useShellContext } from "@/components/AppShell";
 import type { Entry, Failure, Member } from "@/lib/domain/types";
 import { PORTION_LABELS, STATUS_LABELS, TYPE_LABELS } from "@/lib/labels";
 // SOLO, 2026-09-11 — the loading mark that replaced this screen's "Loading…" sentence. The
@@ -50,9 +51,21 @@ type View =
   | { phase: "loading" }
   | { phase: "refused" } // AC-10, and the state a caller with no member row lands on
   | { phase: "unavailable" } // a throw from either read, including the truncation assertion
-  | { phase: "ready"; me: Member; rows: Entry[]; roster: Member[] };
+  | { phase: "ready"; rows: Entry[]; roster: Member[] };
 
 export default function TeamEntries() {
+  // **THE CALLER'S OWN ROW COMES FROM THE SHELL, NOT FROM A READ OF OUR OWN**, which is the change
+  // `src/routes/Profile.tsx` already made and `AppShell.tsx`'s `ShellContext.member` exists to
+  // permit. `getCurrentMember()` is TWO network round trips in the real seam — `auth.getUser()` and
+  // then the `member` select — and `App.tsx`'s single `useSession()` has paid for both before this
+  // component renders. The duplicate was visible in the network panel on this screen.
+  //
+  // **IT NARROWS THE `refused` FORK AND LOSES NOTHING.** The old test was `!me || me.role !==
+  // "admin"`, and the `!me` half is unreachable from here: `App.tsx:310` renders this component only
+  // for `membership.state === "member"`, which is the state that HOLDS a member row. What remains is
+  // the role, and the refusal is an affordance either way — `entry_update_admin` and
+  // `entry_delete_admin` are the controls, exactly as the header says.
+  const { member: me } = useShellContext();
   const [view, setView] = useState<View>({ phase: "loading" });
 
   // The same three pieces of local state the own-entry list carries, and `confirming` is an id
@@ -63,29 +76,28 @@ export default function TeamEntries() {
   const [deleteError, setDeleteError] = useState<Failure | null>(null);
 
   const load = useCallback(async (): Promise<void> => {
-    try {
-      const me = await seam.getCurrentMember();
+    // AC-10. `refused` still fails CLOSED and is still an affordance: a member who types this
+    // address reaches the component and is refused BY it, and every write they could issue is
+    // refused by the datastore whatever this line says.
+    if (me.role !== "admin") {
+      setView({ phase: "refused" });
+      return;
+    }
 
-      // AC-10, and a caller with no member row lands here too. `refused` is the state that fails
-      // CLOSED, which is what AllowList.tsx chose for the same fork: it is not a true sentence about
-      // why, and the alternative is drawing a list to somebody the seam has told us nothing about.
-      if (!me || me.role !== "admin") {
-        setView({ phase: "refused" });
-        return;
-      }
+    try {
 
       // Two reads, and the roster costs no new policy: `listMembers` is TEA-03's and returns the
       // caller's team including removed members. The owner's display name is the column that makes
       // this list different from the own-entry list, and joining here is cheaper than a view.
       const [rows, roster] = await Promise.all([seam.listTeamEntries(), seam.listMembers()]);
-      setView({ phase: "ready", me, rows, roster });
+      setView({ phase: "ready", rows, roster });
     } catch {
       // Both reads throw on a transport failure and on a possibly-truncated answer. Folding this
       // into `refused` would be wrong twice: an admin would be told they are not one, and a
       // truncated read would be indistinguishable from a quiet team.
       setView({ phase: "unavailable" });
     }
-  }, []);
+  }, [me.role]);
 
   useEffect(() => {
     void load();
@@ -164,7 +176,7 @@ export default function TeamEntries() {
     roster.find((m) => m.id === memberId)?.displayName ?? memberId;
 
   return (
-    <section className="mx-auto flex max-w-3xl flex-col gap-4">
+    <section className="flex w-full flex-col gap-4">
       <header>
         <h1 className="text-xl font-semibold">The team&rsquo;s entries</h1>
         <p className="mt-1 text-sm opacity-70">
@@ -285,12 +297,6 @@ export default function TeamEntries() {
           ))}
         </ul>
       )}
-
-      <p>
-        <Link data-testid="team-entries-back" to="/" className="text-sm underline">
-          Back to home
-        </Link>
-      </p>
     </section>
   );
 }

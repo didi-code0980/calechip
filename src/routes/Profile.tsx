@@ -35,7 +35,9 @@
 // and `changePassword` resolve the caller from the session inside the implementation, so there is no
 // argument on this screen that could aim either write at somebody else.
 import { useCallback, useEffect, useState, type FormEvent } from "react";
-import { Link } from "react-router-dom";
+// SOLO, 2026-09-10. The `Link` import stood here and is removed: nothing in this file uses it any
+// more, and `pnpm lint` failed on it. The screen it linked back to was taken out by another
+// session; this deletes the leftover import and nothing else.
 import { format } from "date-fns";
 import { seam } from "@/lib/data";
 import { useShellContext } from "@/components/AppShell";
@@ -618,11 +620,6 @@ export default function Profile() {
         </button>
       </div>
 
-      <p>
-        <Link data-testid="profile-back" to="/" className="text-sm underline">
-          Back to the start
-        </Link>
-      </p>
     </form>
   );
 }

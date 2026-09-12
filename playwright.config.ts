@@ -60,7 +60,13 @@ export default defineConfig({
       // browser test of the flag OFF would need a second config and a second build. The seam
       // behaviour it would assert is not browser-shaped anyway — the standard puts seam behaviour at
       // the unit level (`.ai/standards/testing-standards.md`).
-      VITE_REQUIRE_EMAIL_CONFIRMATION: "false",
+      VITE_REQUIRE_EMAIL_CONFIRMATION: "true",
+      // **RE-PINNED BY `solo` ON 2026-09-10 AFTER `71bd1c0 "update UI"` FLIPPED IT TO "false".**
+      // That flip broke six of TEA-01's ten tests: seven `signup-confirm-notice` assertions are
+      // written against `Confirm email` ON, and with the flag off the notice never renders. The
+      // product's own default is OFF (`src/lib/config.ts`) and is unaffected by this line — what a
+      // real project does is decided by its dashboard setting, which this file cannot reach. The
+      // suite states the setting it tests under; it does not choose the product's.
     },
   },
 });

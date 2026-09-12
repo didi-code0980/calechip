@@ -211,7 +211,8 @@ test.describe("SOLO — the Teams tab", () => {
 
     // Team names and people's names are DATA and are excluded — the distinction UIE-10 AC-11 draws
     // for the roster. What is checked is copy this screen authors.
-    for (const id of ["teams-count", "teams-create-save", "teams-back"]) {
+    // SOLO 2026-09-12: `teams-back` left this list with the link itself.
+    for (const id of ["teams-count", "teams-create-save"]) {
       expect(await page.getByTestId(id).innerText(), `${id} must carry no diacritic`).not.toMatch(
         DIACRITIC,
       );
