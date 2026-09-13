@@ -189,7 +189,7 @@ begin
     v_team_id,                                    -- INV-07: the team comes from here and nowhere else
     coalesce(nullif(btrim(v_meta ->> 'display_name'), ''),
              split_part(v_email, '@', 1)),        -- copied from ...tea01_membership.sql:113-117
-    coalesce(nullif(btrim(v_meta ->> 'avatar'), ''), '🙂'),
+    coalesce(nullif(btrim(v_meta ->> 'avatar'), ''), '1.png'),
     'admin'::public.member_role                   -- the one row in this product that is not written
                                                   -- by the trigger, and the reason this file exists
   );

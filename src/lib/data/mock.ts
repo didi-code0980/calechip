@@ -22,6 +22,9 @@ import type {
   UpdateHolidayInput,
   UpdateOwnProfileInput,
 } from "./index";
+// SOLO 2026-09-12, ADR-035. The role predicates, above the seam and shared with the screens so
+// the mock and the interface cannot disagree about who may decide.
+import { mayDecide, mayDecideEntriesOf } from "@/lib/roles";
 import type {
   MemberDecision,
   BulkRejectionOutcome,
@@ -36,6 +39,7 @@ import type {
   Result,
   Session,
   Team,
+  MemberRole,
 } from "../domain/types";
 // TEA-03, and CAL-04 for the third. RUNTIME imports, not type ones - 02-design.md section 1.1.
 // ADM-04 adds PENDING_PAGE_SIZE, which is a WINDOW and not a ceiling - see its own comment there.
@@ -56,6 +60,7 @@ import { needsApproval } from "./approval";
 import { clashingDates, overlapMessage } from "./overlap";
 import {
   AVATAR_CHOICES,
+  DEFAULT_AVATAR,
   HOLIDAY_LIMIT,
   PENDING_PAGE_SIZE,
   ROSTER_LIMIT,
@@ -492,6 +497,21 @@ const adminMayReach = (me: Member, entry: Entry): boolean =>
   me.removedAt === null &&
   sameTeam(memberTeamId(entry.memberId), memberTeamId(me.id));
 
+// SOLO 2026-09-12, ADR-035 — `entry_update_manager`'s `using` clause, and the reason it is a SECOND
+// function rather than a widening of the one above.
+//
+// **THE POLICY ABOVE IS WHAT LETS AN ADMIN EDIT AND DELETE; THIS ONE IS ONLY EVER CONSULTED BY THE
+// THREE DECISION PATHS.** `updateEntry` and `deleteEntry` keep asking `adminMayReach` and must:
+// widening them is exactly the mistake ADR-035 § Rationale refuses, and in SQL it is the difference
+// between `entry_update_admin` and `entry_update_manager` plus clause (a2) of the trigger.
+//
+// The team half is load-bearing for the same reason it is there: without it a decider on ANY team
+// reaches EVERY entry in the product, and it fails open and silently.
+const deciderMayReach = (me: Member, entry: Entry): boolean =>
+  mayDecide(me.role) &&
+  me.removedAt === null &&
+  sameTeam(memberTeamId(entry.memberId), memberTeamId(me.id));
+
 // `entry_update_own` and `entry_delete_own`'s `using (member_id = (select auth.uid()))`, CAL-02's
 // and unchanged by this ticket. It is named here only so the OR below reads as the two permissive
 // policies it stands for rather than as one merged predicate — 01-plan.md section 8 rejects merging
@@ -549,7 +569,11 @@ function applyDecision(
   // the identical wording moves nothing and would pass the guard in PostgreSQL too, and writing
   // `role !== "admin"` alone here would refuse a case the trigger admits.
   const moves = next.status !== row.status || next.rejectionReason !== row.rejectionReason;
-  if (moves && !(me.role === "admin" && me.removedAt === null)) {
+
+  // SOLO 2026-09-12, ADR-035. `mayDecideEntriesOf` is `may_decide(uid)` AND the own-entry clause in
+  // one call, which is how the trigger reads it: a manager decides, but not their own entry. This
+  // read `me.role === "admin" && me.removedAt === null` and admitted nobody else.
+  if (moves && !mayDecideEntriesOf(me, row.memberId)) {
     return { ok: false, error: { code: "entry_decision_not_permitted", message: DECISION_REFUSED } };
   }
 
@@ -617,9 +641,15 @@ export const seam: DataSeam = {
       id: userId,
       teamId: null,
       displayName: input.displayName,
-      avatar: input.avatar,
+      // SOLO, 2026-09-13. The trigger's `coalesce(nullif(btrim(avatar), ''), '1.png')`, reproduced:
+      // a sign-up that carries no avatar gets the default rather than a blank face.
+      avatar: input.avatar.trim() || DEFAULT_AVATAR,
       role: "member",
       status: "pending",
+      // SOLO, 2026-09-12. The address the account was created with, which is what
+      // `sync_member_email` copies onto the row in the real datastore — here the trigger and the
+      // insert are the same statement, so it is simply carried across.
+      email: input.email,
       // A sign-up IS a sign-in in the mock: `signUp` hands back a live session when the project does
       // not confirm addresses, so GoTrue would have stamped this at the same moment.
       lastSignInAt: now,
@@ -873,6 +903,35 @@ export const seam: DataSeam = {
     return { ok: true, value: { ...target } };
   },
 
+  // SOLO 2026-09-12, ADR-035. The general form of the function above. **IT REPRODUCES THE POLICY AND
+  // THE TRIGGER, NOT THE SCREEN**, which is this file's standing contract: the acceptance suite
+  // drives this seam, so a mock that let a manager set a role would make the refusal pass against
+  // nothing.
+  async setMemberRole(memberId: string, role: MemberRole): Promise<Result<Member>> {
+    const me = currentAdmin();
+    if (!me) return refused("not_permitted", "Only an admin can change a role.");
+
+    const target = members.find((m) => m.id === memberId && m.teamId === me.teamId);
+    if (!target) return refused("not_permitted", "That person's role could not be changed.");
+
+    // TEA-04's trigger, reproduced: a removed member's role answers false everywhere, so setting one
+    // produces a row that says `manager` and behaves as nobody.
+    if (target.removedAt !== null) {
+      return refused("not_permitted", "Someone who has left the team cannot change role.");
+    }
+
+    // `.ai/standards/rbac-and-security.md`: *Demote an admin to member* is NOT DECIDED and is denied
+    // until it is. The member trigger refuses any role change on an admin's row, and this is that.
+    if (target.role === "admin") {
+      return refused("not_permitted", "An admin's role cannot be changed.");
+    }
+
+    if (target.role === role) return { ok: true, value: { ...target } };
+
+    target.role = role;
+    return { ok: true, value: { ...target } };
+  },
+
   // -------------------------------------------------------------------------
   // SOLO 2026-09-10 — the profile screen's two writes.
   // -------------------------------------------------------------------------
@@ -910,12 +969,12 @@ export const seam: DataSeam = {
     // datastore does not hold and the OTHER screen that writes this column does not apply. The
     // `invalid_display_name` code covers blank only, which is what the trigger actually raises.
 
-    // **OR THE ONE THEY ALREADY HAVE, AND THE SECOND CLAUSE IS NOT A COURTESY.** Rows exist whose
-    // avatar was never chosen from this picker: `supabase/seed.sql:170` holds `⭐` for the
-    // operator's own admin account, and TEA-01's admission trigger writes `'🙂'` when sign-up
-    // carries no avatar. Without this clause, everyone holding such a value is refused on every
-    // save — including a save that only changes their display name — with a message telling them to
-    // choose an avatar they had not touched. The rule is *keep what you have, or take one that is
+    // **OR THE ONE THEY ALREADY HAVE, AND THE SECOND CLAUSE IS NOT A COURTESY.** SOLO, 2026-09-13:
+    // the offered set is the files in `public/images/` at build time, so a row can hold a name that
+    // is not in it — a file removed from the folder, or `DEFAULT_AVATAR` when the folder has no
+    // `1.png`. Without this clause, everyone holding such a value is refused on every save —
+    // including a save that only changes their display name — with a message telling them to choose
+    // an avatar they had not touched. The rule is *keep what you have, or take one that is
     // offered*, and it is the same rule in `supabase.ts`.
     if (input.avatar !== me.avatar && !AVATAR_CHOICES.includes(input.avatar)) {
       return {
@@ -1990,7 +2049,7 @@ export const seam: DataSeam = {
     // when the caller is an admin. "Not yours", "no such entry" and "another team's" stay ONE
     // answer, or this file becomes an oracle for which entry ids exist in a team nobody may read.
     const row =
-      entries.find((e) => e.id === entryId && (ownsEntry(me, e) || adminMayReach(me, e))) ?? null;
+      entries.find((e) => e.id === entryId && (ownsEntry(me, e) || deciderMayReach(me, e))) ?? null;
     if (!row) {
       return { ok: false, error: { code: "entry_not_permitted", message: APPROVE_REFUSED } };
     }
@@ -2020,7 +2079,7 @@ export const seam: DataSeam = {
     }
 
     const row =
-      entries.find((e) => e.id === entryId && (ownsEntry(me, e) || adminMayReach(me, e))) ?? null;
+      entries.find((e) => e.id === entryId && (ownsEntry(me, e) || deciderMayReach(me, e))) ?? null;
     if (!row) {
       return { ok: false, error: { code: "entry_not_permitted", message: REJECT_REFUSED } };
     }
@@ -2073,7 +2132,7 @@ export const seam: DataSeam = {
     // error (AC-11). An id that names no entry at all is filtered by the same expression, which is
     // what `= any(p_ids)` does in PostgreSQL: it matches rows, it does not resolve ids.
     const admitted = ids
-      .map((id) => entries.find((e) => e.id === id && (ownsEntry(me, e) || adminMayReach(me, e))))
+      .map((id) => entries.find((e) => e.id === id && (ownsEntry(me, e) || deciderMayReach(me, e))))
       .filter((e): e is Entry => e !== undefined);
 
     // Clause (a), over the whole admitted set and BEFORE any write. A rejection moves `status` or
@@ -2082,7 +2141,11 @@ export const seam: DataSeam = {
     // decision column MOVES" and not "an admin is acting", for `applyDecision`'s reason: an admin
     // re-rejecting with the identical wording moves nothing and would pass the guard in PostgreSQL.
     const moves = admitted.some((e) => e.status !== "rejected" || e.rejectionReason !== reason);
-    if (moves && !(me.role === "admin" && me.removedAt === null)) {
+    // SOLO 2026-09-12, ADR-035, as in `applyDecision`. **EVERY ROW, NOT ANY ROW** — one statement and
+    // one transaction, so a manager whose batch contains their OWN entry is refused for the batch as
+    // a whole rather than partially. That is what the trigger does too: it raises on the first row it
+    // reaches that fails, and the whole statement rolls back.
+    if (moves && !admitted.every((e) => mayDecideEntriesOf(me, e.memberId))) {
       return {
         ok: false,
         error: { code: "entry_decision_not_permitted", message: DECISION_REFUSED },

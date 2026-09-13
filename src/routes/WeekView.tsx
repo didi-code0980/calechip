@@ -176,6 +176,8 @@ import BusySpinner from "@/components/BusySpinner";
 // sentence itself is still announced: `Loader.tsx` keeps it as `sr-only` text, because the element
 // below carries `role="status"` and an emptied one announces nothing.
 import Loader from "@/components/Loader";
+import Avatar from "@/components/Avatar";
+import EntryTooltip from "@/components/EntryTooltip";
 
 // ---------------------------------------------------------------------------
 // The week vocabulary. `yyyy-MM-dd` in the URL and everywhere below it.
@@ -804,6 +806,9 @@ export default function WeekView({ landing = false }: WeekViewProps) {
                           data-testid="week-row"
                           data-member-id={member.id}
                           data-entry-id={entry.id}
+                          // SOLO 2026-09-13. Focusable so the hover card also opens from the keyboard
+                          // (`EntryTooltip`, rendered as this chip's first child).
+                          tabIndex={0}
                           className={[
                             // SOLO 2026-09-10 — **A CAPSULE WITH AN ACCENTED LEFT EDGE**, from the
                             // operator's screenshot. UIE-05's three-row stack is not undone: the same
@@ -817,7 +822,7 @@ export default function WeekView({ landing = false }: WeekViewProps) {
                             // there — and they stop being identical the moment a note or an approver
                             // adds a third line, where `rounded-full` turns a paragraph into a lozenge.
                             // A fixed radius reproduces the picture and survives the row growing.
-                            "flex min-w-0 items-start gap-2 rounded-[1.5rem] py-1.5 pl-1.5 pr-3 text-sm",
+                            "flex min-w-0 items-start gap-2 rounded-[1.5rem] py-1.5 pl-1.5 pr-3 text-sm focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink",
                             // **THE LEFT ARC IS A LEFT BORDER ON A ROUNDED BOX**, which is what makes
                             // it a crescent rather than a bar — no extra element, nothing to position.
                             //
@@ -846,6 +851,8 @@ export default function WeekView({ landing = false }: WeekViewProps) {
                               : "border-y border-r border-y-transparent border-r-transparent",
                           ].join(" ")}
                         >
+                          <EntryTooltip entry={entry} member={member} approver={approver} />
+
                           {/* UIE-05 AC-7. A CIRCULAR BUBBLE rather than a bare glyph. `shrink-0` keeps
                               it round when the name beside it wraps. SOLO 2026-09-10: `h-8 w-8` and a
                               solid white fill, per the screenshot — it is out of the text column now,
@@ -853,9 +860,9 @@ export default function WeekView({ landing = false }: WeekViewProps) {
                           <span
                             data-testid="week-row-avatar"
                             aria-hidden="true"
-                            className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-card text-base leading-none"
+                            className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center overflow-hidden rounded-full bg-card text-base leading-none"
                           >
-                            {member.avatar}
+                            <Avatar value={member.avatar} />
                           </span>
 
                           <div className="flex min-w-0 flex-1 flex-col gap-0.5">
@@ -889,9 +896,22 @@ export default function WeekView({ landing = false }: WeekViewProps) {
                                   that somebody approved, and CAL-05's registry row is about WHO, which
                                   is the whole of v1's audit answer. SOLO 2026-09-10: the screenshot
                                   draws it gold, so it is an emoji rather than a glyph inheriting body
-                                  ink. */}
+                                  ink.
+
+                                  **SOLO 2026-09-13: THE APPROVER'S NAME MOVED ONTO THE STAR.** The
+                                  operator removed row 3's `Approved by <name>` from the chip; the name
+                                  survives as the star's accessible name (`aria-label`) and in the chip's
+                                  hover card (`EntryTooltip`), so WHO approved is still on this screen (CAL-05 AC-7)
+                                  without costing a line. A span and not a button: AC-8 holds this
+                                  screen to no control over an entry. */}
                               {approver ? (
-                                <span aria-hidden="true" className="ml-1 text-[0.75em]">
+                                <span
+                                  data-testid="week-row-approver"
+                                  data-approver-id={approver.id}
+                                  role="img"
+                                  aria-label={`Approved by ${approver.displayName}`}
+                                  className="ml-1 cursor-help text-[0.75em]"
+                                >
                                   ⭐
                                 </span>
                               ) : null}
@@ -937,16 +957,20 @@ export default function WeekView({ landing = false }: WeekViewProps) {
                             {/* UIE-05 AC-9. **ROW 3 — DEMOTION, NOT DISCLOSURE.** Smaller and lighter,
                                 and every one of these renders AT REST: no hover, no click, no expansion.
                                 UIE-04 refused hiding them even behind an expand, where the information
-                                still existed. The row itself is absent when it would be empty. */}
-                            {entry.tentative || hasNote || approver ? (
+                                still existed. The row itself is absent when it would be empty.
+
+                                **SOLO 2026-09-13: ONLY THE NOTE IS LEFT ON THIS ROW.** The operator
+                                removed the visible `Tentative` word and moved `Approved by <name>` onto
+                                the star in row 1. The dashed border and reduced opacity still mark a
+                                tentative entry, and the word stays for a screen reader (`sr-only`),
+                                because a border is not readable to somebody who cannot see it (AC-9). */}
+                            {entry.tentative ? (
+                              <span data-testid="week-row-tentative" className="sr-only">
+                                Tentative
+                              </span>
+                            ) : null}
+                            {hasNote ? (
                               <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 text-xs">
-                                {/* AC-9's marking. The dashed border above says it visually; this says it in
-                                    words, because a border is not readable to somebody who cannot see it. */}
-                                {entry.tentative ? (
-                                  <span data-testid="week-row-tentative" className="opacity-70">
-                                    Tentative
-                                  </span>
-                                ) : null}
 
                                 {/* AC-6. Present only when there is a note — an empty note element is a row
                                     that claims something was said. The note is readable by the whole team,
@@ -954,26 +978,9 @@ export default function WeekView({ landing = false }: WeekViewProps) {
                                     (ADR-005) and is a consequence to be aware of rather than a decision this
                                     screen takes. Demoting it changes how PROMINENT it is and not who may
                                     read it. */}
-                                {hasNote ? (
-                                  <span data-testid="week-row-note" className="basis-full break-words opacity-80">
-                                    {entry.note}
-                                  </span>
-                                ) : null}
-
-                                {/* AC-7 and AC-8. DISPLAYING who approved, and nothing else: this is a name,
-                                    not a control. A pending entry renders no approver at all rather than an
-                                    empty one. The star that stood at the head of this sentence is now on row
-                                    1; the words and `data-approver-id` are unchanged, which is what
-                                    cal-05-week-view.spec.ts:216's `toContainText(ADMIN_NAME)` reads. */}
-                                {approver ? (
-                                  <span
-                                    data-testid="week-row-approver"
-                                    data-approver-id={approver.id}
-                                    className="basis-full opacity-70"
-                                  >
-                                    Approved by {approver.displayName}
-                                  </span>
-                                ) : null}
+                                <span data-testid="week-row-note" className="basis-full break-words opacity-80">
+                                  {entry.note}
+                                </span>
                               </div>
                             ) : null}
                           </div>
@@ -1051,7 +1058,7 @@ export default function WeekView({ landing = false }: WeekViewProps) {
                       title={person.displayName}
                       className="inline-flex items-center rounded-full bg-busy px-1.5 py-0.5 text-xs"
                     >
-                      {person.avatar}
+                      <Avatar value={person.avatar} className="h-4 w-4" />
                     </span>
                   ))}
                 </div>

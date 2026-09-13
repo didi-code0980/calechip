@@ -24,15 +24,27 @@
 // to any screen below it. Each of the six destinations keeps its own loading, refusal and failure
 // states untouched — including `/admin` itself, whose four phases `AdminHub.tsx` still owns.
 import { Outlet, useOutletContext } from "react-router-dom";
+import type { MemberRole } from "@/lib/domain/types";
+import { mayDecide } from "@/lib/roles";
 import AdminTabs from "./AdminTabs";
 import type { ShellContext } from "./AppShell";
 
 export interface AdminLayoutProps {
-  /** Whether the signed-in caller is an admin. Resolved once in `App.tsx`; never re-read here. */
-  isAdmin: boolean;
+  /**
+   * The signed-in caller's rank, or `null` when there is no member row. Resolved once in `App.tsx`;
+   * never re-read here.
+   *
+   * **SOLO 2026-09-12, ADR-035 — THIS WAS `isAdmin: boolean` AND A BOOLEAN CAN NO LONGER ANSWER
+   * IT.** The strip is now drawn for two ranks and carries different tabs for each, so the question
+   * moved from *may this person administer* to *which of them is reading*. The header's argument for
+   * a boolean — that a `Member` prop invites the layout to grow a second reason to hold a member row
+   * — is answered by passing the RANK and not the row: it is one scalar, and there is nothing else
+   * on it to reach for.
+   */
+  role: MemberRole | null;
 }
 
-export default function AdminLayout({ isAdmin }: AdminLayoutProps) {
+export default function AdminLayout({ role }: AdminLayoutProps) {
   // **THE SHELL'S CONTEXT IS FORWARDED, AND A BARE `<Outlet />` IS WHAT MADE THAT NECESSARY.**
   // `useOutletContext` reads the context of the NEAREST enclosing outlet, so a nested layout that
   // renders `<Outlet />` with no `context` prop hands its children `null` — and every screen under
@@ -58,7 +70,7 @@ export default function AdminLayout({ isAdmin }: AdminLayoutProps) {
     // `.ai/standards/ui-design-system.md` names no content width, so this is a choice and not a
     // citation — it is one token, in one file, and changing it moves the whole admin area together.
     <div className="mx-auto w-full max-w-6xl">
-      {isAdmin ? <AdminTabs /> : null}
+      {role !== null && mayDecide(role) ? <AdminTabs role={role} /> : null}
       <Outlet context={shell} />
     </div>
   );

@@ -21,14 +21,17 @@ import { seam } from "@/lib/data";
 // shape of miss as `TYPE_CODES` in WeekView.tsx and `Link` here in Threshold.tsx — Vite compiles a
 // module with an unresolved name and says nothing, so only `pnpm typecheck` sees it.
 import type { Failure, Member, MemberRole, Team } from "@/lib/domain/types";
+import { ROLE_LABELS } from "@/lib/roles";
 // SOLO, 2026-09-11 — the loading mark that replaced this screen's sentence. The sentence itself is
 // still announced: `Loader.tsx` keeps it as `sr-only` text, because the element below carries
 // `role="status"` and an emptied one announces nothing.
 import Loader from "@/components/Loader";
+import Avatar from "@/components/Avatar";
 
 /** AC-1, AC-3. `role` is DISPLAYED and never acted on: two roles exist and a roster that does not
  *  say which of the two each person is leaves a member with no way to see whom to ask. */
-const roleLabel = (role: MemberRole): string => (role === "admin" ? "Admin" : "Member");
+// SOLO 2026-09-12, ADR-035 — see `src/lib/roles.ts`. This copy labelled a manager `Member`.
+const roleLabel = (role: MemberRole): string => ROLE_LABELS[role];
 
 /** SOLO, 2026-09-10. The shape every read-only row action shares, so the group reads as a group. */
 const ROW_ACTION =
@@ -42,7 +45,10 @@ type View =
   | { phase: "loading" }
   | { phase: "notOnATeam" } // AC-7
   | { phase: "unavailable" } // AC-8, and any throw from the read
-  | { phase: "ready"; me: Member; roster: Member[]; team: Team | null }; // AC-1, AC-3, AC-4
+  // SOLO, 2026-09-12. `teams` REPLACES `team`. The operator asked for every member in the system on
+  // this screen, and rows from more than one team need more than one team's name to render the TEAM
+  // column — one team was enough only while the roster was scoped to the caller's own.
+  | { phase: "ready"; me: Member; roster: Member[]; teams: Team[] }; // AC-1, AC-3, AC-4
 
 export default function MemberList() {
   const [view, setView] = useState<View>({ phase: "loading" });
@@ -71,11 +77,40 @@ export default function MemberList() {
         return;
       }
 
-      // SOLO, 2026-09-10. `getTeam()` joins the read for the TEAM column. It is the caller's own team,
-      // which is every row's team too — `member_select_team` scoped the roster to it — so one read
-      // names them all. A null team leaves the column reading `—` rather than inventing a name.
-      const [roster, team] = await Promise.all([seam.listMembers(), seam.getTeam()]);
-      setView({ phase: "ready", me, roster, team });
+      // SOLO, 2026-09-12 — **EVERY MEMBER IN THE SYSTEM, WHICH IS WHAT THE OPERATOR ASKED FOR.**
+      // `listAllMembers()` replaces `listMembers()`, and `listTeams()` replaces `getTeam()`.
+      //
+      // **THE TWO READS ARE A PAIR AND NEITHER MAKES SENSE ALONE HERE.** `listMembers()` is the
+      // caller's own team and is INV-04's denominator on every calendar screen, so it must never
+      // start answering more widely; `listAllMembers()` is the separate function that exists for
+      // exactly this screen, and the seam's own docblock says so. With rows from several teams on
+      // screen, one `getTeam()` could name only one of them, so the TEAM column needs the list.
+      //
+      // **PENDING SIGN-UPS ARE NOT HERE AND THAT IS NOT AN OVERSIGHT.** They have no team, and
+      // `listAllMembers` does not return them — they are `/signups`' queue, with its own decision
+      // control. This screen is the roster of people who are already IN, which is why its actions
+      // are promote, move and remove rather than admit and refuse.
+      //
+      // A team that no row references is still fetched, and costs nothing: the map below is keyed by
+      // id and read per row.
+      // **THE BRANCH IS AN AFFORDANCE AND NOT A CONTROL** (ADR-005), the same shape
+      // `EditEntry.tsx` makes for the same reason: it decides which read this screen ISSUES, and the
+      // policies decide what each read ANSWERS. `list_all_members()` and `list_teams()` both test
+      // `is_admin` in their own bodies, so a member who reached the admin's branch in a debugger
+      // would be answered an empty list rather than the product's roster.
+      //
+      // **IT EXISTS BECAUSE THIS SCREEN IS NOT ADMIN-ONLY AND MUST NOT BECOME SO.** TEA-04 AC-3 is
+      // that a member sees the same cells an admin sees, and `tests/e2e/solo-member-admin.spec.ts`
+      // test 6 drives a member through it. Pointing everyone at the admin reads showed a member an
+      // empty roster — caught by that test, which is why it exists.
+      const isAdmin = me.role === "admin";
+      const [roster, teams] = await Promise.all([
+        isAdmin ? seam.listAllMembers() : seam.listMembers(),
+        // A member keeps `getTeam()`, which is `team_select_own` and is the only team they may read.
+        // Wrapped into a one-element list so the lookup below has one shape rather than two.
+        isAdmin ? seam.listTeams() : seam.getTeam().then((t) => (t ? [t] : [])),
+      ]);
+      setView({ phase: "ready", me, roster, teams });
     } catch {
       // AC-8, and a transport failure with it. Design section 1.3.1: folding this into
       // `notOnATeam` the way AllowList.tsx folds a throw into `refused` would be wrong twice — a
@@ -113,6 +148,37 @@ export default function MemberList() {
       setActionError({
         code: "unknown",
         message: "Could not promote. Please try again.",
+      });
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  // SOLO 2026-09-12, ADR-035. `onPromote`'s shape, kept rather than generalised: the two
+  // refusals and the reload are identical, and folding them would put a direction parameter
+  // through a function sixty-odd assertions already address by name.
+  async function onSetManager(member: Member) {
+    if (busy) return;
+
+    setBusy(true);
+    setActionError(null);
+    try {
+      const result = await seam.setMemberRole(
+        member.id,
+        member.role === "manager" ? "member" : "manager",
+      );
+      if (result.ok) {
+        await load();
+      } else {
+        setActionError(result.error);
+      }
+    } catch {
+      // A THROW IS NOT A REFUSAL. A transport failure, or the Supabase client raising on an unusable
+      // configuration before any request leaves, must not be rendered as "you are not allowed" —
+      // that sentence would be false and would send an admin to ask for a permission they have.
+      setActionError({
+        code: "unknown",
+        message: "Could not change that role. Please try again.",
       });
     } finally {
       setBusy(false);
@@ -209,12 +275,20 @@ export default function MemberList() {
     );
   }
 
-  const { me, roster, team } = view;
+  const { me, roster, teams } = view;
 
-  // SOLO, 2026-09-10. One name for every row, because every row is on the same team. `—` when the
-  // team read failed: a column that invented a name would be the one cell on this screen not backed
-  // by a read.
-  const teamName = team?.name ?? "—";
+  /**
+   * SOLO, 2026-09-12. A team id to its name. This REPLACES a single `teamName` string, which was
+   * correct only while every row on the screen belonged to the caller's own team.
+   *
+   * **`—` FOR BOTH "NO TEAM" AND "NO SUCH TEAM", and the two really are the same sentence here.** A
+   * member with a null `team_id` is a sign-up nobody has placed yet; an id with no team behind it
+   * cannot happen — `member.team_id` is a foreign key — so the fallback is for a team the READ did
+   * not return rather than for a team that does not exist. Either way the honest cell is a dash, and
+   * a name invented from an id would be the one value on this screen not backed by a read.
+   */
+  const teamNameOf = (teamId: string | null): string =>
+    teams.find((t) => t.id === teamId)?.name ?? "\u2014";
 
   // TEA-04 AC-13, AC-14, and they are the conditions exactly.
   //
@@ -224,6 +298,16 @@ export default function MemberList() {
   const canRemove = (m: Member): boolean => me.role === "admin" && m.id !== me.id;
   const canPromote = (m: Member): boolean =>
     me.role === "admin" && m.id !== me.id && m.role === "member";
+
+  // SOLO 2026-09-12, ADR-035. **THE MANAGER RANK TOGGLES; THE ADMIN RANK DOES NOT.** `member` and
+  // `manager` move both ways because ADR-035 § Decision item 6 settled that pair; an admin's row
+  // draws neither control, because *Demote an admin to member* is NOT DECIDED in
+  // `.ai/standards/rbac-and-security.md` and the member trigger refuses the write either way.
+  //
+  // AN AFFORDANCE (ADR-005). `member_update_admin` and the `grant update (role, removed_at)` column
+  // list are the controls; this decides what to draw.
+  const canSetManager = (m: Member): boolean =>
+    me.role === "admin" && m.id !== me.id && m.role !== "admin";
 
   // AC-4, second half. The READ deliberately returns removed members carrying `removedAt` — ADR-013
   // and the INV-04 note require the counting function to be given the roster with `removedAt` per
@@ -240,7 +324,7 @@ export default function MemberList() {
             half the readers is worse than no sentence. */}
         <p className="mt-2 text-sm opacity-70">
           {me.role === "admin"
-            ? "Who is on the team, and who is an admin. You can remove a member from the team or promote them to admin."
+            ? "Who is on the team, and what each person may do. You can remove somebody, make them a manager so they can approve entries, or promote them to admin."
             : "Who is on the team, and who is an admin. This page is view-only."}
         </p>
       </header>
@@ -284,7 +368,12 @@ export default function MemberList() {
               <th className="px-4 py-3 font-bold">Name</th>
               <th className="px-4 py-3 font-bold">Role</th>
               <th className="px-4 py-3 font-bold">Team</th>
-              <th className="px-4 py-3 font-bold">Last sign-in</th>
+              {/* SOLO, 2026-09-12. Between TEAM and LAST SIGN-IN, which is the operator's own order:
+                  *avatar, tên, role, team, email, last sign-in, action*. */}
+              <th className="px-4 py-3 font-bold">Email</th>
+              {/* `whitespace-nowrap`: the heading wrapped to `LAST SIGN-` / `IN` once the email
+                  column took its share of the width, which reads as two headings. */}
+              <th className="whitespace-nowrap px-4 py-3 font-bold">Last sign-in</th>
               <th className="px-4 py-3" />
             </tr>
           </thead>
@@ -301,8 +390,8 @@ export default function MemberList() {
                 data-role={member.role}
                 className="border-t border-line"
               >
-                <td data-testid="member-list-row-avatar" className="px-4 py-3 text-xl">
-                  {member.avatar}
+                <td data-testid="member-list-row-avatar" data-avatar={member.avatar} className="px-4 py-3 text-xl">
+                  <Avatar value={member.avatar} className="h-8 w-8" />
                 </td>
                 <td
                   data-testid="member-list-row-name"
@@ -326,12 +415,35 @@ export default function MemberList() {
                   </span>
                 </td>
 
-                {/* SOLO. THE TEAM, and every row on this list carries the SAME one — `member_select_team`
-                    scopes the read to the caller's own team, so a second team can never appear here.
-                    The column is drawn anyway because the operator asked for it and because a name is
-                    more useful than a uuid the moment there IS a second team. */}
+                {/* SOLO. THE TEAM. **The sentence that stood here — "every row on this list carries the
+                    SAME one" — was true and is not any more**: this screen reads `listAllMembers()`
+                    as of 2026-09-12, so rows from different teams sit side by side and the cell is
+                    resolved per row. `data-team-id` is unchanged and is what an assertion reads; the
+                    NAME is for the person. */}
                 <td data-testid="member-list-row-team" data-team-id={member.teamId ?? ""} className="px-4 py-3 text-ink-2">
-                  {teamName}
+                  {teamNameOf(member.teamId)}
+                </td>
+
+                {/* SOLO, 2026-09-12 — THE EMAIL. A copy of `auth.users.email` kept on the member row
+                    by `20260912120000_solo_member_email.sql`, because `auth` is not readable from the
+                    browser at all.
+
+                    **`—` MEANS THE COPY HAS NOT ARRIVED, NEVER THAT THE ACCOUNT HAS NO ADDRESS.**
+                    Every account has one; this column can lag by a write on a path the migration's
+                    trigger does not cover. A blank cell would read as the second thing.
+
+                    **`whitespace-nowrap`, AND IT REPLACED A `break-all` THAT WAS MEASURED AND WAS
+                    WRONG.** An address is one long unbreakable word, so a width cap plus `break-all`
+                    split `chi@other.example.com` across two lines mid-token — an address broken
+                    mid-word is one a reader cannot copy by eye and cannot trust. The row has the
+                    width: the action controls already wrap onto a second line, so nothing is pushed
+                    off. */}
+                <td
+                  data-testid="member-list-row-email"
+                  data-email={member.email ?? ""}
+                  className="whitespace-nowrap px-4 py-3 text-ink-2"
+                >
+                  {member.email ?? "\u2014"}
                 </td>
 
                 {/* SOLO. **NULL MEANS NEVER, AND THE CELL SAYS SO RATHER THAN GOING BLANK.** An empty
@@ -390,6 +502,25 @@ export default function MemberList() {
                       </button>
                     ) : null}
 
+                    {/* SOLO 2026-09-12, ADR-035. ONE CONTROL AND TWO DIRECTIONS, because the rank it
+                        toggles has exactly two states from here: a `member` becomes a `manager`, a
+                        `manager` goes back. `data-role` carries the CURRENT rank so a spec can say
+                        which direction it expects rather than reading the label. */}
+                    {canSetManager(member) ? (
+                      <button
+                        data-testid="member-list-row-manager"
+                        data-role={member.role}
+                        type="button"
+                        disabled={busy}
+                        onClick={() => {
+                          void onSetManager(member);
+                        }}
+                        className={ROW_ACTION}
+                      >
+                        {member.role === "manager" ? "Remove manager" : "Make manager"}
+                      </button>
+                    ) : null}
+
                     {/* **THE LABEL SAYS `Delete account` AND THE WRITE IS A SOFT REMOVE**, which is
                         the operator's choice of 2026-09-10 when asked what the words should mean. A
                         hard delete of `auth.users` needs the service-role key and therefore a server
@@ -431,7 +562,10 @@ export default function MemberList() {
             {[
               ["Name", viewing.displayName],
               ["Role", roleLabel(viewing.role)],
-              ["Team", teamName],
+              ["Team", teamNameOf(viewing.teamId)],
+              // SOLO, 2026-09-12. Beside the row's own cell, for the reason the rest of this panel
+              // exists: it is what a person reads when they want one member rather than the list.
+              ["Email", viewing.email ?? "\u2014"],
               ["Last sign-in", viewing.lastSignInAt ?? "Never"],
               ["Joined", viewing.createdAt.slice(0, 10)],
             ].map(([label, value]) => (
@@ -472,7 +606,7 @@ export default function MemberList() {
                 defaultValue={editing.teamId ?? ""}
                 className="rounded-lg border border-line bg-field px-2 py-1 text-ink"
               >
-                <option value={editing.teamId ?? ""}>{teamName}</option>
+                <option value={editing.teamId ?? ""}>{teamNameOf(editing.teamId)}</option>
               </select>
             </label>
 

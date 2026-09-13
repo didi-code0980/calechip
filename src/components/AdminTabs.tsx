@@ -22,6 +22,8 @@
 // refusal and its own row-level security; a caller who types one of these addresses is refused by
 // the screen at the far end, not by the absence of a tab here.
 import { NavLink } from "react-router-dom";
+import type { MemberRole } from "@/lib/domain/types";
+import { mayAdminister } from "@/lib/roles";
 
 /**
  * The five destinations, declared once as data so the strip and its order are one thing rather than
@@ -41,6 +43,18 @@ export const ADMIN_TABS: readonly {
   to: string;
   name: string;
   blurb: string;
+  /**
+   * SOLO 2026-09-12, ADR-035. Whether a `manager` sees this tab.
+   *
+   * **EXACTLY ONE TAB IS TRUE, AND THE FIELD EXISTS RATHER THAN A LIST OF IDS ELSEWHERE** so that a
+   * tab added later has to answer the question at the point it is declared. The default a reader
+   * should assume is `false`: a manager's one power is deciding an entry, so every other tab is a
+   * screen they would be refused by.
+   *
+   * It is an AFFORDANCE (ADR-005). `/members`, `/setting`, `/teams`, `/signups` and `/holidays` each
+   * refuse a manager on their own, and `/entries/team` is an admin power by ADR-035 § Rationale.
+   */
+  forManager: boolean;
 }[] = [
   {
     testId: "admin-hub-pending-link",
@@ -48,6 +62,8 @@ export const ADMIN_TABS: readonly {
     name: "Pending approvals",
     blurb:
       "Entries waiting for a decision. Approve or reject them one at a time or together.",
+    // ADR-035. THE ONE TAB A MANAGER SEES, and their only route into the admin area.
+    forManager: true,
   },
   {
     testId: "admin-hub-team-entries-link",
@@ -55,18 +71,24 @@ export const ADMIN_TABS: readonly {
     name: "Team entries",
     blurb:
       "Every entry the team has declared, with the controls to edit or remove one.",
+    // ADR-035: not a manager's. Denied by the screen behind it as well as by its absence here.
+    forManager: false,
   },
   {
     testId: "admin-hub-members-link",
     to: "/members",
     name: "Members",
     blurb: "Who is on the team. Remove somebody, or make somebody an admin.",
+    // ADR-035: not a manager's. Denied by the screen behind it as well as by its absence here.
+    forManager: false,
   },
   {
     testId: "admin-hub-allow-list-link",
     to: "/signups",
     name: "New sign-ups",
     blurb: "People who have signed up and are waiting to be let into the team.",
+    // ADR-035: not a manager's. Denied by the screen behind it as well as by its absence here.
+    forManager: false,
   },
   {
     testId: "admin-hub-threshold-link",
@@ -88,6 +110,8 @@ export const ADMIN_TABS: readonly {
     name: "Settings",
     blurb:
       "The team's name and size, the share above which a day is called crowded, and which entries need approval.",
+    // ADR-035: not a manager's. Denied by the screen behind it as well as by its absence here.
+    forManager: false,
   },
   {
     // SOLO, 2026-09-12 — **THE SEVENTH TAB, ON THE OPERATOR'S INSTRUCTION** *"move Public holidays
@@ -107,6 +131,8 @@ export const ADMIN_TABS: readonly {
     name: "Public holidays",
     blurb:
       "The national calendar: public holidays, and the swap and compensatory days announced each year.",
+    // ADR-035: not a manager's. Denied by the screen behind it as well as by its absence here.
+    forManager: false,
   },
   {
     // SOLO, 2026-09-11 — many teams. **THE SIXTH TAB, AND A TAB RATHER THAN A SECTION OF
@@ -119,6 +145,8 @@ export const ADMIN_TABS: readonly {
     to: "/teams",
     name: "Teams",
     blurb: "Every team on the system. Create, rename or delete one, and move people between them.",
+    // ADR-035: not a manager's. Denied by the screen behind it as well as by its absence here.
+    forManager: false,
   },
 ];
 
@@ -189,7 +217,24 @@ export const isAdminAddress = (pathname: string): boolean =>
  * of another, so a partial match cannot light two tabs. `/entries/team` and `/entries/pending` share
  * `/entries` and diverge at the next segment, which `NavLink` compares whole.
  */
-export default function AdminTabs() {
+export interface AdminTabsProps {
+  /** The signed-in caller's rank. `App.tsx` resolved it; this component re-reads nothing. */
+  role: MemberRole;
+}
+
+/**
+ * SOLO 2026-09-12, ADR-035 — **THE STRIP IS FILTERED BY RANK AND IS NOT HIDDEN WHOLESALE.** A
+ * manager needs one admin address and no others, so they get a one-tab strip rather than the
+ * sidebar link UIE-10 spent a ticket removing or a second navigation concept nobody else uses.
+ *
+ * A one-tab strip looks odd and is honest: it says *this is the admin area, and here is your part of
+ * it*. The alternative considered and refused was drawing all seven and letting each screen refuse —
+ * which is exactly what UIE-10 AC-1 removed from the sidebar, on the ground that handing somebody a
+ * list of addresses that will turn them away is worse than not offering them.
+ */
+export default function AdminTabs({ role }: AdminTabsProps) {
+  const tabs = mayAdminister(role) ? ADMIN_TABS : ADMIN_TABS.filter((tab) => tab.forManager);
+
   return (
     // `overflow-x-auto` and `shrink-0` on the rows: five tabs do not fit a narrow viewport, and the
     // strip scrolling inside itself is what keeps the PAGE from scrolling sideways — the same rule
@@ -207,7 +252,7 @@ export default function AdminTabs() {
           `data-testid` per element is the constraint that splits them across the two, exactly as
           `AdminHub.tsx` had it. */}
       <ol className="flex items-center gap-1">
-        {ADMIN_TABS.map((tab) => (
+        {tabs.map((tab) => (
           <li key={tab.to} data-testid="admin-hub-link" data-to={tab.to}>
             <NavLink
               data-testid={tab.testId}

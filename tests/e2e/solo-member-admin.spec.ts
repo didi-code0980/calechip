@@ -68,7 +68,7 @@ test.describe("SOLO — the member tab", () => {
     if (await loading.isVisible()) await expect(loading).toBeHidden();
   });
 
-  test("1: every row carries all six facts the operator listed", async ({
+  test("1: every row carries all seven facts the operator listed", async ({
     page,
   }) => {
     await signIn(page, ADMIN_EMAIL);
@@ -85,10 +85,50 @@ test.describe("SOLO — the member tab", () => {
       await expect(row.getByTestId("member-list-row-name")).not.toBeEmpty();
       await expect(row.getByTestId("member-list-row-role")).toHaveCount(1);
       await expect(row.getByTestId("member-list-row-team")).not.toBeEmpty();
+      // SOLO, 2026-09-12. The seventh fact. The operator's list on 2026-09-12 was *avatar, tên,
+      // role, team, email, last sign-in, action*, and email was the one of the seven this screen did
+      // not have — `public.member` had no such column until
+      // `20260912120000_solo_member_email.sql`.
+      await expect(row.getByTestId("member-list-row-email")).not.toBeEmpty();
       await expect(
         row.getByTestId("member-list-row-last-sign-in"),
       ).not.toBeEmpty();
     }
+  });
+
+  test("7: the email cell carries the account's own address, and says so per row", async ({
+    page,
+  }) => {
+    await signIn(page, ADMIN_EMAIL);
+    await openMembers(page);
+
+    // **THE ADMIN'S OWN ROW IS THE ONE ASSERTION THAT CANNOT PASS BY ACCIDENT**: the address is the
+    // one this test just signed in with, so a column that rendered a constant, the wrong row's
+    // address, or a placeholder fails here.
+    // The row is found by the address it renders rather than by a hard-coded uuid: the fixture id
+    // is not otherwise named in this file, and a second copy of it here would be a second place to
+    // fix when the fixtures move.
+    const mine = page
+      .getByTestId("member-list-row")
+      .filter({ has: page.getByTestId("member-list-row-email").getByText(ADMIN_EMAIL) });
+    await expect(mine.getByTestId("member-list-row-email")).toHaveText(ADMIN_EMAIL);
+    await expect(mine.getByTestId("member-list-row-email")).toHaveAttribute(
+      "data-email",
+      ADMIN_EMAIL,
+    );
+
+    // And the rows do not all say the same thing — two distinct addresses on screen is what
+    // separates "reads the row" from "reads the session".
+    const shown = await page
+      .getByTestId("member-list-row-email")
+      .evaluateAll((cells) => cells.map((cell) => cell.textContent?.trim() ?? ""));
+
+    expect(shown.length).toBeGreaterThan(1);
+    expect(new Set(shown).size).toBeGreaterThan(1);
+
+    // **NEVER A BLANK CELL.** `—` is the fallback and means the copy has not arrived; an empty cell
+    // would read as an account without an address, which no account is.
+    for (const value of shown) expect(value.length).toBeGreaterThan(0);
   });
 
   test("2: the last-sign-in cell says a date or says Never, and never goes blank", async ({

@@ -49,7 +49,7 @@
 --   set calechip.new_email    = 'test1@calechip.com';
 --   set calechip.new_password = 'password123';
 --   set calechip.new_name     = 'Test One';   -- optional; the part before @ is used when empty
---   set calechip.new_avatar   = '';           -- optional; 🙂 when empty
+--   set calechip.new_avatar   = '';           -- optional; 1.png when empty
 --   set calechip.new_approved = 'no';         -- 'yes' puts them on the one team immediately
 --   -- ...then paste everything below this header into the same submission and run it together.
 --
@@ -120,7 +120,7 @@ begin
     '{"provider":"email","providers":["email"]}'::jsonb,
     jsonb_build_object(
       'display_name', coalesce(nullif(v_name, ''), split_part(v_email, '@', 1)),
-      'avatar', coalesce(nullif(v_avatar, ''), '🙂')
+      'avatar', coalesce(nullif(v_avatar, ''), '1.png')
     ),
     now(),
     now(),

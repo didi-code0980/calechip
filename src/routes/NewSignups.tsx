@@ -33,6 +33,7 @@ import type { Failure, Member, Team } from "@/lib/domain/types";
 // sentence itself is still announced: `Loader.tsx` keeps it as `sr-only` text, because the element
 // below carries `role="status"` and an emptied one announces nothing.
 import Loader from "@/components/Loader";
+import Avatar from "@/components/Avatar";
 
 /**
  * The four phases `AllowList.tsx` established and this screen keeps, so a reader meets no new shape.
@@ -221,9 +222,9 @@ export default function NewSignups() {
             >
               <span
                 aria-hidden="true"
-                className="flex size-9.5 shrink-0 items-center justify-center rounded-pill bg-field text-xl"
+                className="flex size-9.5 shrink-0 items-center justify-center overflow-hidden rounded-pill bg-field text-xl"
               >
-                {person.avatar}
+                <Avatar value={person.avatar} />
               </span>
 
               <div className="flex min-w-0 flex-1 flex-col">

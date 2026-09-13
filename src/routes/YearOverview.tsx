@@ -59,6 +59,7 @@ import YearView from "./YearView";
 // sentence itself is still announced: `Loader.tsx` keeps it as `sr-only` text, because the element
 // below carries `role="status"` and an emptied one announces nothing.
 import Loader from "@/components/Loader";
+import Avatar from "@/components/Avatar";
 
 // ---------------------------------------------------------------------------
 // The year vocabulary. `yyyy` in the URL, `yyyy-MM-dd` everywhere below it.
@@ -460,9 +461,9 @@ export default function YearOverview() {
                       data-testid="year-month-face"
                       data-member-id={member.id}
                       title={member.displayName}
-                      className="inline-flex h-5 w-5 items-center justify-center rounded-full bg-bg text-[11px]"
+                      className="inline-flex h-5 w-5 items-center justify-center overflow-hidden rounded-full bg-bg text-[11px]"
                     >
-                      {member.avatar}
+                      <Avatar value={member.avatar} />
                     </span>
                   ))}
                   {/* § 2b's second: the image draws a `+4` chip and states no rule for when it

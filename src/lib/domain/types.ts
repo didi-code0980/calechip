@@ -5,7 +5,20 @@
 // Every name here comes from 02-design.md section 1.1 or from .ai/standards/data-model.md. RULE-04:
 // nothing is invented at implementation time.
 
-export type MemberRole = "member" | "admin";
+import avatarImages from "virtual:avatar-images";
+
+/**
+ * The three ranks, **in rank order** — `.ai/standards/rbac-and-security.md` § *Roles*.
+ *
+ * `manager` was added 2026-09-12 by ADR-035 and adds exactly ONE power to `member`: approving or
+ * rejecting ANOTHER member's entry. Not their own, and nothing else.
+ *
+ * **THE SHAPE TO WATCH FOR WHEN READING THIS TYPE'S CALLERS IS `role !== "admin"` USED TO MEAN "AN
+ * ORDINARY MEMBER".** That test was exhaustive while there were two ranks and silently admits a
+ * manager now. Every site in `src/` was read when this value was added; a new one should say which
+ * of the two questions it is asking — *may this person administer* or *may this person decide*.
+ */
+export type MemberRole = "member" | "manager" | "admin";
 
 /** A row of `public.member`, in application casing. */
 /**
@@ -32,6 +45,20 @@ export interface Member {
   teamId: string | null;
   displayName: string;
   avatar: string;
+  /**
+   * SOLO, 2026-09-12. The account's address, COPIED onto the member row by
+   * `20260912120000_solo_member_email.sql` — GoTrue owns the authoritative one and `auth` is not
+   * reachable from the browser, so this is the only place a screen can read it from.
+   *
+   * **NULL MEANS THE SYNC HAS NOT RUN FOR THIS ROW, NOT THAT THE ACCOUNT HAS NO ADDRESS.** Every
+   * account has one; the copy can lag by a write on a path the migration's trigger did not cover, so
+   * the screens render a dash rather than an empty cell that reads as an account without an address.
+   *
+   * **IT IS DISPLAY DATA AND IS NEVER AN IDENTITY.** Nothing signs in, matches or authorises on this
+   * field — `auth.users.email` is what does all three. The migration's header carries the privacy
+   * consequence of the copy existing at all.
+   */
+  email: string | null;
   role: MemberRole;
   /**
    * SOLO, 2026-09-10. **DISPLAYED AND ACTED ON, unlike `role`** — this one really does decide what a
@@ -213,64 +240,25 @@ export type MemberDecision =
   | { approve: false };
 
 /**
- * The avatar set offered at sign-up (AC-8). `member.avatar` is `text not null` and
- * .ai/standards/data-model.md records that the prototype stores an emoji, which is why these are
- * character literals rather than asset names. The "no emoji in source files" bullet in
- * .ai/standards/coding-standards.md sits under Comments and governs prose; this is domain data the
- * data model requires.
+ * The avatar set offered at sign-up (AC-8) and on the profile screen.
  *
- * TODO(project): the contents of this array are a placeholder and are the operator's to set — see
- * `## Open questions` in 02-design.md. The *name*, the *location* and the *type* are decided in
- * design section 1.1 and are not placeholders; only the values are.
+ * **SOLO, 2026-09-13 — IT IS THE CONTENTS OF `public/images/`, AND THE THIRTY-TWO EMOJI ARE GONE.**
+ * Operator's instruction: the list comes from that folder and `member.avatar` stores the image's
+ * file name, with its extension (`12.png`). `vite.config.ts` reads the folder when the app is built
+ * and `src/lib/avatars.ts` filters it to image files and orders it numerically. Every existing row
+ * was moved to `DEFAULT_AVATAR` by `20260913090000_solo_avatar_images.sql`, so no emoji value is
+ * left to keep offering.
  *
- * **SOLO, 2026-09-10 — TWENTY MORE, APPENDED, AND NOT ONE OF THE ORIGINAL TWELVE MOVED OR LEFT.**
- * The profile screen's picker is this array, and the transcription draws thirty-two circles in four
- * rows of ten. **REMOVING A VALUE IS THE FAILURE MODE HERE AND IT IS NOT REVERSIBLE FROM THE
- * SCREEN:** `member.avatar` already holds a value for every seeded and signed-up person, and a row
- * whose avatar is no longer in this array would render everywhere and be unselectable in the
- * picker — the member could never save their profile again without silently changing their face.
- * So the twelve are kept in their order and the new ones follow.
+ * **IT CAN BE EMPTY**, and nothing breaks when it is: every avatar draws the neutral placeholder in
+ * `src/components/Avatar.tsx`, and sign-up sends `DEFAULT_AVATAR` instead of blocking.
  *
- * **THE IDENTITY OF EACH NEW EMOJI IS THIS AGENT'S CHOICE AND WAS NOT SPECIFIED.** What is legible
- * in the transcription is the COUNT and the GRID — thirty-two, ten to a row — not which animal sits
- * in which circle at 2000px wide. `.ai/standards/ui-design-system.md` § *With no image, the Tech
- * Lead designs it* covers visual arrangement; the marking is the obligation that comes with it.
- * They are all animals, which is the one thing the picture does say about the set as a whole.
+ * **REMOVING A FILE FROM THE FOLDER IS STILL THE FAILURE MODE TO WATCH.** A member whose saved name is
+ * no longer in this list renders the default, and may keep that value on save — the *keep what you
+ * have* clause in both seam implementations — but cannot choose it again once they move away.
  */
-export const AVATAR_CHOICES: readonly string[] = [
-  "🐱",
-  "🐶",
-  "🐰",
-  "🦊",
-  "🐻",
-  "🐼",
-  "🐨",
-  "🐯",
-  "🦁",
-  "🐸",
-  "🐧",
-  "🦉",
-  "🐹",
-  "🐮",
-  "🐷",
-  "🐔",
-  "🐥",
-  "🦄",
-  "🐙",
-  "🦕",
-  "🐢",
-  "🦋",
-  "🐬",
-  "🦩",
-  "🐊",
-  "🦔",
-  "🐿️",
-  "🐺",
-  "🦒",
-  "🐘",
-  "🦥",
-  "🦦",
-];
+export const AVATAR_CHOICES: readonly string[] = avatarImages;
+
+export { DEFAULT_AVATAR } from "../avatars";
 
 // ---------------------------------------------------------------------------
 // BUG-002. 01-plan.md section 4.2.

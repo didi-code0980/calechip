@@ -10,3 +10,12 @@ interface ImportMetaEnv {
 interface ImportMeta {
   readonly env: ImportMetaEnv;
 }
+
+/**
+ * SOLO, 2026-09-13. The avatar file names found in `public/images/` at build time, filtered and
+ * ordered numerically — served by the `calechip-avatar-images` plugin in `vite.config.ts`.
+ */
+declare module "virtual:avatar-images" {
+  const names: readonly string[];
+  export default names;
+}

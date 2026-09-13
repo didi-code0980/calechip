@@ -71,6 +71,7 @@ import { MONTH_ABBR, isRealYear } from "@/lib/period";
 // sentence itself is still announced: `Loader.tsx` keeps it as `sr-only` text, because the element
 // below carries `role="status"` and an emptied one announces nothing.
 import Loader from "@/components/Loader";
+import Avatar from "@/components/Avatar";
 
 // ---------------------------------------------------------------------------
 // The year vocabulary. `yyyy` in the URL, `yyyy-MM-dd` everywhere below it.
@@ -417,7 +418,7 @@ export default function YearView() {
               >
                 <div className="sticky left-0 z-10 flex items-center gap-1 bg-card pr-2">
                   <span data-testid="year-row-avatar" aria-hidden="true">
-                    {member.avatar}
+                    <Avatar value={member.avatar} className="h-4 w-4" />
                   </span>
                   <span data-testid="year-row-name" className="truncate" title={member.displayName}>
                     {member.displayName}

@@ -25,6 +25,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 // The seam, through its one door. Nothing above the seam names an implementation, and this file must
 // never import `./supabase` or `./mock` (RULE-02).
 import { seam } from "@/lib/data";
+import Avatar from "@/components/Avatar";
 // INV-04's single implementation, imported DIRECTLY rather than through the seam — the same import
 // MonthView.tsx makes, and for the reason CAL-04 01-plan.md section 5 records: neither seam
 // implementation counts anything, so there is no second arithmetic for seam-parity to miss.
@@ -264,7 +265,7 @@ export default function OverloadWarning({
                   entry.tentative ? "border border-dashed border-current opacity-60" : "",
                 ].join(" ")}
               >
-                {member.avatar}
+                <Avatar value={member.avatar} className="h-4 w-4" />
                 {member.displayName}
                 {entry.status === "approved" ? <span aria-hidden="true">&#9733;</span> : null}
               </span>

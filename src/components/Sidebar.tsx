@@ -70,10 +70,12 @@ import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useRoster } from "@/hooks/useRoster";
 import type { Member, MemberRole, Result } from "@/lib/domain/types";
+import { ROLE_LABELS } from "@/lib/roles";
 // SOLO, 2026-09-11 — the loading mark that replaced this screen's "Loading…" sentence. The
 // sentence itself is still announced: `Loader.tsx` keeps it as `sr-only` text, because the element
 // below carries `role="status"` and an emptied one announces nothing.
 import Loader from "@/components/Loader";
+import Avatar from "@/components/Avatar";
 
 export interface SidebarProps {
   member: Member;
@@ -84,8 +86,9 @@ export interface SidebarProps {
  *  strings are letter for letter what a shipped spec asserts, and any uppercase presentation below
  *  is a CSS transform rather than a different string. `MemberList.tsx` still carries its own copy
  *  of this mapping; folding the two is not this ticket's (Home.tsx's own note, and § 7). */
-const roleLabel = (role: MemberRole): string =>
-  role === "admin" ? "Admin" : "Member";
+// SOLO 2026-09-12, ADR-035. **THE TERNARY THAT STOOD HERE LABELLED A MANAGER `Member`.** One
+// declaration now, in `src/lib/roles.ts`, for the reason OPS-002 AC-8 folded the entry label sets.
+const roleLabel = (role: MemberRole): string => ROLE_LABELS[role];
 
 // § Language, and this is the one string in this file that is NOT interface copy. `Ai Nghỉ?` is the
 // product's NAME, and the same construction `src/components/AuthCard.tsx:41` uses is used here for
@@ -128,10 +131,11 @@ function AvatarChip({ avatar, testId }: { avatar: string; testId?: string }) {
   return (
     <span
       data-testid={testId}
+      data-avatar={avatar}
       aria-hidden
-      className="flex h-[26px] w-[26px] shrink-0 items-center justify-center rounded-pill bg-field text-[13px]"
+      className="flex h-[26px] w-[26px] shrink-0 items-center justify-center overflow-hidden rounded-pill bg-field text-[13px]"
     >
-      {avatar}
+      <Avatar value={avatar} />
     </span>
   );
 }

@@ -61,7 +61,7 @@ test.describe("TEA-05 sign in, sign out, and session", () => {
     await submitSignIn(page, MEMBER_EMAIL, PASSWORD);
 
     await expect(page.getByTestId("home-member-name")).toHaveText("Thành viên");
-    await expect(page.getByTestId("home-member-avatar")).toHaveText("🐱");
+    await expect(page.getByTestId("home-member-avatar")).toHaveAttribute("data-avatar", "1.png");
     await expect(page.getByTestId("home-member-role")).toHaveText("Member");
   });
 

@@ -265,7 +265,7 @@ export default function App() {
                   strip, and a member must not be handed a list of the five administrative addresses
                   on every screen that refuses them — UIE-10 AC-1 removed exactly that from the
                   sidebar. Each destination keeps its own guard below, untouched. */}
-              <Route element={<AdminLayout isAdmin={membership.state === "member" && membership.member.role === "admin"} />}>
+              <Route element={<AdminLayout role={membership.state === "member" ? membership.member.role : null} />}>
                 {/* SOLO, 2026-09-10. `/allow-list` is gone with the allow-list. `/signups` is the
                     admin queue that replaced it; the screen renders its own refusal, so this route
                     is unguarded for the same two reasons `/allow-list` recorded. */}
@@ -315,7 +315,7 @@ export default function App() {
                   `entry_update_admin` and `entry_delete_admin` are the controls and they refuse the
                   write whoever reaches them. */}
 {/* SOLO, 2026-09-09 — the admin tab strip, block 2 of 3. See block 1 above for why three. */}
-              <Route element={<AdminLayout isAdmin={membership.state === "member" && membership.member.role === "admin"} />}>
+              <Route element={<AdminLayout role={membership.state === "member" ? membership.member.role : null} />}>
                 <Route
                   path="/entries/team"
                   element={membership.state === "member" ? <TeamEntries /> : <Navigate to="/" replace />}
@@ -416,7 +416,7 @@ export default function App() {
                   and `grant update (overload_threshold)` are the controls and they refuse the write
                   whoever reaches them. */}
 {/* SOLO, 2026-09-09 — the admin tab strip, block 3 of 3. See block 1 above for why three. */}
-              <Route element={<AdminLayout isAdmin={membership.state === "member" && membership.member.role === "admin"} />}>
+              <Route element={<AdminLayout role={membership.state === "member" ? membership.member.role : null} />}>
                 {/* SOLO, 2026-09-11 — RE-ADDRESSED FROM `/threshold` TO `/setting` ON THE OPERATOR'S
                     INSTRUCTION, when the screen gained the approval switches beside the name and the
                     threshold. The guard is unchanged and so is the component. UIE-09's comment below
@@ -493,7 +493,7 @@ export default function App() {
                   exactly as before and simply sees no strip above it. Making this route admin-only
                   would contradict `Read the holiday calendar` in
                   .ai/standards/rbac-and-security.md, which is human plane under RULE-01. */}
-              <Route element={<AdminLayout isAdmin={membership.state === "member" && membership.member.role === "admin"} />}>
+              <Route element={<AdminLayout role={membership.state === "member" ? membership.member.role : null} />}>
                 <Route
                   path="/holidays"
                   element={

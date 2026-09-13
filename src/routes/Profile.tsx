@@ -35,12 +35,16 @@
 // and `changePassword` resolve the caller from the session inside the implementation, so there is no
 // argument on this screen that could aim either write at somebody else.
 import { useCallback, useEffect, useState, type FormEvent } from "react";
-// SOLO, 2026-09-10. The `Link` import stood here and is removed: nothing in this file uses it any
-// more, and `pnpm lint` failed on it. The screen it linked back to was taken out by another
-// session; this deletes the leftover import and nothing else.
+// SOLO, 2026-09-12. **RESTORED, for the `Calendar` control below.** It was deleted on 2026-09-10
+// as an orphan after another session removed this screen's way back; the operator asked for one
+// again on 2026-09-12, against an image of an outline pill reading `Calendar`.
+import { Link } from "react-router-dom";
 import { format } from "date-fns";
 import { seam } from "@/lib/data";
+import { ROLE_LABELS } from "@/lib/roles";
 import { useShellContext } from "@/components/AppShell";
+import { PILL_OUTLINE } from "@/components/TopBar";
+import Avatar from "@/components/Avatar";
 import { AVATAR_CHOICES, type Member, type Team } from "@/lib/domain/types";
 
 /**
@@ -91,8 +95,8 @@ const PASSWORD_MIN = 6;
 /** The shape `AllowList.tsx:20` already uses, so two screens do not date the same fact differently. */
 const day = (iso: string): string => format(new Date(iso), "dd/MM/yyyy");
 
-const roleLabel = (role: Member["role"]): string =>
-  role === "admin" ? "Admin" : "Member";
+// SOLO 2026-09-12, ADR-035 — see `src/lib/roles.ts`. This copy labelled a manager `Member`.
+const roleLabel = (role: Member["role"]): string => ROLE_LABELS[role];
 
 const CARD = "rounded-card bg-card p-6 shadow-soft";
 const FIELD_LABEL =
@@ -372,13 +376,13 @@ export default function Profile() {
 
   const { email, team } = extras;
 
-  // **THE OFFERED SET, PLUS THE CALLER'S OWN VALUE WHEN IT IS NOT IN IT — AND THAT CASE IS NOT
-  // HYPOTHETICAL.** `supabase/seed.sql:170` gives the operator's own admin account an avatar that
-  // was never in this picker, and TEA-01's admission trigger writes `'🙂'` for any sign-up that
-  // carried none. Rendering `AVATAR_CHOICES` alone would show such a member a radiogroup with
-  // NOTHING checked, next to an identity card showing the face they actually have — and the seam
+  // **THE OFFERED SET, PLUS THE CALLER'S OWN VALUE WHEN IT IS NOT IN IT.** SOLO, 2026-09-13: the
+  // offered set is the files in `public/images/`, so the case is a saved file name that is no longer
+  // in the folder (or `DEFAULT_AVATAR` when the folder holds no `1.png`). Rendering
+  // `AVATAR_CHOICES` alone would show such a member a radiogroup with NOTHING checked — and the seam
   // accepts that value (it is the *keep what you have* clause), so the control must be able to
-  // represent the state the screen is in.
+  // represent the state the screen is in. That option draws the default avatar, as every screen does
+  // for a value it has no file for.
   //
   // It is FIRST, so the checked option is where the eye starts, and it STAYS in the row after they
   // pick an offered one — unchecked, and still clickable, which is how they undo. It is derived from
@@ -401,16 +405,44 @@ export default function Profile() {
       }}
       className="mx-auto flex max-w-2xl flex-col gap-6"
     >
-      {/* 1. The identity card. It shows the SAVED row and never the form's working values — the
-          avatar tile and the name here do not move while an unsaved edit sits in the controls below,
-          because this card is what the rest of the team currently sees. */}
+      {/* SOLO, 2026-09-12 — **THE WAY BACK TO THE CALENDAR**, on the operator's instruction and
+          against an image of an outline pill reading `Calendar`.
+
+          **IT EXISTS BECAUSE THE SHELL'S DOES NOT RIGHT NOW.** `src/components/Sidebar.tsx:438`
+          has the three-link calendar nav — `This week`, `The year`, `Public holidays` — COMMENTED
+          OUT, so a caller who opens their profile has no control anywhere on the screen that returns
+          them to a calendar. That comment is another session's uncommitted work and is not touched
+          here; if it comes back, this pill is a second way home rather than the only one, which is
+          the same relationship `admin-hub-back` has to the tab strip.
+
+          **`/` AND NOT `/week`.** The landing route resolves to the current week IN PLACE and holds
+          the product's one clock for it (`src/lib/period.ts`, `periodNavFor`); `/week` redirects to
+          `/week/<today>` a frame later, which is the same destination by a longer road. `/` is also
+          where `Back to the start` pointed on every screen that had one, so the two say the same
+          thing.
+
+          **AN ANCHOR INSIDE A `<form>`, which is safe and is why it is a `<Link>`.** A `<button>`
+          here with no explicit `type` would be a SUBMIT button — the trap `PasswordField` below
+          records — so going back to the calendar would save the page on the way out. */}
+      <p>
+        <Link data-testid="profile-calendar" to="/" className={PILL_OUTLINE}>
+          Back to Calendar
+        </Link>
+      </p>
+
+      {/* 1. The identity card. A LIVE PREVIEW of the form's working values (operator, 2026-09-13):
+          the avatar tile and the name follow the picker and the name box before anything is saved.
+          It replaced a card that showed only the saved row. Only this card previews — the sidebar and
+          every other screen still change on save. A blank name box previews the saved name, because
+          an empty heading is a state no saved row can be in. */}
       <div className={`${CARD} flex flex-col items-center gap-3 text-center`}>
         <span
           data-testid="profile-avatar"
+          data-avatar={avatar}
           aria-hidden
-          className="flex h-20 w-20 items-center justify-center rounded-card bg-field text-4xl"
+          className="flex h-20 w-20 items-center justify-center overflow-hidden rounded-card bg-field text-4xl"
         >
-          {me.avatar}
+          <Avatar value={avatar} />
         </span>
 
         <div className="flex flex-wrap items-center justify-center gap-2">
@@ -438,7 +470,7 @@ export default function Profile() {
             data-testid="profile-name"
             className="font-display text-2xl font-bold leading-tight text-ink"
           >
-            {me.displayName}
+            {displayName.trim() === "" ? me.displayName : displayName}
           </h1>
           {/* ABSENT when the session read failed, not rendered empty. An address missing from the
               screen is a read that did not happen; a blank line under the name says the account has
@@ -461,7 +493,7 @@ export default function Profile() {
       <fieldset className={CARD}>
         <legend className="text-base font-semibold text-ink">Avatar</legend>
         <p className="mt-1 text-sm text-ink-2">
-          Pick an emoji. It is how the team finds you on the calendar.
+          Pick a picture. It is how the team finds you on the calendar.
         </p>
         <div
           data-testid="profile-avatar-picker"
@@ -480,6 +512,7 @@ export default function Profile() {
                 type="button"
                 data-testid="profile-avatar-option"
                 data-avatar={choice}
+                aria-label={choice}
                 role="radio"
                 aria-checked={chosen}
                 onClick={() => setAvatar(choice)}
@@ -491,7 +524,7 @@ export default function Profile() {
                   (chosen ? "bg-primary" : "bg-field hover:bg-track")
                 }
               >
-                {choice}
+                <Avatar value={choice} className="h-9 w-9" />
               </button>
             );
           })}

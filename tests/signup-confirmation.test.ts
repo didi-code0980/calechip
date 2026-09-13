@@ -48,7 +48,7 @@ const signUpInput = (email: string) => ({
   email,
   password: NEW_PASSWORD,
   displayName: "Nguoi Moi",
-  avatar: "🙂",
+  avatar: "1.png",
 });
 
 describe("sign-up, with email confirmation REQUIRED", () => {

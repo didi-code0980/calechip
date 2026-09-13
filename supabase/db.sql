@@ -77,7 +77,9 @@ create extension if not exists btree_gist with schema extensions;
 -- [SHIPPED] TEA-01. Rank order and the full permission table are in
 -- .ai/standards/rbac-and-security.md.
 do $$ begin
-  create type public.member_role as enum ('member', 'admin');
+  -- SOLO 2026-09-12, ADR-035. THE DECLARATION ORDER IS THE RANK ORDER — PostgreSQL orders an
+  -- enum by declaration, not alphabetically, so `role > 'member'` means "decides something".
+  create type public.member_role as enum ('member', 'manager', 'admin');
 exception when duplicate_object then null;
 end $$;
 
@@ -289,6 +291,29 @@ end $$;
 -- [SHIPPED] TEA-01. The rank helper. `security definer` so that a policy on one table may consult
 -- `member` without recursing through `member`'s own policies.
 -- It filters `removed_at is null`: A REMOVED ADMIN IS NOT AN ADMIN.
+-- [OWED] ADR-035 — `supabase/migrations/20260912100000_solo_manager_role.sql`.
+--
+-- THE ONE HELPER THAT WIDENS, and it exists so that `is_admin` below does NOT. Every power a
+-- manager must not gain is keyed on `is_admin`, so leaving that one meaning `role = 'admin'`
+-- exactly denies the holiday calendar, the threshold, the roster, the sign-up queue, the team
+-- list and editing anybody's entry, all at once and with no policy edit anywhere.
+--
+-- `role::text` rather than a cast literal: `alter type ... add value` cannot be USED in the
+-- transaction that added it, and the migration keeps that constraint visible.
+create or replace function public.may_decide(p_uid uuid) returns boolean
+  language sql stable security definer set search_path = '' as $$
+  select exists (
+    select 1 from public.member m
+    where m.id = p_uid
+      and m.removed_at is null
+      and m.status = 'approved'
+      and m.role::text in ('admin', 'manager')
+  );
+$$;
+
+-- **DO NOT WIDEN THIS ONE.** ADR-035 § Consequences names it as the thing most likely to be
+-- "fixed" by a reader who finds a manager refused by the holiday calendar and assumes an
+-- oversight. It is the containment, not a gap.
 create or replace function public.is_admin(p_uid uuid) returns boolean
   language sql stable security definer set search_path = '' as $$
   select exists (
@@ -354,7 +379,7 @@ begin
     v_team_id,                                    -- INV-07: the team comes from here and nowhere else
     coalesce(nullif(btrim(new.raw_user_meta_data ->> 'display_name'), ''),
              split_part(new.email, '@', 1)),      -- AC-8, with a last-resort guard
-    coalesce(nullif(btrim(new.raw_user_meta_data ->> 'avatar'), ''), '🙂'),
+    coalesce(nullif(btrim(new.raw_user_meta_data ->> 'avatar'), ''), '1.png'),  -- SOLO 2026-09-13: was '🙂'
     'member'::public.member_role,                 -- AC-9. NEVER from raw_user_meta_data, which is
                                                   -- whatever the caller passed to signUp.
     v_now                                         -- AC-2: the same instant as consumed_at
@@ -480,9 +505,44 @@ begin
    or new.rejection_reason is distinct from old.rejection_reason
    or new.approved_by      is distinct from old.approved_by
    or new.approved_at      is distinct from old.approved_at)
-     and v_uid is not null
-     and not public.is_admin(v_uid) then
-    raise exception 'only an admin may decide an entry'
+     and v_uid is not null then
+
+    -- [OWED] ADR-035 widened this from `is_admin` to `may_decide`.
+    if not public.may_decide(v_uid) then
+      raise exception 'only an admin or a manager may decide an entry'
+        using errcode = '42501';
+    end if;
+
+    -- [OWED] ADR-035 § Decision item 3. A MANAGER MAY NOT DECIDE THEIR OWN ENTRY; an admin may,
+    -- which the charter decided on 2026-08-31 for that role and for no other. Written as "not an
+    -- admin and it is mine" rather than as a role list, so the day a fourth rank appears this clause
+    -- still means what it says.
+    if not public.is_admin(v_uid) and old.member_id = v_uid then
+      raise exception 'a manager may not decide their own entry'
+        using errcode = '42501';
+    end if;
+  end if;
+
+  -- [OWED] ADR-035 § Decision item 4 — **THE CONTAINMENT, AND THE WHOLE REASON A MANAGER IS NOT AN
+  -- ADMIN.** `entry_update_manager` admits the row, and the row carries the owner's dates, type,
+  -- portion, tentativeness and note. Without this clause, "a manager may approve" would in fact read
+  -- "a manager may rewrite anybody's entry".
+  --
+  -- **A MASKED WHOLE-ROW COMPARISON RATHER THAN A COLUMN LIST**, so a column added to `entry` later
+  -- is covered on the day it is added. The five names removed are the four decision columns plus
+  -- `updated_at`, which the top of this function has already moved and which is never the caller's
+  -- doing.
+  --
+  -- IT DOES NOT FIRE ON A MANAGER'S OWN ENTRY: that write is `entry_update_own`'s, and a manager
+  -- edits their own entry on exactly the terms every member does.
+  if v_uid is not null
+     and old.member_id <> v_uid
+     and not public.is_admin(v_uid)
+     and public.may_decide(v_uid)
+     and (to_jsonb(new) - '{status,rejection_reason,approved_by,approved_at,updated_at}'::text[])
+         is distinct from
+         (to_jsonb(old) - '{status,rejection_reason,approved_by,approved_at,updated_at}'::text[]) then
+    raise exception 'a manager may only decide an entry, not edit it'
       using errcode = '42501';
   end if;
 
@@ -635,6 +695,9 @@ revoke all on public.holiday from anon, authenticated;
 -- [SHIPPED] TEA-01. Function execute.
 revoke all on function public.is_admin(uuid), public.member_team_id(uuid) from public;
 grant execute on function public.is_admin(uuid), public.member_team_id(uuid) to authenticated;
+-- [OWED] ADR-035. Same shape, same reason.
+revoke all on function public.may_decide(uuid) from public;
+grant execute on function public.may_decide(uuid) to authenticated;
 
 -- [SHIPPED] TEA-01.
 grant select on public.member        to authenticated;
@@ -858,6 +921,31 @@ create policy entry_update_admin on public.entry
   for update to authenticated
   using (
     public.is_admin((select auth.uid()))
+    and public.member_team_id(member_id) = public.member_team_id((select auth.uid()))
+  )
+  with check (
+    public.member_team_id(member_id) = public.member_team_id((select auth.uid()))
+  );
+
+-- [OWED] ADR-035 — `supabase/migrations/20260912100000_solo_manager_role.sql`.
+--
+-- A SEPARATE POLICY AND NOT A WIDENED `entry_update_admin`. Policies are OR-ed, so this adds a way
+-- in for a manager and changes nothing about the admin's — which matters because the two are not the
+-- same permission and must not become one line a later edit can widen by accident.
+--
+-- `and not public.is_admin(...)` is about READING rather than about access: an admin is already
+-- admitted by the policy above, so without this conjunct both would match for them and a reviewer
+-- could not tell which one was doing the work.
+--
+-- **THIS POLICY ADMITS THE WHOLE ROW. CLAUSE (a2) OF `entry_enforce_decision()` IS WHAT NARROWS IT
+-- TO FOUR COLUMNS.** Read them together or neither makes sense. There is deliberately NO
+-- `entry_delete_manager`: deleting is not deciding.
+drop policy if exists entry_update_manager on public.entry;
+create policy entry_update_manager on public.entry
+  for update to authenticated
+  using (
+    public.may_decide((select auth.uid()))
+    and not public.is_admin((select auth.uid()))
     and public.member_team_id(member_id) = public.member_team_id((select auth.uid()))
   )
   with check (

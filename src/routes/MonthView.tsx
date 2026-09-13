@@ -124,6 +124,7 @@ import { currentDay, isRealMonth, mondayIndex } from "@/lib/period";
 // sentence itself is still announced: `Loader.tsx` keeps it as `sr-only` text, because the element
 // below carries `role="status"` and an emptied one announces nothing.
 import Loader from "@/components/Loader";
+import Avatar from "@/components/Avatar";
 
 // ---------------------------------------------------------------------------
 // The month vocabulary. `yyyy-MM` in the URL, `yyyy-MM-dd` everywhere below it.
@@ -843,7 +844,7 @@ export default function MonthView() {
                             entry?.tentative ? "border border-dashed border-current opacity-60" : "",
                           ].join(" ")}
                         >
-                          {person.avatar}
+                          <Avatar value={person.avatar} className="h-4 w-4" />
                           {entry?.status === "approved" ? <span aria-hidden="true">★</span> : null}
                         </span>
                       );

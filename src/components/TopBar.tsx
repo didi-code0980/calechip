@@ -37,6 +37,8 @@
 // `shell-topbar`, `shell-period-today` and `home-new-entry-link` keep their names: nothing on a
 // screen was ever called those, so there was nothing to adopt (UIE-03 AC-14).
 import { Link, useLocation } from "react-router-dom";
+import type { MemberRole } from "@/lib/domain/types";
+import { mayAdminister, mayDecide } from "@/lib/roles";
 import { isAdminAddress } from "./AdminTabs";
 import { periodNavFor, type PeriodKind } from "@/lib/period";
 
@@ -45,7 +47,13 @@ const ICON_BUTTON =
   "transition-colors hover:bg-card hover:text-ink " +
   "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink";
 
-const PILL_OUTLINE =
+// SOLO, 2026-09-12. **EXPORTED**, so `src/routes/Profile.tsx` draws its `Calendar` control from
+// this string rather than from a second copy of it. A copy is what UIE-06 § 1 describes going wrong
+// one layer down — the legend and the grid it explained were painted from two different palettes,
+// side by side, permanently — and a pill that drifted from the top bar's would be the same defect in
+// shape instead of colour. It is a class string and not a component: there is one control at the far
+// end, and a `<PillLink>` for one caller is a layer with nothing in it.
+export const PILL_OUTLINE =
   "rounded-pill border border-line px-3 py-1.5 text-xs font-semibold text-ink-2 " +
   "transition-colors hover:border-ink-3 hover:text-ink " +
   "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink";
@@ -62,14 +70,18 @@ const segmentClass = (on: boolean): string =>
   `${SEGMENT_BASE} ${on ? SEGMENT_ON : SEGMENT_OFF}`;
 
 export interface TopBarProps {
-  /** Whether the signed-in member is an admin. The bar has no session and no seam call of its own,
-   *  so the answer arrives from `AppShell`, which already holds the member row — UIE-09 § 4.3.
-   *  A BOOLEAN AND NOT A `Member` (§ 8, rejected alternative 4): the bar's one question is *may this
-   *  person administer*, and a member row here would invite a second reason to hold one. */
-  isAdmin: boolean;
+  /** The signed-in member's rank. The bar has no session and no seam call of its own, so the answer
+   *  arrives from `AppShell`, which already holds the member row — UIE-09 § 4.3.
+   *
+   *  **SOLO 2026-09-12, ADR-035 — THIS WAS `isAdmin: boolean`.** § 8's rejected alternative 4 was a
+   *  `Member` prop, on the ground that a row here invites a second reason to hold one; a RANK is not
+   *  that. It is one scalar with nothing else on it to reach for, and the bar now has two questions
+   *  rather than one — *may this person decide* chooses whether to draw the control, *may this person
+   *  administer* chooses where it points. A boolean cannot carry both. */
+  role: MemberRole;
 }
 
-export default function TopBar({ isAdmin }: TopBarProps) {
+export default function TopBar({ role }: TopBarProps) {
   const { pathname } = useLocation();
   const nav = periodNavFor(pathname);
 
@@ -245,11 +257,16 @@ export default function TopBar({ isAdmin }: TopBarProps) {
             calendar and in again. That is the cost the operator accepted when they chose all six
             addresses over `/admin` alone, and it is why UIE-09 AC-1 and AC-4 and UIE-10 AC-3 are
             rewritten rather than merely passing. */}
-        {isAdmin ? (
+        {/* SOLO 2026-09-12, ADR-035. **DRAWN FOR A MANAGER TOO, AND POINTED SOMEWHERE ELSE.** The
+            hub at `/admin` lists what an admin may do and refuses everybody else, so sending a
+            manager there would be handing them a door that shuts in their face. Their whole admin
+            area is one screen, so the control goes straight to it — `data-state` still says which
+            face is showing, and `/` is still the way back for both. */}
+        {mayDecide(role) ? (
           <Link
             data-testid="shell-admin-link"
             data-state={onAdmin ? "calendar" : "admin"}
-            to={onAdmin ? "/" : "/admin"}
+            to={onAdmin ? "/" : mayAdminister(role) ? "/admin" : "/entries/pending"}
             className={PILL_OUTLINE}
           >
             {onAdmin ? "Calendar" : "Admin"}

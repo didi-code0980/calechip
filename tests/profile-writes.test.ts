@@ -34,6 +34,17 @@ import { FIXTURE_MEMBER, FIXTURE_PASSWORD } from "@/lib/fixtures";
  *  decides afterwards. */
 const JOINER_EMAIL = "nguoimoi@example.com";
 
+/** SOLO, 2026-09-13. An offered avatar that is not the fixture member's own, so a write is a change.
+ *  Read from the folder listing rather than named, because the offered set IS the folder. */
+const OTHER_OFFERED = AVATAR_CHOICES.find((name) => name !== FIXTURE_MEMBER.avatar);
+if (!OTHER_OFFERED) {
+  throw new Error("public/images/ must hold at least one image besides the fixture member's own");
+}
+const OTHER_AVATAR: string = OTHER_OFFERED;
+
+/** A well-formed file name that is not in the folder: what a caller with a token could write. */
+const NEVER_OFFERED = "never-offered.webp";
+
 const MEMBER_EMAIL = "thanh@example.com";
 
 /** Signs in as the member-role fixture, which is the caller every test below acts as. Through
@@ -65,24 +76,24 @@ describe("SOLO — updateOwnProfile", () => {
   it("writes the caller's own display name and avatar", async () => {
     const result = await mock.updateOwnProfile({
       displayName: "Renamed",
-      avatar: "🦄",
+      avatar: OTHER_AVATAR,
     });
 
     expect(result.ok).toBe(true);
     if (!result.ok) return;
     expect(result.value.displayName).toBe("Renamed");
-    expect(result.value.avatar).toBe("🦄");
+    expect(result.value.avatar).toBe(OTHER_AVATAR);
 
     // Read back through a different function, so the assertion is about what was STORED and not
     // about what this call happened to return.
     const me = await mock.getCurrentMember();
     expect(me?.displayName).toBe("Renamed");
-    expect(me?.avatar).toBe("🦄");
+    expect(me?.avatar).toBe(OTHER_AVATAR);
   });
 
   it("changes nothing else on the row", async () => {
     const before = await mock.getCurrentMember();
-    await mock.updateOwnProfile({ displayName: "Renamed", avatar: "🦄" });
+    await mock.updateOwnProfile({ displayName: "Renamed", avatar: OTHER_AVATAR });
     const after = await mock.getCurrentMember();
 
     // The two columns TEA-04 withholds from everybody, and the one INV-07 rests on. The mock has no
@@ -126,7 +137,7 @@ describe("SOLO — updateOwnProfile", () => {
   it("refuses an avatar that is not offered", async () => {
     const result = await mock.updateOwnProfile({
       displayName: FIXTURE_MEMBER.displayName,
-      avatar: "🛰️",
+      avatar: NEVER_OFFERED,
     });
 
     expect(result.ok).toBe(false);
@@ -149,10 +160,9 @@ describe("SOLO — updateOwnProfile", () => {
 });
 
 describe("SOLO — updateOwnProfile keeps an avatar that is not offered", () => {
-  // **THIS IS THE CASE THAT BROKE THE MIGRATION, AND IT IS NOT HYPOTHETICAL.**
-  // `supabase/seed.sql:170` gives the operator's own admin account an avatar that was never in
-  // `AVATAR_CHOICES`, and `20260831150024_tea01_membership.sql:117` writes `'🙂'` for a sign-up that
-  // carried none — both values the DATASTORE produced. Without the *keep what you have* clause,
+  // **THE CASE IS A SAVED FILE NAME THAT IS NO LONGER IN THE FOLDER.** SOLO, 2026-09-13: the offered
+  // set is `public/images/` at build time, so removing a file leaves every member who chose it
+  // holding a value `AVATAR_CHOICES` does not contain. Without the *keep what you have* clause,
   // every member holding one is refused on EVERY save, including one that changes only their name,
   // with a message telling them to pick an avatar they never touched.
   //
@@ -165,7 +175,7 @@ describe("SOLO — updateOwnProfile keeps an avatar that is not offered", () => 
   // first one, so a second would create A SESSION AND NO MEMBER ROW — a silently member-less caller
   // whose refusals would look exactly like this rule failing. Each test signs in instead; the mock
   // adds a signed-up account to the list `signIn` searches.
-  const UNOFFERED = "\\u2b50";
+  const UNOFFERED = "removed-from-folder.png";
 
   beforeAll(async () => {
     const signedUp = await mock.signUp({
@@ -216,7 +226,7 @@ describe("SOLO — updateOwnProfile keeps an avatar that is not offered", () => 
     // not thereby be able to set an arbitrary new one.
     const result = await mock.updateOwnProfile({
       displayName: "Odd Face",
-      avatar: "🛰️",
+      avatar: NEVER_OFFERED,
     });
 
     expect(result.ok).toBe(false);
@@ -227,7 +237,7 @@ describe("SOLO — updateOwnProfile keeps an avatar that is not offered", () => 
   it("lets them move to an offered avatar, after which the odd one is no longer theirs", async () => {
     const moved = await mock.updateOwnProfile({
       displayName: "Odd Face",
-      avatar: "🐰",
+      avatar: OTHER_AVATAR,
     });
     expect(moved.ok).toBe(true);
 
@@ -246,7 +256,7 @@ describe("SOLO — updateOwnProfile with no session", () => {
     await mock.signOut();
     const result = await mock.updateOwnProfile({
       displayName: "Nobody",
-      avatar: "🐱",
+      avatar: FIXTURE_MEMBER.avatar,
     });
 
     expect(result.ok).toBe(false);

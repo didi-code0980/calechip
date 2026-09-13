@@ -42,7 +42,11 @@ export const FIXTURE_ADMIN: Member = {
   id: "22222222-2222-4222-8222-222222222222",
   teamId: FIXTURE_TEAM.id,
   displayName: "Quản trị",
-  avatar: "🦉",
+  avatar: "1.png",
+  // SOLO, 2026-09-12. The address the `/members` screen renders. `Member.email` is a COPY of
+  // `auth.users.email` in the real seam (20260912120000_solo_member_email.sql); here it is the
+  // address this person's seeded credential names, so the mock and supabase/seed.sql agree.
+  email: "quan@example.com",
   role: "admin",
   status: "approved",
   lastSignInAt: "2026-09-09T08:00:00+00:00",
@@ -75,7 +79,11 @@ export const FIXTURE_MEMBER: Member = {
   id: "55555555-5555-4555-8555-555555555555",
   teamId: FIXTURE_TEAM.id,
   displayName: "Thành viên",
-  avatar: "🐱",
+  avatar: "1.png",
+  // SOLO, 2026-09-12. The address the `/members` screen renders. `Member.email` is a COPY of
+  // `auth.users.email` in the real seam (20260912120000_solo_member_email.sql); here it is the
+  // address this person's seeded credential names, so the mock and supabase/seed.sql agree.
+  email: "thanh@example.com",
   role: "member",
   status: "approved",
   lastSignInAt: "2026-09-09T08:00:00+00:00",
@@ -118,7 +126,11 @@ export const FIXTURE_OTHER_TEAM_MEMBER: Member = {
   id: "66666666-6666-4666-8666-666666666666",
   teamId: FIXTURE_OTHER_TEAM.id,
   displayName: "Người nhóm khác",
-  avatar: "🐰",
+  avatar: "1.png",
+  // SOLO, 2026-09-12. The address the `/members` screen renders. `Member.email` is a COPY of
+  // `auth.users.email` in the real seam (20260912120000_solo_member_email.sql); here it is the
+  // address this person's seeded credential names, so the mock and supabase/seed.sql agree.
+  email: "chi@other.example.com",
   role: "member",
   status: "approved",
   lastSignInAt: "2026-09-09T08:00:00+00:00",
@@ -146,7 +158,11 @@ export const FIXTURE_PENDING_SIGNUP: Member = {
   id: "88888888-8888-4888-8888-888888888888",
   teamId: null,
   displayName: "Người mới",
-  avatar: "🐣",
+  avatar: "1.png",
+  // SOLO, 2026-09-12. The address the `/members` screen renders. `Member.email` is a COPY of
+  // `auth.users.email` in the real seam (20260912120000_solo_member_email.sql); here it is the
+  // address this person's seeded credential names, so the mock and supabase/seed.sql agree.
+  email: "moi@example.com",
   role: "member",
   status: "pending",
   lastSignInAt: "2026-09-09T08:00:00+00:00",
@@ -158,7 +174,11 @@ export const FIXTURE_REMOVED_MEMBER: Member = {
   id: "77777777-7777-4777-8777-777777777777",
   teamId: FIXTURE_TEAM.id,
   displayName: "Đã rời nhóm",
-  avatar: "🐶",
+  avatar: "1.png",
+  // SOLO, 2026-09-12. The address the `/members` screen renders. `Member.email` is a COPY of
+  // `auth.users.email` in the real seam (20260912120000_solo_member_email.sql); here it is the
+  // address this person's seeded credential names, so the mock and supabase/seed.sql agree.
+  email: "cu@example.com",
   role: "member",
   status: "approved",
   lastSignInAt: "2026-09-09T08:00:00+00:00",
@@ -186,7 +206,11 @@ export const FIXTURE_SECOND_ADMIN: Member = {
   id: "88888888-8888-4888-8888-888888888888",
   teamId: FIXTURE_TEAM.id,
   displayName: "Quản trị hai",
-  avatar: "🦊",
+  avatar: "1.png",
+  // SOLO, 2026-09-12. The address the `/members` screen renders. `Member.email` is a COPY of
+  // `auth.users.email` in the real seam (20260912120000_solo_member_email.sql); here it is the
+  // address this person's seeded credential names, so the mock and supabase/seed.sql agree.
+  email: "dung@example.com",
   role: "admin",
   status: "approved",
   lastSignInAt: "2026-09-09T08:00:00+00:00",
@@ -358,7 +382,11 @@ export const FIXTURE_APPROVED_MEMBER: Member = {
   id: "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb",
   teamId: FIXTURE_TEAM.id,
   displayName: "Đã duyệt",
-  avatar: "🐨",
+  avatar: "1.png",
+  // SOLO, 2026-09-12. The address the `/members` screen renders. `Member.email` is a COPY of
+  // `auth.users.email` in the real seam (20260912120000_solo_member_email.sql); here it is the
+  // address this person's seeded credential names, so the mock and supabase/seed.sql agree.
+  email: "nga@example.com",
   role: "member",
   status: "approved",
   lastSignInAt: "2026-09-09T08:00:00+00:00",

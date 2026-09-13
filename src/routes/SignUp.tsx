@@ -2,7 +2,8 @@ import { useState } from "react";
 // SOLO, 2026-09-10. `Navigate` for the confirmation-off hand-over — see the branch below for why a
 // rendered redirect rather than a `useNavigate` call, and why returning `null` there was wrong.
 import { Navigate } from "react-router-dom";
-import { AVATAR_CHOICES, type Failure } from "@/lib/domain/types";
+import { AVATAR_CHOICES, DEFAULT_AVATAR, type Failure } from "@/lib/domain/types";
+import Avatar from "@/components/Avatar";
 // The seam, through its one door. 02-design.md section 6.2: nothing above the seam names an
 // implementation — `@/lib/data` resolves it from the environment, and this file must never import
 // `./supabase` or `./mock`. The earlier revision imported the real one by hand, which is why the
@@ -43,7 +44,12 @@ export default function SignUp() {
   // `not null` with no default in the migration, and that column shape is the control. Disabling the
   // button saves a round trip and says why; it enforces nothing, because the same request can be
   // issued from anywhere that is not this screen.
-  const complete = Boolean(email && password && displayName && avatar);
+  //
+  // SOLO, 2026-09-13. **AN EMPTY `public/images/` DOES NOT BLOCK SIGN-UP.** With nothing to pick, the
+  // avatar is `DEFAULT_AVATAR` — the same value the admission trigger writes when sign-up carries
+  // none — and the gate below stops waiting for a choice nobody can make.
+  const chosenAvatar = AVATAR_CHOICES.length === 0 ? DEFAULT_AVATAR : avatar;
+  const complete = Boolean(email && password && displayName && chosenAvatar);
 
   async function onSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -60,7 +66,7 @@ export default function SignUp() {
     // configuration before any request leaves. Without this, that throw escaped as an uncaught page
     // error, the phase stayed `submitting`, and the person was left on a disabled button forever.
     try {
-      const result = await seam.signUp({ email, password, displayName, avatar });
+      const result = await seam.signUp({ email, password, displayName, avatar: chosenAvatar });
 
       // AC-5: the success branch is identical whether or not the address was allow-listed. The seam
       // cannot tell the difference and neither can this component — nothing here branches on it.
@@ -162,48 +168,58 @@ export default function SignUp() {
 
             UIE-01 AC-9 — THE PICKER SURVIVES THE RESTYLE AS A PICKER. The reference shows no avatar
             selection at all, and removing it would break TEA-01's AC-8, the `complete` gate above
-            and four assertions in tests/e2e/tea-01-signup.spec.ts. A card ~355px wide has no room
-            for a wrapping grid of swatches, so it becomes ONE horizontally scrollable row at the
-            same 44px rhythm as the inputs — the first swatch is reachable without scrolling, which
-            is what the `.first().click()` in that spec depends on.
+            and four assertions in tests/e2e/tea-01-signup.spec.ts.
 
-            `py-1` on the scroller is not spacing: the selected swatch's ring sits OUTSIDE its box,
-            and an `overflow-x-auto` container with no vertical padding clips it.
+            A WRAPPING GRID, NOT A SCROLLING ROW (operator, 2026-09-13). The row it replaced showed
+            the platform scrollbar and cut swatches off at both edges. `auto-fill` with a 2.5rem
+            minimum fits as many columns as the card allows (six at ~290px) and every image is in
+            view, so the first swatch is still where `.first().click()` in that spec expects it.
 
-            `min-w-0` ON THE FIELDSET IS LOAD-BEARING AND WAS FOUND BY LOOKING, NOT BY REASONING.
-            A fieldset carries `min-inline-size: min-content` in the UA stylesheet, so it refuses to
-            shrink below its widest content — twelve 44px swatches. Without this the strip does not
-            scroll, it pushes the CARD wider than the viewport and the whole page scrolls sideways,
-            which is exactly what AC-16 forbids. */}
+            `p-1` on the grid is not spacing: the selected swatch's ring sits OUTSIDE its box, and
+            without room around the outer swatches it would touch the card's edge.
+
+            `min-w-0` on the fieldset stays: a fieldset carries `min-inline-size: min-content` in the
+            UA stylesheet and would otherwise refuse to shrink with the card (AC-16). */}
         <fieldset className="block min-w-0">
           <legend className={FIELD_LABEL}>Avatar</legend>
-          <div
-            data-testid="signup-avatar-picker"
-            role="radiogroup"
-            aria-label="Avatar"
-            className="flex gap-2 overflow-x-auto py-1"
-          >
-            {AVATAR_CHOICES.map((choice) => (
-              <button
-                key={choice}
-                type="button"
-                data-testid="signup-avatar-option"
-                data-avatar={choice}
-                role="radio"
-                aria-checked={avatar === choice}
-                onClick={() => setAvatar(choice)}
-                className={
-                  // AC-9: the selected swatch is distinguished by MORE THAN COLOUR — a ring, which
-                  // is a shape, and `aria-checked`, which is what a screen reader gets.
-                  "h-11 w-11 shrink-0 rounded-full bg-field text-lg " +
-                  "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink " +
-                  (avatar === choice ? "ring-2 ring-ink ring-offset-2 ring-offset-card" : "")
-                }
-              >
-                {choice}
-              </button>
-            ))}
-          </div>
+          {AVATAR_CHOICES.length === 0 ? (
+            <div
+              data-testid="signup-avatar-default"
+              className="flex items-center gap-2 py-1 text-sm text-ink-2"
+            >
+              <Avatar value={DEFAULT_AVATAR} className="h-11 w-11" />
+              <span>The default avatar will be used.</span>
+            </div>
+          ) : (
+            <div
+              data-testid="signup-avatar-picker"
+              role="radiogroup"
+              aria-label="Avatar"
+              className="grid grid-cols-[repeat(auto-fill,minmax(2.5rem,1fr))] gap-2 p-1"
+            >
+              {AVATAR_CHOICES.map((choice) => (
+                <button
+                  key={choice}
+                  type="button"
+                  data-testid="signup-avatar-option"
+                  data-avatar={choice}
+                  aria-label={choice}
+                  role="radio"
+                  aria-checked={avatar === choice}
+                  onClick={() => setAvatar(choice)}
+                  className={
+                    // AC-9: the selected swatch is distinguished by MORE THAN COLOUR — a ring, which
+                    // is a shape, and `aria-checked`, which is what a screen reader gets.
+                    "aspect-square w-full max-w-11 justify-self-center overflow-hidden rounded-full bg-field text-lg " +
+                    "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink " +
+                    (avatar === choice ? "ring-2 ring-ink ring-offset-2 ring-offset-card" : "")
+                  }
+                >
+                  <Avatar value={choice} />
+                </button>
+              ))}
+            </div>
+          )}
         </fieldset>
 
         <label className="block">

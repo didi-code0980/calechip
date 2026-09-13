@@ -66,7 +66,9 @@ test.describe("SOLO — the profile screen", () => {
     await openProfile(page, MEMBER_EMAIL);
 
     await expect(page.getByTestId("profile-name")).toHaveText("Thành viên");
-    await expect(page.getByTestId("profile-avatar")).toHaveText("🐱");
+    await expect(page.getByTestId("profile-avatar")).toHaveAttribute("data-avatar", "1.png");
+    // SOLO, 2026-09-13. The stored file name is drawn as the image it names, not printed.
+    await expect(page.getByTestId("profile-avatar").locator("img")).toHaveAttribute("src", /\/images\/1\.png$/);
     await expect(page.getByTestId("profile-email")).toHaveText(MEMBER_EMAIL);
     // `data-role` beside the word: the fact is asserted without depending on the copy.
     await expect(page.getByTestId("profile-role")).toHaveAttribute(
@@ -95,7 +97,7 @@ test.describe("SOLO — the profile screen", () => {
     await expect(page.locator("[data-testid='profile-avatar-option'][aria-checked='true']")).toHaveCount(1);
     await expect(
       page.locator("[data-testid='profile-avatar-option'][aria-checked='true']"),
-    ).toHaveAttribute("data-avatar", "🦉");
+    ).toHaveAttribute("data-avatar", "1.png");
 
     const values: string[] = [];
     for (let i = 0; i < count; i += 1) {
@@ -113,12 +115,17 @@ test.describe("SOLO — the profile screen", () => {
 
     await page.getByTestId("profile-display-name").fill("Renamed Here");
     await page
-      .locator("[data-testid='profile-avatar-option'][data-avatar='🦄']")
+      .locator("[data-testid='profile-avatar-option'][data-avatar='2.png']")
       .click();
 
-    // NOT SAVED YET. The identity card shows what the team currently sees, so it must not follow the
-    // controls — and this is the assertion that says the picker is a form control and not a write.
+    // NOT SAVED YET, BUT PREVIEWED. The identity card follows the controls live (operator,
+    // 2026-09-13); the save below is still what writes them.
+    await expect(page.getByTestId("profile-name")).toHaveText("Renamed Here");
+    await expect(page.getByTestId("profile-avatar")).toHaveAttribute("data-avatar", "2.png");
+
+    await page.getByTestId("profile-display-name").fill("");
     await expect(page.getByTestId("profile-name")).toHaveText("Thành viên");
+    await page.getByTestId("profile-display-name").fill("Renamed Here");
 
     await page.getByTestId("profile-save").click();
 
@@ -127,18 +134,18 @@ test.describe("SOLO — the profile screen", () => {
       "ok",
     );
     await expect(page.getByTestId("profile-name")).toHaveText("Renamed Here");
-    await expect(page.getByTestId("profile-avatar")).toHaveText("🦄");
+    await expect(page.getByTestId("profile-avatar")).toHaveAttribute("data-avatar", "2.png");
 
     // **THE REASON `refreshMembership` EXISTS.** The sidebar draws this name from a membership
     // resolved above the router, and a table write emits no auth event — so without the refresh this
     // assertion fails while everything above it passes.
     await expect(page.getByTestId("home-member-name")).toHaveText("Renamed Here");
-    await expect(page.getByTestId("home-member-avatar")).toHaveText("🦄");
+    await expect(page.getByTestId("home-member-avatar")).toHaveAttribute("data-avatar", "2.png");
 
     // Restore, so nothing after this test in this document sees a renamed member.
     await page.getByTestId("profile-display-name").fill("Thành viên");
     await page
-      .locator("[data-testid='profile-avatar-option'][data-avatar='🐱']")
+      .locator("[data-testid='profile-avatar-option'][data-avatar='1.png']")
       .click();
     await page.getByTestId("profile-save").click();
     await expect(page.getByTestId("profile-name")).toHaveText("Thành viên");
@@ -254,6 +261,33 @@ test.describe("SOLO — the profile screen", () => {
 
     await page.getByTestId("profile-current-password-reveal").click();
     await expect(box).toHaveAttribute("type", "password");
+  });
+
+  test("11: the Calendar control returns to a calendar, and saves nothing on the way", async ({
+    page,
+  }) => {
+    // SOLO, 2026-09-12. The operator asked for a way back to the calendar from this screen, against
+    // an image of an outline pill reading `Calendar`. It exists because the shell's own calendar nav
+    // is commented out in `src/components/Sidebar.tsx`, so without it this screen has no way home.
+    await openProfile(page, MEMBER_EMAIL);
+
+    const calendar = page.getByTestId("profile-calendar");
+    await expect(calendar).toBeVisible();
+    await expect(calendar).toHaveAttribute("href", "/");
+
+    // **AN ANCHOR AND NOT A BUTTON, which is the assertion that matters inside a `<form>`.** A
+    // `<button>` with no `type` submits — the trap test 9 records for the reveal controls — so a
+    // control that went home by submitting the page would save an edit nobody asked to save.
+    await expect(calendar).toHaveJSProperty("tagName", "A");
+
+    // Type something and leave WITHOUT saving: the navigation is what is asserted, and that no
+    // outcome message was produced on the way out.
+    await page.getByTestId("profile-display-name").fill("Không lưu");
+    await calendar.click();
+
+    await expect(page.getByTestId("week-day").first()).toBeVisible();
+    await expect(page.getByTestId("profile")).toHaveCount(0);
+    await expect(page.getByTestId("profile-outcome")).toHaveCount(0);
   });
 
   test("10: signed out, the address goes nowhere near a profile", async ({

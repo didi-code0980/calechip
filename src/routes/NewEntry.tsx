@@ -17,6 +17,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import EntryForm from "@/components/EntryForm";
+import { PILL_OUTLINE } from "@/components/TopBar";
 import type { EntryFormValues } from "@/components/EntryForm";
 // The seam, through its one door. Nothing above the seam names an implementation, and this file must
 // never import `./supabase` or `./mock` (RULE-02).
@@ -93,6 +94,14 @@ export default function NewEntry() {
 
   return (
     <section className="mx-auto flex max-w-xl flex-col gap-8">
+      {/* SOLO, 2026-09-13. The same way back as /profile's `profile-calendar`, and a `<Link>` for the
+          same reason: an anchor can never submit the form below. */}
+      <p>
+        <Link data-testid="new-entry-calendar" to="/" className={PILL_OUTLINE}>
+          Back to Calendar
+        </Link>
+      </p>
+
       {/* SOLO, 2026-09-10. THE CARD, AND DELIBERATELY NOT A DIALOG — the one place this screen
           departs from the operator's image, and it is a scope decision rather than a taste one.
           The image draws the modal over the CALENDAR, which is `MonthView.tsx` and is where `Modal`

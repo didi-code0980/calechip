@@ -67,12 +67,21 @@ refused. Nothing above forbids them, and the data model is expected to leave roo
 
 ## Roles
 
-Two, and the difference is narrow on purpose.
+Three, and the differences are narrow on purpose.
 
 | Role | What only this role can do |
 |---|---|
 | **Member** | Create, edit and delete their **own** entries, at any time. Reads the whole team's calendar. |
-| **Admin** | Everything a member can do, plus: edit or delete **any** member's entry, approve or reject entries including their own, maintain the holiday calendar including government-announced swap days, invite and remove members, promote a member to admin, and set the overload threshold. |
+| **Manager** | Everything a member can do, plus one thing: approve or reject **another** member's entry. Not their own, and nothing else — a manager edits no entry but their own, maintains no calendar, and lets nobody into the team. |
+| **Admin** | Everything a manager can do, plus: edit or delete **any** member's entry, approve or reject entries **including their own**, maintain the holiday calendar including government-announced swap days, invite and remove members, promote a member to manager or admin, and set the overload threshold. |
+
+*Amended 2026-09-12 by [ADR-035](registry/decisions/ADR-035-a-third-role-manager-decides-entries-and-nothing-else.md).*
+This section read *"Two, and the difference is narrow on purpose"* and carried the two rows above
+without the middle one. The operator asked for a manager role holding the approve permission; the
+rank was inserted rather than the admin row being split, so that the sentence *everything the rank
+below can do, plus* still describes every step. **The manager row is one power wide, and that is the
+whole of what was decided** — every other cell of the permission table is denied for this role by
+default rather than by decision, which `.ai/standards/rbac-and-security.md` marks in place.
 
 *Amended 2026-08-31.* The admin row previously read *"approve or reject entries, maintain the holiday
 calendar, invite people, and set the overload threshold"* and was silent on four powers the product

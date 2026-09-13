@@ -1,6 +1,6 @@
 ---
-doc_version: 3
-last_updated: 2026-09-10
+doc_version: 4
+last_updated: 2026-09-12
 governed_by: [RULE-01, RULE-02, RULE-09]
 ---
 
@@ -10,43 +10,67 @@ Design section 2 gates against this file and review check R6 compares an impleme
 
 ## Roles
 
-Two, in rank order. The rank is what a permission helper compares, and it is what makes the model
+Three, in rank order. The rank is what a permission helper compares, and it is what makes the model
 testable — two unrelated role names are not comparable, two ranks are.
 
 | Rank | Role | The difference from the rank below |
 |---|---|---|
 | 1 | `member` | The baseline. Writes their own entries, reads everyone's. |
-| 2 | `admin` | A member who also decides — approval, the holiday calendar, who is in the team, and the threshold — and who may edit any entry rather than only their own. |
+| 2 | `manager` | A member who also **decides another member's entry** — approve or reject — and does nothing else a member cannot. Not their own entry, no calendar, no roster, no threshold. |
+| 3 | `admin` | A manager who also decides the rest — the holiday calendar, who is in the team, and the threshold — who may edit any entry rather than only their own, and who may approve their own. |
 
-There is no third rank, no owner, and no billing role. `.ai/00-charter.md` carries the same two and
-is the authority on what the product is; this file is the authority on what each may do.
+There is no fourth rank, no owner, and no billing role. `.ai/00-charter.md` carries the same three
+and is the authority on what the product is; this file is the authority on what each may do.
+
+**RANK 2 WAS ADDED 2026-09-12 BY [ADR-035](../registry/decisions/ADR-035-a-third-role-manager-decides-entries-and-nothing-else.md),
+AND THE `manager` COLUMN BELOW IS MOSTLY DEFAULTS.** The operator decided one cell — approve or
+reject another member's entry. Every other `❌` in that column is this file's standing convention
+applied, not an answer anybody gave, and each is marked `·` so the two can be told apart. Widening
+one is a decision, not a bug fix.
+
+**`public.is_admin` DOES NOT ANSWER TRUE FOR A MANAGER, AND THAT IS THE MECHANISM RATHER THAN AN
+OVERSIGHT.** Every row below that a manager may not perform is enforced by that helper continuing to
+mean `role = 'admin'` exactly. The widening lives in a second helper, `public.may_decide`, used by
+the decision guard alone.
 
 ## The permission table
 
 Both directions. A table listing only what each role may do cannot be tested for what it must not do,
 and the permission-model test in [testing-standards.md](testing-standards.md) requires the denials.
 
-| Action | `member` | `admin` |
-|---|---|---|
-| Read any entry in the team | ✅ | ✅ |
-| Create an entry for themselves | ✅ | ✅ |
-| Create an entry on behalf of another member | ❌ | ❌ **not decided — denied until it is** |
-| Edit or delete their own entry | ✅ | ✅ |
-| Edit or delete another member's entry | ❌ | ✅ |
-| Approve or reject another member's entry | ❌ | ✅ |
-| Approve or reject their own entry | ❌ | ✅ |
-| Read the holiday calendar | ✅ | ✅ |
-| Add, edit or delete a holiday or swap day | ❌ | ✅ |
-| Read the member list | ✅ | ✅ |
-| Remove a member | ❌ | ✅ |
-| Promote a member to admin | ❌ | ✅ |
-| Demote an admin to member | ❌ | ❌ **not decided — denied until it is** |
-| Read the list of pending sign-ups | ❌ | ✅ |
-| Approve a sign-up onto the approving admin's own team | ❌ | ✅ |
-| Reject a sign-up | ❌ | ✅ |
-| Re-decide somebody already approved onto a team | ❌ | ❌ **not decided — denied until it is** |
-| Read the overload threshold | ✅ | ✅ |
-| Set the overload threshold | ❌ | ✅ |
+A `·` in the `manager` column marks a denial that is this file's DEFAULT rather than an answer the
+operator gave — see the note under § *Roles*. A bare `❌` there is a denial that was decided, and a
+`✅` is the one cell ADR-035 settled.
+
+| Action | `member` | `manager` | `admin` |
+|---|---|---|---|
+| Read any entry in the team | ✅ | ✅ | ✅ |
+| Create an entry for themselves | ✅ | ✅ | ✅ |
+| Create an entry on behalf of another member | ❌ | ❌ · | ❌ **not decided — denied until it is** |
+| Edit or delete their own entry | ✅ | ✅ | ✅ |
+| Edit or delete another member's entry | ❌ | ❌ **decided — ADR-035 § Rationale** | ✅ |
+| Approve or reject another member's entry | ❌ | ✅ **ADR-035** | ✅ |
+| Approve or reject their own entry | ❌ | ❌ **decided — ADR-035 § Decision item 3** | ✅ |
+| Read the holiday calendar | ✅ | ✅ | ✅ |
+| Add, edit or delete a holiday or swap day | ❌ | ❌ · | ✅ |
+| Read the member list | ✅ | ✅ | ✅ |
+| Remove a member | ❌ | ❌ · | ✅ |
+| Promote a member to manager | ❌ | ❌ · | ✅ **ADR-035 § Decision item 6** |
+| Promote a member or a manager to admin | ❌ | ❌ · | ✅ |
+| Demote an admin to member | ❌ | ❌ · | ❌ **not decided — denied until it is** |
+| Demote a manager to member | ❌ | ❌ · | ✅ **ADR-035 § Decision item 6** |
+| Read the list of pending sign-ups | ❌ | ❌ · | ✅ |
+| Approve a sign-up onto the approving admin's own team | ❌ | ❌ · | ✅ |
+| Reject a sign-up | ❌ | ❌ · | ✅ |
+| Re-decide somebody already approved onto a team | ❌ | ❌ · | ❌ **not decided — denied until it is** |
+| Read the overload threshold | ✅ | ✅ | ✅ |
+| Set the overload threshold | ❌ | ❌ · | ✅ |
+
+**THE TWO ROWS TO READ TWICE ARE THE TWO MARKED `decided`.** *Edit or delete another member's entry*
+is denied to a manager because granting it is what the update POLICY would do if it were widened, and
+ADR-035 § *Rationale* refuses exactly that: approving is a four-column write, and the row it sits on
+carries the entry's dates, type and note. *Approve or reject their own entry* is denied because the
+`✅` beside it was decided for `admin` on 2026-08-31 and for nothing else.
 
 Every row above except the two marked was decided by the operator on 2026-08-31 or is stated in
 `.ai/00-charter.md`. The two marked rows are denials by default rather than by decision: a denial

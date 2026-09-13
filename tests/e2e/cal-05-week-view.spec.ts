@@ -213,7 +213,13 @@ test.describe("CAL-05 — week view", () => {
     // AC-7. FIXTURE_APPROVED_ENTRY is approved by FIXTURE_ADMIN, and the row names them — resolved
     // against the roster, so it is a display name and never a bare uuid.
     const approved = rowFor(page, "2026-09-15", APPROVED_MEMBER_ID);
-    await expect(approved.getByTestId("week-row-approver")).toContainText(ADMIN_NAME);
+    // SOLO 2026-09-13: the name is the star's accessible name and in the chip's hover card, no
+    // longer chip text.
+    await expect(approved.getByTestId("week-row-approver")).toHaveAttribute(
+      "aria-label",
+      `Approved by ${ADMIN_NAME}`,
+    );
+    await expect(approved).not.toContainText("Approved by");
     // AC-6. It carries a note, and the note is readable by the whole team — `entry_select_team` is a
     // row-level select policy (ADR-005), so this is a consequence of the policy and not of the view.
     await expect(approved.getByTestId("week-row-note")).toHaveText(APPROVED_NOTE);
@@ -224,20 +230,50 @@ test.describe("CAL-05 — week view", () => {
 
     // AC-9. Listed exactly as the settled entry is (INV-05), and additionally marked.
     await expect(mine).toHaveCount(1);
-    await expect(mine.getByTestId("week-row-tentative")).toBeVisible();
+    // SOLO 2026-09-13: the word is screen-reader only; the dashed border is the visible mark.
+    await expect(mine.getByTestId("week-row-tentative")).toHaveClass(/\bsr-only\b/);
+    await expect(mine.getByTestId("week-row-tentative")).toHaveText("Tentative");
     // AC-7's other half: a pending entry shows NO approver, rather than an empty one.
     await expect(mine.getByTestId("week-row-approver")).toHaveCount(0);
     // AC-6's other half: no note element at all, rather than one with nothing in it.
     await expect(mine.getByTestId("week-row-note")).toHaveCount(0);
   });
 
+  test("SOLO 2026-09-13: hovering or focusing a chip shows its full details, and leaving hides them", async ({
+    page,
+  }) => {
+    await openWeekAs(page, MEMBER_EMAIL);
+    const approved = rowFor(page, "2026-09-15", APPROVED_MEMBER_ID);
+    const tooltip = page.getByTestId("week-row-tooltip");
+
+    await expect(tooltip).toHaveCount(0);
+    await approved.hover();
+    await expect(tooltip).toBeVisible();
+    // FIXTURE_APPROVED_ENTRY: leave, full day, 14 to 16 September, approved by the admin, with a note.
+    await expect(tooltip.getByTestId("week-row-tooltip-kind")).toHaveText("Leave · Full day");
+    await expect(tooltip.getByTestId("week-row-tooltip-dates")).toHaveText("14/09 → 16/09");
+    await expect(tooltip.getByTestId("week-row-tooltip-status")).toHaveText("Approved");
+    await expect(tooltip.getByTestId("week-row-tooltip-approver")).toHaveText(`⭐ Approved by ${ADMIN_NAME}`);
+    await expect(tooltip.getByTestId("week-row-tooltip-note")).toHaveText(APPROVED_NOTE);
+    const name = await approved.getByTestId("week-row-name").textContent();
+    await expect(tooltip.getByTestId("week-row-tooltip-name")).toHaveText(name ?? "");
+
+    await page.mouse.move(0, 0);
+    await expect(tooltip).toHaveCount(0);
+
+    // The keyboard reaches the same card, and the chip names it as its description.
+    await approved.focus();
+    await expect(tooltip).toBeVisible();
+    await expect(approved).toHaveAttribute("aria-describedby", (await tooltip.getAttribute("id")) ?? "");
+  });
+
   test("AC-8: displaying who approved is not approving — an admin sees exactly what a member sees", async ({ page }) => {
     await openWeekAs(page, ADMIN_EMAIL);
 
-    // The approver's name is on screen, which is the whole of what this surface does with approval.
-    await expect(
-      rowFor(page, "2026-09-15", APPROVED_MEMBER_ID).getByTestId("week-row-approver"),
-    ).toContainText(ADMIN_NAME);
+    // The approver's name is on screen (in the chip's hover card since SOLO 2026-09-13), which is
+    // the whole of what this surface does with approval.
+    await rowFor(page, "2026-09-15", APPROVED_MEMBER_ID).hover();
+    await expect(page.getByTestId("week-row-tooltip-approver")).toHaveText(`⭐ Approved by ${ADMIN_NAME}`);
 
     // And there is no control over an ENTRY — for either role, since the screen branches on neither.
     // 01-plan.md section 3 names this the weakest mechanism in the plan: the denial is held by

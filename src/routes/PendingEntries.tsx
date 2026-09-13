@@ -103,10 +103,12 @@ import { usePageOverload } from "@/hooks/usePageOverload";
 import { seam } from "@/lib/data";
 import type { Entry, EntryType, Member } from "@/lib/domain/types";
 import { PORTION_LABELS, TYPE_LABELS } from "@/lib/labels";
+import { mayDecide } from "@/lib/roles";
 // SOLO, 2026-09-11 — the loading mark that replaced this screen's "Loading…" sentence. The
 // sentence itself is still announced: `Loader.tsx` keeps it as `sr-only` text, because the element
 // below carries `role="status"` and an emptied one announces nothing.
 import Loader from "@/components/Loader";
+import Avatar from "@/components/Avatar";
 import BusySpinner from "@/components/BusySpinner";
 
 // OPS-002 folded these into src/lib/labels.ts. The paragraph that stood here handed the fold to
@@ -235,7 +237,10 @@ export default function PendingEntries() {
       // is what AllowList.tsx and TeamEntries.tsx both chose for the same fork: it is not a true
       // sentence about why, and the alternative is drawing a worklist to somebody the seam has told
       // us nothing about.
-      if (!me || me.role !== "admin") {
+      // SOLO 2026-09-12, ADR-035. `mayDecide` and not `role !== "admin"`: this screen is a
+      // manager's one admin address. A caller with no member row still lands on `refused`, which is
+      // what the `!me` half carries and which the datastore enforces either way.
+      if (!me || !mayDecide(me.role)) {
         setView({ phase: "refused" });
         return;
       }
@@ -463,9 +468,9 @@ export default function PendingEntries() {
                   person" across the product instead of two. */}
               <span
                 aria-hidden="true"
-                className="flex size-9.5 shrink-0 items-center justify-center rounded-pill bg-field text-xl"
+                className="flex size-9.5 shrink-0 items-center justify-center overflow-hidden rounded-pill bg-field text-xl"
               >
-                {ownerAvatar(entry.memberId)}
+                <Avatar value={ownerAvatar(entry.memberId)} />
               </span>
 
               {/* SOLO. THE THREE LINES THE TRANSCRIPTION DRAWS — who and what, when, and whether the

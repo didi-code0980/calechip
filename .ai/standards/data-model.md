@@ -1,6 +1,6 @@
 ---
-doc_version: 6
-last_updated: 2026-09-10
+doc_version: 7
+last_updated: 2026-09-12
 governed_by: [RULE-01, RULE-04, RULE-09]
 ---
 
@@ -35,7 +35,7 @@ P2 list asks the model to leave room for more.
 | `team_id` | uuid, **null**, references `team(id)` | INV-07. **Nullable since [ADR-033](../registry/decisions/ADR-033-a-person-joins-by-signing-up-and-an-admin-decides-afterwards.md)** — the admin picks the team at approval, so there is nothing to write here at sign-up. INV-07 is unaffected: a member with no team has no entries. |
 | `display_name` | text, not null | |
 | `avatar` | text, not null | The mascot or avatar at the head of each row (brief §8). The prototype stores an emoji. |
-| `role` | `member_role`, not null, default `member` | Enum: `member`, `admin`. Rank order and the full permission table are in [rbac-and-security.md](rbac-and-security.md). |
+| `role` | `member_role`, not null, default `member` | Enum: `member`, `manager`, `admin` — `manager` added 2026-09-12 by [ADR-035](../registry/decisions/ADR-035-a-third-role-manager-decides-entries-and-nothing-else.md). Rank order and the full permission table are in [rbac-and-security.md](rbac-and-security.md). **The enum's ORDER is the rank order**, which is why `manager` was added between the two rather than after them: PostgreSQL orders an enum by declaration, so `role > 'member'` is a usable predicate and stays true of a rank inserted in the middle. |
 | `status` | `member_status`, not null, default `pending` | Enum: `pending`, `approved`, `rejected`. [ADR-033](../registry/decisions/ADR-033-a-person-joins-by-signing-up-and-an-admin-decides-afterwards.md). **`public.member_team_id` returns a team only for an `approved` member, and every row-level policy in the product resolves through that function** — so this one column admits or refuses a person everywhere at once. Three values and not a boolean: a rejected person and one still waiting are different answers, and the screen that lists them has to tell them apart. |
 | `removed_at` | timestamptz, null | Soft delete. Null means active. **Orthogonal to `status`** — `status` is the decision on somebody arriving, `removed_at` the decision on somebody leaving. |
 | `created_at` | timestamptz, not null | |

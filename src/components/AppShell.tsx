@@ -87,7 +87,7 @@ export default function AppShell({ member, signOut, refreshMembership }: AppShel
             A BOOLEAN AND NOT THE `Member` ITSELF (§ 8, rejected alternative 4): a member row passed
             down invites the bar to grow a second reason to hold one, which is how a component that
             documents *it re-reads nothing* acquires a read. */}
-        <TopBar isAdmin={member.role === "admin"} />
+        <TopBar role={member.role} />
         <div className="min-w-0 flex-1 px-6 pb-6">
           {/* SOLO 2026-09-10. The context object is built INLINE and is therefore a new identity on
               every render of the shell. That is harmless here — `useOutletContext` is a plain

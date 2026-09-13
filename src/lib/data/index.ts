@@ -23,6 +23,7 @@ import type {
   Result,
   Session,
   Team,
+  MemberRole,
 } from "../domain/types";
 import { seam as mockSeam } from "./mock";
 import { seam as supabaseSeam } from "./supabase";
@@ -349,6 +350,29 @@ export interface DataSeam {
    * Returns the updated row, and treats zero rows as a refusal, for the same reason as above.
    */
   promoteMember(memberId: string): Promise<Result<Member>>;
+
+  /**
+   * SOLO 2026-09-12, ADR-035. Sets a member's rank outright.
+   *
+   * **IT DOES NOT REPLACE `promoteMember`, AND THE OVERLAP IS DELIBERATE.** That function is
+   * member-to-admin and is what sixty-odd shipped assertions address; rewriting it to take a
+   * parameter would edit a shipped contract to add a rank. This is the general form, and the two
+   * agree because both end in the same `update { role }` against the same policy and the same
+   * trigger. `promoteMember(id)` is `setMemberRole(id, "admin")` with a narrower refusal message.
+   *
+   * **ADMIN-ONLY, AND THE DATASTORE IS WHAT SAYS SO** — `member_update_admin` plus the
+   * `grant update (role, removed_at)` column list. A manager calling this is refused by the policy,
+   * not by this seam.
+   *
+   * **IT CANNOT DEMOTE AN ADMIN.** `.ai/standards/rbac-and-security.md` carries *Demote an admin to
+   * member* as not decided, and the member trigger refuses any role change on an admin's row. Moving
+   * somebody between `member` and `manager` is what this is for, which is the one pair ADR-035
+   * § Decision item 6 settled.
+   *
+   * ZERO ROWS RETURNED IS A REFUSAL, not a success — the shape `removeMember`, `promoteMember` and
+   * `setOverloadThreshold` all document.
+   */
+  setMemberRole(memberId: string, role: MemberRole): Promise<Result<Member>>;
 
   /**
    * SOLO, 2026-09-10. Move a member to a team.

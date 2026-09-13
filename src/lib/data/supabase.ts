@@ -95,6 +95,7 @@ interface MemberRow {
   avatar: string;
   role: MemberRole;
   status: MemberStatus;
+  email: string | null;
   last_sign_in_at: string | null;
   removed_at: string | null;
   created_at: string;
@@ -104,7 +105,7 @@ interface MemberRow {
 // shape this file already uses everywhere, and it is what makes a column added to the table by a
 // later migration invisible here until somebody names it.
 const MEMBER_COLUMNS =
-  "id, team_id, display_name, avatar, role, status, last_sign_in_at, removed_at, created_at";
+  "id, team_id, display_name, avatar, role, status, email, last_sign_in_at, removed_at, created_at";
 
 function toMember(row: MemberRow): Member {
   return {
@@ -114,6 +115,7 @@ function toMember(row: MemberRow): Member {
     avatar: row.avatar,
     role: row.role,
     status: row.status,
+    email: row.email,
     lastSignInAt: row.last_sign_in_at,
     removedAt: row.removed_at,
     createdAt: row.created_at,
@@ -923,6 +925,30 @@ export const seam: DataSeam = {
     return { ok: true, value: toMember(row) };
   },
 
+  // SOLO 2026-09-12, ADR-035. The general form of the function above, and the same shape: one
+  // `update { role }`, the policy and the trigger doing every check, and ZERO ROWS MEANING REFUSED
+  // rather than done. PostgREST answers 200 with an empty array when the policy admitted no row.
+  async setMemberRole(memberId: string, role: MemberRole): Promise<Result<Member>> {
+    const { data, error } = await client()
+      .from("member")
+      .update({ role })
+      .eq("id", memberId)
+      .select(MEMBER_COLUMNS)
+      .returns<MemberRow[]>();
+
+    if (error) return { ok: false, error: toPostgrestFailure(error) };
+
+    const row = (data ?? [])[0];
+    if (!row) {
+      return {
+        ok: false,
+        error: { code: "not_permitted", message: "That person's role could not be changed." },
+      };
+    }
+
+    return { ok: true, value: toMember(row) };
+  },
+
   // -------------------------------------------------------------------------
   // SOLO 2026-09-10 — the profile screen's two writes.
   // -------------------------------------------------------------------------
@@ -961,9 +987,9 @@ export const seam: DataSeam = {
       };
     }
 
-    // **OR THE ONE THEY ALREADY HAVE.** Rows exist whose avatar was never chosen from this picker —
-    // `supabase/seed.sql:170` holds `⭐` for the operator's own admin account, and TEA-01's
-    // admission trigger writes `'🙂'` when sign-up carries no avatar. Without the second clause,
+    // **OR THE ONE THEY ALREADY HAVE.** SOLO, 2026-09-13: the offered set is the files in
+    // `public/images/` at build time, so a row can hold a name that is not in it — a file removed
+    // from the folder, or `DEFAULT_AVATAR` when the folder has no `1.png`. Without the second clause,
     // everyone holding such a value is refused on every save, including one that only changes their
     // display name. Same rule as `mock.ts`; the migration explains why the column carries no check
     // constraint of its own.
@@ -1392,6 +1418,10 @@ export const seam: DataSeam = {
   // client-supplied id would be the parameter section 4.1 refuses. This matches `getTeam()` above,
   // which issues no filter either.
   //
+  // `.not("id", "is", null)` IS NOT A FILTER, IT IS A `WHERE`. The hosted datastore runs
+  // pg_safeupdate, which refuses a bare UPDATE with `21000 UPDATE requires a WHERE clause`. The
+  // clause is true for every row, so the policy still does all the narrowing and no id is sent.
+  //
   // ONE COLUMN IN THE UPDATE, and it is the only one the grant admits. `name`, `id` and
   // `created_at` are withheld by `grant update (overload_threshold)` in
   // 20260905000000_adm01_team_threshold.sql, so a field added here would be refused with `42501
@@ -1415,6 +1445,7 @@ export const seam: DataSeam = {
     const { data, error } = await client()
       .from("team")
       .update({ overload_threshold: input.overloadThreshold })
+      .not("id", "is", null)
       .select(TEAM_COLUMNS)
       .returns<TeamRow[]>();
 
@@ -1535,6 +1566,7 @@ export const seam: DataSeam = {
     const { data, error } = await client()
       .from("team")
       .update({ wfh_need_approve: input.wfhNeedApprove, pto_need_approve: input.ptoNeedApprove })
+      .not("id", "is", null)
       .select(TEAM_COLUMNS)
       .returns<TeamRow[]>();
 
