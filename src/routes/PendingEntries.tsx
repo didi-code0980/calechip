@@ -103,7 +103,7 @@ import { usePageOverload } from "@/hooks/usePageOverload";
 import { seam } from "@/lib/data";
 import type { Entry, EntryType, Member } from "@/lib/domain/types";
 import { PORTION_LABELS, TYPE_LABELS } from "@/lib/labels";
-import { mayDecide } from "@/lib/roles";
+import { mayDecide, mayDecideEntriesOf } from "@/lib/roles";
 // SOLO, 2026-09-11 — the loading mark that replaced this screen's "Loading…" sentence. The
 // sentence itself is still announced: `Loader.tsx` keeps it as `sr-only` text, because the element
 // below carries `role="status"` and an emptied one announces nothing.
@@ -189,6 +189,8 @@ type View =
       pages: number;
       pageSize: number;
       roster: Member[];
+      /** SOLO 2026-09-13, ADR-035 § Decision item 3. The caller, so a manager's OWN row can say who decides it. */
+      me: Member;
     };
 
 export default function PendingEntries() {
@@ -265,6 +267,7 @@ export default function PendingEntries() {
         pages: 1,
         pageSize: pageResult.pageSize,
         roster,
+        me,
       });
     } catch {
       // AC-5 and AC-12. Both reads throw on a transport failure, and `listPendingEntries` throws on a
@@ -359,9 +362,9 @@ export default function PendingEntries() {
         data-testid="pending-entries-refused"
         className="mx-auto max-w-3xl rounded-2xl bg-white p-8 text-center shadow-sm"
       >
-        <h1 className="text-xl font-semibold">This page is for admins</h1>
+        <h1 className="text-xl font-semibold">This page is for admins and managers</h1>
         <p className="mt-2 text-sm opacity-70">
-          Only an admin decides on an entry. Everything listed here is readable by the whole team on
+          Only an admin or a manager decides on an entry. Everything listed here is readable by the whole team on
           the team&rsquo;s entries page.
         </p>
       </section>
@@ -611,8 +614,17 @@ export default function PendingEntries() {
 
                   `reload` and not a splice: a decided entry leaves this view because the next read
                   does not return it, and the count above falls for the same reason. */}
+              {/* SOLO 2026-09-13, ADR-035 § Decision item 3. A manager may not decide their OWN entry,
+                  and the trigger refuses it — so the controls are not drawn on that row rather than
+                  drawn to fail. An affordance only; the refusal is still the datastore's. */}
               <div className="ml-auto shrink-0">
-                <EntryDecision entry={entry} onDecided={reload} />
+                {mayDecideEntriesOf(view.me, entry.memberId) ? (
+                  <EntryDecision entry={entry} onDecided={reload} />
+                ) : (
+                  <p data-testid="pending-entries-own-entry" className="text-xs text-ink-3">
+                    Your own entry — an admin decides it.
+                  </p>
+                )}
               </div>
             </li>
           ))}

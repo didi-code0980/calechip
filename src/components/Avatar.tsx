@@ -16,6 +16,10 @@ import { avatarSources, avatarUrl } from "@/lib/avatars";
 //      renders when the folder is empty or both images fail to load.
 // A load error at runtime (a file removed after the build, a failed request) steps to the next one.
 //
+// UNCROPPED. The images are transparent stickers of any aspect ratio, so the picture is `object-contain`
+// and NOT clipped to a circle — `object-cover` inside `rounded-full` cut their edges off. The round
+// shape comes from the wrapper that draws the `field` disc, and that wrapper carries the padding.
+//
 // DECORATIVE. The name is always rendered beside it or carried by the wrapper's `title`, so the
 // image has `alt=""` and would only repeat that name to a screen reader.
 
@@ -52,7 +56,7 @@ export default function Avatar({ value, className = "h-full w-full" }: AvatarPro
       draggable={false}
       data-avatar-src={source}
       onError={() => setFailed({ value, count: failures + 1 })}
-      className={`block shrink-0 rounded-full object-cover ${className}`}
+      className={`block shrink-0 object-contain ${className}`}
     />
   );
 }

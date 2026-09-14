@@ -41,7 +41,7 @@ import { useCallback, useEffect, useState, type FormEvent } from "react";
 import { Link } from "react-router-dom";
 import { format } from "date-fns";
 import { seam } from "@/lib/data";
-import { ROLE_LABELS } from "@/lib/roles";
+import { ROLE_BADGE_COLORS, ROLE_LABELS } from "@/lib/roles";
 import { useShellContext } from "@/components/AppShell";
 import { PILL_OUTLINE } from "@/components/TopBar";
 import Avatar from "@/components/Avatar";
@@ -440,7 +440,7 @@ export default function Profile() {
           data-testid="profile-avatar"
           data-avatar={avatar}
           aria-hidden
-          className="flex h-20 w-20 items-center justify-center overflow-hidden rounded-card bg-field text-4xl"
+          className="flex h-20 w-20 items-center justify-center overflow-hidden rounded-card bg-field p-[5px] text-4xl"
         >
           <Avatar value={avatar} />
         </span>
@@ -451,7 +451,7 @@ export default function Profile() {
           <span
             data-testid="profile-role"
             data-role={me.role}
-            className="rounded-pill bg-field px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-ink-2"
+            className={`rounded-pill px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider ${ROLE_BADGE_COLORS[me.role]}`}
           >
             {roleLabel(me.role)}
           </span>
@@ -519,12 +519,12 @@ export default function Profile() {
                 className={
                   // The chosen one is distinguished by FILL and by `aria-checked`, never by colour
                   // alone — the transcription draws it as a dark circle among light ones.
-                  "flex h-11 w-11 shrink-0 items-center justify-center rounded-pill text-lg transition-colors " +
+                  "flex h-11 w-11 shrink-0 items-center justify-center rounded-pill p-[5px] text-lg transition-colors " +
                   "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink " +
                   (chosen ? "bg-primary" : "bg-field hover:bg-track")
                 }
               >
-                <Avatar value={choice} className="h-9 w-9" />
+                <Avatar value={choice} />
               </button>
             );
           })}

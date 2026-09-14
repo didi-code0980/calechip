@@ -86,13 +86,14 @@ test.describe("CAL-01 create an entry over a range of dates", () => {
   test("AC-2: a contiguous range is ONE entry, not one per day", async ({ page }) => {
     await signInAndOpenForm(page, MEMBER_EMAIL);
 
-    // Start plus five days: six dates inclusive. One row is the criterion; six would be the
-    // row-per-date shape 01-plan.md section 8 rejects.
-    await submitEntry(page, { start: "2026-11-02", end: "2026-11-07" });
+    // Monday to Friday: five dates inclusive. One row is the criterion; five would be the
+    // row-per-date shape 01-plan.md section 8 rejects. (Was Monday to Saturday until SOLO 2026-09-14
+    // disabled weekends in the picker.)
+    await submitEntry(page, { start: "2026-11-02", end: "2026-11-06" });
 
     await expect(rows(page)).toHaveCount(1);
     await expect(rows(page).first().getByTestId("own-entry-row-dates")).toHaveText(
-      "2026-11-02 → 2026-11-07",
+      "2026-11-02 → 2026-11-06",
     );
   });
 
@@ -180,7 +181,7 @@ test.describe("CAL-01 create an entry over a range of dates", () => {
     // `full` conflicts with everything (INV-01), so all three portions clash on the same date, and a
     // different TYPE does not make them different days.
     for (const portion of ["full", "am", "pm"] as const) {
-      await submitEntry(page, { type: "wfh", portion, start: "2026-10-03", end: "2026-10-07" });
+      await submitEntry(page, { type: "wfh", portion, start: "2026-10-05", end: "2026-10-07" });
 
       const error = page.getByTestId("new-entry-error");
       await expect(error).toBeVisible();
@@ -290,5 +291,31 @@ test.describe("CAL-01 create an entry over a range of dates", () => {
       await page.getByTestId("home-sign-out").click();
       await expect(page.getByTestId("sign-in-submit")).toBeVisible();
     }
+  });
+
+  test("SOLO 2026-09-14: the picker marks today and disables Saturday and Sunday", async ({ page }) => {
+    // The page clock is pinned so "today" is a known Wednesday inside the month the picker opens on.
+    await page.clock.setFixedTime(new Date("2026-10-07T09:00:00"));
+    await signInAndOpenForm(page, MEMBER_EMAIL);
+    await expect(page.getByTestId("new-entry-month")).toHaveAttribute("data-month", "2026-10");
+
+    const today = page.locator('[data-testid="new-entry-day"][data-today="true"]');
+    await expect(today).toHaveCount(1);
+    await expect(today).toHaveAttribute("data-date", "2026-10-07");
+    await expect(today).toHaveAttribute("aria-current", "date");
+
+    // Saturday and Sunday are disabled, and clicking one chooses nothing.
+    const saturday = page.locator('[data-testid="new-entry-day"][data-date="2026-10-10"]');
+    const sunday = page.locator('[data-testid="new-entry-day"][data-date="2026-10-11"]');
+    await expect(saturday).toBeDisabled();
+    await expect(sunday).toBeDisabled();
+    await saturday.click({ force: true });
+    await expect(page.getByTestId("new-entry-picker")).toHaveAttribute("data-selected-count", "0");
+
+    // A weekday is not.
+    const friday = page.locator('[data-testid="new-entry-day"][data-date="2026-10-09"]');
+    await expect(friday).toBeEnabled();
+    await friday.click();
+    await expect(page.getByTestId("new-entry-picker")).toHaveAttribute("data-selected-count", "1");
   });
 });

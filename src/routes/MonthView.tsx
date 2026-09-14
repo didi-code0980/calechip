@@ -786,7 +786,7 @@ export default function MonthView() {
                           "inline-flex items-center gap-1 rounded-full px-1.5 py-0.5 text-[10px] font-semibold transition-colors",
                           "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink",
                           "disabled:opacity-50",
-                          iAmBusy ? "bg-busy text-ink" : "border border-current opacity-70",
+                          iAmBusy ? "bg-busy text-busy-ink" : "border border-current opacity-70",
                         ].join(" ")}
                       >
                         {/* The word, not a bare numeral: this cell already carries `month-cell-count`

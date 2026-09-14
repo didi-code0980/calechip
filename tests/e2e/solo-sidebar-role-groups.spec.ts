@@ -40,6 +40,8 @@ const DIACRITIC = /[À-ɏḀ-ỿ]/;
 
 /** The two groups, in the order the pane must render them. Admins first: an admin is who you look
  *  for when you need something decided. */
+// SOLO 2026-09-13: `manager` sits between the two. FIXTURE_TEAM has no manager and an empty group is
+// not rendered, so on the fixtures the page still shows the admin and member groups only.
 const GROUPS = [
   { role: "admin", label: "Admins" },
   { role: "member", label: "Members" },
@@ -255,5 +257,14 @@ test.describe("SOLO — the roster groups by role and collapses", () => {
       );
     }
     expect(shapes[0]).toBe(shapes[1]);
+  });
+
+  test("SOLO 2026-09-13: the roster header names the team instead of the word Team", async ({ page }) => {
+    await signInAt(page, "/week", ADMIN_EMAIL);
+
+    const count = page.getByTestId("shell-roster-count");
+    const members = await count.getAttribute("data-count");
+    // FIXTURE_TEAM is named `CaleChip` (src/lib/fixtures.ts).
+    await expect(count).toHaveText(`CaleChip (${members})`);
   });
 });

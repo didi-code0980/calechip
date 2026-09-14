@@ -159,9 +159,12 @@ test.describe("CAL-05 — week view", () => {
     }
     await expect(rowsOn(page, "2026-09-17")).toHaveCount(0);
 
-    // AC-5. An entry running from the SATURDAY BEFORE this week to its Tuesday shows on Monday and
-    // Tuesday and on no other day of it — the clamp, seen through the interface.
-    await declare(page, { start: "2026-09-12", end: "2026-09-15" });
+    // AC-5. An entry on this week's Monday and Tuesday shows on those days and on no other day of it.
+    // **SOLO 2026-09-14: NARROWED.** This declared the SATURDAY BEFORE this week to its Tuesday — the
+    // clamp, seen through the interface. The picker now disables weekends and does not join runs
+    // across one, so no single entry can start before a Monday through the form any more; the clamp
+    // itself is still asserted against `absentEntriesFor` in tests/absence.test.ts.
+    await declare(page, { start: "2026-09-14", end: "2026-09-15" });
 
     await expect(rowFor(page, "2026-09-14", MEMBER_ID)).toHaveCount(1);
     await expect(rowFor(page, "2026-09-15", MEMBER_ID)).toHaveCount(1);

@@ -1034,7 +1034,7 @@ export default function WeekView({ landing = false }: WeekViewProps) {
                       "inline-flex items-center gap-1 rounded-pill px-2 py-0.5 text-xs font-semibold transition-colors",
                       "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink",
                       "disabled:opacity-50",
-                      iAmBusy ? "bg-busy text-ink" : "border border-line text-ink-3 hover:text-ink",
+                      iAmBusy ? "bg-busy text-busy-ink" : "border border-line text-ink-3 hover:text-ink",
                     ].join(" ")}
                   >
                     {/* The word is visible and the number is beside it, because a bare figure on a

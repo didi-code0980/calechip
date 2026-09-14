@@ -61,3 +61,14 @@ export const ROLE_LABELS: Record<MemberRole, string> = {
   manager: "Manager",
   admin: "Admin",
 };
+
+/**
+ * SOLO 2026-09-13. The COLOUR of a role badge, and only the colour — each screen keeps its own size
+ * and padding. Operator: admin in the product's primary purple, manager in yellow, member unchanged.
+ * Displaying a role grants nothing, the same as `ROLE_LABELS` above.
+ */
+export const ROLE_BADGE_COLORS: Record<MemberRole, string> = {
+  member: "bg-field text-ink-2",
+  manager: "bg-amber-100 text-amber-800",
+  admin: "bg-primary text-white",
+};

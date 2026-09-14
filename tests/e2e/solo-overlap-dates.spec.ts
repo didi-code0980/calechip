@@ -43,18 +43,20 @@ test.describe("SOLO — the overlap refusal names its dates", () => {
     await openForm(page);
 
     // Two existing entries with a gap between them, in November 2026 where no fixture entry sits.
-    await submit(page, "2026-11-10", "2026-11-12");
+    // SOLO 2026-09-14: moved inside one Monday–Friday week. It spanned the 14th–15th weekend, which
+    // the picker now disables, and a choice split around a weekend is two runs submitted one by one.
+    await submit(page, "2026-11-09", "2026-11-11");
     await expect(page.getByTestId("new-entry-error")).toHaveCount(0);
-    await submit(page, "2026-11-16", "2026-11-16");
+    await submit(page, "2026-11-13", "2026-11-13");
     await expect(page.getByTestId("new-entry-error")).toHaveCount(0);
 
-    // A range spanning both. The two collisions are named separately and the free days between them
-    // (13–15) are not named at all.
-    await submit(page, "2026-11-11", "2026-11-17");
+    // A range spanning both. The two collisions are named separately and the free day between them
+    // (the 12th) is not named at all.
+    await submit(page, "2026-11-10", "2026-11-13");
     const error = page.getByTestId("new-entry-error");
-    await expect(error).toContainText("2026-11-11 → 2026-11-12, 2026-11-16");
-    await expect(error).not.toContainText("2026-11-13");
-    await expect(error).not.toContainText("2026-11-17");
+    await expect(error).toContainText("2026-11-10 → 2026-11-11, 2026-11-13");
+    await expect(error).not.toContainText("2026-11-12");
+    await expect(error).not.toContainText("2026-11-09");
   });
 
   test("2: a morning beside an afternoon is not named — it is not a collision", async ({ page }) => {

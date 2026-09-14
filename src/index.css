@@ -198,7 +198,13 @@
      LIKE THE FOUR ABOVE IT HAS NO DOCUMENT BEHIND IT. § Colour in .ai/standards/ui-design-system.md
      is human plane under RULE-01 — a developer may write a token here and may not record it there.
      The line for that file is printed in the reply for the operator to paste. */
-  --color-busy: #ffe9a8; /* butter */
+  /* SOLO, 2026-09-13. RECOLOURED BUTTER -> CORAL RED at the operator's instruction: busy should read
+     red on the calendar. Coral and not an alarm red, and clearly deeper than `--color-overload`'s soft
+     pink so the two stay distinguishable on one grid. `-ink` is the text on it, the suffix scheme
+     `--color-pto-ink` uses. The butter this token was is no longer spent by busy; the manager badge
+     that briefly borrowed it now carries its own amber (`src/lib/roles.ts`). */
+  --color-busy: #ffb3a7; /* coral red */
+  --color-busy-ink: #9f1d1d;
 }
 
 /* -------------------------------------------------------------------------------------------

@@ -66,9 +66,10 @@
 // keep their names, their count and their text; the rows are the same nodes under two parents
 // instead of one. `shell-roster-count` stays OUTSIDE the groups — it is INV-04's denominator
 // everywhere else in the product and must not leave the screen with a closed drawer.
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useRoster } from "@/hooks/useRoster";
+import { seam } from "@/lib/data";
 import type { Member, MemberRole, Result } from "@/lib/domain/types";
 import { ROLE_LABELS } from "@/lib/roles";
 // SOLO, 2026-09-11 — the loading mark that replaced this screen's "Loading…" sentence. The
@@ -76,6 +77,7 @@ import { ROLE_LABELS } from "@/lib/roles";
 // below carries `role="status"` and an emptied one announces nothing.
 import Loader from "@/components/Loader";
 import Avatar from "@/components/Avatar";
+import BrandLogo from "@/components/BrandLogo";
 
 export interface SidebarProps {
   member: Member;
@@ -90,17 +92,8 @@ export interface SidebarProps {
 // declaration now, in `src/lib/roles.ts`, for the reason OPS-002 AC-8 folded the entry label sets.
 const roleLabel = (role: MemberRole): string => ROLE_LABELS[role];
 
-// § Language, and this is the one string in this file that is NOT interface copy. `Ai Nghỉ?` is the
-// product's NAME, and the same construction `src/components/AuthCard.tsx:41` uses is used here for
-// the same reason: the name carries `ỉ` (U+1EC9), which the diacritic rule at eslint.config.js:83-92
-// matches on a Literal's DECODED value, so an escape sequence would not help. Composing the one
-// accented character from its code point leaves no node in this file inside the rule's range.
-//
-// UIE-01 settled which name the product shows by building this one (01-plan.md Open question 1). The
-// sidebar now repeats it on every screen rather than on one, so the CaleChip/`Ai Nghỉ?` split in
-// index.html:6 goes from one screen to all of them. It is one string in one file whichever way the
-// operator decides.
-const PRODUCT_NAME = `Ai Ngh${String.fromCodePoint(0x1ec9)}?`;
+// SOLO 2026-09-13. The product name `Ai Nghỉ?` that stood here is gone: the brand is `CaleChip` and
+// a logo linking to `/`, drawn once in `BrandLogo` for this sidebar and the auth card alike.
 
 // § Language. The transcription's tagline is `Lịch vắng mặt team` and the interface is English, so
 // this is an English line rather than a translation of that one — 01-plan.md § 1 Out of scope item
@@ -133,7 +126,7 @@ function AvatarChip({ avatar, testId }: { avatar: string; testId?: string }) {
       data-testid={testId}
       data-avatar={avatar}
       aria-hidden
-      className="flex h-[26px] w-[26px] shrink-0 items-center justify-center overflow-hidden rounded-pill bg-field text-[13px]"
+      className="flex h-[26px] w-[26px] shrink-0 items-center justify-center overflow-hidden rounded-pill bg-field p-[3px] text-[13px]"
     >
       <Avatar value={avatar} />
     </span>
@@ -148,8 +141,13 @@ function AvatarChip({ avatar, testId }: { avatar: string; testId?: string }) {
  *  assert (`tests/e2e/tea-05-sign-in.spec.ts` at :65, :146, :155 and UIE-10 AC-7), and a header built
  *  out of them would make a group label's copy a hostage to a row's. They are two pieces of copy
  *  about the same fact and they are allowed to differ. */
+// SOLO 2026-09-13. **MANAGERS ADDED, between the two.** With only `admin` and `member` here, every
+// manager (ADR-035) was filtered out of the roster while still counted in `shell-roster-count`, so
+// the header said 7 and the drawers listed 6. Every role now has a group, which is what keeps the
+// groups a partition of the team.
 const ROLE_GROUPS: readonly { role: MemberRole; label: string }[] = [
   { role: "admin", label: "Admins" },
+  { role: "manager", label: "Managers" },
   { role: "member", label: "Members" },
 ];
 
@@ -239,6 +237,25 @@ export default function Sidebar({ member, signOut }: SidebarProps) {
   const navigate = useNavigate();
   const [signingOut, setSigningOut] = useState(false);
 
+  // SOLO 2026-09-13. The team's NAME for the roster header, in place of the word `Team`. One read
+  // through the seam (RULE-02), re-run when the caller's team changes. It fails to `null`, and the
+  // header then says `Team` as it did before — the count beside it never waits on this.
+  const [teamName, setTeamName] = useState<string | null>(null);
+  useEffect(() => {
+    let live = true;
+    seam
+      .getTeam()
+      .then((team) => {
+        if (live) setTeamName(team?.name ?? null);
+      })
+      .catch(() => {
+        if (live) setTeamName(null);
+      });
+    return () => {
+      live = false;
+    };
+  }, [member.teamId]);
+
   // Moved from `Home.tsx:34-44`, and it gained ONE line. 03-impl-log.md § Deviations carries this
   // in full; the short version is that `Home.tsx` got its redirect for free and this file cannot.
   //
@@ -291,10 +308,8 @@ export default function Sidebar({ member, signOut }: SidebarProps) {
       className="flex w-[216px] shrink-0 flex-col gap-5 overflow-y-auto bg-card px-4 py-5"
     >
       <div data-testid="shell-brand">
-        <p className="font-display text-xl font-bold leading-tight text-ink">
-          {PRODUCT_NAME}
-        </p>
-        <p className="mt-0.5 text-[11px] text-ink-3">{TAGLINE}</p>
+        <BrandLogo testId="shell-brand-logo" />
+        <p className="mt-1.5 text-[11px] text-ink-3">{TAGLINE}</p>
       </div>
 
       {/* AC-9 and AC-10. Three phases and three different sentences. `shell-roster-count` is
@@ -323,7 +338,7 @@ export default function Sidebar({ member, signOut }: SidebarProps) {
               data-count={roster.members.length}
               className="text-[10px] font-bold uppercase tracking-wider text-ink-3"
             >
-              Team ({roster.members.length})
+              {teamName ?? "Team"} ({roster.members.length})
             </p>
             {/* SOLO. One `<details>` per group, both OPEN on first paint — the transcription shows
                 every chevron up, and a roster that greets a new session closed hides the one thing

@@ -284,7 +284,7 @@ test.describe("CAL-02 edit or delete their own entry", () => {
     await second.getByTestId("own-entry-row-edit").click();
     await expect(page.getByTestId("edit-entry-form")).toBeVisible();
 
-    await submitEdit(page, { start: "2026-10-03", end: "2026-10-07" });
+    await submitEdit(page, { start: "2026-10-05", end: "2026-10-07" });
 
     const error = page.getByTestId("edit-entry-error");
     await expect(error).toBeVisible();

@@ -11,7 +11,7 @@
 // a member's own view (AC-14), on the caller's own row, and on a row that is already an admin
 // (AC-13). Hiding them saves a round trip and says why; it refuses nobody holding a token, which is
 // the whole of ADR-005.
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useState, type ReactElement } from "react";
 // The seam, through its one door. 02-design.md section 6.2: nothing above the seam names an
 // implementation, and this file must never import `./supabase` or `./mock`.
 import Modal from "@/components/Modal";
@@ -21,7 +21,7 @@ import { seam } from "@/lib/data";
 // shape of miss as `TYPE_CODES` in WeekView.tsx and `Link` here in Threshold.tsx — Vite compiles a
 // module with an unresolved name and says nothing, so only `pnpm typecheck` sees it.
 import type { Failure, Member, MemberRole, Team } from "@/lib/domain/types";
-import { ROLE_LABELS } from "@/lib/roles";
+import { ROLE_BADGE_COLORS, ROLE_LABELS } from "@/lib/roles";
 // SOLO, 2026-09-11 — the loading mark that replaced this screen's sentence. The sentence itself is
 // still announced: `Loader.tsx` keeps it as `sr-only` text, because the element below carries
 // `role="status"` and an emptied one announces nothing.
@@ -41,6 +41,41 @@ const ROW_ACTION =
 
 // The four states of design section 1.3. `loading` MUST resolve, which is why every path out of the
 // effect below sets one of the other three.
+// SOLO, 2026-09-13. The sortable columns and the two sentinel filter values. Sentinels rather than
+// `null` because a `<select>` value is always a string; neither can collide with a team uuid.
+type SortKey = "name" | "role" | "team" | "email" | "lastSignIn";
+const ALL_TEAMS = "__all__";
+const NO_TEAM = "__none__";
+const ROLE_RANK: Record<MemberRole, number> = { member: 0, manager: 1, admin: 2 };
+
+/** One comparison per column, ascending. Empty values (no email, never signed in, no team) sort last
+ *  ascending, so the rows with something to compare come first. */
+function compareMembers(
+  key: SortKey,
+  a: Member,
+  b: Member,
+  teamNameOf: (teamId: string | null) => string,
+): number {
+  const text = (x: string | null, y: string | null): number => {
+    if (!x && !y) return 0;
+    if (!x) return 1;
+    if (!y) return -1;
+    return x.localeCompare(y, "vi", { sensitivity: "base" });
+  };
+  switch (key) {
+    case "name":
+      return text(a.displayName, b.displayName);
+    case "role":
+      return ROLE_RANK[a.role] - ROLE_RANK[b.role];
+    case "team":
+      return text(a.teamId ? teamNameOf(a.teamId) : null, b.teamId ? teamNameOf(b.teamId) : null);
+    case "email":
+      return text(a.email, b.email);
+    case "lastSignIn":
+      return text(a.lastSignInAt, b.lastSignInAt);
+  }
+}
+
 type View =
   | { phase: "loading" }
   | { phase: "notOnATeam" } // AC-7
@@ -63,6 +98,13 @@ export default function MemberList() {
   // other implicitly because only one is ever set by a click.
   const [viewing, setViewing] = useState<Member | null>(null);
   const [editing, setEditing] = useState<Member | null>(null);
+
+  // SOLO, 2026-09-13. Sort and team filter, on the operator's instruction: *"ở table này, cho phép
+  // sort, và filter theo Team"*. Display only — both run over rows the read already returned, and
+  // neither changes what a caller may see. `null` sort keeps the read's own order until a heading is
+  // clicked; a second click on the same heading reverses it.
+  const [sort, setSort] = useState<{ key: SortKey; dir: "asc" | "desc" } | null>(null);
+  const [teamFilter, setTeamFilter] = useState<string>(ALL_TEAMS);
 
   const load = useCallback(async (): Promise<void> => {
     try {
@@ -315,6 +357,44 @@ export default function MemberList() {
   // affordance: nothing about it enforces a permission. Do not push it below the seam.
   const current = roster.filter((m) => m.removedAt === null);
 
+  // SOLO, 2026-09-13. The filter, then the sort. `NO_TEAM` is offered only when some row has no team,
+  // so the menu never lists a choice that matches nothing.
+  const hasNoTeam = current.some((m) => m.teamId === null);
+  const filtered = current.filter((m) =>
+    teamFilter === ALL_TEAMS ? true : teamFilter === NO_TEAM ? m.teamId === null : m.teamId === teamFilter,
+  );
+  const shown = sort
+    ? [...filtered].sort((a, b) => {
+        const order = compareMembers(sort.key, a, b, teamNameOf);
+        return sort.dir === "asc" ? order : -order;
+      })
+    : filtered;
+
+  const toggleSort = (key: SortKey): void =>
+    setSort((prev) => (prev?.key === key ? { key, dir: prev.dir === "asc" ? "desc" : "asc" } : { key, dir: "asc" }));
+
+  const sortHeading = (key: SortKey, label: string, extra = ""): ReactElement => {
+    const active = sort?.key === key;
+    return (
+      <th
+        className={`px-4 py-3 font-bold ${extra}`}
+        aria-sort={active ? (sort.dir === "asc" ? "ascending" : "descending") : "none"}
+      >
+        <button
+          type="button"
+          data-testid={`member-list-sort-${key}`}
+          onClick={() => toggleSort(key)}
+          className={`inline-flex items-center gap-1 uppercase tracking-wider hover:text-ink ${active ? "text-ink" : ""}`}
+        >
+          {label}
+          <span aria-hidden="true" className={active ? "" : "opacity-40"}>
+            {active ? (sort.dir === "asc" ? "↑" : "↓") : "↕"}
+          </span>
+        </button>
+      </th>
+    );
+  };
+
   return (
     <section className="flex w-full flex-col gap-6">
       <header>
@@ -342,6 +422,26 @@ export default function MemberList() {
         </p>
       ) : null}
 
+      {current.length > 0 && teams.length > 0 ? (
+        <label className="flex items-center gap-2 self-start text-sm text-ink-2">
+          <span className="font-semibold">Team</span>
+          <select
+            data-testid="member-list-team-filter"
+            value={teamFilter}
+            onChange={(e) => setTeamFilter(e.target.value)}
+            className="rounded-pill bg-card px-3 py-1.5 text-sm text-ink shadow-soft focus-visible:outline-2 focus-visible:outline-ink"
+          >
+            <option value={ALL_TEAMS}>All teams</option>
+            {teams.map((t) => (
+              <option key={t.id} value={t.id}>
+                {t.name}
+              </option>
+            ))}
+            {hasNoTeam ? <option value={NO_TEAM}>No team</option> : null}
+          </select>
+        </label>
+      ) : null}
+
       {current.length === 0 ? (
         <p
           data-testid="member-list-empty"
@@ -365,20 +465,31 @@ export default function MemberList() {
           <thead>
             <tr className="text-left text-[10px] uppercase tracking-wider text-ink-3">
               <th className="px-4 py-3 font-bold">Avatar</th>
-              <th className="px-4 py-3 font-bold">Name</th>
-              <th className="px-4 py-3 font-bold">Role</th>
-              <th className="px-4 py-3 font-bold">Team</th>
+              {sortHeading("name", "Name")}
+              {sortHeading("role", "Role")}
+              {sortHeading("team", "Team")}
               {/* SOLO, 2026-09-12. Between TEAM and LAST SIGN-IN, which is the operator's own order:
                   *avatar, tên, role, team, email, last sign-in, action*. */}
-              <th className="px-4 py-3 font-bold">Email</th>
+              {sortHeading("email", "Email")}
               {/* `whitespace-nowrap`: the heading wrapped to `LAST SIGN-` / `IN` once the email
                   column took its share of the width, which reads as two headings. */}
-              <th className="whitespace-nowrap px-4 py-3 font-bold">Last sign-in</th>
+              {sortHeading("lastSignIn", "Last sign-in", "whitespace-nowrap")}
               <th className="px-4 py-3" />
             </tr>
           </thead>
           <tbody>
-            {current.map((member) => (
+            {shown.length === 0 ? (
+              <tr>
+                <td
+                  colSpan={7}
+                  data-testid="member-list-filter-empty"
+                  className="px-4 py-8 text-center text-sm opacity-70"
+                >
+                  Nobody on the team matches this filter.
+                </td>
+              </tr>
+            ) : null}
+            {shown.map((member) => (
               // `data-member-id` is how AC-1's "the caller included" is asserted — the caller's own
               // id appears as a row — and how AC-2's "no row belonging to team U" is asserted, by
               // the absence of that team's member id. No "this is you" marker is drawn: the story
@@ -405,11 +516,7 @@ export default function MemberList() {
                       sees that a member does not. */}
                   <span
                     data-testid="member-list-row-role"
-                    className={
-                      member.role === "admin"
-                        ? "rounded-pill bg-holiday px-3 py-1 text-xs font-semibold text-ink"
-                        : "rounded-pill bg-field px-3 py-1 text-xs font-semibold text-ink-2"
-                    }
+                    className={`rounded-pill px-3 py-1 text-xs font-semibold ${ROLE_BADGE_COLORS[member.role]}`}
                   >
                     {roleLabel(member.role)}
                   </span>

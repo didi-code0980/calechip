@@ -564,7 +564,7 @@ const DELETE_REFUSED = "This entry could not be deleted.";
 // (AC-18, AC-20). A refusal here is about who records the decision, never about whether the absence
 // is allowed.
 const DECISION_REFUSED =
-  "Only an admin can approve or reject an entry. Nothing about this entry has changed.";
+  "Only an admin or a manager can approve or reject an entry, and a manager cannot decide their own. Nothing about this entry has changed.";
 const APPROVE_REFUSED = "This entry could not be approved.";
 const REJECT_REFUSED = "This entry could not be rejected.";
 const REASON_REQUIRED =

@@ -525,7 +525,7 @@ const ownsEntry = (me: Member, entry: Entry): boolean => entry.memberId === me.i
 // The four sentences, repeated from src/lib/data/supabase.ts so the two implementations of the seam
 // carry the same words — the rule CAL-01's three refusal constants and ADM-03's four already state.
 const DECISION_REFUSED =
-  "Only an admin can approve or reject an entry. Nothing about this entry has changed.";
+  "Only an admin or a manager can approve or reject an entry, and a manager cannot decide their own. Nothing about this entry has changed.";
 const APPROVE_REFUSED = "This entry could not be approved.";
 const REJECT_REFUSED = "This entry could not be rejected.";
 const REASON_REQUIRED =

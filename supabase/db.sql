@@ -539,9 +539,9 @@ begin
      and old.member_id <> v_uid
      and not public.is_admin(v_uid)
      and public.may_decide(v_uid)
-     and (to_jsonb(new) - '{status,rejection_reason,approved_by,approved_at,updated_at}'::text[])
+     and (to_jsonb(new) - '{status,rejection_reason,approved_by,approved_at,updated_at,date_range,portion_slots}'::text[])
          is distinct from
-         (to_jsonb(old) - '{status,rejection_reason,approved_by,approved_at,updated_at}'::text[]) then
+         (to_jsonb(old) - '{status,rejection_reason,approved_by,approved_at,updated_at,date_range,portion_slots}'::text[]) then
     raise exception 'a manager may only decide an entry, not edit it'
       using errcode = '42501';
   end if;

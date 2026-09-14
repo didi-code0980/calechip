@@ -58,7 +58,8 @@ const ADMIN_EMAIL = "quan@example.com";
 const MEMBER_EMAIL = "thanh@example.com";
 
 /** Permanently upcoming, and far outside every date the other suites fix. */
-const UPCOMING = { start: "2030-05-04", end: "2030-05-06" };
+// Monday to Wednesday. Was Saturday to Monday until SOLO 2026-09-14 disabled weekends in the picker.
+const UPCOMING = { start: "2030-05-06", end: "2030-05-08" };
 const DATES = `${UPCOMING.start} → ${UPCOMING.end}`;
 
 const FIRST_REASON = "Two people are already out that week.";

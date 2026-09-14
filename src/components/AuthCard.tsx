@@ -11,6 +11,7 @@
 // state cannot coexist with a toggle that lets you click away from it.
 import type { JSX, ReactNode } from "react";
 import { Link } from "react-router-dom";
+import BrandLogo from "@/components/BrandLogo";
 
 export type AuthTab = "signin" | "signup";
 
@@ -22,23 +23,8 @@ interface AuthCardProps {
   children: ReactNode;
 }
 
-// § Language, and this is the one string on these two screens that is NOT interface copy.
-//
-// `Ai Nghỉ?` is the product's NAME. § Language draws exactly this line — "what the product says is
-// English; what a user typed is whatever they typed" — and a proper noun is neither: it is not
-// translated, it is spelled. The name carries `ỉ` (U+1EC9), which the diacritic rule at
-// eslint.config.js:83-92 matches.
-//
-// THE ESCAPE HATCH IS NOT AN ESCAPE SEQUENCE. That rule selects on `Literal[value=...]`,
-// `TemplateElement[value.raw=...]` and `JSXText[value=...]`, and a Literal's *value* is the decoded
-// string — so `"Ai Nghỉ?"` matches exactly as the bare characters do. Composing the one
-// accented character from its code point is what leaves no node in this file holding a character in
-// the rule's range. It is deliberately ugly, so that nobody copies it for ordinary copy.
-//
-// THE ALTERNATIVE WAS ADDING THIS ROUTE TO `copyDebt`, AND THAT IS REFUSED. 01-plan.md § 4.2 says
-// so, and ui-language.json:10-13 names growing that list as the failure mode: the list is empty as
-// of OPS-002 and only ever shrinks. An exemption for one proper noun would exempt the whole file.
-const PRODUCT_NAME = `Ai Ngh${String.fromCodePoint(0x1ec9)}?`;
+// SOLO 2026-09-13. The title was the product name `Ai Nghỉ?` and a rabbit; the operator replaced
+// both with `CaleChip` and a logo that links to `/`, drawn by `BrandLogo` as the sidebar draws it.
 
 // AC-4: the selected half is distinguished by MORE THAN COLOUR — a filled white pill with its own
 // elevation, a heavier weight, and `aria-current`, which is the half a screen reader gets.
@@ -61,8 +47,8 @@ export default function AuthCard({ tab, showTabs = true, children }: AuthCardPro
       <section data-testid="auth-card" className="rounded-card bg-card p-8 shadow-soft">
         {/* AC-3. Identical on both routes, and identical again on the confirmation (AC-14) — it is
             what makes the third state read as the same card rather than as a different screen. */}
-        <h1 className="text-center font-display text-[28px] leading-none font-bold text-ink">
-          {PRODUCT_NAME} <span aria-hidden="true">🐰</span>
+        <h1 className="flex justify-center">
+          <BrandLogo size="lg" testId="auth-brand-logo" />
         </h1>
         <p className="mt-2 text-center text-[13px] text-ink-2">Plan your team&apos;s time away</p>
 

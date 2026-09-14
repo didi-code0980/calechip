@@ -210,7 +210,7 @@ export default function SignUp() {
                   className={
                     // AC-9: the selected swatch is distinguished by MORE THAN COLOUR — a ring, which
                     // is a shape, and `aria-checked`, which is what a screen reader gets.
-                    "aspect-square w-full max-w-11 justify-self-center overflow-hidden rounded-full bg-field text-lg " +
+                    "aspect-square w-full max-w-11 justify-self-center overflow-hidden rounded-full bg-field p-[5px] text-lg " +
                     "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink " +
                     (avatar === choice ? "ring-2 ring-ink ring-offset-2 ring-offset-card" : "")
                   }

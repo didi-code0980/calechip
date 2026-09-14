@@ -500,8 +500,21 @@ test.describe("UIE-10 — the sidebar after the migration", () => {
     // The brand block, with the product name removed — so the TAGLINE beneath it, which has no id of
     // its own, is covered by this criterion rather than by nothing.
     const brand = await page.getByTestId("shell-brand").innerText();
-    const productName = `Ai Ngh${String.fromCodePoint(0x1ec9)}?`;
+    // SOLO 2026-09-13: the product name is now `CaleChip`, beside a logo that links to `/`.
+    const productName = "CaleChip";
     expect(brand).toContain(productName);
     expect(brand.replace(productName, "")).not.toMatch(DIACRITIC);
+  });
+
+  test("SOLO 2026-09-13: the brand is the CaleChip logo, and it links back to /", async ({ page }) => {
+    await signInAt(page, "/profile", ADMIN_EMAIL);
+
+    const logo = page.getByTestId("shell-brand-logo");
+    await expect(logo).toHaveText("CaleChip");
+    await expect(logo.locator("img")).toHaveAttribute("src", /\/logo\.svg$/);
+    await expect(page.getByTestId("shell-brand")).not.toContainText(`Ai Ngh${String.fromCodePoint(0x1ec9)}?`);
+
+    await logo.click();
+    await expect(page).not.toHaveURL(/\/profile$/);
   });
 });
