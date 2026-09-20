@@ -48,7 +48,7 @@ because no session ever checks it out.
 `size_estimate`, `size` and `allowed_paths` written back into `ticket.yaml`
 **Template:** `.ai/templates/plan.md`
 
-**Gate:** all nine sections complete; ACs in Given/When/Then each with an ID; **§ 2b carrying
+**Gate:** all eight sections complete; ACs in Given/When/Then each with an ID; **§ 2b carrying
 exactly one of its two lines**; `invariants_touched` populated; `size_estimate` and `size` set;
 `allowed_paths` enumerated; Out-of-scope non-empty.
 

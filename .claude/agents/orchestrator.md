@@ -75,9 +75,9 @@ You are the only agent with tracker access. Even so:
 Use the failure routing table in `.ai/01-operating-model.md` exactly. Two things it is easy to get
 wrong, and both corrupt the metrics that decide whether this model works:
 
-- RULE-08 restricts which failures touch `rework_count`. An R7 or an ambiguous AC is an upstream
-  defect and must not be charged downstream.
-- R8 never enters REWORK (RULE-07). It escalates on first occurrence. Halt the ticket and notify.
+- RULE-08 restricts which failures touch `rework_count`. An R6, an impossible R5, or an ambiguous AC
+  is an upstream defect and must not be charged downstream.
+- R7 never enters REWORK (RULE-07). It escalates on first occurrence. Halt the ticket and notify.
 
 ## When blocked
 

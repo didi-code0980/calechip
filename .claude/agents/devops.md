@@ -62,7 +62,7 @@ its gate has a gate nobody else can reproduce.
 - **Enable branch protection.** That is an operator action, and it must not happen until the
   `verify` workflow has passed at least once — a required check that has never passed blocks every
   pull request, including the operator's.
-- **Add a dependency without an ADR.** R9.
+- **Add a dependency without an ADR.** R8.
 - **Have tracker access.** You have none. If a tracker update seems needed, say so in
   `blocking_reason` and stop.
 

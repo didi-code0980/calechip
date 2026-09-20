@@ -60,7 +60,7 @@ real, so that a rule with no mechanism is visible as such rather than assumed to
 | RULE-04 | Review check R5 |
 | RULE-05 | **Retired — ADR-022.** `guard-read-scope.mjs` no longer restricts any live role; the two it named, `ba` and `qa`, are both retired |
 | RULE-06 | Orchestrator dispatch loop; `rework_count` in `ticket.yaml` |
-| RULE-07 | Review check R8; failure routing table sends R8 to a human |
+| RULE-07 | Review check R7; failure routing table sends R7 to a human |
 | RULE-08 | Failure routing table; only the Developer column increments |
 | RULE-09 | `.github/CODEOWNERS`, branch protection, `gh pr merge` denied in settings. The `Status` line names who accepted — ADR-008 |
 | RULE-10 | `sync_enabled` defaults to false; no gate reads tracker state |

@@ -1,6 +1,6 @@
 ---
-doc_version: 6
-last_updated: 2026-09-01
+doc_version: 7
+last_updated: 2026-09-20
 governed_by: [RULE-01, RULE-03, RULE-04, RULE-05, RULE-06, RULE-07, RULE-08, RULE-09, RULE-10, RULE-11, RULE-12, RULE-13, RULE-14, RULE-15, RULE-16, RULE-17]
 ---
 
@@ -76,15 +76,24 @@ this list and the stage ownership table below stay in agreement in both directio
 
 | State | Agent | Reads | Writes | Gate |
 |---|---|---|---|---|
-| TRIAGE | `product` + `tech-lead-design` | the raw request, registry | `.ai/board/ideas/**`; `features.md` and the ticket shell on PROMOTE | An idea file exists stating a problem and not a solution, **and** a verdict of REJECT, NEEDS-ADR or PROMOTE with a reason. On PROMOTE, a feature row exists citing that idea file |
+| TRIAGE | `product` + `tech-lead-design` | the raw request, registry | `.ai/board/ideas/**`; `features.md` and the ticket shell on PROMOTE | An idea file exists stating a problem and not a solution, **and** `verdict` is REJECT, NEEDS-ADR or PROMOTE in its front-matter with `verdict_reason` beside it — ADR-037. On PROMOTE, `ticket_id` names the ticket and a feature row exists citing that idea file |
 | BACKLOG | `orchestrator` | `features.md`, `backlog.md` | `backlog.md` | Feature IDs exist in the registry |
-| PLAN | `tech-lead-design` | registry, standards, `ticket.yaml`, the source tree | `01-plan.md`, `ticket.yaml` | Sections 1-9 complete; ACs in Given/When/Then each with an ID; `invariants_touched` populated; `size_estimate` and `size` set; `allowed_paths` enumerated; Out-of-scope non-empty |
-| READY | `orchestrator` | `ticket.yaml`, `01-plan.md`, `features.md` | `ticket.yaml`, `backlog.md` | Full DoR, below |
+| PLAN | `tech-lead-design` | registry, standards, `ticket.yaml`, the source tree | `01-plan.md`, `ticket.yaml` | Sections 1-8 complete; ACs in Given/When/Then each with an ID; `invariants_touched` populated; `size_estimate` and `size` set; `allowed_paths` enumerated; Out-of-scope non-empty |
+| READY | `orchestrator`, via `/advance` | `ticket.yaml`, `01-plan.md`, `features.md` | `ticket.yaml`, `backlog.md` | Full DoR, below |
 | IN_PROGRESS | `developer` | the plan first, then the source tree within `allowed_paths` | code, `03-impl-log.md` | typecheck + lint exit 0; every contract item implemented |
 | REVIEW | `tech-lead-review` | plan, impl-log, `git diff` | `04-review.md` | R1-R8, each citing `file:line` |
 | REWORK | routed agent | the failing verdict plus its own prior artifact | its own artifact, code | The specific failed checks now pass |
 | ESCALATED | human | everything | anything | A human decides; the ticket does not self-resume |
 | DONE | `orchestrator` | all | `ticket.yaml`, `backlog.md`, `metrics.md` | Full DoD; opens PR (human merges, RULE-09) |
+
+**`verdict` is a field, not a heading.** Until ADR-037 the TRIAGE verdict existed only as prose:
+`gate:` is `PASS` on every file in `.ai/board/ideas/` including the one that was REJECTed, and the
+verdict itself is written in at least eight different heading shapes. Nothing could route on it.
+
+**"A problem and not a solution" is a property of the idea file, not a test the request must pass.**
+Most requests arrive as solutions, because that is how people think. TRIAGE derives the problem, marks
+the derivation as its own, and keeps the request verbatim in `operator_request`. Rejecting a request
+for its shape is not one of the three verdicts, and ADR-037 forbids it in terms.
 
 The three rows from PLAN through REVIEW are the implementation loop. The other six exist so that every
 value in the state enum has a declared owner — a state nobody owns is a state where a ticket stops
@@ -265,8 +274,20 @@ owner.
 That is what makes the session lifecycle above enforceable. A subagent cannot open a fresh top-level
 session for the reviewer, nor keep the BA's session alive across tickets — so an orchestrator that
 dispatched would have to fake both, and RULE-13 would come back to depending on an agent's good
-behaviour instead of on how the sessions are actually started. A printed instruction that a human
-runs is a real context boundary; a nested call is not.
+behaviour instead of on how the sessions are actually started. A printed instruction that **a human
+or the runner** runs is a real context boundary; a nested call is not.
+
+**Since ADR-036 the reader of that instruction may be `scripts/run-loop.mjs`.** Nothing above
+changes, and that is the point. The runner reads the board, decides the next step in deterministic
+code, and spawns it as its own top-level `claude` process with `--agent` and its own session id —
+which is the same boundary a person typing the command produces, made by a script instead of by
+hands. The orchestrator still does not dispatch: it is one of the agents the runner spawns.
+
+**A separate process is what makes RULE-13 a mechanism rather than a description.** A subagent
+inherits its parent's context, so a reviewer dispatched that way is isolated only by its own
+willingness to ignore what it has already read. Before ADR-036, whether the reviewer was fresh
+depended on which window someone typed into; the session table above was a description of careful
+behaviour. It is now enforced, and asserted in `scripts/tests/run-loop.test.mjs`.
 
 `/next-ticket` therefore emits something like:
 
@@ -286,10 +307,26 @@ loop:
                                           fail -> demote to BACKLOG; name the failing item; continue
   if t.state == REVIEW:                 require a FRESH session (RULE-13); never reuse a prior one
   PRINT the next command and the session it belongs in     <-- does not dispatch
-  read result front-matter
+  read result front-matter                                 <-- /advance does this
   PASS -> t.state = next_state ; FAIL -> REWORK, route per table
   write ticket.yaml; repair backlog.md; append metrics.md
 ```
+
+**The recording step is `/advance <ID>`** — `.claude/commands/advance.md`, added by ADR-036. It
+reads the front-matter of the artifact the last stage produced and transcribes the gate and the next
+state into `ticket.yaml`, evaluating the Definition of Ready on the way out of PLAN. It transcribes
+and does not judge: front-matter that is absent or self-contradictory stops it, and it writes
+nothing.
+
+Until ADR-036 this step had no file. The loop above specified it, `.ai/standards/session-model.md`
+assigned it to `/next-ticket`, and `/next-ticket` says in its own words that it writes nothing — so
+`state` never passed through `PLAN`, `READY` or `REWORK`, and `gates.plan` and `gates.review` were
+written by nobody, although `/ship` requires both. Eighteen tickets went `BACKLOG -> REVIEW` on disk.
+
+**Routing reads `invariant_violation` and `route_to` from `04-review.md`, never a check number.**
+The numbers drifted across four files between ADR-022 and ADR-036, and the number that meant
+"invariant" in the review template was the number the table below sends to `developer` with the
+rework counter incrementing — RULE-07 failing while everything looked ordinary.
 
 `ARTIFACTS_FOR[state]`, never the whole ticket folder. Feeding an agent every artifact defeats the
 isolation the model depends on: a reviewer given the whole folder reads the author's reasoning for

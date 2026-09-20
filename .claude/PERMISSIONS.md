@@ -44,10 +44,35 @@ same name. The permission matcher does not parse shell grammar, so a metacharact
 pattern smuggles a write primitive past a list everyone reads as read-only. The same test asserts
 that no read-only rule contains one.
 
-**TODO(project): add the project's own verify commands** — typecheck, lint, unit, end-to-end — to the
-allow list and to `REQUIRED_READONLY_ALLOW` in that test, in the same commit. They are absent here
-because a template cannot know their names, and a stale allow rule for a script that does not exist
-is worse than no rule: it reads as configured.
+**The project's own verify commands are on both lists**, added 2026-08-31 in one commit:
+`pnpm exec tsc`, `pnpm exec eslint`, `pnpm exec vitest`, `pnpm exec playwright`, and the two audit
+scripts. They are the invocations named once in `.ai/standards/testing-standards.md`; commands are
+allowed under the names that file gives them, so a shorthand invented in a command file would prompt.
+`REQUIRED_READONLY_ALLOW` in `settings-integrity.test.mjs` knows about each of them, because an
+allow rule the test does not know about is one a clobber can drop silently.
+
+## The push prompt, and the unattended runner
+
+`scripts/run-loop.mjs` (ADR-036) runs the loop with `--permission-mode dontAsk` and
+`--permission-prompts none`, which means **anything that would prompt is denied instead**. The allow
+list above is therefore the runner's whole vocabulary, and one deliberate absence decides where an
+unattended run ends.
+
+`git push` is still not on it, for the reason given above: the prompt is the last point at which a
+person sees a branch name before history exists. That reasoning does not weaken when the operator is
+away from the keyboard — it is the only moment left.
+
+**So the runner refuses to start `/ship` rather than letting it fail halfway.** `/ship` commits at
+its step 5 and pushes immediately after, so a denial arriving mid-command would leave history written
+and no pull request open — the worst of the three possible outcomes. The run stops with the ticket
+reviewed, its gates recorded and the tree committed, naming the two commands that finish it.
+
+Allowing `Bash(git push origin feat/*)` would close that gap and would reverse a control this file
+argues for in writing. It is the operator's decision and wants its own ADR, not an edit to the list.
+
+`Bash(git pull --ff-only)` was added for the runner: the branch decision table in
+`.ai/standards/git-conventions.md` reaches for it when a ticket branch already exists on the remote,
+and `--ff-only` cannot rewrite anything. It is the only verb ADR-036 added.
 
 ## Denied tracker tools
 

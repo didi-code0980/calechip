@@ -1,3 +1,9 @@
+---
+doc_version: 2
+last_updated: 2026-09-11
+governed_by: [RULE-01, RULE-09]
+---
+
 # ADR-034 — A team chooses, per entry type, whether a new entry waits for an admin
 
 Status: Proposed — 2026-09-11

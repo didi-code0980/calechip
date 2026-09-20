@@ -32,3 +32,8 @@ supabase/.temp/
 
 # Supabase CLI scratch. `cli-latest` is a version-check cache the CLI rewrites on its own schedule.
 supabase/.temp/
+
+# The unattended loop runner's own state — session ids, per-step JSON, STOPPED.md, REPORT.md.
+# ADR-036. It is a machine's working notes, not a record: the record is the ticket artifacts and the
+# commit. Session ids in particular are per-machine and resuming someone else's is meaningless.
+.runner/

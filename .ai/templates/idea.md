@@ -1,5 +1,5 @@
 ---
-doc_version: 2
+doc_version: 3
 last_updated: 2026-09-01
 governed_by: [RULE-01, RULE-16]
 ---
@@ -24,9 +24,26 @@ inputs_read: []
 consulted: []
 gate: PASS
 blocking_reason: ""
-next_state: TRIAGE
+next_state: TRIAGE          # not the routing input — see `verdict` below
+verdict: ""                 # "" until triaged, then REJECT | NEEDS-ADR | PROMOTE
+verdict_reason: ""          # one line. Why this verdict, not one of the other two
+ticket_id: ""               # the ticket a PROMOTE created. Empty on REJECT and NEEDS-ADR
+operator_request: ""        # the request as it arrived, VERBATIM. Never edited, never tidied
 ---
 ```
+
+**`verdict`, `verdict_reason` and `ticket_id` are read from this file by `scripts/run-loop.mjs`** —
+ADR-037. Before they existed the verdict lived only in a Markdown heading, in at least eight observed
+shapes across this directory, and `gate:` was `PASS` on every idea file including the one that was
+REJECTed — so nothing on disk distinguished a rejected idea from a promoted one without reading the
+prose. Two files carry two verdicts, an original and a re-triage, and only one of them marks which is
+live, in bold. Fill the three fields; keep writing the heading as well, for a human reader.
+
+**`operator_request` holds the request as it arrived.** Not a summary of it, not a tidied version,
+not the problem statement derived from it. If the operator wrote a solution — *"add a dark mode
+toggle to the sidebar"* — that sentence goes here unchanged, and the problem it implies is worked out
+separately in `## Problem` and marked as your derivation. See *When the request is shaped like a
+solution* below.
 
 ## Problem
 
@@ -68,3 +85,23 @@ growing during PLAN.
 
 Anything that must be answered before this can be triaged. A question here is better than an
 assumption in the next artifact.
+
+## When the request is shaped like a solution
+
+**Most operator requests arrive as solutions, and that is not a defect in the request.** "Add a
+column for last sign-in" is how people think; "members cannot tell who has stopped using the board"
+is what the idea file needs. The job here is to derive the second from the first — not to send the
+first back.
+
+Three rules, and the first two are what stop a derivation from becoming an invention:
+
+1. **`operator_request` keeps their words exactly.** It is the only thing in this file that is not
+   yours, and it is what a reviewer six tickets later compares your problem statement against.
+2. **Mark the problem statement as your own derivation**, in one line under `## Problem`: *"Derived
+   from the request above; the operator stated a solution, not a problem."* A derived problem that
+   reads as reported fact is the quiet start of a ticket nobody asked for.
+3. **Never REJECT an idea for being solution-shaped.** REJECT means *not worth doing, or already
+   covered*. The shape of the sentence is not evidence of either, and a triage that rejects on shape
+   teaches the operator to write worse requests rather than better ones. If the solution as stated is
+   wrong, that is a PROMOTE whose problem statement differs from the request, or a NEEDS-ADR — both
+   of which say so in `verdict_reason`.

@@ -10,8 +10,8 @@ It is not an HR system, it holds no leave quota, and a warning here never blocks
 
 **This repository was stood up from `aifw-template`.** Until the `TODO(project):` markers below and
 in `.ai/` are resolved, the loop will run and produce nothing useful: `/plan` has no feature ID to
-work from and no architecture to design against, and `/qa` has no command to run. The
-ordered checklist is in [SETUP.md](SETUP.md).
+work from and no architecture to design against, and the verify commands have no project to run
+against. The ordered checklist is in [SETUP.md](SETUP.md).
 
 ## Read these before doing anything
 
@@ -161,11 +161,26 @@ stand as shipped and no translation is owed.
 ## Commands
 
 **The loop**, which builds the product — `/triage` `/next-ticket` `/plan` `/implement` `/review`
-`/qa` `/ship` `/sprint-status` `/pull-tickets` `/sync-tracker` `/docs-audit`
+`/advance` `/ship` `/sprint-status` `/pull-tickets` `/sync-tracker` `/docs-audit`
+
+**`/advance <ID>` is the recording step** — ADR-036. It reads the front-matter of the artifact the
+last stage produced and transcribes the gate and the next state into `ticket.yaml`. Until it existed
+the loop above specified that step and no command performed it, so `state` never passed through
+`PLAN`, `READY` or `REWORK` and `gates.*` was written by nobody.
+
+**Unattended** — `node scripts/run-loop.mjs auto "<a ticket id, an idea file, or the request in
+words>"`, and `/auto` to start the same thing detached. The runner reads the board, decides the next
+step in deterministic code, and spawns each stage as its own top-level `claude` process, which is
+what makes the session lifetimes real rather than a matter of which window someone typed into —
+ADR-036 and ADR-037. `/auto` cannot ask the intake questions; the terminal form can.
+
+**Outside the loop** — `/solo`, for work where the loop's overhead exceeds its value. It skips every
+stage and every gate, deliberately.
 
 `/idea`, `/spec` and `/design` are **retired** — ADR-019 folded IDEA into TRIAGE and merged SPEC and
-DESIGN into PLAN. Their files are kept, carrying a retirement banner, so tickets shipped before
-2026-09-01 stay readable against the commands that produced them.
+DESIGN into PLAN. **`/qa` is retired too** — ADR-022 removed the QA stage outright. Their files are
+kept, carrying a retirement banner, so tickets shipped before 2026-09-01 stay readable against the
+commands that produced them.
 
 **The model**, which maintains the loop — `/thuki` (steward: rules, hooks, checks, registry; never
 ticket work) and `/status` (reads the board; reports what is true and what waits on a human).
