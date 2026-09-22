@@ -112,7 +112,13 @@ function dirtyPaths() {
 
 /** Everything `planCarry` needs, read from disk. Only dirty idea files and dirty sibling tickets. */
 function carryContext(t, dirty) {
-  const ideas = dirty.filter((p) => /^\.ai\/board\/ideas\/[^/]+\.md$/.test(p)).map((p) => {
+  // Every idea file, committed or not: the promoting idea is usually committed by the time its
+  // second ticket runs, and it is still what makes a sibling's ticket.yaml carryable.
+  const onDisk = fs.existsSync(IDEAS_DIR)
+    ? fs.readdirSync(IDEAS_DIR).filter((f) => f.endsWith(".md")).map((f) => `.ai/board/ideas/${f}`)
+    : [];
+  const ideaPaths = [...new Set([...onDisk, ...dirty.filter((p) => /^\.ai\/board\/ideas\/[^/]+\.md$/.test(p))])];
+  const ideas = ideaPaths.map((p) => {
     try { return { path: p, fm: readFrontMatter(path.join(ROOT, p)) ?? {} }; }
     catch { return { path: p, fm: {} }; }
   });
