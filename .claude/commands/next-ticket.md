@@ -35,8 +35,9 @@ exists so a fourth attempt fails loudly instead of deadlocking the board.
 6. Any disagreement between `backlog.md` and a `ticket.yaml`, naming which is authoritative
    (`ticket.yaml` always is)
 
-Do not demote a ticket here; that happens in the orchestrator loop, and this command does not change
-state.
+Do not demote a ticket here. **`/advance <ID>` is the command that changes state** — it reads the
+last stage artifact’s front-matter and transcribes the gate and the next state into `ticket.yaml`
+(ADR-036). This command reports; it writes nothing.
 
 ## Finish
 

@@ -106,7 +106,7 @@ Visual reference: none. The layout below is the Tech Lead's own and was never sp
 `.ai/standards/ui-design-system.md` § *Visual specification* governs this. Two things it says that
 decide what you write here:
 
-**A picture binds nothing on its own.** No stage downstream reopens it — the reviewer judges R1–R9
+**A picture binds nothing on its own.** No stage downstream reopens it — the reviewer judges R1–R8
 against the ACs above, and there is no visual check anywhere in the loop. So an attached image is not
 a deliverable, it is an input you must spend: list, as ACs, every decision the image makes that the
 prose would otherwise drop — element order, what is on screen at rest versus after interaction, the

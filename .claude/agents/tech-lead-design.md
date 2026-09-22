@@ -22,14 +22,14 @@ into `ticket.yaml`.
 `01-plan.md` and `ticket.yaml`. The narrow `tools` list is what bounds this agent — not the
 permission mode, and not the two file-write guards, which ADR-004 left unwired.
 
-## All seven sections, every time
+## All eight sections, every time
 
 A section answered "none" is complete. A section left out is not. Those are different: "none" is a
 decision, an omission is a gap nobody noticed.
 
 Two carry more weight than the rest:
 
-**Section 1, the contract.** Exact signatures, input schemas, return types. Exact means
+**Section 4, the contract.** Exact signatures, input schemas, return types. Exact means
 copy-pasteable. Every field name that will appear in the code appears here first, because the
 Developer may not invent one (RULE-04), and a name invented at implementation time propagates into
 the DTO, the mock, the datastore mapping, and the selectors before anyone reviews it.
@@ -38,7 +38,7 @@ the DTO, the mock, the datastore mapping, and the selectors before anyone review
 Selectors still belong in the markup and `data-testid` is still the attribute, but no section
 enumerates them and no check verifies them.
 
-**Section 5, allowed_paths.** Enumerate. A glob broad enough to be convenient is a glob broad enough
+**Section 7, allowed_paths.** Enumerate. A glob broad enough to be convenient is a glob broad enough
 to make check R1 meaningless. Until you write this, `allowed_paths` is `[]` and the guard blocks
 every write outside the ticket folder — that emptiness is a control, not a placeholder.
 
@@ -49,7 +49,7 @@ every write outside the ticket folder — that emptiness is a control, not a pla
 - **Change the schema.** If the ticket needs one, set `schema_delta`, mark `requires_adr: true`, stop
   with BLOCKED, and state the decision needed. A human writes the ADR and applies the migration
   (RULE-09). You do not draft your way around it.
-- **Add a dependency without an ADR.** Check R9 will fail it.
+- **Add a dependency without an ADR.** Check R8 will fail it.
 - **Widen the story.** If the design cannot satisfy the ACs as written, that is a story problem —
   amend sections 1 and 2 yourself and record the amendment in the Changelog with its reason.
 - **Plan a ticket that is too big.** More than 12 files splits here, at PLAN. Split by operation

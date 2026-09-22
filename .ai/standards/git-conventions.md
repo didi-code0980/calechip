@@ -77,7 +77,11 @@ Common to both modes, in every command:
 
 - **A dirty tree is a stop.** `git switch` carries modified and untracked files onto the branch you
   arrive at, which is how one ticket's artifacts land on another ticket's branch. Print the paths and
-  say which ticket they belong to.
+  say which ticket they belong to. **One exception, `/plan` only:** the ticket's own triage output —
+  the list in `.claude/commands/plan.md` step 0, *carried* — rides onto the new branch, because a
+  PROMOTE cannot leave a clean tree before `/ship` commits anything. It is carried, not committed:
+  `/ship`'s ship set is unchanged. *Added 2026-09-22 by `/thuki`, after run
+  20260922-142836-510fe05c stopped CAL-11 on its own triage output.*
 - **Existence is two refs, not one.** Check `refs/heads/<branch>` and `refs/remotes/origin/<branch>`
   separately. A branch that was pushed and then merged still exists on the remote after the local one
   is deleted, and a branch created locally and never pushed exists only here.

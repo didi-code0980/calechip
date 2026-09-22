@@ -8,7 +8,7 @@ governed_by: [RULE-03, RULE-04, RULE-08, RULE-15, RULE-16]
 
 Written by `developer` as `03-impl-log.md` in the ticket folder. Copy everything below the line.
 
-**Gate:** typecheck and lint exit 0; every contract item in design section 1 implemented; every file
+**Gate:** typecheck and lint exit 0; every contract item in plan section 4 implemented; every file
 touched appears in the table below with a one-line reason. The Definition of Done requires that list
 to be complete — a file changed but not listed is an incomplete log, and R1 will find it anyway from
 `git diff --name-only`.
@@ -45,7 +45,7 @@ next_state: REVIEW
 
 Every file, without exception. `created` or `modified`. The reason is one line and says why the
 change was necessary, not what the diff already shows. The last column ties the file back to a
-numbered item in design section 1 — a file that satisfies no contract item is either scope growth or
+numbered item in plan section 4 — a file that satisfies no contract item is either scope growth or
 a missing contract item, and both are worth catching here rather than at R5.
 
 | file | created/modified | why | contract item it satisfies |
@@ -55,7 +55,7 @@ a missing contract item, and both are worth catching here rather than at R5.
 
 ## Contract items
 
-Each numbered item from design section 1, and where it now lives. RULE-04: no field name appears in
+Each numbered item from plan section 4, and where it now lives. RULE-04: no field name appears in
 the code that did not appear in the contract first. If one had to, it was a consultation and an
 amendment, and both are recorded — in `consulted` above and in the design's own Changelog.
 

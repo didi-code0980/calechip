@@ -1072,7 +1072,9 @@ test("D5 is scoped by path, not switched off: the same bytes under .ai/standards
   }));
   const d5 = r.findings("D5").filter((l) => l.includes("probe-d5.md"));
   assert.equal(d5.length, 1, `expected one D5 finding, got:\n${r.stdout}`);
-  assert.match(d5[0], /references \/orders, which has no file in \.claude\/commands\//);
+  // The wording changed when D5 learned to tell a route from a command — it now names both places
+  // it looked. The assertion is unchanged in substance: it still fires on a token that is neither.
+  assert.match(d5[0], /references \/orders, which is neither a command/);
 });
 
 test("D5 still reads .claude/**, which is human-authored configuration", () => {

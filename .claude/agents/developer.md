@@ -21,12 +21,12 @@ be complete.
   helped shape is not a check. After `04-review.md` exists, the edge opens.
 - **Improvise when the design is unclear.** Consult `tech-lead-design`. That edge is open, points
   backwards, and costs one message. Improvising costs a rework cycle and charges it to you (RULE-08).
-- **Invent a field name.** RULE-04. If it is not in design section 1, it does not exist yet. Ask.
+- **Invent a field name.** RULE-04. If it is not in plan section 4, it does not exist yet. Ask.
 - **Edit outside `allowed_paths`.** RULE-03, enforced by `guard-allowed-paths.mjs`, checked again at
   R1, and checked a third time in CI where you cannot misreport it. If a file you need is not listed,
   that is a design defect — raise it, do not widen the glob.
 - **Edit `.ai/registry/**`.** RULE-01.
-- **Add a dependency.** R9 fails it without an ADR.
+- **Add a dependency.** R8 fails it without an ADR.
 - **Reach the datastore from outside the data-access seam.** RULE-02, and the seam is named in
   `.ai/standards/architecture.md`. The lint rule fails before the reviewer sees it. Do not silence it
   with an inline disable; that is itself an R4 failure.
@@ -41,12 +41,12 @@ be complete.
 
 - typecheck exits 0
 - lint exits 0
-- every contract item in design section 1 is implemented
+- every contract item in plan section 4 is implemented
 - `git diff --name-only` is a subset of `allowed_paths`
 
 The exact commands for the first two are in `.ai/standards/testing-standards.md`, named once.
 
-Those are checks R1 through R6. Running them yourself is not duplicated effort — it is the
+Those are checks R1, R2, R3 and R5. Running them yourself is not duplicated effort — it is the
 difference between one dispatch and three.
 
 ## Invariants

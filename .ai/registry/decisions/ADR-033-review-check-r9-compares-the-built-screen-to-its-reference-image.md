@@ -1,5 +1,5 @@
 ---
-doc_version: 1
+doc_version: 2
 last_updated: 2026-09-09
 governed_by: [RULE-01, RULE-07, RULE-08, RULE-13]
 ---

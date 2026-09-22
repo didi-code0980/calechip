@@ -62,6 +62,16 @@ const ABSENT_BY_DESIGN = new Map([
       "it against the mock. ADR-027 phase 1 is where it gets written",
   ],
   [
+    ".ai/board/ideas/2026-09-08-the-year-view-is-the-only-screen-that-shows-who-declared-nothing.md",
+    "LOST — the idea file UIE-08 was promoted from, cited by its features.md row and by the ADR " +
+      "that ticket wrote, and present on no ref. This is MD-031: /triage writes .ai/board/ideas/** " +
+      "and any ADR it drafts, and /ship's ship set is allowed_paths plus the ticket folder plus " +
+      "three named paths (ADR-023) — neither directory is in any of them, so both were left dirty " +
+      "and never landed. The citation is correct about what was read at triage; the file is gone. " +
+      "Reconstructing it would be inventing a record of a conversation nobody has. The runner now " +
+      "names these paths in every REPORT.md so the next one is not lost the same way (ADR-037)",
+  ],
+  [
     "src/routes/AllowList.tsx",
     "RETIRED — deleted under ADR-033, which dropped `public.allowed_email` and replaced the " +
       "allow-list screen with the sign-ups queue at src/routes/NewSignups.tsx. The TEA-02 row in " +
@@ -174,12 +184,32 @@ for (const id of tableIds(invSections.get("Ledger"))) {
   }
 }
 
-const features = new Set(
-  (featText ?? "")
+// Feature rows, and the IDs that were proposed and deliberately never issued.
+//
+// The same shape as `## Unissued IDs` in `invariants.md`, and for the same reason: a document
+// explaining why a number is missing has to be able to NAME it, and naming it must not make it
+// usable. `TEA-07` is the live case — a run proposed it, the row was registered as `TEA-06`
+// instead, and `.ai/steward/context.md` records the renumbering. That sentence cannot be written
+// without the token, and D1 could not tell a historical reference from a citation.
+const featureRows = (text) =>
+  (text ?? "")
     .split(/\r?\n/)
     .map((l) => /^\|\s*([A-Z]{3}-\d{2})\s*\|/.exec(l)?.[1])
-    .filter(Boolean)
-);
+    .filter(Boolean);
+
+const featSections = sections(featText);
+const featureRowsAll = featureRows(featText);
+const featureRowsUnissued = featureRows(featSections.get("Unissued IDs"));
+const featuresUnissued = new Set(featureRowsUnissued);
+
+const occurrences = (arr, id) => arr.filter((x) => x === id).length;
+for (const id of featuresUnissued) {
+  if (occurrences(featureRowsAll, id) > occurrences(featureRowsUnissued, id)) {
+    err("D1", ".ai/registry/features.md", `${id} is in both a group table and the Unissued IDs table`);
+  }
+}
+
+const features = new Set(featureRowsAll.filter((id) => !featuresUnissued.has(id)));
 
 // The group prefixes D1 polices, declared in features.md rather than inferred from its rows.
 //
@@ -240,7 +270,8 @@ for (const file of allDocs) {
 
   if (!skipD1 && FEATURE_RE) {
     for (const id of new Set(text.match(FEATURE_RE) ?? [])) {
-      if (!features.has(id)) err("D1", r, `references feature ${id}, absent from features.md`);
+      if (features.has(id) || featuresUnissued.has(id)) continue;
+      err("D1", r, `references feature ${id}, absent from features.md`);
     }
   }
   for (const id of new Set(text.match(/\bINV-\d{2}\b/g) ?? [])) {
@@ -310,6 +341,25 @@ const isHumanOwned = (r) =>
 
 // --- D5: commands referenced have a definition -----------------------------------------------
 
+// A slash-prefixed token is a command OR a route, and until now D5 could not tell them apart — six
+// of its findings were the application's own URLs. The router is the authority on what is a route,
+// so read it rather than keeping a hand-maintained list beside it that drifts.
+const ROUTER_FILES = ["src/App.tsx"];
+const appRoutes = new Set();
+for (const f of ROUTER_FILES) {
+  const p = path.join(ROOT, f);
+  if (!fs.existsSync(p)) continue;
+  for (const m of fs.readFileSync(p, "utf8").matchAll(/path="\/([a-z][a-z0-9-]*)/g)) appRoutes.add(m[1]);
+}
+
+// Routes the application no longer serves, which documents still name in the past tense. A row here
+// is history, not configuration: the screen existed, the citation is correct, and deleting the
+// citation to satisfy a check would delete a true record of something that shipped and was reversed.
+const RETIRED_ROUTES = new Map([
+  ["allow-list", "deleted by ADR-033, which dropped `public.allowed_email` and replaced the " +
+                 "allow-list screen with the sign-ups queue at /signups. Cited in the past tense."],
+]);
+
 const cmdDir = path.join(ROOT, ".claude/commands");
 const commands = new Set(
   fs.existsSync(cmdDir)
@@ -327,7 +377,8 @@ for (const file of allDocs) {
   // A slash-command token: preceded by a non-word character, then /name, ending cleanly.
   for (const m of new Set(text.match(/(?<![\w./-])\/([a-z][a-z0-9-]*)(?![\w./-])/g) ?? [])) {
     const name = m.slice(1);
-    if (!commands.has(name)) err("D5", r, `references /${name}, which has no file in .claude/commands/`);
+    if (commands.has(name) || appRoutes.has(name) || RETIRED_ROUTES.has(name)) continue;
+    err("D5", r, `references /${name}, which is neither a command in .claude/commands/ nor a route in ${ROUTER_FILES.join(", ")}`);
   }
 }
 
@@ -405,6 +456,13 @@ for (const file of aiFiles) {
 
 // The register audits itself. An owed path that has arrived is a row to delete, and nothing else in
 // the repository would report that the waiver is now covering a file that exists.
+for (const name of RETIRED_ROUTES.keys()) {
+  if (appRoutes.has(name)) {
+    err("D5", "scripts/check-docs.mjs",
+      `/${name} is in RETIRED_ROUTES but the router serves it again — delete the row`);
+  }
+}
+
 for (const declaredPath of ABSENT_BY_DESIGN.keys()) {
   if (!fs.existsSync(path.join(ROOT, declaredPath))) continue;
   err(

@@ -27,11 +27,52 @@ failure mode, and nothing catches it except writing the problem down first.
 
 An idea has no feature ID. The ID is issued below, on PROMOTE, and not before.
 
+## When the runner dispatched you
+
+`scripts/run-loop.mjs` invokes this command with the operator's request and, when there was an
+intake step, their answers to your own questions. Three things change, and none of them is a
+judgement call:
+
+- **Copy the request into `operator_request` verbatim.** Not summarised, not corrected, not
+  reordered. It is the only line in the file that is not yours.
+- **Copy the intake answers verbatim too**, under `## Evidence`, each beside the question it
+  answers. An answer paraphrased into a finding is a finding nobody gave you.
+- **You cannot ask a follow-up.** There is no operator at the other end of an unattended run. A
+  question that would have been a chat message is an `## Open questions` entry, and if the answer
+  would change behaviour, permissions or an invariant, say so there in those words — the runner stops
+  the run on exactly that.
+
+**Never REJECT an idea for being shaped like a solution.** REJECT means *not worth doing, or already
+covered*, and the shape of a sentence is evidence of neither. Operator requests arrive as solutions
+because that is how people think. Derive the problem, mark the derivation as yours, and keep their
+sentence intact — `.ai/templates/idea.md` § *When the request is shaped like a solution*.
+
+## You still have no clock and no branch
+
+You hold no `Bash` tool, so `produced_at` is a value you cannot measure. Under the runner the
+timestamp is supplied to you; write what you were given rather than recalling one. A recalled
+timestamp on an artifact is the kind of wrong that looks measured.
+
 ## The verdict
 
 **Input:** the idea file, plus `.ai/registry/**`
-**Output:** the verdict appended to that idea file
+**Output:** the verdict appended to that idea file, **and written into its front-matter**
 **Gate:** exactly one verdict, with a reason.
+
+**Write `verdict`, `verdict_reason` and `ticket_id` into the idea file's front-matter** —
+`.ai/templates/idea.md`, added by ADR-037. Keep writing the heading too; the heading is for a person
+and the front-matter is for `scripts/run-loop.mjs`, which reads the verdict **from disk** and never
+from a reply.
+
+That reading was previously impossible. `gate:` is `PASS` on every idea file in
+`.ai/board/ideas/` including the one that was REJECTed, `next_state:` is `TRIAGE` on some promoted
+ideas and `BACKLOG` on others, and the verdict itself lives in a free-form heading with at least
+eight shapes on disk — `## Triage verdict: PROMOTE`, `# Verdict — PROMOTE, as CAL-10`,
+`# Re-triage verdict — PROMOTE, as \`UIE-07\` — **THIS IS THE LIVE VERDICT**`, and five more. Two
+files carry two verdicts and only one says which is live.
+
+On a re-triage, **overwrite the front-matter fields** and leave both headings in the body. The
+front-matter is the live answer; the body is the history.
 
 | Verdict | Means |
 |---|---|
@@ -43,6 +84,9 @@ An idea has no feature ID. The ID is issued below, on PROMOTE, and not before.
 was written by an agent from a sentence the operator said; asking them to author one contradicts how
 the model actually works. Produce the whole document: context, the options with their trade-offs, a
 recommendation, consequences including what gets worse, and a revert condition.
+**Copy the front-matter of `ADR-000-template.md` as it stands**, `doc_version: 2` included — a new
+ADR written at `doc_version: 1` cites RULE-01 and RULE-09 at a version above its own, and check D9
+fails the audit on it. ADR-039 and ADR-040 were both drafted that way on 2026-09-22.
 
 Then one of two things, and the test is not a judgement call:
 
@@ -51,6 +95,20 @@ Then one of two things, and the test is not a judgement call:
 - **The decision would supersede or reverse an accepted ADR** — stop and ask, in one question. That
   is changing the envelope rather than working inside it, and `ACCEPTED by the operator` is a claim
   about a person that you may not write on their behalf.
+
+**Where the idea file already quotes the operator confirming the decision, verbatim, under
+`## Evidence`, that quote is the words you point at**: write `ACCEPTED by the operator`, cite the
+idea file and quote them. `/idea` asks for exactly this so that the unattended run does not stop here.
+
+**Name every ADR the verdict waits on in `awaiting_adrs`** (`.ai/templates/idea.md`). That list is
+the NEEDS-ADR verdict's only exit: `scripts/run-loop.mjs` reads each ADR's `## Status` line, and
+once none of them is `PROPOSED` it re-triages the file and the new verdict replaces this one. Before
+2026-09-22 there was no such exit — the runner re-read the stale NEEDS-ADR on every run and stopped
+with the same words, however many ADRs the operator had accepted in between.
+
+**The question you ask goes in the ADR's `## Status` as well as in `## Open questions`.** The
+operator answers it by editing that line — `ACCEPTED by the operator` or `REJECTED by the operator`
+— which is a signature they write themselves and you never write for them.
 
 **On PROMOTE, `product` writes the row to `.ai/registry/features.md`** — ADR-007. Allocate the next
 free number in the group, set `Status` to `PLANNED`, and **put the idea filename in the `Notes`

@@ -1926,3 +1926,367 @@ positives (`.ai/board/model-debt.md:82`) and MD-031's missing idea file.
 
 **Not done, and still the operator's:** the migrations are unapplied, and `20260910100000` must run
 before `20260910140000` because `member.status` is its prerequisite.
+
+### 2026-09-20 — the loop gets a runner, and three defects that only an unattended run would find
+
+**Task:** build `scripts/run-loop.mjs` so the printed instruction is executed by a script instead of
+by the operator, and fix whatever made unattended routing unsafe. Stage A only — existing tickets,
+BACKLOG to the point where a human must push.
+
+**The work was mostly not the runner.** Reading the loop against the idea of running it without hands
+turned up three things that a human reader absorbs without noticing, and each of them is load-bearing:
+
+1. **The review verdict named a check number, and four files disagreed about which number.**
+   `.ai/01-operating-model.md:133` has R7 as the invariant check; `.ai/registry/rules.md:63` mapped
+   RULE-07 to "Review check R8"; `.claude/agents/tech-lead-review.md:37` headed a section "R8 is
+   different" describing the invariant check; and `.ai/templates/review-report.md` — the file the
+   reviewer copies from — listed R7 in its checklist and headed the per-invariant section "R8 detail"
+   eleven lines below. An invariant violation written under the wrong number routes to `developer`
+   with `rework_count` incrementing, so **RULE-07 fails while nothing appears to go wrong.** Routing
+   now reads `invariant_violation` and `route_to`, never a number.
+
+2. **Nothing wrote `state` through PLAN, READY or REWORK, and nothing wrote `gates.*` at all.**
+   `/next-ticket` says it writes nothing and defers to "the orchestrator loop", which existed only as
+   pseudo-code in the operating model. `/ship` requires both gates `passed: true` and says to verify
+   against `ticket.yaml` rather than a summary — so on CAL-10 they were backfilled at ship time as an
+   act of judgement. That backfill *is* the human step the runner was asked to replace. `/advance`
+   now exists and transcribes rather than judges.
+
+3. **RULE-13 was a description of careful behaviour.** Whether the reviewer's session was fresh
+   depended on which window someone typed into. It is now a property of how the process is started,
+   asserted in `scripts/tests/run-loop.test.mjs`.
+
+**Scope widened twice, and both are named in ADR-036.** `/advance` is a new command — without it
+Stage A cannot reach its own acceptance, because no ticket ever holds READY or REWORK on disk. And
+the ADR-019 section-number residue was fixed across nine sites: `design section 1` is the contract in
+the old `02-design.md` numbering and is `plan section 4` today, so the Developer was being pointed at
+the acceptance criteria and told it was the contract. Half-fixing it would have been worse than
+either extreme.
+
+**Where the unattended run stops, and why it is not a bug.** `git push` is absent from
+`permissions.allow` on purpose — `.claude/PERMISSIONS.md` calls that prompt "the last point at which
+a human sees a branch name before history exists". Under `--permission-prompts none` it is denied, so
+the runner **refuses to start `/ship`** rather than letting it commit at step 5 and fail at the push,
+which would leave history written and no pull request open. Allowing `Bash(git push origin feat/*)`
+would close the gap and reverse a documented control; that is the operator's, and wants its own ADR.
+
+**The audit went from 11 errors to 8.** Fixed: ADR-034 had no front-matter at all, and ADR-033's
+`doc_version` was lower than the rules it cites. **Not fixed, and deliberately:** D1 reports
+`TEA-07` in this file at line 1885, where the sentence is *"Renumbered `TEA-07` → `TEA-06`"*. The
+token is the record of the renumbering, and D1 cannot tell a historical reference from a citation.
+Editing it would falsify the log to make a check green, which is the failure mode the log exists
+against. The six D5 errors are still routes read as slash commands (MD-030's area), and the one D6 is
+still an idea file that exists on no ref (MD-031).
+
+**Three things the operator has to decide, and none was decided here:**
+
+- **Stacking.** `/ship` writes `DONE` when the PR *opens*, and ticket 2 cuts from `origin/main`,
+  which does not contain ticket 1. Worse, `/ship` commits `backlog.md`, `metrics.md` and
+  `features.md` onto ticket 1's branch, so on ticket 2's branch the board regresses and the runner's
+  own preflight would read ticket 1 as not DONE. **The board's state is a function of which branch is
+  checked out, and no document says so.** `MAX_TICKETS_PER_RUN` stays 1.
+- **`guard-allowed-paths.mjs`.** ADR-004 unwired it for reasons that do not apply to it: the measured
+  friction was `features.md`, which is `guard-registry.mjs`'s territory, and the stated blocker to
+  scoping a guard by role was that *"sessions carry no role identity"* — which a runner spawning
+  `claude --agent <name>` changes. Recommended, but not now: wiring a guard while building the thing
+  that will trip it makes every runner bug look like a guard bug. Decide it on counted R1 failures,
+  the way ADR-004 itself was decided.
+- **The push.** Above.
+
+**Not verified, and it is the load-bearing assumption:** whether `--agent` resolves a *project* agent
+from `.claude/agents/` in headless mode. The probe was refused by this environment's auto-mode
+classifier (`Create Unsafe Agents`), so it must be run from a terminal. If it does not resolve, the
+runner has to prepend the agent's charter to the prompt, which is weaker than the `tools:` list each
+agent file declares — and that list, not `permissionMode`, is what actually bounds these agents.
+
+**Also true and worth writing down: the board is empty.** All 36 tickets are `DONE` and both live
+sections of `backlog.md` are blank, so the runner cannot be exercised end to end until `/triage`
+produces something. Routing, stop conditions and session policy are covered by 41 tests against
+fixtures; the spawning is covered by nothing.
+
+### 2026-09-20 — Stage B: one entry point, and the triage verdict stops being prose
+
+**Task:** extend the runner so a request in words, an idea file or a ticket id all enter through
+`auto`, and so TRIAGE can run with nobody at the keyboard.
+
+**The blocker was not the runner. The verdict was not on disk in any readable form.**
+
+`gate:` is `PASS` on **every** file in `.ai/board/ideas/`, including the one whose verdict was
+REJECT — so a runner trusting `gate` would have promoted a rejected idea. `next_state:` is `TRIAGE`
+on some promoted ideas and `BACKLOG` on others. The verdict itself lives in a free-form heading with
+**eight observed shapes**, two files carry two verdicts, and only one of those marks which is live —
+in bold prose. The issued ticket id appears in a heading, in a `features.md` Notes cell, and as a
+directory name. Nowhere as a value.
+
+`verdict`, `verdict_reason`, `ticket_id` and `operator_request` are now front-matter fields, and
+`scripts/lib/entry.mjs` reads them from disk. The heading stays for a person.
+
+**The resolver's fifth rule is the one worth remembering.** A string shaped like a ticket id that
+names no ticket is an **error**, never a fall-through to "treat it as an idea". Falling through would
+turn one mistyped character into an idea file, a feature row and a ticket — three board and registry
+writes from a typo, discovered at the pull request. It has a test of its own.
+
+**Two decisions I made rather than asking, both recorded in ADR-037:**
+
+1. **Tracker entry is refused, and the refusal is the finding.** Two blockers, both on disk:
+   `tracker.yaml` ships `allowed_list_ids: []`, which RULE-18 reads as *block every call*; and a
+   pulled ticket has no path to `feature_ids`, because `/pull-tickets` writes only
+   `tracker.raw_description` and ADR-007 issues IDs at TRIAGE. Issuing one in the runner is a single
+   line of code and the end of the no-invention rule. The runner names both reasons and offers the
+   route that works.
+2. **The orphan problem is reported, not fixed.** `/triage` writes `.ai/board/ideas/**` and any ADR
+   it drafts; `/ship`'s ship set contains neither, so both are committed by nothing — MD-031, where
+   UIE-08 shipped citing an ADR and an idea file that exist on no ref. Extending the ship set changes
+   ADR-023 and is the operator's. Every run now lists those paths in `REPORT.md` instead, so they are
+   never silently lost.
+
+**`/auto` ships with its limitation at the top of its own file, not buried in a report.** A detached
+process has no stdin, so it passes `--no-ask` and **the intake questions are never asked** —
+whatever they would have settled is settled by an assumption at PLAN instead. It also notes that a
+detached process is not subject to the session's own checks on spawning agents; one such check
+refused a direct spawn while ADR-036 was being built, and someone choosing between `/auto` and the
+terminal is choosing exactly that.
+
+**A classifier decides whether an OPEN QUESTIONS entry stops the run, and it is a word list.** Layout
+questions never stop a run — the carve-out makes the arrangement `tech-lead-design`'s to originate.
+Everything else does, **including an entry the list cannot classify**. The cost of that tie-break is
+a stop the operator did not need; the cost of the other tie-break is a permission decided by an
+assumption nobody reviewed.
+
+**Three self-inflicted defects worth recording, because each would recur.**
+
+1. `String.replace(from, to)` treats **`$` followed by a backtick** in the replacement as "everything
+   before the match". A patch script that wrote a comment containing ``$` `` duplicated
+   `scripts/lib/entry.mjs` end to end. Every replacement in the later patches goes through a
+   function instead of a string.
+2. Under the `m` flag, `$` means end of **line**. `(?=^#{1,3}\s|$)` therefore matched immediately and
+   made the OPEN QUESTIONS section always empty — a failure that reads as "no open questions", which
+   is the direction that ships. End-of-input is `(?![\s\S])`.
+3. `new URL(import.meta.url).pathname` keeps `%20` and a leading slash on Windows, so the
+   direct-invocation guard never matched and **every CLI invocation exited 0 having done nothing**.
+   `fileURLToPath` is the API.
+
+**Audit still 8 errors, down from 11 at the start of the day.** Tests 298, of which 295 pass; the
+three failures are the same real-repository assertions that mirror those 8.
+
+**Unchanged and still the operator's:** whether `--agent` resolves a project agent in headless mode
+(the probe is refused by this environment), the stacking question, the push permission, and the
+board being empty so that nothing exercises the spawn path end to end.
+
+### 2026-09-21 — the assumption under both ADRs was measured, and it holds
+
+**`--agent` resolves a project agent in headless mode.** This was the one thing ADR-036 and ADR-037
+rested on that nobody had checked; the probe was refused inside a Claude Code session by this
+machine's auto-mode classifier ("Create Unsafe Agents"), so it had to be run from a terminal, and the
+operator ran it.
+
+The result confirms four things at once, which is more than the question asked:
+
+- the reply signs off as `orchestrator` **in the CLAUDE.md block format** — the agent definition and
+  CLAUDE.md both loaded
+- `/next-ticket` resolved as a project command and produced a correct board report
+- `modelUsage` names `claude-sonnet-5`, which is `model: sonnet` from
+  `.claude/agents/orchestrator.md` and not the session default. **This is the strongest evidence**:
+  the agent file was read, not merely its name accepted
+- `subagent_stats.spawned: 0` — the orchestrator did not dispatch, unprompted
+
+**Two defects found on the way there, both from the same root, and both silent.**
+
+The operator's first attempt failed with `Invalid setting source: user project local`. PowerShell
+reads an unquoted `user,project,local` as an array and rejoins it with spaces. **That is also a bug
+in the runner**, which spawned with `shell: true` on Windows because `claude` on PATH is
+`claude.cmd`, a shim. Measured, not argued: under `shell: true` the same argv arrives split on
+commas, and a binary path containing a space (`D:\Programs file\node.exe` on this machine) fails
+with `'D:\Programs' is not recognized`. Both failures look like somebody else's bug — the first like
+a CLI defect, the second like a broken install.
+
+The runner now resolves the real `claude.exe` beside the shim and spawns it with `shell: false`,
+and refuses to start if it cannot find one rather than quietly falling back. Two regression tests
+assert the source contains no platform-conditional shell and that `user,project,local` is one argv
+element.
+
+**The second defect is the third instance of the same hazard in two days**, and it is worth naming
+as a class: `String.replace(from, to)` interprets `$` sequences in `to`. `$` + backtick inserted
+the whole file before the match and duplicated `entry.mjs`; `$$` collapsed to a single `$` and
+turned `cost=$${n}` into `cost=${n}`, so every step logged its cost without a currency symbol and
+nothing failed. **Always pass a function.**
+
+**The first real cost figure: $0.2434 for one `/next-ticket`** — read-only, wrote nothing, spawned
+nothing. Twelve steps of that floor is roughly $3 a ticket before any step that actually writes code.
+The runner now passes `--max-budget-usd` (default $10 per step, `--budget` to change it) on every
+spawn, enforced by the process that spends rather than checked afterwards by the one that does not.
+MAX_STEPS bounds how many times the runner asks; this bounds what one ask can cost.
+
+### 2026-09-22 — three live runs, three defects, and one of them was in the operator's own brief
+
+**The intake bar works.** Run three asked **zero** questions — *"the request is unambiguous on all
+five axes"* — because the operator pre-answered the scope questions in the request itself. Run two,
+on the looser bar, had asked five. The lever was the bar, not the cap.
+
+**Defect 1 — `--json-schema` lost to a standing instruction.** Recorded at length in the previous
+entry. Fixed by a carve-out in `CLAUDE.md`, a shared `MACHINE_CALLER` preamble, and a prose fallback
+so a paid step is never discarded again.
+
+**Defect 2 — the permission mode in the operator's brief could not work, and I took it as given.**
+The brief said `PERMISSION_MODE: dontAsk`. `.claude/settings.json` carries **no `Write` or `Edit`
+rule at all** — the allow list is Bash verbs and MCP tools — so `dontAsk` plus
+`--permission-prompts none` denies **every file write by every stage**. TRIAGE was only the first to
+try one. `/plan`, `/implement`, `/review` and `/ship` would each have failed the same way.
+
+Interactively the project works because each agent declares its own mode: `developer` and `solo` are
+`acceptEdits`; `product`, `tech-lead-design`, `orchestrator` and `tech-lead-review` are `default`,
+which prompts, and a human clicks yes. **The runner removed the human and inherited the prompt.**
+
+Stages that write now run `acceptEdits`; intake, which is told to write nothing, keeps `dontAsk` so
+that a write attempt there is correctly refused. `--permission-prompts none` stays on both, so Bash
+remains bounded by the allow list and `gh pr merge` and `git push` are untouched.
+
+**This is not a control being weakened, and it is worth being precise about why.** ADR-004 already
+removed the three file-write guards; RULE-01 is enforced by CODEOWNERS at merge and RULE-03 by
+review check R1 plus CI. `.claude/PERMISSIONS.md` defends exactly one write — `git push` — and the
+runner still refuses to start `/ship` because of it.
+
+**I should have caught this in Phase 0.** The question "what does the loop need permission to do"
+was answered for Bash commands (A3) and not for file writes, because the Bash list was visible in
+`settings.json` and the absence of a `Write` rule was not. **An absent rule is invisible in a review
+of what is present**, which is the same shape as the D9 front-matter check finding ADR-034: nothing
+looks wrong until something asks for the missing thing.
+
+**A consequence to watch, not yet acted on.** `acceptEdits` accepts an edit *anywhere*, and
+`guard-project-root.mjs` — which refused writes outside the repository — is one of the three guards
+ADR-004 left unwired. Its stated reason for being unwired never applied to it: the measured friction
+was `features.md`, which is `guard-registry.mjs`'s territory. **Under an unattended runner it is the
+guard with the best case for being restored**, and it is the cheapest of the three to restore
+because nothing legitimate writes outside the project root. Recorded here rather than acted on; A4
+in the operator's brief reserves guard wiring for them.
+
+**Cost so far, across three runs:** $1.1854 discarded to defect 1, plus run two abandoned mid-intake,
+plus run three's intake and a refused TRIAGE. The per-step cap from the previous entry is in force.
+
+### 2026-09-22 — the audit reaches zero, by teaching two checks to tell things apart
+
+**`node scripts/check-docs.mjs` — 0 errors.** It had been red since before this session started: 11
+at the beginning of the day, 8 after the mechanical front-matter fixes, 0 now. The test suite is
+321/321.
+
+**None of the eight was fixed by editing the document it was reported against.** Every one of them
+was a check that could not distinguish two things, and the fix each time was to teach it the
+difference — which is the only kind of fix that does not make the record worse.
+
+**D5 ×6 — a route is not a slash command.** `/signups`, `/admin`, `/threshold`, `/members` and
+`/holidays` are the application's own URLs, and D5 read them as commands with no definition. It now
+reads `path="..."` out of `src/App.tsx` and treats what the router serves as a route. That is
+self-maintaining: a new screen needs no audit change, and a route deleted from the router starts
+being reported again the day it goes.
+
+`/allow-list` is the sixth and is different — ADR-033 deleted that screen and replaced it with
+`/signups`, so the router does not serve it and the citations are in the past tense. It gets a
+`RETIRED_ROUTES` row with its reason, and **the register audits itself**: if the router ever serves
+it again, the row is reported as one to delete. Same shape as `ABSENT_BY_DESIGN`.
+
+**D1 ×1 — a citation is not a use.** `.ai/steward/context.md` says *"Renumbered `TEA-07` →
+`TEA-06`"*, and D1 read the token as a reference to a feature that does not exist. It is a reference
+to a feature that deliberately **never** existed, and that sentence cannot be written without naming
+it. `invariants.md` has solved this since it was written — `## Unissued IDs`, citable and never
+usable — so `features.md` gains the same section and D1 the same two-set treatment, including the
+error when an ID appears in both a group table and the unissued one.
+
+**I had twice recorded this one as unfixable.** Phase 1 said I would fix it by editing the log;
+Stage A said I would not, because editing it would falsify the record. Both were wrong in the same
+way: I was looking for which document to change, when the thing that was wrong was the check. The
+mechanism to copy had been sitting in `invariants.md` the whole time.
+
+**D6 ×1 — a file that is gone is not a file that is missing.** The idea file UIE-08 was promoted
+from exists on no ref. It gets an `ABSENT_BY_DESIGN` row saying so, and naming MD-031 as the cause:
+`/triage` writes `.ai/board/ideas/**` and any ADR it drafts, `/ship`'s ship set contains neither, so
+both were left dirty and never landed. **Reconstructing the file would be inventing a record of a
+conversation nobody has.** ADR-037's REPORT.md now names those paths on every run so the next one is
+not lost the same way — which is the actual fix; this row is the honest record of the one already
+lost.
+
+**Two warnings and five pending rows remain and are correct.** D8 is advisory. The pending rows are
+paths declared absent with a written reason, which is the mechanism working rather than failing.
+
+**What this changes for the loop:** `verify.yml` runs the audit on every pull request, so the runner
+was going to open red pull requests indefinitely — a failure inherited by whichever ticket came
+next, having done nothing to cause it. It will not now.
+
+### 2026-09-22 — NEEDS-ADR had no exit, and `/idea` let the question through
+
+Operator: *"vẫn lỗi khi chạy loop"*, after run `20260922-132740-3de6b13d` stopped at TRIAGE with
+NEEDS-ADR on `2026-09-22-an-admin-manages-every-team-and-sees-only-one-calendar.md`.
+
+**The verdict itself was correct.** The idea rests on the 2026-09-11 many-teams decision, whose only
+record is a `/solo` agent's paraphrase in a migration header; `product` rightly refused to sign
+`ACCEPTED by the operator` on it and drafted ADR-039 and ADR-040 as `PROPOSED`. The run created
+both files (mtime 20:29 local, inside the run); it did not duplicate or overwrite an earlier pair.
+
+**Defect 1, the one that made it a loop — a stop whose exit the runner could not see.** The stop
+said *"accept or amend it, then run this idea file again"*. The runner skips TRIAGE on any file that
+already carries a `verdict`, so the second run would have re-read the stale NEEDS-ADR and stopped
+with the same words however the ADRs had changed — nothing it read was what the operator was told to
+edit. The exit is now the ADR's own `## Status` line: `awaiting_adrs` in the idea front-matter
+(fallback: the `ADR-nnn` IDs in `verdict_reason`, for files triaged before the field existed), each
+ADR's status read from disk, and a re-triage once none is `PROPOSED` — at most once per run, so a
+second NEEDS-ADR on the same ADRs stops rather than loops. `REJECTED` counts as decided; the
+re-triage has to follow it.
+
+**Defect 2 — the stop told the operator nothing concrete.** *"To resume: `auto <ticket>`"* was a
+literal placeholder on every TRIAGE stop, and *"What you must decide"* was the same generic sentence
+for every cause. It now names each ADR file, its current status, the exact edit, and the idea file
+to re-run.
+
+**Defect 3 — cost.** The TRIAGE step cost $1.4260 and REPORT.md said `$0.0000`: only loop steps added
+to the total. Now summed in `invoke()`, where every step is spawned.
+
+**Defect 4, upstream — `/idea` treated a decision found in a migration as settled.** Its step 1 says
+to read migrations so as not to re-ask a decision; it did not say that such a decision is not on
+record until an ADR carries it, and `/triage` applies exactly that standard. So the one question the
+operator had to answer surfaced in the unattended half, which is the failure ADR-038 exists to
+prevent. `/idea` now asks the operator to confirm such a decision in words and records it verbatim;
+`/triage` may sign `ACCEPTED by the operator` citing that quote.
+
+Also: `readVerdict` now reports a BLOCKED triage as blocked rather than as a pre-ADR-037 file; and
+`triage.md` tells `product` to copy ADR-000's front-matter, because ADR-039 and ADR-040 were drafted
+at `doc_version: 1` and **D9 fails the audit on both (4 errors)**. Not fixed here — standing
+instruction: small out-of-scope fixes never touch `.ai/registry/**`. The operator's edit to those two
+Status lines is the natural moment to raise `doc_version` to 2.
+
+Changed: `scripts/lib/entry.mjs`, `scripts/run-loop.mjs`, `scripts/lib/prompts.mjs`,
+`.claude/commands/triage.md`, `.claude/commands/idea.md`, `.ai/templates/idea.md`,
+`scripts/tests/entry.test.mjs` (11 tests, two built from the real decisions directory and the real
+idea files). Suite 330/332; the two failures are the D9 errors above. No registry write.
+
+### 2026-09-22 — a fresh PROMOTE stopped on its own output: three preflight defects
+
+Run `20260922-142836-510fe05c` re-triaged the many-teams idea to PROMOTE (CAL-11, CAL-12) and then
+stopped CAL-11 at preflight on three grounds. Being on `pipeline_implement` was correct to stop on
+and is untouched. The other three were the runner's.
+
+**Defect 1 — porcelain parsed through a trimming helper.** `git()` trims stdout; the first porcelain
+entry is ` M <path>`, so the trim took the status column's space and `slice(3)` took the path's first
+character (`ai/board/backlog.md`). Present in both the preflight and the report's orphan list. Now
+`git status --porcelain=v1 -z --untracked-files=all`, parsed by `parsePorcelainZ` (renames yield both
+sides; `-uall` because a new ticket folder collapsed to `dir/` cannot be checked file by file). The
+fixture is this repository's real `-z` output, captured today.
+
+**Defect 2 — WIP counted a BACKLOG sibling as in flight.** The rule was *not DONE and not TRIAGE*.
+The operating model's dispatch loop counts `PLAN..REVIEW`; `IN_FLIGHT_STATES` is that plus REWORK and
+ESCALATED, and the check is written as the complement so an unparseable state still blocks.
+
+**Defect 3, the class — `/plan` step 0 and the preflight both demanded a tree that no PROMOTE can
+leave.** Agents commit only at `/ship` (ADR-023), so triage output is dirty at `/plan` by
+construction. The rule now: *carried* is this ticket's folder and `allowed_paths`, the three
+ship-owned paths, the idea file that promoted it (`ticket_id`, or cited by path in `ticket.yaml`), the
+ADRs that ticket or that idea's verdict cites by ID, and a sibling folder from the same idea at
+BACKLOG holding only `ticket.yaml`. Everything else is stray and stops, exactly as before — measured
+on the live tree, the chore work and the uncited ADR-038 are still refused. **The ship set is not
+widened**: carried is not committed, so the idea and ADRs are still orphans at `/ship` (MD-031), and
+the durable answer remains a human committing them.
+
+Changed: `scripts/lib/entry.mjs` (`parsePorcelainZ`, `IN_FLIGHT_STATES`, `wipBlockers`,
+`SHIP_OWNED`, `planCarry`), `scripts/run-loop.mjs` (preflight, `dirtyPaths`, `carryContext`),
+`.claude/commands/plan.md` step 0, `.ai/standards/git-conventions.md` (the dirty-tree bullet names
+the one exception — a standards edit, made because the bullet and step 0 would otherwise disagree),
+`scripts/tests/entry.test.mjs` (+7 tests; one from the real porcelain output, one from the real
+CAL-11 / CAL-12 `ticket.yaml` and idea file). Suite 339/339; audit 0 errors. No registry write.

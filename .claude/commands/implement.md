@@ -46,7 +46,7 @@ re-deriving the design instead of fixing what the reviewer found
 **Template:** `.ai/templates/impl-log.md`
 
 **Gate:** the typecheck and lint commands named in `.ai/standards/testing-standards.md` exit 0;
-every contract item in design section 1 is
+every contract item in plan section 4 is
 implemented; `03-impl-log.md` lists every file touched with a one-line reason.
 
 Check the branch first. `guard-allowed-paths.mjs` resolves the ticket from `feat/<ID>`, so work done

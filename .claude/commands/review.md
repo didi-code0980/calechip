@@ -1,5 +1,5 @@
 ---
-description: Run the REVIEW stage — R1 to R9 in isolated dispatch, verdict to 04-review.md
+description: Run the REVIEW stage — R1 to R8 in isolated dispatch, verdict to 04-review.md
 argument-hint: <TICKET-ID>
 ---
 
@@ -41,6 +41,12 @@ You have no channel to the Developer and you did not talk to one. `chat_before_v
 
 **Gate:** R1 through R8, each citing `file:line`. An item with no citation counts as failed.
 
+**Fill the five routing fields in the front-matter, every time, including on a PASS.** `verdict`,
+`failed_checks`, `invariant_violation`, `route_to`, `increments_rework` — the valid combinations are
+tabulated in `.ai/templates/review-report.md`. `/advance` and `scripts/run-loop.mjs` route on
+`invariant_violation` and `route_to` and never on a check number (ADR-036). `verdict` must equal
+`gate`; a disagreement voids the artifact and the stage re-runs in a clean session.
+
 On FAIL, route per the failure routing table in `.ai/01-operating-model.md`, which encodes RULE-08 in
 its third column. Read the column; do not decide the increment yourself.
 
@@ -64,8 +70,8 @@ is a view.
 
 Per `## Replying` in `CLAUDE.md`. **Do not tabulate R1 to R8 in chat.** `04-review.md` holds every
 check with its `file:line`, that is the artifact the gate is read from, and a summary of it in chat is
-a copy that cannot be cited. *All nine pass* is one sentence; a FAIL needs the failing check and why,
-and nothing about the eight that passed.
+a copy that cannot be cited. *All eight pass* is one sentence; a FAIL needs the failing check and why,
+and nothing about the ones that passed.
 
 Never cite `04-review.md`'s own line numbers as evidence for its own conclusions — R-checks cite the
 implementation, and quoting your own report back proves nothing.

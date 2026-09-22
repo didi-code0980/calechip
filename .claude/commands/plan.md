@@ -25,17 +25,43 @@ manufacturing one hides which.
 pwd
 git branch --show-current
 git fetch origin --quiet
-git status --porcelain
+git status --porcelain --untracked-files=all
 ```
+
+**First sort every dirty path into *carried* or *stray*.** A fresh PROMOTE cannot leave a clean tree
+— agents commit only at `/ship` (ADR-023), so this ticket's own triage output is dirty when you run,
+by construction. Stopping on it made every PROMOTE block itself. **Carried** is exactly this list,
+each item checked against a file, never inferred from a folder name:
+
+- `.ai/board/tickets/$ARGUMENTS/**`, and any path matching this ticket's `allowed_paths`
+- the three ship-owned paths — `.ai/board/backlog.md`, `.ai/board/metrics.md`,
+  `.ai/registry/features.md` (ADR-023; `/ship` commits them on this branch)
+- the idea file whose front-matter `ticket_id` is `$ARGUMENTS`, or whose path this ticket's
+  `ticket.yaml` cites
+- an ADR under `.ai/registry/decisions/` whose ID this `ticket.yaml`, or that idea's
+  `verdict_reason` / `awaiting_adrs`, cites
+- a sibling ticket folder whose `ticket.yaml` cites that same idea file, whose `state` is `BACKLOG`,
+  and which holds nothing dirty but its `ticket.yaml` — the second row of the same PROMOTE
+
+**Everything else is stray** — model, tooling, standards, another idea, an ADR nothing cites, a
+sibling holding any artifact beyond `ticket.yaml`. `planCarry` in `scripts/lib/entry.mjs` is the
+runner's copy of this list; if the two disagree, that is a defect for `/thuki`, not a choice for you.
+
+**Carried is not committed.** `/ship`'s ship set is unchanged: the idea file, the ADRs and the
+sibling folder ride this branch dirty and are still left behind at `/ship`, named in its reply.
 
 Then take exactly one of four paths:
 
 | What you found | What you do |
 |---|---|
 | Already on `feat/$ARGUMENTS` | Nothing. Proceed to the plan. |
-| On another branch, or detached, **and the tree is dirty** | **STOP.** Print the dirty paths and say which ticket they belong to. Do not switch. |
-| On another branch or detached, tree clean, `feat/$ARGUMENTS` **exists** | `git switch feat/$ARGUMENTS` — or `git switch -c feat/$ARGUMENTS origin/feat/$ARGUMENTS` when it exists only on the remote. |
-| On another branch or detached, tree clean, `feat/$ARGUMENTS` **does not exist** | `git switch -c feat/$ARGUMENTS origin/main` |
+| On another branch, or detached, **and any path is stray** | **STOP.** Print the stray paths and say which ticket or session they belong to. Do not switch. |
+| On another branch or detached, nothing stray, `feat/$ARGUMENTS` **exists** | `git switch feat/$ARGUMENTS` — or `git switch -c feat/$ARGUMENTS origin/feat/$ARGUMENTS` when it exists only on the remote. |
+| On another branch or detached, nothing stray, `feat/$ARGUMENTS` **does not exist** | `git switch -c feat/$ARGUMENTS origin/main` |
+
+**If `git switch` refuses** because a carried file differs between the two commits ("would be
+overwritten by checkout"), **stop and report it.** Never stash, never force, never `checkout --`:
+the refusal is git protecting the tree, and the operator decides which copy stands.
 
 **Existence is checked, not assumed:** `git show-ref --verify --quiet refs/heads/feat/$ARGUMENTS`,
 then `refs/remotes/origin/feat/$ARGUMENTS`. Two separate refs and they can disagree.
@@ -48,7 +74,7 @@ because no session ever checks it out.
 `size_estimate`, `size` and `allowed_paths` written back into `ticket.yaml`
 **Template:** `.ai/templates/plan.md`
 
-**Gate:** all nine sections complete; ACs in Given/When/Then each with an ID; **§ 2b carrying
+**Gate:** all eight sections complete; ACs in Given/When/Then each with an ID; **§ 2b carrying
 exactly one of its two lines**; `invariants_touched` populated; `size_estimate` and `size` set;
 `allowed_paths` enumerated; Out-of-scope non-empty.
 
