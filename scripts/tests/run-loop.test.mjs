@@ -25,7 +25,9 @@ import { fileURLToPath } from "node:url";
 import {
   nextStep, advanceSimulated, sessionFor, reviewStop, questionStop, budgetStop,
   inAllowedPaths, validateEntry, buildArgv, parseArgv, SESSION_POLICY, TICKET_ID,
+  readQuestions,
 } from "../run-loop.mjs";
+import { intakePrompt } from "../lib/prompts.mjs";
 
 const SCRIPT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..", "run-loop.mjs");
 
@@ -200,10 +202,126 @@ test("the argv never drops the project's hooks, commands or agents", () => {
   assert.ok(!argv.includes("--resume"));
 });
 
+test("a stage that writes runs under acceptEdits, or every stage is denied", () => {
+  // .claude/settings.json has no Write or Edit rule at all — the allow list is Bash verbs and MCP
+  // tools. Under `dontAsk` with `--permission-prompts none`, that denies every file write by every
+  // stage. It did: the first live TRIAGE was refused writing its own idea file.
+  const argv = buildArgv("/plan TST-01", "tech-lead-design", { sessionId: "u", mode: "new" });
+  const mode = argv[argv.indexOf("--permission-mode") + 1];
+  assert.equal(mode, "acceptEdits", "every loop stage writes an artifact; dontAsk denies all of them");
+
+  // And the other half of the pair must stay, or Bash stops being bounded by the allow list.
+  assert.equal(argv[argv.indexOf("--permission-prompts") + 1], "none");
+
+  const settings = JSON.parse(fs.readFileSync(path.join(path.dirname(SCRIPT), "..", ".claude", "settings.json"), "utf8"));
+  assert.ok(settings.permissions.deny.some((r) => /gh pr merge/.test(r)),
+    "accepting edits must not have loosened the one write PERMISSIONS.md defends");
+});
+
 test("a resumed session uses --resume and never --session-id", () => {
   const argv = buildArgv("/implement TST-01", "developer", { sessionId: "u", mode: "resume" });
   assert.ok(argv.includes("--resume"));
   assert.ok(!argv.includes("--session-id"));
+});
+
+// --- Reading the intake result ------------------------------------------------------------------------
+//
+// These exist because of one real run, not a hypothetical. The first live intake cost $1.19 and
+// returned four well-cited questions — in Vietnamese, ending with the four-line sign-off block from
+// CLAUDE.md. The runner threw all of it away because it was not JSON.
+//
+// That is the wrong trade every time. The money is spent when the process exits; the only question
+// left is whether the content survives. `product` was not disobeying: "the sign-off IS the reply" is
+// in CLAUDE.md and repeated in its own agent file, and `--json-schema` is a flag. The flag lost.
+
+const QUESTIONS = { questions: [{ question: "Who approves?", why_it_changes_the_work: "the policy" }] };
+
+test("raw JSON is read", () => {
+  const r = readQuestions(JSON.stringify(QUESTIONS));
+  assert.equal(r.questions.length, 1);
+  assert.equal(r.questions[0].question, "Who approves?");
+});
+
+test("an object rather than a string is read", () => {
+  assert.equal(readQuestions(QUESTIONS).questions.length, 1);
+});
+
+test("a fenced JSON block is read", () => {
+  const raw = "Here you go:\n\n```json\n" + JSON.stringify(QUESTIONS) + "\n```\n";
+  assert.equal(readQuestions(raw).questions.length, 1);
+});
+
+test("a bare object buried in prose is read", () => {
+  const raw = "Some preamble.\n" + JSON.stringify(QUESTIONS) + "\nSome trailing prose.";
+  assert.equal(readQuestions(raw).questions.length, 1);
+});
+
+test("prose is kept as prose rather than discarded", () => {
+  const raw = "**1. Các team khác lấy từ đâu ra?**\n- *Vì sao làm khác đi:* nếu cần màn hình quản lý team...";
+  const r = readQuestions(raw);
+  assert.equal(r.questions, null);
+  assert.ok(r.prose.includes("Các team khác"), "the content must survive a shape it did not expect");
+});
+
+test("the sign-off block is stripped from prose, because it is conversation not content", () => {
+  const raw = [
+    "**1. Ai được duyệt?**",
+    "",
+    "---",
+    "**Tôi là `product`.** Vừa đọc yêu cầu — không có ticket, gate n/a.",
+    "**Xong lúc:** unavailable — no Bash tool",
+  ].join("\n");
+  const r = readQuestions(raw);
+  assert.ok(r.prose.includes("Ai được duyệt"));
+  assert.ok(!r.prose.includes("Tôi là"), "the sign-off is noise in a stored answer");
+});
+
+test("an empty result yields neither questions nor prose", () => {
+  for (const empty of ["", "   ", null, undefined]) {
+    const r = readQuestions(empty);
+    assert.equal(r.questions, null);
+    assert.ok(!r.prose, `${JSON.stringify(empty)} should yield no prose`);
+  }
+});
+
+
+// --- The class of defect, not the instance --------------------------------------------------------
+//
+// The intake failure was one symptom of two general hazards. These two tests are aimed at the
+// hazards, because fixing the symptom fixes nothing for the next prompt anyone writes.
+
+test("every machine-read prompt invokes the CLAUDE.md carve-out", () => {
+  // A prompt paired with --json-schema is asking a program-shaped question. Without the preamble the
+  // agent follows CLAUDE.md § Replying instead, which is what it is told to do everywhere else.
+  const src = fs.readFileSync(path.join(path.dirname(SCRIPT), "lib", "prompts.mjs"), "utf8");
+
+  assert.match(src, /export const MACHINE_CALLER/, "the shared preamble must exist");
+  assert.ok(intakePrompt("x").includes("Your caller is a program"),
+    "intakePrompt is paired with INTAKE_SCHEMA and must carry the preamble");
+
+  // And the carve-out it invokes has to be in CLAUDE.md, or the preamble cites nothing.
+  const claudeMd = fs.readFileSync(path.join(path.dirname(SCRIPT), "..", "CLAUDE.md"), "utf8");
+  assert.match(claudeMd, /When the caller is a program/,
+    "CLAUDE.md must carry the carve-out; otherwise every prompt fights the standing instruction");
+});
+
+test("every read of model reply text is tagged, and none of them routes", () => {
+  // The runner routes on ticket.yaml and artifact front-matter, never on what an agent said. This
+  // test does not prove that; it makes adding a fourth reader a deliberate act, the way
+  // DELIBERATELY_UNWIRED does for hooks. Tag it and say why it is safe, or this fails.
+  const lines = fs.readFileSync(SCRIPT, "utf8").split("\n");
+  const reads = [];
+  lines.forEach((line, i) => {
+    if (/\bout\.result\.result\b|\br\.result\b/.test(line)) reads.push(i);
+  });
+
+  assert.ok(reads.length > 0, "if nothing reads reply text this test has stopped measuring anything");
+  for (const i of reads) {
+    const above = lines.slice(Math.max(0, i - 3), i).join(" ");
+    assert.match(above, /REPLY-TEXT:/,
+      `run-loop.mjs:${i + 1} reads model reply text without a REPLY-TEXT: tag saying why that is ` +
+      "safe. Routing must come from ticket.yaml or artifact front-matter (ADR-036).");
+  }
 });
 
 // --- Spawning ---------------------------------------------------------------------------------------

@@ -84,6 +84,9 @@ front-matter is the live answer; the body is the history.
 was written by an agent from a sentence the operator said; asking them to author one contradicts how
 the model actually works. Produce the whole document: context, the options with their trade-offs, a
 recommendation, consequences including what gets worse, and a revert condition.
+**Copy the front-matter of `ADR-000-template.md` as it stands**, `doc_version: 2` included — a new
+ADR written at `doc_version: 1` cites RULE-01 and RULE-09 at a version above its own, and check D9
+fails the audit on it. ADR-039 and ADR-040 were both drafted that way on 2026-09-22.
 
 Then one of two things, and the test is not a judgement call:
 
@@ -92,6 +95,20 @@ Then one of two things, and the test is not a judgement call:
 - **The decision would supersede or reverse an accepted ADR** — stop and ask, in one question. That
   is changing the envelope rather than working inside it, and `ACCEPTED by the operator` is a claim
   about a person that you may not write on their behalf.
+
+**Where the idea file already quotes the operator confirming the decision, verbatim, under
+`## Evidence`, that quote is the words you point at**: write `ACCEPTED by the operator`, cite the
+idea file and quote them. `/idea` asks for exactly this so that the unattended run does not stop here.
+
+**Name every ADR the verdict waits on in `awaiting_adrs`** (`.ai/templates/idea.md`). That list is
+the NEEDS-ADR verdict's only exit: `scripts/run-loop.mjs` reads each ADR's `## Status` line, and
+once none of them is `PROPOSED` it re-triages the file and the new verdict replaces this one. Before
+2026-09-22 there was no such exit — the runner re-read the stale NEEDS-ADR on every run and stopped
+with the same words, however many ADRs the operator had accepted in between.
+
+**The question you ask goes in the ADR's `## Status` as well as in `## Open questions`.** The
+operator answers it by editing that line — `ACCEPTED by the operator` or `REJECTED by the operator`
+— which is a signature they write themselves and you never write for them.
 
 **On PROMOTE, `product` writes the row to `.ai/registry/features.md`** — ADR-007. Allocate the next
 free number in the group, set `Status` to `PLANNED`, and **put the idea filename in the `Notes`

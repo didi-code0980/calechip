@@ -12,7 +12,12 @@ export const ROOT = path.resolve(import.meta.dirname, "..", "..");
 export const IDEAS_DIR = path.join(ROOT, ".ai", "board", "ideas");
 export const TRACKER = path.join(ROOT, ".ai", "registry", "tracker.yaml");
 
-export const MAX_INTAKE_QUESTIONS = 7;
+// Lowered from 7 on 2026-09-22, at the operator's request. The number is the weaker of the two
+// levers and it is here for completeness: a cap TRUNCATES, so the question it removes is as valid
+// as the ones it keeps and simply becomes a silent assumption instead. The lever that actually
+// works is the bar in `prompts.mjs` — ask only what BLOCKS the plan — because that removes
+// questions by answering them rather than by hiding them.
+export const MAX_INTAKE_QUESTIONS = 4;
 export const AUTO_PROCEED_VERDICTS = ["PROMOTE"];      // REJECT and NEEDS-ADR always stop
 export const ON_OPEN_QUESTIONS_AFTER_PLAN = "stop";    // layout-only entries never stop a run
 export const ON_SPLIT = "stop";
@@ -117,11 +122,27 @@ export function resolveInput(input, opts, deps) {
     return { kind: "idea", file: asPath, how: "a path under .ai/board/ideas/" };
   }
 
-  // 4 and 5. A ticket id resolves to its ticket, or it is an error. Never a fall-through.
+  // 4. A ticket id that resolves to a ticket wins over everything below it.
+  if (TICKET_ID.test(input) && ticketFileExists(input)) {
+    return { kind: "ticket", id: input, how: "a ticket id" };
+  }
+
+  // 4b. A bare name that names an idea file. `/idea` writes
+  // `.ai/board/ideas/<yyyy-mm-dd>-<slug>.md`, and nobody wants to type that, so any unambiguous
+  // fragment of it resolves — the id it was filed under, a word from the slug, the whole filename.
+  //
+  // Restricted to a single token with no whitespace, so that a sentence cannot match a file by
+  // accident and silently re-run a triage the operator meant to start fresh.
+  if (!/\s/.test(input)) {
+    const hit = matchIdeaFile(input, ideasDir);
+    if (hit.file) return { kind: "idea", file: hit.file, how: `the idea file ${path.basename(hit.file)}` };
+    if (hit.error) return { error: hit.error };
+  }
+
+  // 5. A ticket id that named neither a ticket nor an idea is an error. Never a fall-through:
+  // falling through would turn one mistyped character into a new idea, a feature row and a ticket.
   if (TICKET_ID.test(input)) {
-    return ticketFileExists(input)
-      ? { kind: "ticket", id: input, how: "a ticket id" }
-      : { error: `${input} looks like a ticket id but has no ticket.yaml.\nIf you meant an idea, say so explicitly: --idea "${input}"` };
+    return { error: `${input} looks like a ticket id but has no ticket.yaml, and no idea file matches it.\nIf you meant a new idea, say so explicitly: --idea "${input}"` };
   }
 
   // 6. A tracker id or URL.
@@ -130,6 +151,29 @@ export function resolveInput(input, opts, deps) {
 
   // 7. Anything else is a free-text idea.
   return { kind: "intake", text: input, how: "free text" };
+}
+
+/**
+ * Find one idea file from a fragment of its name. Returns { file } or { error } or {}.
+ * Ambiguity is an error rather than a first-match, because the wrong idea file runs the wrong
+ * triage and the operator finds out at the pull request.
+ */
+export function matchIdeaFile(name, ideasDir = IDEAS_DIR) {
+  if (!fs.existsSync(ideasDir)) return {};
+  const needle = name.toLowerCase().replace(/\.md$/, "");
+  const all = fs.readdirSync(ideasDir).filter((f) => f.endsWith(".md"));
+
+  const exact = all.filter((f) => f.toLowerCase().replace(/\.md$/, "") === needle);
+  const hits = exact.length ? exact : all.filter((f) => f.toLowerCase().includes(needle));
+
+  if (hits.length === 1) return { file: path.join(ideasDir, hits[0]) };
+  if (hits.length > 1) {
+    return { error: [
+      `"${name}" matches ${hits.length} idea files. Name one of them:`,
+      ...hits.map((f) => "    " + f),
+    ].join("\n") };
+  }
+  return {};
 }
 
 // --- The verdict, read from disk -----------------------------------------------------------------
@@ -145,6 +189,19 @@ export function readVerdict(file, readFrontMatter) {
   const fm = readFrontMatter(file);
   const rel = path.relative(ROOT, file);
   if (!fm) return { error: `${rel} has no front-matter` };
+  // TRIAGE is told to BLOCK rather than guess (prompts.mjs). A blocked file carries no verdict, and
+  // reporting it as "the pre-ADR-037 shape" would send the operator after the wrong problem.
+  // Only when there is no verdict: a re-triage that PROMOTEs may leave a stale gate behind it.
+  if (!fm.verdict && String(fm.gate ?? "").toUpperCase() === "BLOCKED") {
+    return {
+      error: [
+        `TRIAGE blocked on ${rel}: ${fm.blocking_reason || "(no blocking_reason given)"}`,
+        "",
+        "Answer it in the idea file — under its Open questions, in your own words — or run `/idea`",
+        "again on it. Then run this idea file again: a file with no verdict is triaged afresh.",
+      ].join("\n"),
+    };
+  }
   if (!fm.verdict) {
     return {
       error: [
@@ -162,21 +219,116 @@ export function readVerdict(file, readFrontMatter) {
   };
 }
 
-/** PROMOTE proceeds; REJECT and NEEDS-ADR always stop, with the reason TRIAGE gave. */
-export function verdictStop(v) {
+// --- NEEDS-ADR, and the way out of it ------------------------------------------------------------
+//
+// **A stop has to name an exit the runner can see.** Before 2026-09-22 NEEDS-ADR told the operator
+// to "accept the ADR, then run this idea file again" — and the runner skipped TRIAGE on any file
+// that already carried a verdict, so the second run read the same stale NEEDS-ADR and stopped with
+// the same words, for ever. Accepting the ADR changed nothing the runner looked at. The exit is now
+// the ADR's own `## Status` line: once every ADR the verdict waits on has left `PROPOSED`, the run
+// re-triages, and the new verdict is the live one.
+
+export const DECISIONS_DIR = path.join(ROOT, ".ai", "registry", "decisions");
+
+/** A status a person or an agent has decided. `PROPOSED` is the only undecided one. */
+const DECIDED_STATUS = /^(ACCEPTED|REJECTED|WITHDRAWN|SUPERSEDED)\b/i;
+
+/**
+ * The ADRs a NEEDS-ADR verdict waits on. `awaiting_adrs` in the front-matter is the field; an idea
+ * file triaged before that field existed names them only in `verdict_reason`, which is on-disk
+ * front-matter written by TRIAGE (not reply text), so the IDs are read from there as a fallback.
+ */
+export function awaitedAdrs(fm) {
+  const raw = fm?.awaiting_adrs;
+  const listed = Array.isArray(raw) ? raw.join(" ") : typeof raw === "string" ? raw : "";
+  const source = /ADR-\d{3}/.test(listed) ? listed : String(fm?.verdict_reason ?? "");
+  return [...new Set(source.match(/ADR-\d{3}/g) ?? [])];
+}
+
+/**
+ * Read one ADR's status: the first backticked token on the first non-empty line under `## Status`,
+ * which is the shape every ADR in `.ai/registry/decisions/` uses. Returns
+ * `{ id, file, status, problem }`; `problem` is set when the runner cannot tell.
+ */
+export function adrStatus(id, decisionsDir = DECISIONS_DIR) {
+  const names = fs.existsSync(decisionsDir)
+    ? fs.readdirSync(decisionsDir).filter((f) => f === `${id}.md` || f.startsWith(`${id}-`))
+    : [];
+  if (names.length === 0) return { id, file: null, status: null, problem: "no file in .ai/registry/decisions/" };
+  if (names.length > 1) {
+    return { id, file: null, status: null, problem: `${names.length} files carry this number: ${names.join(", ")}` };
+  }
+  const abs = path.join(decisionsDir, names[0]);
+  const file = path.relative(ROOT, abs).split(path.sep).join("/");
+  const text = fs.readFileSync(abs, "utf8");
+  const section = /^##[ \t]*Status[ \t]*\r?\n([\s\S]*?)(?=^##[ \t]|(?![\s\S]))/m.exec(text);
+  const first = section ? section[1].split(/\r?\n/).find((l) => l.trim()) ?? "" : "";
+  const tick = /`([^`]+)`/.exec(first);
+  if (!tick) return { id, file, status: null, problem: "no backticked status under `## Status`" };
+  return { id, file, status: tick[1].trim(), problem: null };
+}
+
+/** True when there is at least one awaited ADR and none of them is still undecided. */
+export function adrsSettled(statuses) {
+  return statuses.length > 0 && statuses.every((s) => s.status && DECIDED_STATUS.test(s.status));
+}
+
+/**
+ * PROMOTE proceeds; REJECT and NEEDS-ADR always stop, with the reason TRIAGE gave.
+ * `adrs` is the output of `adrStatus` for each awaited ADR, read AFTER any re-triage.
+ */
+export function verdictStop(v, adrs = []) {
   if (AUTO_PROCEED_VERDICTS.includes(v.verdict)) return null;
   if (v.verdict === "REJECT") {
     return `TRIAGE returned REJECT: ${v.reason || "(no reason given, which is itself a gate failure)"}`;
   }
   if (v.verdict === "NEEDS-ADR") {
-    return [
+    const lines = [
       `TRIAGE returned NEEDS-ADR: ${v.reason || "(no reason given)"}`,
       "",
       "The ADR should already be drafted — /triage writes it rather than handing you homework.",
-      "Read it, accept or amend it, then run this idea file again.",
-    ].join("\n");
+    ];
+    if (adrs.length === 0) {
+      lines.push(
+        "The verdict names no ADR — neither `awaiting_adrs` nor `verdict_reason` carries an ADR-nnn —",
+        "so the runner cannot tell when it has been decided. Run `/triage <this idea file>` in a new",
+        "`product` session instead.",
+      );
+      return lines.join("\n");
+    }
+    if (adrsSettled(adrs)) {
+      lines.push(
+        "Every ADR it waits on is already decided, and TRIAGE still returned NEEDS-ADR after reading",
+        "them. That is not a status to flip; read verdict_reason and the idea file's Open questions.",
+      );
+    } else {
+      lines.push("Waiting on these ADRs. The runner re-triages by itself once none of them is PROPOSED:");
+    }
+    for (const a of adrs) {
+      lines.push(`  - ${a.id}  ${a.file ?? "(not found)"}  — status: ${a.status ? "`" + a.status + "`" : a.problem}`);
+    }
+    return lines.join("\n");
   }
   return `TRIAGE returned an unrecognised verdict \`${v.verdict}\``;
+}
+
+/** The "what you must decide" text for a NEEDS-ADR stop. Exact edit, exact file, exact command. */
+export function needsAdrDecision(adrs, resumeCommand) {
+  const pending = adrs.filter((a) => !(a.status && DECIDED_STATUS.test(a.status)));
+  if (adrs.length === 0 || pending.length === 0) {
+    return `Read the idea file's verdict and Open questions; then \`${resumeCommand}\`.`;
+  }
+  return [
+    "Read each ADR below. In its `## Status` section, replace the backticked `PROPOSED` with your",
+    "decision — `ACCEPTED by the operator`, or `REJECTED by the operator` — and keep the date line.",
+    "Amend the body first if it records your decision wrongly. Only you may write that signature:",
+    "an agent that wrote it for you would be forging it (`.ai/steward/context.md`, Autonomy).",
+    "",
+    ...pending.map((a) => `  - ${a.file ?? a.id + " (" + a.problem + ")"}`),
+    "",
+    `Then run \`${resumeCommand}\`. The runner reads those status lines, sees them decided, and`,
+    "re-triages the idea; the new verdict replaces this one. Nothing else needs editing.",
+  ].join("\n");
 }
 
 // --- Checks after PLAN, before READY -------------------------------------------------------------
@@ -243,6 +395,130 @@ export function orphanPaths(dirtyPaths) {
   return dirtyPaths.filter(
     (p) => p.startsWith(".ai/board/ideas/") || p.startsWith(".ai/registry/decisions/")
   );
+}
+
+// --- The working tree, read exactly --------------------------------------------------------------
+
+/**
+ * Parse `git status --porcelain=v1 -z --untracked-files=all` into repo-relative paths.
+ *
+ * **Why `-z` and not the line form.** The line form was read with `.trim()` on the whole stdout
+ * and then `line.slice(3)`. The first entry of a porcelain listing is ` M <path>` — its status
+ * column is a space — so the trim ate it and `slice(3)` ate the path's first character instead:
+ * run 20260922-142836-510fe05c reported `ai/board/backlog.md`. The line form also quotes paths with
+ * unusual characters and joins a rename as `old -> new`. `-z` does neither: entries are
+ * NUL-terminated, paths are raw, and a rename is `XY new\0old\0`. Both sides of a rename are
+ * returned, because both are changes to the tree.
+ *
+ * `--untracked-files=all` because the default collapses a new directory to `dir/`, and a check on
+ * which files a new ticket folder holds cannot be made against a directory name.
+ */
+export function parsePorcelainZ(out) {
+  const tok = String(out ?? "").split("\0");
+  const paths = [];
+  for (let i = 0; i < tok.length; i++) {
+    const e = tok[i];
+    if (e.length < 4) continue;                 // the trailing empty token, or garbage
+    const xy = e.slice(0, 2);
+    paths.push(e.slice(3));
+    if (/[RC]/.test(xy)) {                      // the original path follows as its own token
+      const from = tok[++i];
+      if (from) paths.push(from);
+    }
+  }
+  return paths;
+}
+
+// --- WIP -------------------------------------------------------------------------------------------
+
+/**
+ * The states in which a ticket is *in flight* — it holds the one working tree (ADR-006).
+ *
+ * `.ai/01-operating-model.md`'s dispatch loop counts `state in PLAN..REVIEW`; REWORK sits after
+ * REVIEW in the enum and is plainly mid-loop, and ESCALATED is halted with its work still in the tree
+ * and on its branch until a human decides. TRIAGE and BACKLOG have not started — nothing of theirs is
+ * on a branch — and DONE has finished. **A PROMOTE that splits one idea into two tickets leaves the
+ * second at BACKLOG; counting it blocked the first ticket on its own sibling** (run
+ * 20260922-142836-510fe05c: "WIP: CAL-12=BACKLOG is not terminal").
+ */
+export const IN_FLIGHT_STATES = ["PLAN", "READY", "IN_PROGRESS", "REVIEW", "REWORK", "ESCALATED"];
+const NOT_IN_FLIGHT = ["TRIAGE", "BACKLOG", "DONE"];
+
+/** Written as the complement so that a state it cannot read (`UNPARSEABLE`, a typo) still blocks. */
+export function wipBlockers(tickets, selfId) {
+  return tickets.filter((o) => o.id !== selfId && !NOT_IN_FLIGHT.includes(o.state));
+}
+
+// --- What may ride onto a new ticket branch ---------------------------------------------------------
+
+/** ADR-023. Must equal `SHIP_OWNED` in `scripts/check-allowed-paths.mjs` — a test asserts it. */
+export const SHIP_OWNED = [".ai/board/backlog.md", ".ai/board/metrics.md", ".ai/registry/features.md"];
+
+const cites = (text, needle) => Boolean(needle) && String(text ?? "").includes(needle);
+const citesAdr = (text, id) => new RegExp(`\\b${id}\\b`).test(String(text ?? ""));
+
+/**
+ * Sort the dirty tree, before `/plan` cuts `feat/<id>`, into what may ride onto the new branch and
+ * what stops it. **The rule is: this ticket's own triage output, and nothing else.** `/plan` step 0
+ * states the same rule in prose; this is the runner's copy, and the two must agree.
+ *
+ * A PROMOTE cannot leave a clean tree — agents commit only at `/ship` (ADR-023), so the output of
+ * `/triage` is dirty when `/plan` runs, by construction. Stopping on it made every fresh PROMOTE
+ * self-blocking. What is carried, each derived from a file on disk rather than from a category:
+ *
+ *   - `.ai/board/tickets/<id>/**` and `allowed_paths` — this ticket's own ship set
+ *   - the three ship-owned paths — they ride on the ticket branch by ADR-023 and `/ship` commits them
+ *   - an idea file whose front-matter `ticket_id` is this ticket, or whose path this ticket's
+ *     `ticket.yaml` cites — the file that promoted it
+ *   - an ADR whose ID this ticket's `ticket.yaml`, or that idea's `verdict_reason` / `awaiting_adrs`,
+ *     cites — the decisions the verdict waited on
+ *   - a sibling ticket folder promoted by the same idea (its `ticket.yaml` cites the idea's path),
+ *     at BACKLOG, holding nothing but `ticket.yaml` — a second row of the same PROMOTE, not started
+ *
+ * **Everything else is stray**: model, tooling, standards, other ideas, uncited ADRs, a sibling that
+ * has any artifact beyond `ticket.yaml`. Carrying is not committing: `/ship`'s ship set is unchanged,
+ * so the idea file, the ADRs and the sibling folder are still left dirty at `/ship` — orphans that
+ * `orphanPaths` names in every report.
+ *
+ * ctx: { id, allowedPaths, ticketText, ideas: [{ path, fm }], siblings: [{ id, state, ticketText }],
+ *        inAllowedPaths(p, globs) }
+ */
+export function planCarry(dirty, ctx) {
+  const own = `.ai/board/tickets/${ctx.id}/`;
+  const provenance = (ctx.ideas ?? []).filter((i) =>
+    String(i.fm?.ticket_id ?? "").replace(/^["']|["']$/g, "") === ctx.id || cites(ctx.ticketText, i.path));
+  const adrText = [ctx.ticketText, ...provenance.map((i) =>
+    `${i.fm?.verdict_reason ?? ""} ${[].concat(i.fm?.awaiting_adrs ?? []).join(" ")}`)].join("\n");
+
+  const siblingOf = (p) => {
+    const m = /^\.ai\/board\/tickets\/([^/]+)\/(.+)$/.exec(p);
+    return m ? { id: m[1], rest: m[2] } : null;
+  };
+  const siblingOk = (sid) => {
+    const s = (ctx.siblings ?? []).find((x) => x.id === sid);
+    if (!s || s.state !== "BACKLOG") return false;
+    if (!provenance.some((i) => cites(s.ticketText, i.path))) return false;
+    return dirty.filter((p) => p.startsWith(`.ai/board/tickets/${sid}/`))
+      .every((p) => p === `.ai/board/tickets/${sid}/ticket.yaml`);
+  };
+
+  const carried = [];
+  const stray = [];
+  for (const p of dirty) {
+    let why = null;
+    if (p.startsWith(own)) why = "this ticket";
+    else if (ctx.inAllowedPaths?.(p, ctx.allowedPaths ?? [])) why = "allowed_paths";
+    else if (SHIP_OWNED.includes(p)) why = "ship-owned (ADR-023)";
+    else if (provenance.some((i) => i.path === p)) why = "the idea that promoted it";
+    else if (/^\.ai\/registry\/decisions\/ADR-\d{3}/.test(p) &&
+             citesAdr(adrText, p.match(/ADR-\d{3}/)[0])) why = "an ADR its verdict cites";
+    else {
+      const s = siblingOf(p);
+      if (s && s.id !== ctx.id && siblingOk(s.id)) why = `sibling ${s.id} from the same PROMOTE`;
+    }
+    (why ? carried : stray).push(why ? { path: p, why } : p);
+  }
+  return { carried, stray };
 }
 
 const bullets = (a) => (a && a.length ? a.map((x) => `- ${x}`).join("\n") : "_none_");

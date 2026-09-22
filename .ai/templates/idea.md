@@ -28,6 +28,7 @@ next_state: TRIAGE          # not the routing input — see `verdict` below
 verdict: ""                 # "" until triaged, then REJECT | NEEDS-ADR | PROMOTE
 verdict_reason: ""          # one line. Why this verdict, not one of the other two
 ticket_id: ""               # the ticket a PROMOTE created. Empty on REJECT and NEEDS-ADR
+awaiting_adrs: []           # NEEDS-ADR only: every ADR the verdict waits on, e.g. [ADR-039, ADR-040]
 operator_request: ""        # the request as it arrived, VERBATIM. Never edited, never tidied
 ---
 ```

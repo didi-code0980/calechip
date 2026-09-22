@@ -2116,3 +2116,177 @@ nothing. Twelve steps of that floor is roughly $3 a ticket before any step that 
 The runner now passes `--max-budget-usd` (default $10 per step, `--budget` to change it) on every
 spawn, enforced by the process that spends rather than checked afterwards by the one that does not.
 MAX_STEPS bounds how many times the runner asks; this bounds what one ask can cost.
+
+### 2026-09-22 — three live runs, three defects, and one of them was in the operator's own brief
+
+**The intake bar works.** Run three asked **zero** questions — *"the request is unambiguous on all
+five axes"* — because the operator pre-answered the scope questions in the request itself. Run two,
+on the looser bar, had asked five. The lever was the bar, not the cap.
+
+**Defect 1 — `--json-schema` lost to a standing instruction.** Recorded at length in the previous
+entry. Fixed by a carve-out in `CLAUDE.md`, a shared `MACHINE_CALLER` preamble, and a prose fallback
+so a paid step is never discarded again.
+
+**Defect 2 — the permission mode in the operator's brief could not work, and I took it as given.**
+The brief said `PERMISSION_MODE: dontAsk`. `.claude/settings.json` carries **no `Write` or `Edit`
+rule at all** — the allow list is Bash verbs and MCP tools — so `dontAsk` plus
+`--permission-prompts none` denies **every file write by every stage**. TRIAGE was only the first to
+try one. `/plan`, `/implement`, `/review` and `/ship` would each have failed the same way.
+
+Interactively the project works because each agent declares its own mode: `developer` and `solo` are
+`acceptEdits`; `product`, `tech-lead-design`, `orchestrator` and `tech-lead-review` are `default`,
+which prompts, and a human clicks yes. **The runner removed the human and inherited the prompt.**
+
+Stages that write now run `acceptEdits`; intake, which is told to write nothing, keeps `dontAsk` so
+that a write attempt there is correctly refused. `--permission-prompts none` stays on both, so Bash
+remains bounded by the allow list and `gh pr merge` and `git push` are untouched.
+
+**This is not a control being weakened, and it is worth being precise about why.** ADR-004 already
+removed the three file-write guards; RULE-01 is enforced by CODEOWNERS at merge and RULE-03 by
+review check R1 plus CI. `.claude/PERMISSIONS.md` defends exactly one write — `git push` — and the
+runner still refuses to start `/ship` because of it.
+
+**I should have caught this in Phase 0.** The question "what does the loop need permission to do"
+was answered for Bash commands (A3) and not for file writes, because the Bash list was visible in
+`settings.json` and the absence of a `Write` rule was not. **An absent rule is invisible in a review
+of what is present**, which is the same shape as the D9 front-matter check finding ADR-034: nothing
+looks wrong until something asks for the missing thing.
+
+**A consequence to watch, not yet acted on.** `acceptEdits` accepts an edit *anywhere*, and
+`guard-project-root.mjs` — which refused writes outside the repository — is one of the three guards
+ADR-004 left unwired. Its stated reason for being unwired never applied to it: the measured friction
+was `features.md`, which is `guard-registry.mjs`'s territory. **Under an unattended runner it is the
+guard with the best case for being restored**, and it is the cheapest of the three to restore
+because nothing legitimate writes outside the project root. Recorded here rather than acted on; A4
+in the operator's brief reserves guard wiring for them.
+
+**Cost so far, across three runs:** $1.1854 discarded to defect 1, plus run two abandoned mid-intake,
+plus run three's intake and a refused TRIAGE. The per-step cap from the previous entry is in force.
+
+### 2026-09-22 — the audit reaches zero, by teaching two checks to tell things apart
+
+**`node scripts/check-docs.mjs` — 0 errors.** It had been red since before this session started: 11
+at the beginning of the day, 8 after the mechanical front-matter fixes, 0 now. The test suite is
+321/321.
+
+**None of the eight was fixed by editing the document it was reported against.** Every one of them
+was a check that could not distinguish two things, and the fix each time was to teach it the
+difference — which is the only kind of fix that does not make the record worse.
+
+**D5 ×6 — a route is not a slash command.** `/signups`, `/admin`, `/threshold`, `/members` and
+`/holidays` are the application's own URLs, and D5 read them as commands with no definition. It now
+reads `path="..."` out of `src/App.tsx` and treats what the router serves as a route. That is
+self-maintaining: a new screen needs no audit change, and a route deleted from the router starts
+being reported again the day it goes.
+
+`/allow-list` is the sixth and is different — ADR-033 deleted that screen and replaced it with
+`/signups`, so the router does not serve it and the citations are in the past tense. It gets a
+`RETIRED_ROUTES` row with its reason, and **the register audits itself**: if the router ever serves
+it again, the row is reported as one to delete. Same shape as `ABSENT_BY_DESIGN`.
+
+**D1 ×1 — a citation is not a use.** `.ai/steward/context.md` says *"Renumbered `TEA-07` →
+`TEA-06`"*, and D1 read the token as a reference to a feature that does not exist. It is a reference
+to a feature that deliberately **never** existed, and that sentence cannot be written without naming
+it. `invariants.md` has solved this since it was written — `## Unissued IDs`, citable and never
+usable — so `features.md` gains the same section and D1 the same two-set treatment, including the
+error when an ID appears in both a group table and the unissued one.
+
+**I had twice recorded this one as unfixable.** Phase 1 said I would fix it by editing the log;
+Stage A said I would not, because editing it would falsify the record. Both were wrong in the same
+way: I was looking for which document to change, when the thing that was wrong was the check. The
+mechanism to copy had been sitting in `invariants.md` the whole time.
+
+**D6 ×1 — a file that is gone is not a file that is missing.** The idea file UIE-08 was promoted
+from exists on no ref. It gets an `ABSENT_BY_DESIGN` row saying so, and naming MD-031 as the cause:
+`/triage` writes `.ai/board/ideas/**` and any ADR it drafts, `/ship`'s ship set contains neither, so
+both were left dirty and never landed. **Reconstructing the file would be inventing a record of a
+conversation nobody has.** ADR-037's REPORT.md now names those paths on every run so the next one is
+not lost the same way — which is the actual fix; this row is the honest record of the one already
+lost.
+
+**Two warnings and five pending rows remain and are correct.** D8 is advisory. The pending rows are
+paths declared absent with a written reason, which is the mechanism working rather than failing.
+
+**What this changes for the loop:** `verify.yml` runs the audit on every pull request, so the runner
+was going to open red pull requests indefinitely — a failure inherited by whichever ticket came
+next, having done nothing to cause it. It will not now.
+
+### 2026-09-22 — NEEDS-ADR had no exit, and `/idea` let the question through
+
+Operator: *"vẫn lỗi khi chạy loop"*, after run `20260922-132740-3de6b13d` stopped at TRIAGE with
+NEEDS-ADR on `2026-09-22-an-admin-manages-every-team-and-sees-only-one-calendar.md`.
+
+**The verdict itself was correct.** The idea rests on the 2026-09-11 many-teams decision, whose only
+record is a `/solo` agent's paraphrase in a migration header; `product` rightly refused to sign
+`ACCEPTED by the operator` on it and drafted ADR-039 and ADR-040 as `PROPOSED`. The run created
+both files (mtime 20:29 local, inside the run); it did not duplicate or overwrite an earlier pair.
+
+**Defect 1, the one that made it a loop — a stop whose exit the runner could not see.** The stop
+said *"accept or amend it, then run this idea file again"*. The runner skips TRIAGE on any file that
+already carries a `verdict`, so the second run would have re-read the stale NEEDS-ADR and stopped
+with the same words however the ADRs had changed — nothing it read was what the operator was told to
+edit. The exit is now the ADR's own `## Status` line: `awaiting_adrs` in the idea front-matter
+(fallback: the `ADR-nnn` IDs in `verdict_reason`, for files triaged before the field existed), each
+ADR's status read from disk, and a re-triage once none is `PROPOSED` — at most once per run, so a
+second NEEDS-ADR on the same ADRs stops rather than loops. `REJECTED` counts as decided; the
+re-triage has to follow it.
+
+**Defect 2 — the stop told the operator nothing concrete.** *"To resume: `auto <ticket>`"* was a
+literal placeholder on every TRIAGE stop, and *"What you must decide"* was the same generic sentence
+for every cause. It now names each ADR file, its current status, the exact edit, and the idea file
+to re-run.
+
+**Defect 3 — cost.** The TRIAGE step cost $1.4260 and REPORT.md said `$0.0000`: only loop steps added
+to the total. Now summed in `invoke()`, where every step is spawned.
+
+**Defect 4, upstream — `/idea` treated a decision found in a migration as settled.** Its step 1 says
+to read migrations so as not to re-ask a decision; it did not say that such a decision is not on
+record until an ADR carries it, and `/triage` applies exactly that standard. So the one question the
+operator had to answer surfaced in the unattended half, which is the failure ADR-038 exists to
+prevent. `/idea` now asks the operator to confirm such a decision in words and records it verbatim;
+`/triage` may sign `ACCEPTED by the operator` citing that quote.
+
+Also: `readVerdict` now reports a BLOCKED triage as blocked rather than as a pre-ADR-037 file; and
+`triage.md` tells `product` to copy ADR-000's front-matter, because ADR-039 and ADR-040 were drafted
+at `doc_version: 1` and **D9 fails the audit on both (4 errors)**. Not fixed here — standing
+instruction: small out-of-scope fixes never touch `.ai/registry/**`. The operator's edit to those two
+Status lines is the natural moment to raise `doc_version` to 2.
+
+Changed: `scripts/lib/entry.mjs`, `scripts/run-loop.mjs`, `scripts/lib/prompts.mjs`,
+`.claude/commands/triage.md`, `.claude/commands/idea.md`, `.ai/templates/idea.md`,
+`scripts/tests/entry.test.mjs` (11 tests, two built from the real decisions directory and the real
+idea files). Suite 330/332; the two failures are the D9 errors above. No registry write.
+
+### 2026-09-22 — a fresh PROMOTE stopped on its own output: three preflight defects
+
+Run `20260922-142836-510fe05c` re-triaged the many-teams idea to PROMOTE (CAL-11, CAL-12) and then
+stopped CAL-11 at preflight on three grounds. Being on `pipeline_implement` was correct to stop on
+and is untouched. The other three were the runner's.
+
+**Defect 1 — porcelain parsed through a trimming helper.** `git()` trims stdout; the first porcelain
+entry is ` M <path>`, so the trim took the status column's space and `slice(3)` took the path's first
+character (`ai/board/backlog.md`). Present in both the preflight and the report's orphan list. Now
+`git status --porcelain=v1 -z --untracked-files=all`, parsed by `parsePorcelainZ` (renames yield both
+sides; `-uall` because a new ticket folder collapsed to `dir/` cannot be checked file by file). The
+fixture is this repository's real `-z` output, captured today.
+
+**Defect 2 — WIP counted a BACKLOG sibling as in flight.** The rule was *not DONE and not TRIAGE*.
+The operating model's dispatch loop counts `PLAN..REVIEW`; `IN_FLIGHT_STATES` is that plus REWORK and
+ESCALATED, and the check is written as the complement so an unparseable state still blocks.
+
+**Defect 3, the class — `/plan` step 0 and the preflight both demanded a tree that no PROMOTE can
+leave.** Agents commit only at `/ship` (ADR-023), so triage output is dirty at `/plan` by
+construction. The rule now: *carried* is this ticket's folder and `allowed_paths`, the three
+ship-owned paths, the idea file that promoted it (`ticket_id`, or cited by path in `ticket.yaml`), the
+ADRs that ticket or that idea's verdict cites by ID, and a sibling folder from the same idea at
+BACKLOG holding only `ticket.yaml`. Everything else is stray and stops, exactly as before — measured
+on the live tree, the chore work and the uncited ADR-038 are still refused. **The ship set is not
+widened**: carried is not committed, so the idea and ADRs are still orphans at `/ship` (MD-031), and
+the durable answer remains a human committing them.
+
+Changed: `scripts/lib/entry.mjs` (`parsePorcelainZ`, `IN_FLIGHT_STATES`, `wipBlockers`,
+`SHIP_OWNED`, `planCarry`), `scripts/run-loop.mjs` (preflight, `dirtyPaths`, `carryContext`),
+`.claude/commands/plan.md` step 0, `.ai/standards/git-conventions.md` (the dirty-tree bullet names
+the one exception — a standards edit, made because the bullet and step 0 would otherwise disagree),
+`scripts/tests/entry.test.mjs` (+7 tests; one from the real porcelain output, one from the real
+CAL-11 / CAL-12 `ticket.yaml` and idea file). Suite 339/339; audit 0 errors. No registry write.

@@ -28,9 +28,11 @@ import { fileURLToPath } from "node:url";
 import { readTicket, readFrontMatter, STATES, branchFor } from "./lib/ticket-yaml.mjs";
 import {
   resolveInput, readVerdict, verdictStop, openQuestionsStop, sizeStop,
-  orphanPaths, renderReport, IDEAS_DIR,
+  orphanPaths, renderReport, IDEAS_DIR, MAX_INTAKE_QUESTIONS,
+  awaitedAdrs, adrStatus, adrsSettled, needsAdrDecision,
+  parsePorcelainZ, planCarry, wipBlockers,
 } from "./lib/entry.mjs";
-import { INTAKE_SCHEMA, intakePrompt, triagePrompt } from "./lib/prompts.mjs";
+import { INTAKE_SCHEMA, intakePrompt, triagePrompt, triageFromFilePrompt, retriagePrompt } from "./lib/prompts.mjs";
 
 // --- Config ------------------------------------------------------------------------------------
 
@@ -96,6 +98,34 @@ function git(...args) {
   return (r.stdout || "").trim();
 }
 
+/**
+ * The working tree as repo-relative paths. **Never through `git()`**: its `.trim()` is right for a
+ * branch name and wrong for porcelain, whose first entry begins with a status column that may be a
+ * space — trimmed, `slice(3)` took the first character of the path. See `parsePorcelainZ`.
+ */
+function dirtyPaths() {
+  const r = spawnSync("git", ["status", "--porcelain=v1", "-z", "--untracked-files=all"],
+                      { cwd: ROOT, encoding: "utf8" });
+  if (r.status !== 0) throw new Error("git status failed: " + (r.stderr || "").trim());
+  return parsePorcelainZ(r.stdout);
+}
+
+/** Everything `planCarry` needs, read from disk. Only dirty idea files and dirty sibling tickets. */
+function carryContext(t, dirty) {
+  const ideas = dirty.filter((p) => /^\.ai\/board\/ideas\/[^/]+\.md$/.test(p)).map((p) => {
+    try { return { path: p, fm: readFrontMatter(path.join(ROOT, p)) ?? {} }; }
+    catch { return { path: p, fm: {} }; }
+  });
+  const siblingIds = [...new Set(dirty.map((p) => /^\.ai\/board\/tickets\/([^/]+)\//.exec(p)?.[1])
+    .filter((x) => x && x !== t.id))];
+  const siblings = siblingIds.filter((x) => fs.existsSync(ticketFile(x))).map((x) => {
+    try { return { id: x, state: readTicket(ticketFile(x)).state, ticketText: fs.readFileSync(ticketFile(x), "utf8") }; }
+    catch { return { id: x, state: null, ticketText: "" }; }
+  });
+  const ticketText = fs.existsSync(ticketFile(t.id)) ? fs.readFileSync(ticketFile(t.id), "utf8") : "";
+  return { id: t.id, allowedPaths: t.allowed_paths ?? [], ticketText, ideas, siblings, inAllowedPaths };
+}
+
 const ticketDir = (id) => path.join(TICKETS_DIR, id);
 const ticketFile = (id) => path.join(ticketDir(id), "ticket.yaml");
 const artifact = (id, name) => path.join(ticketDir(id), name);   // real-run paths; the decision
@@ -119,7 +149,8 @@ function allTickets() {
 function parseArgv(argv) {
   const opts = { command: null, input: null, until: null, gate: null, dryRun: false,
                  maxSteps: MAX_STEPS_PER_TICKET, resumeRun: null, noAsk: false, forced: null,
-                 runId: null, budget: MAX_BUDGET_USD_PER_STEP };
+                 runId: null, budget: MAX_BUDGET_USD_PER_STEP,
+                 maxQuestions: MAX_INTAKE_QUESTIONS };
   const rest = [];
   for (let i = 0; i < argv.length; i++) {
     const a = argv[i];
@@ -131,6 +162,7 @@ function parseArgv(argv) {
     else if (a === "--resume-run") opts.resumeRun = argv[++i];
     else if (a === "--run-id") opts.runId = argv[++i];
     else if (a === "--budget") opts.budget = Number(argv[++i]);
+    else if (a === "--max-questions") opts.maxQuestions = Number(argv[++i]);
     else if (a === "--idea") opts.forced = { kind: "idea-text", value: argv[++i] };
     else if (a === "--idea-file") opts.forced = { kind: "idea-file", value: argv[++i] };
     else if (a === "--ticket") opts.forced = { kind: "ticket", value: argv[++i] };
@@ -144,6 +176,9 @@ function parseArgv(argv) {
   if (opts.gate && opts.gate !== "plan") die(`--gate ${opts.gate} is not supported; only \`plan\``);
   if (!Number.isInteger(opts.maxSteps) || opts.maxSteps < 1) die("--max-steps must be a positive integer");
   if (!(opts.budget > 0)) die("--budget must be a positive number of dollars");
+  if (!Number.isInteger(opts.maxQuestions) || opts.maxQuestions < 0) {
+    die("--max-questions must be zero or a positive integer (0 means ask nothing)");
+  }
   return opts;
 }
 
@@ -361,20 +396,19 @@ function preflight(t, step) {
     problems.push(`on branch \`${branch}\` but ${t.id} needs \`${want}\`; the runner never switches to an existing branch (ADR-006)`);
   }
 
-  // Tree. Dirty is allowed only inside the ticket folder or this ticket's allowed_paths.
-  const dirty = git("status", "--porcelain").split("\n").filter(Boolean)
-    .map((l) => l.slice(3).trim().replace(/^"|"$/g, ""));
-  const ticketPrefix = `.ai/board/tickets/${t.id}/`;
-  const stray = dirty.filter((p) => !p.startsWith(ticketPrefix) && !inAllowedPaths(p, t.allowed_paths ?? []));
+  // Tree. Dirty is allowed for this ticket's own work and its own triage output — the rule is
+  // planCarry in scripts/lib/entry.mjs, and /plan step 0 states the same rule. Anything else stops.
+  // It holds at every stage, not only /plan: triage output rides the ticket branch until /ship.
+  const dirty = dirtyPaths();
+  const { stray } = planCarry(dirty, carryContext(t, dirty));
   if (stray.length) {
-    problems.push(`working tree is dirty outside the ticket: ${stray.join(", ")} — /plan step 0 stops on a dirty tree`);
+    problems.push(`working tree is dirty outside this ticket and its triage output: ${stray.join(", ")} — /plan step 0 stops on these`);
   }
 
-  // WIP = 1.
-  const inFlight = allTickets().filter((o) =>
-    o.id !== t.id && !TERMINAL_STATES.includes(o.state) && o.state !== "TRIAGE");
+  // WIP = 1 — tickets in flight, not tickets that exist (IN_FLIGHT_STATES, scripts/lib/entry.mjs).
+  const inFlight = wipBlockers(allTickets(), t.id);
   if (inFlight.length) {
-    problems.push(`WIP: ${inFlight.map((o) => `${o.id}=${o.state}`).join(", ")} is not terminal`);
+    problems.push(`WIP: ${inFlight.map((o) => `${o.id}=${o.state}`).join(", ")} is in flight (ADR-006: one at a time)`);
   }
 
   // The runner must never drop the project's hooks, commands or agents.
@@ -437,12 +471,36 @@ function validateEntry(t) {
  * the default for `-p` is not documented in `claude --help`, and a run that silently lost the
  * project's hooks and commands would look like a model failure rather than a configuration one.
  */
+/**
+ * **`acceptEdits`, not `dontAsk`.** The operator's brief said `dontAsk`, and `dontAsk` cannot work:
+ * `.claude/settings.json` carries **no `Write` or `Edit` rule at all** — the allow list is Bash
+ * verbs and MCP tools — so with `--permission-prompts none` every file write by every stage is
+ * denied. TRIAGE was simply the first stage to try one.
+ *
+ * Interactively the project works because each agent declares its own mode: `developer` and `solo`
+ * are `acceptEdits`, and `product`, `tech-lead-design`, `orchestrator` and `tech-lead-review` are
+ * `default` — which prompts, and a human clicks yes. Unattended there is nobody to click.
+ *
+ * **This is not a control being weakened.** ADR-004 already removed the three file-write guards, so
+ * write-time approval is not what holds RULE-01 or RULE-03 here: RULE-01 is CODEOWNERS review at
+ * merge, RULE-03 is review check R1 plus `check-allowed-paths.mjs` in CI.
+ * `.claude/PERMISSIONS.md` defends exactly one write — `git push` — and that one is still denied,
+ * which is why the runner refuses to start `/ship`.
+ *
+ * `--permission-prompts none` stays. Edits are accepted; **everything else that would prompt is
+ * still denied**, so Bash verbs remain bounded by the allow list.
+ *
+ * The tighter alternative, if the operator wants it, is to keep `dontAsk` and add path-scoped
+ * `Write(...)`/`Edit(...)` rules. The paths the loop legitimately writes are `.ai/board/**`,
+ * `.ai/registry/**`, `src/**`, `tests/**` and `supabase/**` — close enough to the whole repository
+ * that the extra surface buys little over this one flag.
+ */
 function buildArgv(commandText, agent, session, budget = MAX_BUDGET_USD_PER_STEP) {
   const argv = [
     "-p", commandText,
     "--agent", agent,
     "--setting-sources", "user,project,local",
-    "--permission-mode", "dontAsk",
+    "--permission-mode", "acceptEdits",
     "--permission-prompts", "none",
     "--output-format", "json",
     "--max-budget-usd", String(budget),
@@ -450,6 +508,13 @@ function buildArgv(commandText, agent, session, budget = MAX_BUDGET_USD_PER_STEP
   argv.push(session.mode === "resume" ? "--resume" : "--session-id", session.sessionId);
   return argv;
 }
+
+/**
+ * Every dollar every step reported, summed where the steps are spawned. Before 2026-09-22 only the
+ * loop steps added to the report, so a run that stopped at TRIAGE after a $1.43 step reported
+ * `Cost: $0.0000` — a measured-looking zero. Summing here means no entry path can forget.
+ */
+let spentThisRun = 0;
 
 function invoke(argv, runId, stepNo) {
   // shell: false, always. See resolveClaudeBin — a shell re-parses argv and has already corrupted
@@ -464,6 +529,7 @@ function invoke(argv, runId, stepNo) {
   let parsed = null;
   try { parsed = JSON.parse(out.stdout); } catch { /* left null; the raw stdout is logged */ }
   out.result = parsed;
+  spentThisRun += Number(parsed?.total_cost_usd) || 0;
   fs.mkdirSync(runDir(runId), { recursive: true });
   fs.writeFileSync(path.join(runDir(runId), `step-${String(stepNo).padStart(2, "0")}.json`),
                    JSON.stringify(out, null, 2));
@@ -475,6 +541,7 @@ function stepFailure(out) {
   if (out.status !== 0) return `exit ${out.status}: ${out.stderr.trim().slice(0, 500)}`;
   const r = out.result;
   if (!r) return "output was not JSON — check --output-format and whether the CLI printed a prompt";
+  // REPLY-TEXT: shown to the operator in a stop message. Never parsed, never routed on.
   if (r.is_error) return `is_error: ${r.result ?? r.error ?? "<no detail>"}`;
   const denials = r.permission_denials ?? [];
   if (denials.length) return `permission denied: ${JSON.stringify(denials).slice(0, 500)}`;
@@ -537,14 +604,60 @@ async function planGate(id) {
 // nothing but its slash command and a ticket id, and reads ARTIFACTS_FOR[state] from disk. The
 // exception exists because the operator's request is not on disk until TRIAGE writes it there.
 
+/**
+ * Read the intake result three ways, in decreasing order of how much structure survives:
+ * raw JSON, a fenced JSON block, then the text itself. Returns { questions } or { prose }.
+ */
+function readQuestions(raw) {
+  if (raw && typeof raw === 'object') {
+    return { questions: raw.questions ?? null, prose: null };
+  }
+  if (typeof raw !== 'string' || !raw.trim()) return { questions: null, prose: null };
+
+  const tryParse = (s) => {
+    try {
+      const o = JSON.parse(s);
+      return Array.isArray(o?.questions) ? o.questions : null;
+    } catch { return null; }
+  };
+
+  const direct = tryParse(raw.trim());
+  if (direct) return { questions: direct, prose: null };
+
+  // A fenced block, which is what a model does when it is told JSON and trained to format.
+  const fenced = /```(?:json)?\s*([\s\S]*?)```/i.exec(raw);
+  if (fenced) {
+    const inner = tryParse(fenced[1].trim());
+    if (inner) return { questions: inner, prose: null };
+  }
+
+  // A bare object somewhere in the prose.
+  const braced = /\{[\s\S]*"questions"[\s\S]*\}/.exec(raw);
+  if (braced) {
+    const inner = tryParse(braced[0]);
+    if (inner) return { questions: inner, prose: null };
+  }
+
+  // The sign-off block is conversation, not content, and it is noise in a stored answer.
+  const prose = raw.replace(/\n---\s*\n\*\*Tôi là[\s\S]*$/m, '').trim();
+  return { questions: null, prose };
+}
+
 async function runIntake(text, runId, store, opts) {
-  if (opts.noAsk) { log('intake skipped (--no-ask)'); return { qa: [] }; }
+  if (opts.noAsk || opts.maxQuestions === 0) {
+    // Worth being explicit about what was traded away: the questions do not disappear, they
+    // become assumptions in `01-plan.md` written by the agent that also designs against them.
+    log('intake skipped — any question it would have asked becomes an assumption at PLAN');
+    return { qa: [] };
+  }
 
   const session = sessionFor('product', 'intake', store);
   const argv = [
-    '-p', intakePrompt(text),
+    '-p', intakePrompt(text, opts.maxQuestions),
     '--agent', 'product',
     '--setting-sources', 'user,project,local',
+    // Intake is told to write no file, so it keeps the strict mode. If it tries to write, the
+    // denial is the correct answer and the prompt is wrong.
     '--permission-mode', 'dontAsk',
     '--permission-prompts', 'none',
     '--output-format', 'json',
@@ -557,12 +670,28 @@ async function runIntake(text, runId, store, opts) {
   const failure = stepFailure(out);
   if (failure) return { error: 'intake failed — ' + failure };
 
-  let questions = [];
-  try {
-    const raw = out.result.result;
-    questions = (typeof raw === 'string' ? JSON.parse(raw) : raw).questions ?? [];
-  } catch {
-    return { error: 'intake did not return the requested JSON shape; see step-00.json in this run folder' };
+  // A step that succeeded is never thrown away for its shape. The first real intake cost $1.19 and
+  // returned four well-cited questions that the runner discarded because they were prose — which is
+  // the wrong trade every time: the money is spent either way, and the content was good.
+  // REPLY-TEXT: the ONLY place the runner consumes reply text, and it degrades to prose rather than
+  // discarding the step. Everything else reads front-matter from disk — see ADR-036.
+  const raw = out.result.result;
+  const { questions, prose } = readQuestions(raw);
+  if (!questions && !prose) {
+    return { error: 'intake returned nothing readable; see step-00.json in this run folder' };
+  }
+
+  if (!questions) {
+    // Prose fallback. The operator answers in one block; both halves reach TRIAGE verbatim, so
+    // nothing is lost except the numbering.
+    log('\n[intake] `product` answered in prose rather than JSON. Using it as written.\n');
+    log(prose);
+    log('\n--- answer all of it in one go. Finish with an empty line. ---\n');
+    const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
+    const lines = [];
+    for await (const line of rl) { if (line.trim() === '') break; lines.push(line); }
+    rl.close();
+    return { qa: [{ question: prose, answer: lines.join('\n').trim() }] };
   }
 
   if (!questions.length) {
@@ -571,15 +700,23 @@ async function runIntake(text, runId, store, opts) {
   }
 
   log('\n--- ' + questions.length + ' question(s) before anything is written ---');
-  log('Answers are stored verbatim and handed to TRIAGE unchanged. Empty = not decided.\n');
+  log('Answers go to TRIAGE verbatim. Several lines are fine — a blank line ends each answer.');
+  log('An empty answer is recorded as \"not decided\", which is never read as agreement.\n');
 
   const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
   const qa = [];
   for (const [i, q] of questions.entries()) {
     log((i + 1) + '. ' + q.question);
     log('   (' + q.why_it_changes_the_work + ')');
-    const answer = await new Promise((res) => rl.question('   > ', res));
-    qa.push({ question: q.question, answer: answer.trim() });
+    // Multi-line: a blank line ends the answer. The single-line version was a real limit — these
+    // questions are about permissions and scope, and the answers do not fit on one line.
+    const said = [];
+    for (;;) {
+      const line = await new Promise((res) => rl.question(said.length ? '   ' : '   > ', res));
+      if (line.trim() === '') break;
+      said.push(line);
+    }
+    qa.push({ question: q.question, answer: said.join('\n').trim() });
     log('');
   }
   rl.close();
@@ -600,7 +737,7 @@ function runTriage(text, qa, runId, store, stepNo, budget = MAX_BUDGET_USD_PER_S
     '-p', triagePrompt(text, qa, iso()),
     '--agent', 'product',
     '--setting-sources', 'user,project,local',
-    '--permission-mode', 'dontAsk',
+    '--permission-mode', 'acceptEdits',   // writes the idea file, the feature row and the ticket shell
     '--permission-prompts', 'none',
     '--output-format', 'json',
     '--max-budget-usd', String(budget),
@@ -618,15 +755,34 @@ function runTriage(text, qa, runId, store, stepNo, budget = MAX_BUDGET_USD_PER_S
   return { error: 'triage wrote ' + created.length + ' new idea files and the runner cannot tell which is this one: ' + created.join(', ') };
 }
 
-/** The working tree, as a list of repo-relative paths. */
-function dirtyPaths() {
-  return git('status', '--porcelain').split('\n').filter(Boolean)
-    .map((l) => l.slice(3).trim().replace(/^"|"$/g, ''));
+/**
+ * Triage an idea file that `/idea` already filled in. Unlike `runTriage`, nothing is relayed: the
+ * file is on disk and the stage reads it, which is how every other stage in the loop works. The
+ * runner names it and stands back.
+ */
+function runTriageFromFile(ideaFile, runId, store, stepNo, budget = MAX_BUDGET_USD_PER_STEP, decidedAdrs = null) {
+  const rel = path.relative(ROOT, ideaFile).split(path.sep).join("/");
+  const session = sessionFor('product', 'triage-' + runId, store);
+  const argv = [
+    '-p', decidedAdrs ? retriagePrompt(rel, decidedAdrs, iso()) : triageFromFilePrompt(rel, iso()),
+    '--agent', 'product',
+    '--setting-sources', 'user,project,local',
+    '--permission-mode', 'acceptEdits',
+    '--permission-prompts', 'none',
+    '--output-format', 'json',
+    '--max-budget-usd', String(budget),
+    '--session-id', session.sessionId,
+  ];
+  const out = invoke(argv, runId, stepNo);
+  const failure = stepFailure(out);
+  if (failure) return { error: 'triage failed — ' + failure };
+  return { file: ideaFile };
 }
 
 /** Written on every run, finished or stopped. */
 function saveReport(runId, report) {
   report.finishedAt = iso();
+  report.cost = spentThisRun;
   try { report.orphanPaths = orphanPaths(dirtyPaths()); } catch { report.orphanPaths = []; }
   fs.mkdirSync(runDir(runId), { recursive: true });
   fs.writeFileSync(path.join(runDir(runId), 'REPORT.md'), renderReport(runId, report));
@@ -647,6 +803,7 @@ async function main() {
       '  --idea <text>   --idea-file <path>   --ticket <ID>   --tracker <id>',
       '  --until <STATE> --gate plan          --no-ask',
       '  --dry-run       --max-steps <n>      --resume-run <id>   --budget <usd per step>',
+      '  --max-questions <n>   0 asks nothing and assumes instead',
     ].join('\n'));
   }
 
@@ -683,11 +840,17 @@ async function main() {
   }
 
   if (entryPoint.kind === 'intake' || entryPoint.kind === 'idea') {
-    const stopHere = (why, code) => {
+    // The resume line names what exists. It used to print the literal `<ticket>` on every TRIAGE
+    // stop, including the ones where no ticket can exist yet and the thing to re-run is the idea.
+    let ideaFile = entryPoint.file ?? null;
+    const resumeCommand = () => 'node scripts/run-loop.mjs auto ' + (report.ticketId
+      ?? (ideaFile ? path.basename(ideaFile, '.md') : '--idea "' + String(entryPoint.text ?? '').replace(/"/g, "'") + '"'));
+
+    const stopHere = (why, code, decide) => {
       report.stopped = why;
-      report.resume = 'node scripts/run-loop.mjs auto ' + (report.ticketId ?? '<ticket>');
+      report.resume = resumeCommand();
       writeStopped(runId, { ticket: report.ticketId, stage: 'TRIAGE', reason: why,
-        decide: 'TRIAGE reserved this for you. Nothing further runs until you decide.',
+        decide: decide ?? 'TRIAGE reserved this for you. Nothing further runs until you decide.',
         resume: report.resume });
       log('\n' + why);
       saveSessions(store);
@@ -695,24 +858,43 @@ async function main() {
     };
 
     if (opts.dryRun) {
+      // The two entries do different things, and a dry run that showed the same sequence for both
+      // would be describing a run that does not happen.
+      const fromFile = entryPoint.file ?? null;
+      const triaged = fromFile ? readFrontMatter(fromFile)?.verdict : null;
       log('');
-      log('[dry-run] intake     -> product            fresh session, --json-schema, at most 7 questions');
-      log('[dry-run] /triage    -> product            fresh session, request quoted verbatim');
+      if (triaged && String(triaged).toUpperCase() === 'NEEDS-ADR') {
+        const waiting = awaitedAdrs(readFrontMatter(fromFile)).map((id) => adrStatus(id));
+        log('[dry-run] ' + path.basename(fromFile) + ' is NEEDS-ADR, waiting on:');
+        for (const a of waiting) log('[dry-run]   ' + a.id + ' — ' + (a.status ?? a.problem));
+        log(adrsSettled(waiting)
+          ? '[dry-run] all decided -> /triage again (re-triage), then the verdict below'
+          : '[dry-run] not all decided -> stop again, naming the ADR files to decide');
+      } else if (triaged) {
+        log('[dry-run] ' + path.basename(fromFile) + ' is already triaged: verdict ' + triaged);
+        log('[dry-run] no intake, no /triage — entering the loop at the recorded ticket');
+      } else if (fromFile) {
+        log('[dry-run] /triage    -> product            reads ' + path.basename(fromFile) + ' from disk');
+        log('[dry-run] NO INTAKE — /idea already asked; the file is the answers (ADR-038)');
+        log('[dry-run] a decision genuinely missing -> BLOCKED and the run stops, never a guess');
+      } else {
+        log('[dry-run] intake     -> product            --json-schema, at most ' + opts.maxQuestions + ' questions');
+        log('[dry-run] /triage    -> product            fresh session, request quoted verbatim');
+      }
       log('[dry-run] verdict read from the idea file front-matter, never from the reply');
       log('[dry-run]   REJECT | NEEDS-ADR -> stop. No ticket branch, no product source touched');
       log('[dry-run]   PROMOTE -> ticket_id read from disk, then:');
       log('[dry-run] /plan      -> tech-lead-design   then /advance -> orchestrator');
       log('[dry-run] /implement -> developer          then /advance -> orchestrator');
       log('[dry-run] /review    -> tech-lead-review   then /advance -> orchestrator   (always fresh)');
-      log('[dry-run] /ship      -> orchestrator');
+      log('[dry-run] /ship      -> orchestrator        refused while git push is not permitted');
       log('');
       log('[dry-run] end of sequence');
       return;
     }
 
-    let ideaFile = entryPoint.file ?? null;
-
     if (ideaFile === null) {
+      // Free text: ask, then triage what was said.
       const got = await runIntake(entryPoint.text, runId, store, opts);
       if (got.error) stopHere(got.error, 3);
       report.qa = got.qa;
@@ -722,6 +904,33 @@ async function main() {
       if (triaged.error) stopHere(triaged.error, 3);
       ideaFile = triaged.file;
       report.steps += 2;
+    } else if (!readFrontMatter(ideaFile)?.verdict) {
+      // **An idea file that has not been triaged yet, and the reason this path exists.**
+      //
+      // `/idea` interrogates the operator in a session until the file holds every decision, so by
+      // the time it reaches the runner there is nothing left to ask. Intake is therefore SKIPPED —
+      // not suppressed, not answered with defaults: there is no question, because the file is the
+      // answers. If TRIAGE finds a genuine gap it writes OPEN QUESTIONS and BLOCKS, and the run
+      // stops with the gap named rather than guessing past it.
+      log('\n[triage] ' + path.basename(ideaFile) + ' has no verdict yet — triaging it');
+      log('[triage] no intake: the file is meant to hold every decision already');
+      const triaged = runTriageFromFile(ideaFile, runId, store, 1, opts.budget);
+      if (triaged.error) stopHere(triaged.error, 3);
+      report.steps += 1;
+    } else if (String(readFrontMatter(ideaFile)?.verdict).toUpperCase() === 'NEEDS-ADR') {
+      // **The exit from NEEDS-ADR.** The verdict is on disk and would otherwise be re-read for ever;
+      // what changes when the operator decides is the ADR's `## Status` line, so that is what is
+      // read. Once none of the awaited ADRs is PROPOSED, the stale verdict is re-triaged — once per
+      // run, so a TRIAGE that returns NEEDS-ADR again stops rather than looping.
+      const waiting = awaitedAdrs(readFrontMatter(ideaFile)).map((id) => adrStatus(id));
+      if (adrsSettled(waiting)) {
+        log('\n[triage] ' + path.basename(ideaFile) + ' was NEEDS-ADR, and every ADR it waits on is decided:');
+        for (const a of waiting) log('[triage]   ' + a.id + ' — ' + a.status);
+        log('[triage] re-triaging it; the new verdict replaces the old one');
+        const triaged = runTriageFromFile(ideaFile, runId, store, 1, opts.budget, waiting);
+        if (triaged.error) stopHere(triaged.error, 3);
+        report.steps += 1;
+      }
     }
 
     const v = readVerdict(ideaFile, readFrontMatter);
@@ -730,8 +939,12 @@ async function main() {
     report.verdictReason = v.reason;
     log('\n[triage] verdict ' + v.verdict + (v.reason ? ' — ' + v.reason : ''));
 
-    const vstop = verdictStop(v);
-    if (vstop) stopHere(vstop, 2);
+    const adrs = v.verdict === 'NEEDS-ADR'
+      ? awaitedAdrs(readFrontMatter(ideaFile)).map((id) => adrStatus(id)) : [];
+    const vstop = verdictStop(v, adrs);
+    if (vstop) {
+      stopHere(vstop, 2, v.verdict === 'NEEDS-ADR' ? needsAdrDecision(adrs, resumeCommand()) : undefined);
+    }
 
     if (!v.ticketId) stopHere('verdict is PROMOTE but ticket_id is empty in the idea front-matter', 2);
     if (!fs.existsSync(ticketFile(v.ticketId))) {
@@ -890,10 +1103,11 @@ async function main() {
       }
       const r = out.result ?? {};
       report.steps = steps;
-      report.cost += r.total_cost_usd ?? 0;
+      report.cost = spentThisRun;
       report.finalState = t.state;
       report.reworkCount = t.rework_count ?? 0;
       if (link.command === '/ship') {
+        // REPLY-TEXT: cosmetic, for REPORT.md only. The run does not branch on whether this matches.
         const m = /https:\/\/github\.com\/\S+\/pull\/\d+/.exec(String(r.result ?? ''));
         if (m) report.prUrl = m[0];
       }
@@ -936,5 +1150,6 @@ const invokedDirectly = process.argv[1]
 if (invokedDirectly) main().catch((e) => die(e.stack ?? String(e), 4));
 
 export { nextStep, advanceSimulated, sessionFor, reviewStop, questionStop, budgetStop,
+         readQuestions,
          shipPermissionStop,
          inAllowedPaths, validateEntry, buildArgv, parseArgv, SESSION_POLICY, TICKET_ID };

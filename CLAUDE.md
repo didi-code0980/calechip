@@ -124,6 +124,23 @@ Add prose *above* the block only when one of these is true, and only as much as 
 **Evidence belongs in the repository, not in the reply.** If a claim you want to make cannot be
 checked from a file or a commit, that is a reason to write the file — not a reason to write more chat.
 
+### When the caller is a program, none of the above applies
+
+**Everything in this section describes a reply to a person.** When a prompt says in terms that its
+caller is a program and names the shape it wants — JSON, a bare value, a single line — produce
+exactly that shape and nothing else. No block, no prose around it, no Vietnamese envelope. The
+strings *inside* a JSON answer may be Vietnamese; the JSON may not be.
+
+**This is not a licence to drop the block when it feels like overhead.** The carve-out needs the
+prompt to say so. A prompt that does not say so is a person asking.
+
+*Added 2026-09-22, after it cost a real run. `scripts/run-loop.mjs` asked `product` for JSON with
+`--json-schema`; `product` returned four well-cited questions in Vietnamese ending with the
+four-line block, because that is what this file tells it to do and a flag does not outrank a
+standing instruction. The content was right and the run discarded it. Two things changed: this
+carve-out, so the instruction is no longer in conflict; and the runner, which no longer throws away
+a step it has paid for.*
+
 ### The block
 
 **End every reply to the operator with this block, whoever you are.** Four lines, this order, nothing
@@ -168,19 +185,38 @@ last stage produced and transcribes the gate and the next state into `ticket.yam
 the loop above specified that step and no command performed it, so `state` never passed through
 `PLAN`, `READY` or `REWORK` and `gates.*` was written by nobody.
 
-**Unattended** — `node scripts/run-loop.mjs auto "<a ticket id, an idea file, or the request in
-words>"`, and `/auto` to start the same thing detached. The runner reads the board, decides the next
-step in deterministic code, and spawns each stage as its own top-level `claude` process, which is
-what makes the session lifetimes real rather than a matter of which window someone typed into —
-ADR-036 and ADR-037. `/auto` cannot ask the intake questions; the terminal form can.
+**The two-step, which is how a ticket is meant to start** — ADR-038:
+
+```
+/idea "<the request, in words>"             ← asks until every decision is settled, writes the file
+node scripts/run-loop.mjs auto <name>       ← asks nothing, runs to a pull request
+```
+
+**`/idea` is where the operator is needed, and it is the only place.** It runs in a session, takes
+as long as it takes, and writes `.ai/board/ideas/<yyyy-mm-dd>-<slug>.md` with the verdict left
+empty — capture is not judgement. `<name>` is any unambiguous fragment of that filename.
+
+The loop then reads the file and asks nothing. If a decision turns out to be missing it **stops**
+with the gap named — a BLOCKED triage, or an `OPEN QUESTIONS` entry at PLAN — rather than guessing
+past it.
+
+**Unattended** — the runner reads the board, decides the next step in deterministic code, and spawns
+each stage as its own top-level `claude` process, which is what makes the session lifetimes real
+rather than a matter of which window someone typed into (ADR-036). `auto "<request>"` without a file
+still asks its own questions at the terminal; `/auto` starts a run detached and **cannot ask**, so
+it is for a file or a ticket that is already settled.
 
 **Outside the loop** — `/solo`, for work where the loop's overhead exceeds its value. It skips every
 stage and every gate, deliberately.
 
-`/idea`, `/spec` and `/design` are **retired** — ADR-019 folded IDEA into TRIAGE and merged SPEC and
-DESIGN into PLAN. **`/qa` is retired too** — ADR-022 removed the QA stage outright. Their files are
-kept, carrying a retirement banner, so tickets shipped before 2026-09-01 stay readable against the
-commands that produced them.
+`/spec` and `/design` are **retired** — ADR-019 merged them into PLAN. **`/qa` is retired too** —
+ADR-022 removed the QA stage outright. Their files are kept, carrying a retirement banner, so
+tickets shipped before 2026-09-01 stay readable against the commands that produced them.
+
+**`/idea` was retired by ADR-019 and un-retired by ADR-038, with a different job.** The old one was
+the first half of *write the idea, then triage it*. The new one is the interactive half of an
+unattended pipeline: the loop runs without a person, so every decision a person owns is made here
+first. Tickets shipped before 2026-09-01 cite the old meaning.
 
 **The model**, which maintains the loop — `/thuki` (steward: rules, hooks, checks, registry; never
 ticket work) and `/status` (reads the board; reports what is true and what waits on a human).
