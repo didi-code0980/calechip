@@ -354,7 +354,7 @@ function questionStop(t, dir = ticketDir(t.id)) {
  * transaction it can see has no second half.
  */
 function shipPermissionStop() {
-  let allow = [];
+  let allow;
   try {
     const s = JSON.parse(fs.readFileSync(path.join(ROOT, ".claude", "settings.json"), "utf8"));
     allow = s?.permissions?.allow ?? [];
@@ -439,9 +439,9 @@ function inAllowedPaths(p, globs) {
   return globs.some((g) => {
     const rx = new RegExp("^" + String(g)
       .replace(/[.+^${}()|[\]\\]/g, "\\$&")
-      .replace(/\*\*/g, "\u0000")
+      .replace(/\*\*/g, "￿")
       .replace(/\*/g, "[^/]*")
-      .replace(/\u0000/g, ".*") + "$");
+      .replace(/￿/g, ".*") + "$");
     return rx.test(p);
   });
 }
@@ -707,7 +707,7 @@ async function runIntake(text, runId, store, opts) {
 
   log('\n--- ' + questions.length + ' question(s) before anything is written ---');
   log('Answers go to TRIAGE verbatim. Several lines are fine — a blank line ends each answer.');
-  log('An empty answer is recorded as \"not decided\", which is never read as agreement.\n');
+  log('An empty answer is recorded as "not decided", which is never read as agreement.\n');
 
   const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
   const qa = [];

@@ -100,6 +100,9 @@ const roleLabel = (role: MemberRole): string => ROLE_LABELS[role];
 // 10. It describes what the board holds and asserts no capability.
 const TAGLINE = "Leave and working from home";
 
+// Used only by the <nav> a /solo run commented out on 2026-09-12, when the third link moved into
+// the admin panel. Kept so restoring that block is one edit rather than two.
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 const NAV_LINK =
   "block rounded-pill px-3 py-1.5 text-[13px] font-semibold text-ink-2 transition-colors " +
   "hover:bg-field hover:text-ink " +
