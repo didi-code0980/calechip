@@ -1,6 +1,6 @@
 ---
-doc_version: 7
-last_updated: 2026-09-20
+doc_version: 8
+last_updated: 2026-09-23
 governed_by: [RULE-01, RULE-03, RULE-04, RULE-05, RULE-06, RULE-07, RULE-08, RULE-09, RULE-10, RULE-11, RULE-12, RULE-13, RULE-14, RULE-15, RULE-16, RULE-17]
 ---
 
@@ -133,9 +133,9 @@ ADR-019 records this as the cost it is, not as a safeguard.
 
 | # | Check |
 |---|---|
-| R1 | `git diff --name-only` is a subset of `allowed_paths` (RULE-03) |
-| R2 | typecheck exit 0 |
-| R3 | lint exit 0 |
+| R1 | `git diff --name-only`, **minus the ticket folder and minus the three ship-owned paths**, is a subset of `allowed_paths` (RULE-03, ADR-041) |
+| R2 | typecheck exit 0 — whole-program |
+| R3 | lint exit 0 **on the changed lintable files** (ADR-041) |
 | R4 | Nothing outside the data-access seam reaches the datastore directly (RULE-02) |
 | R5 | Every contract item in plan section 4 is implemented (RULE-04) |
 | R6 | Permission gating matches plan section 3 |
@@ -146,6 +146,25 @@ ADR-019 records this as the cost it is, not as a safeguard.
 reviewer that cannot point at a line has not checked anything, and a checklist that accepts assertion
 in place of citation is a checklist that always passes.
 
+**R1 and R3 judge what the Developer wrote, and nothing else** — ADR-041. Both exemptions exist
+because the check and the mandate had different subjects, and a ticket was failing for writes RULE-03
+never prohibited.
+
+- **R1's exempt set is `SHIP_OWNED` plus the ticket folder**, which is `.ai/board/backlog.md`,
+  `.ai/board/metrics.md`, `.ai/registry/features.md` and `.ai/board/tickets/<ID>/**`. It is the set
+  `scripts/check-allowed-paths.mjs` has exempted since ADR-023, and the two readers of one diff now
+  agree. `/triage` and `/advance` write `backlog.md` on every ticket, so without this R1 fails every
+  ticket. **Everything else in the diff is still a subset of `allowed_paths`, with no further
+  exemption.**
+- **R3 is scoped to the lintable files in the diff.** A lint error in a file the diff does not touch
+  is reported under R3 with its `file:line` and routed as an `OPS-nnn` chore; it does **not** fail
+  the gate. No loop role may fix it — the file is outside `allowed_paths` and RULE-03 forbids the
+  edit — so failing the gate on it deadlocks the ticket. The repo-wide run is DoD item 3 at `/ship`,
+  and since ADR-041 it is the only backstop.
+
+R2 is not scoped. A typecheck is whole-program, and a per-file typecheck would report errors the
+build does not have and miss errors it does.
+
 ## Failure routing
 
 | Failing check | Route to | Increments `rework_count` |
@@ -154,6 +173,7 @@ in place of citation is a checklist that always passes.
 | R5 impossible as specified | `tech-lead-design` | No |
 | R6 | `tech-lead-design` | No |
 | **R7** | **human, immediately** | ESCALATE (RULE-07) |
+| A lint error outside the diff, reported under R3 | a human, as an `OPS-nnn` chore — **the gate still passes** (ADR-041) | No |
 | DoR item unsatisfied at the READY gate | `tech-lead-design` if the item is produced at PLAN, otherwise a human | No |
 
 Per RULE-08, upstream defects must not burn the downstream agent's rework budget. A Developer who
@@ -178,14 +198,19 @@ Every allowed edge points **backwards**, toward whoever declared intent.
 | Pair | Before verdict | After verdict |
 |---|---|---|
 | `developer` to `tech-lead-design` | allowed | allowed |
-| `developer` to `ba` | allowed | allowed |
-| `qa` to `ba` | allowed | allowed |
-| `qa` to `tech-lead-design` | allowed | allowed |
-| `ba` to `product` | allowed | allowed |
-| `tech-lead-design` to `ba` | allowed | allowed |
 | `developer` and `tech-lead-review` | **forbidden** (RULE-12) | allowed |
-| `developer` and `qa` | **forbidden** | allowed |
-| `qa` and `tech-lead-review` | **forbidden** | allowed |
+
+**Two rows, because those are the two live roles that can reach each other** — ADR-041. This table had
+nine rows and four of them named `ba` (retired, ADR-019) or `qa` (retired, ADR-022); two of its three
+prohibitions were between two retired roles. Of the five `99-questions.md` files on the board, every
+one is `developer -> tech-lead-design`.
+
+The rows were cut rather than kept as history because **this table is read as an instruction by a live
+agent deciding whether an edge is allowed**, not as a record — unlike a retired command file, which is
+only read by someone running that command. ADR-019 and ADR-022 hold the history.
+
+RULE-11, RULE-12, RULE-14, RULE-15 and RULE-16 are unchanged and in force. What was dead was the
+table, not the rules.
 
 Enforced by `.claude/hooks/chat-guard.mjs`, which also enforces the RULE-15 budget of six messages
 per pair per ticket, tracked in `ticket.yaml` under `chat_budget`.
@@ -215,18 +240,18 @@ context. That is delivered by session lifetime, not by tearing down a shared tea
 | Agent | Session | Closes when |
 |---|---|---|
 | `orchestrator` | persistent | end of run |
-| `ba` | persistent | end of run |
 | `tech-lead-design` | persistent | end of run |
 | `developer` | ephemeral | ticket DONE or ESCALATED — **survives REWORK** |
 | `tech-lead-review` | ephemeral | after **each** verdict, including a re-review |
-| `qa` | ephemeral | after **each** verdict |
 | `product`, `devops` | ephemeral | task done |
+
+The `ba` and `qa` rows were removed by ADR-041, for the reason the chat topology table gives: both
+roles are retired and this table is read as an instruction, not as a record.
 
 **Roles that get asked stay alive; roles that pass judgement die after speaking.**
 
-The BA and the Tech Lead are asked to explain what they meant, sometimes several tickets later, and a
-session that remembers the intent behind a decision answers better than one re-reading its own output
-cold.
+The Tech Lead is asked to explain what it meant, sometimes several tickets later, and a session that
+remembers the intent behind a decision answers better than one re-reading its own output cold.
 
 A reviewer is the opposite. A `tech-lead-review` session that remembers checking R4 last time will
 not really check it again — but the code changed between passes, which is the entire reason there is

@@ -1,6 +1,6 @@
 ---
-doc_version: 2
-last_updated: 2026-09-01
+doc_version: 3
+last_updated: 2026-09-23
 governed_by: [RULE-03, RULE-09, RULE-10]
 ---
 
@@ -149,6 +149,11 @@ the very merge a human is meant to perform.
 `allowed_paths`, and `scripts/check-allowed-paths.mjs` exempts them **by name** so they can ride on
 the ticket branch. It is three names and not a category: `.ai/board/` is not exempt and
 `.ai/registry/` is not exempt, and a fourth name is an edit to that array plus an ADR.
+
+**Since ADR-041 review check R1 exempts the same three names, plus the ticket folder.** Until then
+the exemption was CI's alone, and a reviewer reading this section correctly concluded so — CAL-11's
+review cites these lines for exactly that, then failed R1 on the `backlog.md` write that `/triage`
+and `/advance` make on every ticket. Two readers of one diff now reach one verdict.
 
 *Before ADR-023 those three went to a second `ops/` branch and a second pull request. The cost was
 demonstrated rather than argued: PR #27 and PR #28 had to be merged together, or the board claimed a

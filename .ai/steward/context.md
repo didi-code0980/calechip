@@ -2290,3 +2290,72 @@ Changed: `scripts/lib/entry.mjs` (`parsePorcelainZ`, `IN_FLIGHT_STATES`, `wipBlo
 the one exception — a standards edit, made because the bullet and step 0 would otherwise disagree),
 `scripts/tests/entry.test.mjs` (+7 tests; one from the real porcelain output, one from the real
 CAL-11 / CAL-12 `ticket.yaml` and idea file). Suite 339/339; audit 0 errors. No registry write.
+
+### 2026-09-23 — the loop was failing itself: R1 and R3 judged a diff they did not own
+
+Operator: *"tôi muốn đơn giản hóa flow và rule hiện tại để chạy loop"*. Read the board before
+deciding what to cut, because the only honest place to cut is where a run actually stopped.
+
+**CAL-11 is ESCALATED on three failed checks and two of the three were the model, not the code.**
+`.ai/board/tickets/CAL-11/04-review.md` says so in its own `blocking_reason`.
+
+- **R1** failed because `.ai/board/backlog.md` was in the diff — written by `product` at
+  `/triage` and the `orchestrator` at `/advance`, which the review establishes by citation.
+  RULE-03 governs *an agent* editing outside *the active ticket's* `allowed_paths`; R1 read a diff
+  produced by three agents across three stages and charged all of it to the Developer.
+  `scripts/check-allowed-paths.mjs:25-27` has exempted the ticket folder and the three ship-owned
+  paths since ADR-023 — so **CI and the review gate read one diff to opposite verdicts**, and
+  `rules.md:59` settled the tie the wrong way with *"R1 has no exemptions"*. This fails every
+  ticket, because those two stages write `backlog.md` by construction.
+- **R3** failed on five ESLint errors in `scripts/run-loop.mjs` and `src/components/Sidebar.tsx`,
+  both byte-identical to the branch point and neither in `allowed_paths`. **No loop role may fix
+  them under RULE-03.** A repo-wide gate judged against a path-scoped mandate is a deadlock: the
+  check cannot pass and the agent that fails it cannot act. It was broken out of once by hand —
+  81a06ea, *"clear the five eslint errors on main so R3 can pass"* — which is a human paying a toll
+  the model invented.
+- **R7 is the real finding** and is untouched here. INV-04 against ADR-013, escalated correctly under
+  RULE-07. It is the operator's, and it is ticket work, not the steward's.
+
+**ADR-041**, `ACCEPTED by steward` under RULE-09's second form. The operator's instruction
+authorises the shape and does not name the contents, so the contents are mine and CODEOWNERS reviews
+them at merge. It supersedes nothing: it extends ADR-023's exemption set from CI to the check that
+reads the same diff, and scopes R3 to the files RULE-03 scopes the Developer to. R2 is deliberately
+**not** scoped — a typecheck is whole-program and a per-file one would report errors the build does
+not have.
+
+**Two structures measured dead on 38 shipped tickets, and cut.**
+
+- **The chat topology table had nine rows; four named `ba` or `qa`**, retired by ADR-019 and
+  ADR-022, and two of its three prohibitions were between two retired roles. Measured rather than
+  assumed: of the five `99-questions.md` files on the board, **every one is
+  `developer -> tech-lead-design`**. Collapsed to that edge plus the one live prohibition. The two
+  `ba`/`qa` rows left the session-lifecycle table with them. **RULE-11, RULE-12, RULE-14, RULE-15
+  and RULE-16 are unchanged and in force** — the mechanism is used; it was the table carrying dead
+  roles. Cut rather than kept as history because these two tables are read as instructions by a live
+  agent deciding whether an edge is allowed, unlike a retired command file which is only read by
+  someone running it.
+- **`guard-read-scope.mjs` is wired on `Read|Grep|Glob|NotebookEdit` and fails open for every live
+  agent** — its `RESTRICTED` set is `{ba, qa}` (`:28`) and its own header says so (`:8`). A
+  Node process per read tool call, in every stage of every unattended run, to exit 0.
+
+**One thing decided and not executed, and it is not an approval question.** The harness refuses an
+agent edit to `.claude/settings.json` under its self-modification rule, so the `guard-read-scope`
+block is still wired. MD-036 carries it and the hook's own header quotes the exact block to delete.
+The cost is runtime, not correctness.
+
+**One thing deliberately not done: MD-037**, collapsing `size_estimate` and `size` into one field.
+It is real simplification — ADR-019 made one agent the author of both halves, so the pair now
+measures an agent against itself, and CAL-11 carries eleven lines of `ticket.yaml` comment
+explaining a disagreement nothing reads. It was left because it **supersedes ADR-012**, whose revert
+condition watches exactly the pair that collapsing deletes, and the ADR-000 template says an agent
+asks rather than decides when the ADR would supersede an accepted one. That is the envelope, not
+timidity. One word from the operator moves it.
+
+Changed: `.ai/registry/decisions/ADR-041-r1-and-r3-judge-what-the-developer-wrote.md` (new),
+`.ai/01-operating-model.md` (doc_version 8), `.ai/registry/rules.md` (doc_version 3 — enforcement
+map only; **no rule text changed and no `v` moved**), `.ai/templates/review-report.md`
+(doc_version 4), `.claude/hooks/guard-read-scope.mjs` (header), `.ai/board/model-debt.md`
+(doc_version 5, MD-036 and MD-037).
+
+Registry writes: `rules.md` enforcement map, and ADR-041. Both are recorded under ADR-041 and
+reviewed at merge under CODEOWNERS. No feature row, no invariant, no ticket artifact.
