@@ -1,6 +1,6 @@
 ---
-doc_version: 2
-last_updated: 2026-08-25
+doc_version: 3
+last_updated: 2026-09-23
 governed_by: [RULE-01, RULE-09]
 ---
 
@@ -56,9 +56,9 @@ real, so that a rule with no mechanism is visible as such rather than assumed to
 |------|-----------|
 | RULE-01 | `.github/CODEOWNERS` review on the pull request. **The hook is unwired** — see ADR-004. Feature and glossary rows are written by agents and reviewed at merge — ADR-007 |
 | RULE-02 | `no-restricted-imports` in `eslint.config.js`, scoped to `src/**` and exempting `src/lib/data/`, run by the `lint` command. Plus review check R4 and the `supabase-client-in-seam` boundary read by D12. **Verified firing**: a probe importing the client from outside the seam is reported as an error |
-| RULE-03 | Review check R1, plus `scripts/check-allowed-paths.mjs` in CI. **The hook is unwired** — see ADR-004. The CI check exempts the ticket folder and the three ship-owned paths — ADR-023; R1 has no exemptions |
+| RULE-03 | Review check R1, plus `scripts/check-allowed-paths.mjs` in CI. **The hook is unwired** — see ADR-004. **Both readers exempt the same set** — the ticket folder and the three ship-owned paths (ADR-023 for CI, ADR-041 for R1). *This row read "R1 has no exemptions" until ADR-041; under that wording CI and R1 read one diff to opposite verdicts, and R1 failed every ticket for the `backlog.md` write that `/triage` and `/advance` make by construction* |
 | RULE-04 | Review check R5 |
-| RULE-05 | **Retired — ADR-022.** `guard-read-scope.mjs` no longer restricts any live role; the two it named, `ba` and `qa`, are both retired |
+| RULE-05 | **Retired — ADR-022.** `guard-read-scope.mjs` no longer restricts any live role; the two it named, `ba` and `qa`, are both retired. **ADR-041 unwired it from `.claude/settings.json`** — it was spawning a Node process per read tool call to exit 0. The file and its tests stay; re-wiring is one block in `settings.json` |
 | RULE-06 | Orchestrator dispatch loop; `rework_count` in `ticket.yaml` |
 | RULE-07 | Review check R7; failure routing table sends R7 to a human |
 | RULE-08 | Failure routing table; only the Developer column increments |

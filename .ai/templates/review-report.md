@@ -1,6 +1,6 @@
 ---
-doc_version: 3
-last_updated: 2026-09-20
+doc_version: 4
+last_updated: 2026-09-23
 governed_by: [RULE-02, RULE-03, RULE-04, RULE-07, RULE-08, RULE-12, RULE-13, RULE-16]
 ---
 
@@ -40,9 +40,9 @@ increments_rework: false   # RULE-08: true only for a Developer-caused failure
 
 | # | Check | Verdict | Citation |
 |---|---|---|---|
-| R1 | `git diff --name-only` is a subset of `allowed_paths` (RULE-03) | PASS / FAIL | `file:line` |
-| R2 | typecheck exit 0 | PASS / FAIL | command output |
-| R3 | lint exit 0 | PASS / FAIL | command output |
+| R1 | `git diff --name-only`, minus the ticket folder and the three ship-owned paths, is a subset of `allowed_paths` (RULE-03, ADR-041) | PASS / FAIL | `file:line` |
+| R2 | typecheck exit 0 — whole-program | PASS / FAIL | command output |
+| R3 | lint exit 0 on the changed lintable files (ADR-041) | PASS / FAIL | command output |
 | R4 | Nothing outside the data-access seam reaches the datastore directly (RULE-02) | PASS / FAIL | `file:line` |
 | R5 | Every contract item in plan section 4 is implemented (RULE-04) | PASS / FAIL | `file:line` |
 | R6 | Permission gating matches plan section 3 | PASS / FAIL | `file:line` |
@@ -105,6 +105,20 @@ Fill all five, every time, including on a PASS. Their correct combinations are e
 | R5 impossible as specified, or R6 | `FAIL` | `false` | `tech-lead-design` | `false` | `REWORK` |
 | **R7 — any invariant violated** | `FAIL` | `true` | `human` | `false` | `ESCALATED` |
 | Cannot review at all | `BLOCKED` | `false` | `human` | `false` | `ESCALATED` |
+| A lint error **outside** the diff, reported under R3 | *no row — R3 still passes* | `false` | note it for a human as an `OPS-nnn` chore | `false` | *unaffected* (ADR-041) |
+
+**Two exemptions, and they are not discretionary** — ADR-041, and the operating model § *Review
+checklist* states both.
+
+- **R1's subject is the diff minus the ticket folder and minus `SHIP_OWNED`** —
+  `.ai/board/backlog.md`, `.ai/board/metrics.md`, `.ai/registry/features.md`. `/triage` and
+  `/advance` write `backlog.md` on every ticket, so a reviewer that fails R1 on it is failing the
+  Developer for a write another stage made. Everything else in the diff is still a strict subset of
+  `allowed_paths`.
+- **R3's subject is the lintable files in the diff.** Run the repo-wide lint too, and when it reports
+  an error in a file the diff does not touch, cite it under R3 and route it as a chore — the gate
+  still passes. No loop role may fix such a file: it is outside `allowed_paths` and RULE-03 forbids
+  the edit, so failing the gate on it deadlocks the ticket with nobody able to act.
 
 **Why a boolean and not the number.** The number drifted. From ADR-022 until ADR-036 this template
 said R7 in its checklist and R8 in the section below it, and `.ai/registry/rules.md` mapped RULE-07

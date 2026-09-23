@@ -5,9 +5,21 @@
 // registry and the ticket, not the code.
 //
 // **Both restricted roles are retired** — `ba` by ADR-019, `qa` by ADR-022 — so this guard is inert:
-// no live agent matches RESTRICTED and it fails open for everyone. It is kept wired and kept tested
-// on purpose. Deleting a guard is the one direction that fails silently, and if either role is ever
-// revived the restriction has to be here already rather than remembered.
+// no live agent matches RESTRICTED and it fails open for everyone.
+//
+// **ADR-041 unwires it.** It was wired on `Read|Grep|Glob|NotebookEdit`, which spawns a Node process
+// per read tool call, in every stage of every unattended run, to exit 0. The file and its tests stay
+// — deleting a guard is the one direction that fails silently, and if either role is ever revived
+// the restriction has to be here already rather than remembered.
+//
+// **The unwiring is owed, not done.** The harness refuses an agent edit to `.claude/settings.json`
+// (self-modification), so the operator deletes this block from `hooks.PreToolUse` — MD-036:
+//
+//   { "matcher": "Read|Grep|Glob|NotebookEdit",
+//     "hooks": [{ "type": "command",
+//                 "command": "node \"$CLAUDE_PROJECT_DIR/.claude/hooks/guard-read-scope.mjs\"" }] }
+//
+// Re-wiring is putting that block back. Nothing else changes.
 //
 // This hook exists because the restriction is not expressible in subagent frontmatter: `tools` and
 // `disallowedTools` are tool-level, not path-level, and denying Read outright would leave these
