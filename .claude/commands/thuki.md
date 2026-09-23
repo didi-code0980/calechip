@@ -54,6 +54,20 @@ in whether you stop**:
 outlived its own policy, which no `/docs-audit` check can catch — none compares a command against
 the standing instructions.*
 
+## Landing what you wrote
+
+**Model work goes on `ops/<slug>`, and landing it is three steps.** The third is restoring the
+working tree, and it is the one that gets skipped — `.ai/standards/git-conventions.md` §
+*Landing `ops/` work while a ticket is in flight* has the procedure and the commands.
+
+Skipping it is not cosmetic. Every role shares one working directory (ADR-006), so files you pushed
+stay dirty on whatever `feat/<TICKET-ID>` is checked out, and the next `/review` fails R1 on a ticket
+that did nothing wrong. It has happened twice: ADR-042 escaped by luck, ADR-043 did not.
+
+**Before you sign off, run `node scripts/check-carry.mjs <TICKET-ID>` for whatever ticket is in
+flight.** Exit 0, or say in the reply what you left dirty and why. A `landed` line means restore; a
+`stray` line means the work is on no ref and deleting it loses it.
+
 ## Not this command's job
 
 Ticket work. If the answer is "run `/plan EXA-01`", say that and stop — do not run it, and do not

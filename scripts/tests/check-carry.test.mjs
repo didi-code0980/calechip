@@ -17,7 +17,7 @@ import os from "node:os";
 import path from "node:path";
 import { execFileSync } from "node:child_process";
 
-import { carryContext, planCarry, inAllowedPaths } from "../lib/entry.mjs";
+import { carryContext, planCarry, inAllowedPaths, splitStrayByLanded } from "../lib/entry.mjs";
 import { readTicket, readFrontMatter } from "../lib/ticket-yaml.mjs";
 
 const ROOT = path.resolve(import.meta.dirname, "..", "..");
@@ -129,4 +129,27 @@ test("a sibling BACKLOG shell from the same PROMOTE is carried — the CAL-12 ca
   // is this ticket's problem again.
   const two = [...one, ".ai/board/tickets/A-02/01-plan.md"];
   assert.deepEqual(planCarry(two, carryContext(t, two, deps)).stray.sort(), two.slice().sort());
+});
+
+test("splitStrayByLanded separates a stale tree from unmerged work", () => {
+  // The CAL-11 shape: nine paths stray, every one already byte-identical on origin/main because an
+  // ops/<slug> landing pushed them and did not restore the tree. Nothing is at risk; the fix is to
+  // restore, not to land. Telling those two apart is the whole point of the split.
+  const onMain = new Set([".ai/registry/rules.md", "scripts/check-carry.mjs"]);
+  const { landed, real } = splitStrayByLanded(
+    [".ai/registry/rules.md", "scripts/check-carry.mjs", "scripts/brand-new.mjs"],
+    (p) => onMain.has(p));
+
+  assert.deepEqual(landed, [".ai/registry/rules.md", "scripts/check-carry.mjs"]);
+  assert.deepEqual(real, ["scripts/brand-new.mjs"]);
+});
+
+test("splitStrayByLanded keeps every path in exactly one half", () => {
+  const stray = ["a", "b", "c", "d"];
+  for (const pred of [() => true, () => false, (p) => p < "c"]) {
+    const { landed, real } = splitStrayByLanded(stray, pred);
+    assert.equal(landed.length + real.length, stray.length);
+    assert.deepEqual([...landed, ...real].sort(), stray.slice().sort());
+  }
+  assert.deepEqual(splitStrayByLanded([], () => true), { landed: [], real: [] });
 });
