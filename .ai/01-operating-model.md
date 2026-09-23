@@ -1,5 +1,5 @@
 ---
-doc_version: 8
+doc_version: 9
 last_updated: 2026-09-23
 governed_by: [RULE-01, RULE-03, RULE-04, RULE-05, RULE-06, RULE-07, RULE-08, RULE-09, RULE-10, RULE-11, RULE-12, RULE-13, RULE-14, RULE-15, RULE-16, RULE-17]
 ---
@@ -133,7 +133,7 @@ ADR-019 records this as the cost it is, not as a safeguard.
 
 | # | Check |
 |---|---|
-| R1 | `git diff --name-only`, **minus the ticket folder and minus the three ship-owned paths**, is a subset of `allowed_paths` (RULE-03, ADR-041) |
+| R1 | **Committed:** `git diff --name-only origin/main...HEAD`, minus the ticket folder and the three ship-owned paths, is a subset of `allowed_paths` (RULE-03, ADR-041). **Uncommitted:** `node scripts/check-carry.mjs <ID>` exits 0 (ADR-043) |
 | R2 | typecheck exit 0 — whole-program |
 | R3 | lint exit 0 **on the changed lintable files** (ADR-041) |
 | R4 | Nothing outside the data-access seam reaches the datastore directly (RULE-02) |
@@ -150,12 +150,19 @@ in place of citation is a checklist that always passes.
 because the check and the mandate had different subjects, and a ticket was failing for writes RULE-03
 never prohibited.
 
-- **R1's exempt set is `SHIP_OWNED` plus the ticket folder**, which is `.ai/board/backlog.md`,
-  `.ai/board/metrics.md`, `.ai/registry/features.md` and `.ai/board/tickets/<ID>/**`. It is the set
-  `scripts/check-allowed-paths.mjs` has exempted since ADR-023, and the two readers of one diff now
-  agree. `/triage` and `/advance` write `backlog.md` on every ticket, so without this R1 fails every
-  ticket. **Everything else in the diff is still a subset of `allowed_paths`, with no further
-  exemption.**
+- **R1 has two subjects and two rules** — ADR-043. A ticket's tree holds *committed* changes, which
+  belong on the branch, and *uncommitted* ones, which are what a ticket looks like for its whole life
+  because agents commit only at `/ship`. One rule applied to both is what failed CAL-11 twice.
+  - **Committed** — `git diff --name-only origin/main...HEAD` must be a subset of `allowed_paths`,
+    exempting `SHIP_OWNED` plus the ticket folder: `.ai/board/backlog.md`, `.ai/board/metrics.md`,
+    `.ai/registry/features.md`, `.ai/board/tickets/<ID>/**`. That is the set
+    `scripts/check-allowed-paths.mjs` has exempted since ADR-023, so CI and R1 now agree. `/triage`
+    and `/advance` write `backlog.md` on every ticket, so without this R1 fails every ticket.
+  - **Uncommitted** — `node scripts/check-carry.mjs <ID>`, a CLI over the same `planCarry` the
+    runner's preflight uses. A path is a violation when and only when it comes back **stray**;
+    **carried** paths are listed in the review and are not violations. Do not re-derive the exempt
+    set by hand here — the one written into this document on 2026-09-22 was incomplete the day it
+    was written, and that is what ADR-043 stopped maintaining.
 - **R3 is scoped to the lintable files in the diff.** A lint error in a file the diff does not touch
   is reported under R3 with its `file:line` and routed as an `OPS-nnn` chore; it does **not** fail
   the gate. No loop role may fix it — the file is outside `allowed_paths` and RULE-03 forbids the

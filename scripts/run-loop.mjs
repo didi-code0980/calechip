@@ -30,7 +30,7 @@ import {
   resolveInput, readVerdict, verdictStop, openQuestionsStop, sizeStop,
   orphanPaths, renderReport, IDEAS_DIR, MAX_INTAKE_QUESTIONS,
   awaitedAdrs, adrStatus, adrsSettled, needsAdrDecision,
-  parsePorcelainZ, planCarry, wipBlockers,
+  parsePorcelainZ, planCarry, wipBlockers, carryContext as buildCarryContext, inAllowedPaths,
 } from "./lib/entry.mjs";
 import { INTAKE_SCHEMA, intakePrompt, triagePrompt, triageFromFilePrompt, retriagePrompt } from "./lib/prompts.mjs";
 
@@ -110,26 +110,9 @@ function dirtyPaths() {
   return parsePorcelainZ(r.stdout);
 }
 
-/** Everything `planCarry` needs, read from disk. Only dirty idea files and dirty sibling tickets. */
+/** ADR-043: the context builder moved to `lib/entry.mjs`, where `check-carry.mjs` shares it. */
 function carryContext(t, dirty) {
-  // Every idea file, committed or not: the promoting idea is usually committed by the time its
-  // second ticket runs, and it is still what makes a sibling's ticket.yaml carryable.
-  const onDisk = fs.existsSync(IDEAS_DIR)
-    ? fs.readdirSync(IDEAS_DIR).filter((f) => f.endsWith(".md")).map((f) => `.ai/board/ideas/${f}`)
-    : [];
-  const ideaPaths = [...new Set([...onDisk, ...dirty.filter((p) => /^\.ai\/board\/ideas\/[^/]+\.md$/.test(p))])];
-  const ideas = ideaPaths.map((p) => {
-    try { return { path: p, fm: readFrontMatter(path.join(ROOT, p)) ?? {} }; }
-    catch { return { path: p, fm: {} }; }
-  });
-  const siblingIds = [...new Set(dirty.map((p) => /^\.ai\/board\/tickets\/([^/]+)\//.exec(p)?.[1])
-    .filter((x) => x && x !== t.id))];
-  const siblings = siblingIds.filter((x) => fs.existsSync(ticketFile(x))).map((x) => {
-    try { return { id: x, state: readTicket(ticketFile(x)).state, ticketText: fs.readFileSync(ticketFile(x), "utf8") }; }
-    catch { return { id: x, state: null, ticketText: "" }; }
-  });
-  const ticketText = fs.existsSync(ticketFile(t.id)) ? fs.readFileSync(ticketFile(t.id), "utf8") : "";
-  return { id: t.id, allowedPaths: t.allowed_paths ?? [], ticketText, ideas, siblings, inAllowedPaths };
+  return buildCarryContext(t, dirty, { readFrontMatter, readTicket });
 }
 
 const ticketDir = (id) => path.join(TICKETS_DIR, id);
@@ -432,18 +415,6 @@ function preflight(t, step) {
   }
 
   return problems;
-}
-
-/** Glob-lite: `**` matches any depth, `*` matches within one segment. */
-function inAllowedPaths(p, globs) {
-  return globs.some((g) => {
-    const rx = new RegExp("^" + String(g)
-      .replace(/[.+^${}()|[\]\\]/g, "\\$&")
-      .replace(/\*\*/g, "￿")
-      .replace(/\*/g, "[^/]*")
-      .replace(/￿/g, ".*") + "$");
-    return rx.test(p);
-  });
 }
 
 function validateEntry(t) {

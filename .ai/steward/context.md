@@ -2359,3 +2359,74 @@ map only; **no rule text changed and no `v` moved**), `.ai/templates/review-repo
 
 Registry writes: `rules.md` enforcement map, and ADR-041. Both are recorded under ADR-041 and
 reviewed at merge under CODEOWNERS. No feature row, no invariant, no ticket artifact.
+
+### 2026-09-23 — CAL-12 was never the problem; R1 had two subjects and one rule
+
+`orchestrator` stopped `/ship` at precondition and routed here to land
+`.ai/board/tickets/CAL-12/` on `ops/<slug>`, so that R1 would stop failing CAL-11 on it. **I did
+not do that**, and the reason is measured rather than argued.
+
+**CAL-12 was already carried.** `planCarry` has had a clause for exactly this shape since
+2026-09-22 — *a sibling ticket folder promoted by the same idea, at BACKLOG, holding nothing but
+`ticket.yaml`*. Run against the live tree before I touched anything, it returned
+`sibling CAL-12 from the same PROMOTE` and **zero stray**. The runner's preflight was satisfied.
+Only R1's prose was not, and R1's prose was mine, written yesterday under ADR-041.
+
+**The proposed route does not reach the goal.** Landing the shell on `ops/` leaves it untracked on
+`feat/CAL-11`, so R1 still sees it; clearing it needs `git merge origin/main`, and git refuses
+that while the file sits untracked in the tree. Measured in a throwaway repository reproducing the
+exact shape — untracked locally, byte-identical content committed on main:
+
+    error: The following untracked working tree files would be overwritten by merge:
+            tix/Y/ticket.yaml
+    Aborting
+
+The sequence that *does* work is land, merge, delete the local copy, merge again — five steps, two
+human actions, one of them a merge against a tree holding an entire uncommitted ticket, which is the
+loss ADR-006 names in its revert condition. To satisfy a check on a file `/ship` never commits and
+CI never sees.
+
+**ADR-043**, `ACCEPTED by steward`, amending ADR-041 which is also mine. **R1 had two subjects and
+one rule.** A ticket's tree holds committed changes, which belong on the branch and are judged
+against `allowed_paths`, and uncommitted ones, which are what a ticket looks like for its whole
+life because agents commit only at `/ship`. R1 now runs `node scripts/check-carry.mjs <ID>` for
+the second half — a CLI over `planCarry`, **adding no rule**, so the reviewer and the preflight
+cannot disagree again.
+
+**The thing worth recording is why the prose fix was the wrong shape.** ADR-041 wrote a
+hand-maintained exempt set into three documents on 2026-09-22. It was incomplete **on the day it was
+written** — CAL-12 was already on disk. A fourth copy would have been wrong the same way, and nothing
+in `check-docs.mjs` compares a prose exempt set against the code implementing one. That is the
+second copy `CLAUDE.md` warns about, and I wrote it.
+
+**Two defects found while doing it, both by the checks rather than by me.**
+
+- `carryContext` listed idea files from `ideasDir` but read them from `ROOT`. Identical in a
+  real run, which is why it survived; it broke the first test that injected a directory. Fixed at
+  `scripts/lib/entry.mjs`.
+- D6 failed the audit on ADR-043 for naming `src/lib/foo.ts`, a path I invented as an example. The
+  check is right — an ADR citing a file that does not exist is exactly what D6 is for. Reworded.
+
+Also moved, for the CLI to share rather than copy: `carryContext` and `inAllowedPaths` from
+`scripts/run-loop.mjs` into `scripts/lib/entry.mjs`, with a four-line delegator left behind so
+the runner's call site is unchanged.
+
+**What this does not do.** It does not land CAL-12. MD-031 still owns that — idea files, ADRs and
+sibling shells are orphans `/ship` never commits, and the durable answer is still a human landing
+them. ADR-043 stops them failing a review; it does not put them on a branch.
+
+**And it does not clear the tree.** `check-carry.mjs CAL-11` now reports eight stray paths and all
+eight are **this session's own model work**. That is correct, and it is the real precondition the
+orchestrator was looking for — steward work, not CAL-12. It goes on `ops/<slug>` before
+`/review` runs, and the same git problem applies to landing it: the plumbing route
+(`hash-object` / `commit-tree` / `update-ref`, never moving HEAD) builds the branch without
+touching the working tree, and the local copies are restored from main afterwards.
+
+Changed: `.ai/registry/decisions/ADR-043-r1-asks-the-runner-what-is-carried.md` (new),
+`scripts/check-carry.mjs` (new), `scripts/tests/check-carry.test.mjs` (new, 6 tests),
+`scripts/lib/entry.mjs`, `scripts/run-loop.mjs`, `.ai/01-operating-model.md` (doc_version 9),
+`.ai/registry/rules.md` (doc_version 4 — enforcement map only; **no rule text changed, no `v`
+moved**), `.ai/templates/review-report.md` (doc_version 5).
+
+Registry writes: ADR-043 and the `rules.md` enforcement map. CODEOWNERS reviews both at merge.
+No feature row, no invariant, no ticket artifact.

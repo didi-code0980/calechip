@@ -1,5 +1,5 @@
 ---
-doc_version: 4
+doc_version: 5
 last_updated: 2026-09-23
 governed_by: [RULE-02, RULE-03, RULE-04, RULE-07, RULE-08, RULE-12, RULE-13, RULE-16]
 ---
@@ -40,7 +40,7 @@ increments_rework: false   # RULE-08: true only for a Developer-caused failure
 
 | # | Check | Verdict | Citation |
 |---|---|---|---|
-| R1 | `git diff --name-only`, minus the ticket folder and the three ship-owned paths, is a subset of `allowed_paths` (RULE-03, ADR-041) | PASS / FAIL | `file:line` |
+| R1 | **Committed:** `git diff --name-only origin/main...HEAD` minus the ticket folder and the three ship-owned paths is a subset of `allowed_paths` (ADR-041). **Uncommitted:** `node scripts/check-carry.mjs <ID>` exits 0 (ADR-043) | PASS / FAIL | `file:line` + the command's output |
 | R2 | typecheck exit 0 — whole-program | PASS / FAIL | command output |
 | R3 | lint exit 0 on the changed lintable files (ADR-041) | PASS / FAIL | command output |
 | R4 | Nothing outside the data-access seam reaches the datastore directly (RULE-02) | PASS / FAIL | `file:line` |
@@ -107,14 +107,17 @@ Fill all five, every time, including on a PASS. Their correct combinations are e
 | Cannot review at all | `BLOCKED` | `false` | `human` | `false` | `ESCALATED` |
 | A lint error **outside** the diff, reported under R3 | *no row — R3 still passes* | `false` | note it for a human as an `OPS-nnn` chore | `false` | *unaffected* (ADR-041) |
 
-**Two exemptions, and they are not discretionary** — ADR-041, and the operating model § *Review
-checklist* states both.
+**Two exemptions, and they are not discretionary** — ADR-041 and ADR-043, and the operating model
+§ *Review checklist* states both.
 
-- **R1's subject is the diff minus the ticket folder and minus `SHIP_OWNED`** —
-  `.ai/board/backlog.md`, `.ai/board/metrics.md`, `.ai/registry/features.md`. `/triage` and
-  `/advance` write `backlog.md` on every ticket, so a reviewer that fails R1 on it is failing the
-  Developer for a write another stage made. Everything else in the diff is still a strict subset of
-  `allowed_paths`.
+- **R1 has two subjects** — ADR-043. *Committed:* the `origin/main...HEAD` diff minus the ticket
+  folder and minus `SHIP_OWNED` (`.ai/board/backlog.md`, `.ai/board/metrics.md`,
+  `.ai/registry/features.md`) is a strict subset of `allowed_paths`. `/triage` and `/advance` write
+  `backlog.md` on every ticket, so a reviewer that fails R1 on it is failing the Developer for a
+  write another stage made. *Uncommitted:* **run `node scripts/check-carry.mjs <ID>` and quote it.**
+  A path is a violation only when it comes back **stray**; **carried** paths go in the citation
+  column and pass. Do not re-derive that set by hand — it is `planCarry`, the same function the
+  runner's preflight uses, and the prose version of it was incomplete the day it was written.
 - **R3's subject is the lintable files in the diff.** Run the repo-wide lint too, and when it reports
   an error in a file the diff does not touch, cite it under R3 and route it as a chore — the gate
   still passes. No loop role may fix such a file: it is outside `allowed_paths` and RULE-03 forbids
