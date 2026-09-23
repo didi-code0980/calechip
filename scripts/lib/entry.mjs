@@ -228,6 +228,8 @@ export function readVerdict(file, readFrontMatter) {
 // the ADR's own `## Status` line: once every ADR the verdict waits on has left `PROPOSED`, the run
 // re-triages, and the new verdict is the live one.
 
+export const TICKETS_DIR = path.join(ROOT, ".ai", "board", "tickets");
+
 export const DECISIONS_DIR = path.join(ROOT, ".ai", "registry", "decisions");
 
 /** A status a person or an agent has decided. `PROPOSED` is the only undecided one. */
@@ -483,6 +485,56 @@ const citesAdr = (text, id) => new RegExp(`\\b${id}\\b`).test(String(text ?? "")
  * ctx: { id, allowedPaths, ticketText, ideas: [{ path, fm }], siblings: [{ id, state, ticketText }],
  *        inAllowedPaths(p, globs) }
  */
+/** Glob-lite: `**` matches any depth, `*` matches within one segment. */
+export function inAllowedPaths(p, globs) {
+  return (globs ?? []).some((g) => {
+    const rx = new RegExp("^" + String(g)
+      .replace(/[.+^${}()|[\]\\]/g, "\\$&")
+      .replace(/\*\*/g, "￿")
+      .replace(/\*/g, "[^/]*")
+      .replace(/￿/g, ".*") + "$");
+    return rx.test(p);
+  });
+}
+
+/**
+ * Everything `planCarry` needs, read from disk. Only dirty idea files and dirty sibling tickets.
+ *
+ * **Lives here rather than in `run-loop.mjs` since ADR-043**, because it now has two callers: the
+ * runner's preflight and `scripts/check-carry.mjs`, which is what review check R1 runs. A second
+ * copy of this context builder would be a second answer to "is this path carried", which is the
+ * exact defect ADR-043 exists to close.
+ *
+ * deps: { readFrontMatter, readTicket, ticketsDir?, ideasDir? }
+ */
+export function carryContext(t, dirty, deps) {
+  const { readFrontMatter, readTicket, ticketsDir = TICKETS_DIR, ideasDir = IDEAS_DIR } = deps;
+  const ticketFile = (id) => path.join(ticketsDir, id, "ticket.yaml");
+
+  // Every idea file, committed or not: the promoting idea is usually committed by the time its
+  // second ticket runs, and it is still what makes a sibling's ticket.yaml carryable.
+  const onDisk = fs.existsSync(ideasDir)
+    ? fs.readdirSync(ideasDir).filter((f) => f.endsWith(".md")).map((f) => `.ai/board/ideas/${f}`)
+    : [];
+  const ideaPaths = [...new Set([...onDisk, ...dirty.filter((p) => /^\.ai\/board\/ideas\/[^/]+\.md$/.test(p))])];
+  // Resolve against `ideasDir`, not `ROOT`. Every idea path is `.ai/board/ideas/<file>`, so the
+  // basename is the whole of the difference, and the two agree in a real run. They did not agree
+  // under an injected directory, which listed one file and read another — found by the first test
+  // that injected one (ADR-043).
+  const ideas = ideaPaths.map((p) => {
+    try { return { path: p, fm: readFrontMatter(path.join(ideasDir, path.basename(p))) ?? {} }; }
+    catch { return { path: p, fm: {} }; }
+  });
+  const siblingIds = [...new Set(dirty.map((p) => /^\.ai\/board\/tickets\/([^/]+)\//.exec(p)?.[1])
+    .filter((x) => x && x !== t.id))];
+  const siblings = siblingIds.filter((x) => fs.existsSync(ticketFile(x))).map((x) => {
+    try { return { id: x, state: readTicket(ticketFile(x)).state, ticketText: fs.readFileSync(ticketFile(x), "utf8") }; }
+    catch { return { id: x, state: null, ticketText: "" }; }
+  });
+  const ticketText = fs.existsSync(ticketFile(t.id)) ? fs.readFileSync(ticketFile(t.id), "utf8") : "";
+  return { id: t.id, allowedPaths: t.allowed_paths ?? [], ticketText, ideas, siblings, inAllowedPaths };
+}
+
 export function planCarry(dirty, ctx) {
   const own = `.ai/board/tickets/${ctx.id}/`;
   const provenance = (ctx.ideas ?? []).filter((i) =>
