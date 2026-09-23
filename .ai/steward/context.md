@@ -2486,3 +2486,79 @@ Changed: `.ai/standards/git-conventions.md`, `scripts/check-carry.mjs`, `scripts
 `.ai/registry/decisions/ADR-043-r1-asks-the-runner-what-is-carried.md` (revert condition amended).
 
 Registry write: the ADR-043 amendment. No rule text changed, no `v` moved, no feature row.
+
+### 2026-09-23 — a typo that should have stopped a ship, and a blocker that does not exist
+
+`orchestrator` shipped CAL-11 (PR #95, merged 08:06Z along with PR #94) and routed here to land
+`.ai/board/tickets/CAL-12/`. It also reported three things in passing, and two of them turned out to
+be worth more than the task.
+
+**The task.** CAL-12's shell is landed. With CAL-11 shipped there was no ticket in flight and the
+tree held one untracked file, so no plumbing was needed — an ordinary branch off `origin/main`.
+
+The orchestrator flagged that `check-carry` and `check-allowed-paths` disagree about this file and
+that both are right. **They are, and nothing is owed.** `check-carry` calls it carried — it may
+*ride on* the branch — and `check-allowed-paths` would fail it on `feat/CAL-11` because its exempt
+set is that branch's own `ticketDir` plus the three ship-owned names. Carrying is not committing;
+ADR-043 says so in terms. Recorded here because it reads like a contradiction and the next person to
+notice it will reach for a fix.
+
+**Finding 1, and it is the one that matters — MD-039, High.** ADR-042 decision 5 says the INV-04 fix
+*"needs a feature row in `.ai/registry/features.md`, which is human plane under RULE-01. Until the
+row exists the debt is recorded and not scheduled."* **ADR-007 removed that step.** It decided that
+`product` writes the feature row itself on a PROMOTE, amended RULE-01 to v2 exempting feature and
+glossary rows from the ADR requirement, and moved approval to CODEOWNERS at merge. So the fix is not
+blocked on anyone: it needs `/idea`, then `/triage`, and the row is issued at PROMOTE like every
+other row — including CAL-11's and CAL-12's own, both written by `product` two days ago under
+ADR-007.
+
+The cost is not theoretical. **INV-04 is now knowingly unheld in merged code**, behind a blocker that
+does not exist, with no board row and nobody assigned. Not fixed here: ADR-042 is
+`ACCEPTED by the operator` and the ADR-000 template says an agent asks rather than decides when the
+change would reverse an accepted one. The operator strikes decision 5 or says it meant something
+narrower; then it is an ordinary `/idea`.
+
+**Finding 2 — the typo, and it was worse under the surface.** The argument on CAL-11's ship was
+`CAL-11ư`. `orchestrator` found no ticket and no branch by that name and proceeded as `CAL-11`.
+
+Two separate defects, and the second is mine:
+
+- **The command half (MD-040, Medium).** `git-conventions.md` puts every ticket command except
+  `/plan` in stop mode — *"Stop and report to the operator"* — and `/ship` uses `$ARGUMENTS`
+  literally in `git switch feat/$ARGUMENTS`, so a faithful run stops at step 0. A ship commits,
+  pushes, writes `features.md` and opens the pull request. It should not have a mode that works out
+  what was meant. Recorded, not fixed: it is `/ship`'s step 0 wording and no code path guards it.
+- **The runner half, fixed.** `resolveInput("CAL-11ư")` returned `{kind: "intake"}` — **free
+  text, a new idea**, which under `auto` means an intake, a PROMOTE, a feature row and a ticket.
+  That is verbatim the outcome the resolution section's own header forbids: *"falling through would
+  turn one mistyped character into an idea file, a feature row and a ticket."* It fell through
+  because `TICKET_ID` is `/^[A-Z]{2,4}-\d{1,3}[a-z]?$/` — ASCII-only — so one Vietnamese
+  character, the easiest typo to make on this keyboard, walked past the guard written to catch
+  exactly it. **The guard was narrower than the mistake, and it was narrower on the day it was
+  written.**
+
+  Step 5 now also tests `TICKET_ID_NEAR = /^[A-Za-z]{2,4}-\d{1,3}\S*$/`, deliberately loose. A
+  false positive costs one explicit `--idea` flag; a false negative costs three board and registry
+  writes from a typo. `CAL-11ư`, `cal-11`, `CAL-11x`, a well-formed id for a ticket that does
+  not exist, and an ADR id now all error; `CAL-11`, `many-teams` and any sentence are
+  untouched. *(The literal examples live in `scripts/tests/entry.test.mjs`. Spelling one out
+  here failed D1, which reads an unresolvable feature id in a governed document as a defect —
+  correctly, and the check caught it in the same run that added it.)* Two tests, and one of them caught a bug
+  in my first draft of itself.
+
+**Also reported and not this session's:** E2E ran at no stage and was not claimed, and CAL-11's
+migration is unapplied against a real PostgreSQL. Both are honest reporting from the ship. The
+permission-model test that would cover them has been owed since TEA-01 and is named in ADR-016,
+ADR-017, ADR-027 and now the CAL-11 feature row.
+
+**One PR rather than two.** The CAL-12 shell was pushed first as `ops/cal-12-shell` (PR #96), and
+then D6 failed the audit: ADR-043 cites `.ai/board/tickets/CAL-12/`, which was no longer on disk
+once this branch was cut from `origin/main`. Suppressing it needed an `ABSENT_BY_DESIGN` entry
+that nobody would remove after the merge, so the branches were merged instead — one PR, one merge,
+green audit, no suppression.
+
+Changed: `scripts/lib/entry.mjs` (`TICKET_ID_NEAR`, step 5), `scripts/tests/entry.test.mjs`
+(+2 tests), `.ai/board/model-debt.md` (doc_version 7, MD-039 and MD-040),
+`.ai/board/tickets/CAL-12/ticket.yaml` (landed as written by `product`, unedited).
+
+No registry write. No ADR — MD-039 is the operator's to decide and ADR-042 is untouched.
