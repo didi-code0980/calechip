@@ -1522,6 +1522,112 @@ export const seam: DataSeam = {
       .map((m) => ({ ...m }));
   },
 
+  // -------------------------------------------------------------------------
+  // CAL-11 — the read half of a two-row split (ADR-039, ADR-040). 01-plan.md section 4.4. The
+  // three `security definer` functions in 20260922150000_cal11_cross_team_reads.sql, reproduced.
+  // Each one's FIRST test is `is_admin`, as each function body's is — the reason above.
+  // -------------------------------------------------------------------------
+
+  // `public.list_members_for_team(p_team_id)`: team `teamId`'s roster, removed members included,
+  // for an admin. Filtered on `m.teamId === teamId` DIRECTLY — the SQL body compares
+  // `m.team_id = p_team_id` on the row itself and not through `member_team_id`, so a removed
+  // member's own row still matches, exactly as AC-1 requires.
+  async listMembersForTeam(teamId: string): Promise<Member[]> {
+    if (!currentAdmin()) return [];
+
+    const rows = members
+      .filter((m) => m.teamId === teamId)
+      .slice()
+      .sort(byCreatedAtThenId)
+      .slice(0, ROSTER_LIMIT);
+
+    if (rows.length >= ROSTER_LIMIT) {
+      throw new Error(
+        `listMembersForTeam returned ${rows.length} rows at the ${ROSTER_LIMIT} limit: the roster ` +
+          `may be truncated and must not be consumed`,
+      );
+    }
+
+    return rows.map((m) => ({ ...m }));
+  },
+
+  // `public.list_team_entries_for_team(p_team_id)`: every entry of team `teamId`, for an admin.
+  // `sameTeam`, not `===`: the SQL predicate is `member_team_id(e.member_id) = p_team_id`, and
+  // `member_team_id` answers null for a removed member — so a removed member's entries are
+  // excluded here exactly as they are from `listTeamEntries` (parity; INV-04 note).
+  async listTeamEntriesForTeam(teamId: string): Promise<Entry[]> {
+    if (!currentAdmin()) return [];
+
+    const rows = entries
+      .filter((e) => sameTeam(memberTeamId(e.memberId), teamId))
+      .slice()
+      .sort((a, b) =>
+        a.startDate === b.startDate
+          ? a.id.localeCompare(b.id)
+          : b.startDate.localeCompare(a.startDate),
+      )
+      .slice(0, TEAM_ENTRY_LIMIT);
+
+    if (rows.length >= TEAM_ENTRY_LIMIT) {
+      throw new Error(
+        `listTeamEntriesForTeam returned ${rows.length} rows at the ${TEAM_ENTRY_LIMIT} limit: the ` +
+          `list may be truncated and must not be consumed`,
+      );
+    }
+
+    return rows.map((e) => ({ ...e }));
+  },
+
+  // `public.list_team_entries_overlapping_for_team(p_team_id, p_start, p_end)`: the cross-team
+  // twin of `listTeamEntriesOverlapping`, with the same page-and-assemble walk (CAL-09) over the
+  // same order, the team filter applied to the whole array BEFORE the first window is taken
+  // (INV-07), exactly as `listTeamEntriesOverlapping` above.
+  async listTeamEntriesOverlappingForTeam(teamId: string, range: DateRange): Promise<Entry[]> {
+    if (!currentAdmin()) return [];
+
+    const matched = entries
+      .filter((e) => sameTeam(memberTeamId(e.memberId), teamId))
+      .filter((e) => e.startDate <= range.end && e.endDate >= range.start)
+      .slice()
+      .sort((a, b) =>
+        a.startDate === b.startDate
+          ? a.id.localeCompare(b.id)
+          : a.startDate.localeCompare(b.startDate),
+      );
+
+    const matching = matched.length;
+    const assembled: Entry[] = [];
+    const seen = new Set<string>();
+
+    for (let request = 0; request < TEAM_ENTRY_MAX_PAGES; request += 1) {
+      const from = assembled.length;
+      const rows = matched.slice(from, from + TEAM_ENTRY_PAGE_SIZE);
+
+      for (const row of rows) {
+        if (seen.has(row.id)) {
+          throw new Error(
+            `listTeamEntriesOverlappingForTeam received entry ${row.id} twice across pages: the ` +
+              `result is not a set and must not be counted`,
+          );
+        }
+        seen.add(row.id);
+        assembled.push(row);
+      }
+
+      if (assembled.length >= matching) break;
+      if (rows.length === 0) break;
+    }
+
+    if (assembled.length !== matching) {
+      throw new Error(
+        `listTeamEntriesOverlappingForTeam assembled ${assembled.length} rows while ${matching} ` +
+          `match: the range may be incomplete and must not be counted`,
+      );
+    }
+
+    return assembled.map((e) => ({ ...e }));
+  },
+
   // `public.create_team`. The empty name is refused FIRST here, as supabase.ts refuses it before the
   // round trip — the two implementations tell one story from the caller's side. The threshold is the
   // column default.

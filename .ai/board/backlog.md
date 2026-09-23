@@ -23,6 +23,15 @@ planned, sized, and safe to build** — the next stage for a row here is IN_PROG
 | # | Ticket | Title | Size | Depends on |
 |---|--------|-------|------|------------|
 
+**Empty — `CAL-11` left this section for `## ARCHIVE` at its own ship on 2026-09-23.** It had been
+moved here from `## BACKLOG` at `/advance` the same day, on `gate: PASS` in
+`.ai/board/tickets/CAL-11/01-plan.md` and all six Definition of Ready items passing, sized `S` from
+`ticket.yaml` — the verdict, not `size_estimate: "M"` (ADR-012).
+
+**`CAL-12` is the next row and it is in `## BACKLOG`, not here**: its `depends_on` is `CAL-11`, which
+this ship satisfies only once a human merges the pull request. It needs `/plan` before it can sit in
+this section.
+
 ## BACKLOG
 
 Tickets awaiting PLAN. **Ordered.** A human reorders; the orchestrator takes the top.
@@ -32,6 +41,16 @@ Under the current gate placement a ticket sits here until it has been planned �
 
 | # | Ticket | Title | State | Blocked on |
 |---|--------|-------|-------|------------|
+| 1 | CAL-12 | An admin chooses which team the three calendar screens and the sidebar roster show, read-only | BACKLOG | CAL-11 |
+
+**Rows 1 and 2 were appended by `product` at /triage on 2026-09-22**, from
+`.ai/board/ideas/2026-09-22-an-admin-manages-every-team-and-sees-only-one-calendar.md`, whose
+`## Re-triage verdict — PROMOTE, as CAL-11 then CAL-12` section is the reasoning. They were rows 1
+and 2 because the table was empty, not because anybody placed them; **CAL-11 moved to `## READY` at
+/advance on 2026-09-23** and CAL-12 is row 1 here in its own right, still blocked on it.
+**Owed and not either ticket's:** the
+standards ADR-039 and ADR-040 name as affected (`rbac-and-security.md`, `data-model.md`,
+`architecture.md`) still say one team — `/thuki`'s on an `ops/<slug>` branch.
 
 ***THIS TABLE IS EMPTY FOR THE SIXTH TIME.*** `UIE-10` left it for `## ARCHIVE` at /ship on
 2026-09-09, and all thirty-six tickets on the board are `DONE`. The paragraphs below were written
@@ -1234,36 +1253,70 @@ Tickets that cannot proceed until a human decides something. Name the decision, 
 
 | # | Ticket | Title | Shipped | PR |
 |---|--------|-------|---------|-----|
-| 1 | ADM-03 | Add, edit or delete a holiday or swap day | 2026-09-05 | [#55](https://github.com/didi-code0980/calechip/pull/55) |
-| 2 | CAL-08 | Holidays and bridge days shown in the calendar views | 2026-09-05 | [#56](https://github.com/didi-code0980/calechip/pull/56) |
-| 3 | ADM-04 | The worklist of entries awaiting a decision | 2026-09-05 | [#58](https://github.com/didi-code0980/calechip/pull/58), merged — corrected from `PENDING_PR` at ADM-05's ship |
-| 4 | ADM-05 | Approve or reject an entry, with a reason on rejection | 2026-09-05 | [#59](https://github.com/didi-code0980/calechip/pull/59) |
-| 5 | ADM-06 | Reject several entries at once, with one reason for the batch | 2026-09-06 | [#60](https://github.com/didi-code0980/calechip/pull/60) |
-| 6 | OPS-002 | UI copy to English — entry screens and the seam's error messages | 2026-09-07 | [#62](https://github.com/didi-code0980/calechip/pull/62) |
-| 7 | UIE-01 | Restyle the sign-in and sign-up screens to the product's visual direction | 2026-09-07 | [#63](https://github.com/didi-code0980/calechip/pull/63) |
-| 8 | UIE-02 | The application shell — a persistent sidebar and top bar | 2026-09-07 | [#64](https://github.com/didi-code0980/calechip/pull/64) |
-| 9 | UIE-03 | The calendar screens give up their own chrome to the shell | 2026-09-07 | [#65](https://github.com/didi-code0980/calechip/pull/65) |
-| 10 | UIE-04 | The week view as seven day columns | 2026-09-07 | [#66](https://github.com/didi-code0980/calechip/pull/66) |
-| 11 | OPS-004 | A password-free bootstrap file that creates the first team and the first admin | 2026-09-07 | [#71](https://github.com/didi-code0980/calechip/pull/71) |
-| 12 | UIE-05 | The week column fills the viewport, and its header strip and entry chip are restacked | 2026-09-08 | [#72](https://github.com/didi-code0980/calechip/pull/72) |
-| 13 | UIE-06 | The month grid becomes one ruled full-width card with taller cells, on the product's tokens | 2026-09-08 | [#73](https://github.com/didi-code0980/calechip/pull/73) |
-| 14 | BUG-002 | Two row limits sit above the datastore cap, so four truncation assertions can never fire | 2026-09-08 | [#76](https://github.com/didi-code0980/calechip/pull/76) |
-| 15 | UIE-07 | The week view renders a per-day absence count | 2026-09-08 | [#77](https://github.com/didi-code0980/calechip/pull/77) |
-| 16 | CAL-09 | The calendar reads serve a year larger than one datastore page | 2026-09-08 | [#79](https://github.com/didi-code0980/calechip/pull/79) |
-| 17 | UIE-08 | The year grid is repainted onto the product's semantic tokens and its card treatment | 2026-09-08 | [#81](https://github.com/didi-code0980/calechip/pull/81), merged — corrected from `PENDING_PR` at CAL-10's ship |
-| 18 | CAL-10 | Year overview — twelve month cards with a year summary band | 2026-09-09 | [#84](https://github.com/didi-code0980/calechip/pull/84), merged — corrected from `PENDING_PR` at UIE-09's ship |
-| 19 | UIE-09 | An admin hub screen at `/admin`, reachable from one control in the top bar | 2026-09-09 | [#85](https://github.com/didi-code0980/calechip/pull/85), merged — corrected from `PENDING_PR` at UIE-10's ship |
-| 20 | UIE-10 | The sidebar gives up its admin links and restyles its roster; the specs route through the hub | 2026-09-09 | PENDING_PR |
+| 1 | CAL-08 | Holidays and bridge days shown in the calendar views | 2026-09-05 | [#56](https://github.com/didi-code0980/calechip/pull/56) |
+| 2 | ADM-04 | The worklist of entries awaiting a decision | 2026-09-05 | [#58](https://github.com/didi-code0980/calechip/pull/58), merged — corrected from `PENDING_PR` at ADM-05's ship |
+| 3 | ADM-05 | Approve or reject an entry, with a reason on rejection | 2026-09-05 | [#59](https://github.com/didi-code0980/calechip/pull/59) |
+| 4 | ADM-06 | Reject several entries at once, with one reason for the batch | 2026-09-06 | [#60](https://github.com/didi-code0980/calechip/pull/60) |
+| 5 | OPS-002 | UI copy to English — entry screens and the seam's error messages | 2026-09-07 | [#62](https://github.com/didi-code0980/calechip/pull/62) |
+| 6 | UIE-01 | Restyle the sign-in and sign-up screens to the product's visual direction | 2026-09-07 | [#63](https://github.com/didi-code0980/calechip/pull/63) |
+| 7 | UIE-02 | The application shell — a persistent sidebar and top bar | 2026-09-07 | [#64](https://github.com/didi-code0980/calechip/pull/64) |
+| 8 | UIE-03 | The calendar screens give up their own chrome to the shell | 2026-09-07 | [#65](https://github.com/didi-code0980/calechip/pull/65) |
+| 9 | UIE-04 | The week view as seven day columns | 2026-09-07 | [#66](https://github.com/didi-code0980/calechip/pull/66) |
+| 10 | OPS-004 | A password-free bootstrap file that creates the first team and the first admin | 2026-09-07 | [#71](https://github.com/didi-code0980/calechip/pull/71) |
+| 11 | UIE-05 | The week column fills the viewport, and its header strip and entry chip are restacked | 2026-09-08 | [#72](https://github.com/didi-code0980/calechip/pull/72) |
+| 12 | UIE-06 | The month grid becomes one ruled full-width card with taller cells, on the product's tokens | 2026-09-08 | [#73](https://github.com/didi-code0980/calechip/pull/73) |
+| 13 | BUG-002 | Two row limits sit above the datastore cap, so four truncation assertions can never fire | 2026-09-08 | [#76](https://github.com/didi-code0980/calechip/pull/76) |
+| 14 | UIE-07 | The week view renders a per-day absence count | 2026-09-08 | [#77](https://github.com/didi-code0980/calechip/pull/77) |
+| 15 | CAL-09 | The calendar reads serve a year larger than one datastore page | 2026-09-08 | [#79](https://github.com/didi-code0980/calechip/pull/79) |
+| 16 | UIE-08 | The year grid is repainted onto the product's semantic tokens and its card treatment | 2026-09-08 | [#81](https://github.com/didi-code0980/calechip/pull/81), merged — corrected from `PENDING_PR` at CAL-10's ship |
+| 17 | CAL-10 | Year overview — twelve month cards with a year summary band | 2026-09-09 | [#84](https://github.com/didi-code0980/calechip/pull/84), merged — corrected from `PENDING_PR` at UIE-09's ship |
+| 18 | UIE-09 | An admin hub screen at `/admin`, reachable from one control in the top bar | 2026-09-09 | [#85](https://github.com/didi-code0980/calechip/pull/85), merged — corrected from `PENDING_PR` at UIE-10's ship |
+| 19 | UIE-10 | The sidebar gives up its admin links and restyles its roster; the specs route through the hub | 2026-09-09 | [#86](https://github.com/didi-code0980/calechip/pull/86), merged — corrected from `PENDING_PR` at CAL-11's ship |
+| 20 | CAL-11 | An admin reads any team's entries and roster through the seam | 2026-09-23 | PENDING_PR |
 
-**The window displaced `CAL-06` at this ship** — *CAL-06, Year view — one row per member across
-365 days, shipped 2026-09-04,* [#51](https://github.com/didi-code0980/calechip/pull/51). **It is a
-pointed one to lose:** CAL-06 is the ticket that built the screen UIE-08 has just repainted, and it
-is the source of six of the nine acceptance criteria ADR-032 would stop being observable.
+**The window displaced `ADM-03` at CAL-11's ship** — *ADM-03, Add, edit or delete a holiday or swap
+day, shipped 2026-09-05,* [#55](https://github.com/didi-code0980/calechip/pull/55).
 
-**`PENDING_PR` because `gh auth status` reports no logged-in host**, as at every ship on this
-board. The compare URL was handed to the operator in the reply; the number is filled in by a
-follow-up `chore(UIE-08):` commit once the pull request exists, which is the form CAL-09 used
-(`56b608c`) and how ADM-04's row was corrected.
+***`gh auth status` REPORTS A LOGGED-IN HOST FOR THE FIRST TIME ON THIS BOARD*** — `didi-code0980`,
+ssh, at CAL-11's ship. Every earlier row in this table was written `PENDING_PR` because it did not,
+and each was corrected by a follow-up `chore(<ID>):` commit. **`UIE-10`'s row was the last one
+outstanding and is corrected here to [#86](https://github.com/didi-code0980/calechip/pull/86),
+merged** — on the convention ADM-04, UIE-08, CAL-10 and UIE-09 set. CAL-11's own row is written
+`PENDING_PR` for the same reason those were, and for no other: the commit that carries this table is
+what the pull request is opened *from*, so the number does not exist when the row is written. It is
+filled by a follow-up `chore(CAL-11):` commit on the same branch, into the same pull request.
+
+***THREE REVIEW PASSES, AND ALL THREE FAILURES WERE THE MODEL FAILING ITSELF RATHER THAN THE CODE.***
+The five files in `allowed_paths` passed R2–R8 on the first pass and were never edited again. What
+failed was R1, three times, on paths no loop role was permitted to touch: `.claude/settings.json`
+with its `deny` array emptied, then `ADR-042` and `CAL-12`'s shell sitting untracked, then nine
+`ops/` paths dirty only because the branch was two commits behind `origin/main`. **This one ticket
+produced three ADRs** — [ADR-041](../registry/decisions/ADR-041-r1-and-r3-judge-what-the-developer-wrote.md)
+(R1 and R3 judge what the Developer wrote), [ADR-042](../registry/decisions/ADR-042-inv-04-accepts-the-removed-member-shape-until-both-sides-are-fixed.md)
+(the INV-04 answer) and [ADR-043](../registry/decisions/ADR-043-r1-asks-the-runner-what-is-carried.md)
+(R1 asks `scripts/check-carry.mjs` what is carried). The loop spent a day on its own plumbing and the
+product code was ready at the start of it.
+
+***INV-04 IS KNOWINGLY NOT HELD AND THIS SHIP IS WHERE THAT BECOMES MERGED CODE.*** A removed
+member's entries are invisible on **every** date, including the ones before `removed_at` where INV-04
+counts them — on the own-team reads, which predate this ticket, and now on the three cross-team reads
+it adds. ADR-042 § Decision 1 is the operator's accepted deviation, not a claim the invariant holds,
+and § Decision 3 owes **one ticket that fixes both sides together** — never one side then the other,
+because ADR-040's revert condition is that the two views must not disagree on a count. That ticket is
+blocked on a `features.md` row under RULE-01 and is not on this board yet.
+
+**Definition of Done item 3 is covered by REVIEW, not by this ship: step 1 was skipped on the
+operator's instruction** — *tạm ignore bước này* — as on the seventeen ships before it. The second
+review pass ran `tsc --noEmit` 0, `eslint` 0 and `vitest run` 0 on the tree that ships. **End-to-end
+was not run at any stage and is not claimed**; the migration is also unapplied and unverified against
+a running PostgreSQL, which `01-plan.md` § *Out of scope* 9 states and `04-review.md` repeats — every
+AC-6 through AC-8 denial was verified against the mock's reproduction of the function bodies.
+
+**The earlier displacement note, kept:** **the window displaced `CAL-06` at UIE-08's ship** —
+*CAL-06, Year view — one row per member across 365 days, shipped 2026-09-04,*
+[#51](https://github.com/didi-code0980/calechip/pull/51). **It was a pointed one to lose:** CAL-06 is
+the ticket that built the screen UIE-08 repainted, and the source of six of the nine acceptance
+criteria ADR-032 would stop being observable.
 
 **No rework, no consultation, no amendment, one review pass — the eighth in a row.** One source file,
 twelve class-string substitutions and one comment; R1–R8 all PASS, each cited.
