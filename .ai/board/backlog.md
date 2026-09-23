@@ -1272,7 +1272,7 @@ Tickets that cannot proceed until a human decides something. Name the decision, 
 | 17 | CAL-10 | Year overview — twelve month cards with a year summary band | 2026-09-09 | [#84](https://github.com/didi-code0980/calechip/pull/84), merged — corrected from `PENDING_PR` at UIE-09's ship |
 | 18 | UIE-09 | An admin hub screen at `/admin`, reachable from one control in the top bar | 2026-09-09 | [#85](https://github.com/didi-code0980/calechip/pull/85), merged — corrected from `PENDING_PR` at UIE-10's ship |
 | 19 | UIE-10 | The sidebar gives up its admin links and restyles its roster; the specs route through the hub | 2026-09-09 | [#86](https://github.com/didi-code0980/calechip/pull/86), merged — corrected from `PENDING_PR` at CAL-11's ship |
-| 20 | CAL-11 | An admin reads any team's entries and roster through the seam | 2026-09-23 | PENDING_PR |
+| 20 | CAL-11 | An admin reads any team's entries and roster through the seam | 2026-09-23 | [#95](https://github.com/didi-code0980/calechip/pull/95) |
 
 **The window displaced `ADM-03` at CAL-11's ship** — *ADM-03, Add, edit or delete a holiday or swap
 day, shipped 2026-09-05,* [#55](https://github.com/didi-code0980/calechip/pull/55).
@@ -1281,10 +1281,10 @@ day, shipped 2026-09-05,* [#55](https://github.com/didi-code0980/calechip/pull/5
 ssh, at CAL-11's ship. Every earlier row in this table was written `PENDING_PR` because it did not,
 and each was corrected by a follow-up `chore(<ID>):` commit. **`UIE-10`'s row was the last one
 outstanding and is corrected here to [#86](https://github.com/didi-code0980/calechip/pull/86),
-merged** — on the convention ADM-04, UIE-08, CAL-10 and UIE-09 set. CAL-11's own row is written
-`PENDING_PR` for the same reason those were, and for no other: the commit that carries this table is
-what the pull request is opened *from*, so the number does not exist when the row is written. It is
-filled by a follow-up `chore(CAL-11):` commit on the same branch, into the same pull request.
+merged** — on the convention ADM-04, UIE-08, CAL-10 and UIE-09 set. **CAL-11's own row was written `PENDING_PR` for one turn and is filled here** — not because `gh`
+failed, but because the commit that carries this table is what the pull request is opened *from*, so
+the number cannot exist when the row is written. The follow-up `chore(CAL-11):` commit lands on the
+same branch and into the same pull request, which is the form CAL-09 used (`56b608c`).
 
 ***THREE REVIEW PASSES, AND ALL THREE FAILURES WERE THE MODEL FAILING ITSELF RATHER THAN THE CODE.***
 The five files in `allowed_paths` passed R2–R8 on the first pass and were never edited again. What
