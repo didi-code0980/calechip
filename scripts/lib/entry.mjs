@@ -88,6 +88,11 @@ export function trackerEntry(id, configured = trackerConfigured()) {
 const TRACKER_URL = /(?:^|\/)(?:t|task)\/([A-Za-z0-9_-]{6,})\/?$|^#([A-Za-z0-9]{6,})$/;
 const TICKET_ID = /^[A-Z]{2,4}-\d{1,3}[a-z]?$/;
 
+// A near miss at a ticket id: letters, dash, digits, then anything, in one token. Loose on
+// purpose — see step 5. `CAL-11ư`, `cal-11`, `CAL-11x` and `ADR-040` all match, and all of
+// them are better answered with an error than with a new idea file.
+const TICKET_ID_NEAR = /^[A-Za-z]{2,4}-\d{1,3}\S*$/;
+
 /**
  * @param {string|null} input   what the operator typed after `auto`
  * @param {object} opts         parsed CLI options; `opts.forced` is set by an explicit flag
@@ -141,8 +146,25 @@ export function resolveInput(input, opts, deps) {
 
   // 5. A ticket id that named neither a ticket nor an idea is an error. Never a fall-through:
   // falling through would turn one mistyped character into a new idea, a feature row and a ticket.
-  if (TICKET_ID.test(input)) {
-    return { error: `${input} looks like a ticket id but has no ticket.yaml, and no idea file matches it.\nIf you meant a new idea, say so explicitly: --idea "${input}"` };
+  //
+  // **`TICKET_ID` is ASCII-only, and for two days that made this guard miss the case it exists
+  // for.** `CAL-11ư` — one stray Vietnamese character, the easiest typo to make on this keyboard —
+  // does not match `[a-z]` in `TICKET_ID`, so it walked past this line and reached step 7 as free
+  // text: a new idea, whose PROMOTE writes a feature row and a ticket. Exactly the outcome the
+  // paragraph above forbids, produced by the guard being narrower than the mistake.
+  //
+  // `TICKET_ID_NEAR` is therefore deliberately loose: anything shaped like *letters, dash, digits*
+  // in a single token is treated as an attempt at a ticket id. It is checked after step 4b, so a
+  // real ticket and a real idea file both still win. **A false positive here costs one explicit
+  // `--idea` flag; a false negative costs three board and registry writes from a typo.**
+  if (TICKET_ID.test(input) || TICKET_ID_NEAR.test(input)) {
+    const near = !TICKET_ID.test(input);
+    return {
+      error: `${input} looks like a ticket id${near ? " with a typo in it" : ""}, but no ticket.yaml `
+        + `and no idea file matches it.\n`
+        + (near ? `Check the id first — a near miss is not treated as new work.\n` : "")
+        + `If you really meant a new idea, say so explicitly: --idea "${input}"`,
+    };
   }
 
   // 6. A tracker id or URL.

@@ -617,3 +617,35 @@ test("a sibling that has started, or cites another idea, or an unrelated idea, i
   const demoted = planCarry([...dirty, ".ai/board/tickets/A-02/01-plan.md"], base).stray;
   assert.ok(demoted.includes(".ai/board/tickets/A-02/ticket.yaml"));
 });
+
+/** An ideas directory with nothing in it, so step 4b never matches and step 5 is what answers. */
+const emptyIdeas = fs.mkdtempSync(path.join(os.tmpdir(), "no-ideas-"));
+
+test("a near miss at a ticket id is an error, never a new idea", () => {
+  // The case that got through: `CAL-11ư`, one stray Vietnamese character. `TICKET_ID` is ASCII-only
+  // so step 5's guard did not fire, and the string reached step 7 as free text — which under
+  // `auto` means an intake, a PROMOTE, a feature row and a ticket, from a typo. The header of the
+  // resolution section forbids exactly this, and the guard was narrower than the mistake.
+  const exists = (id) => id === "CAL-11";
+  for (const bad of ["CAL-11ư", "cal-11", "CAL-11x", "CAL-99", "ADR-040"]) {
+    const r = resolveInput(bad, {}, { ticketFileExists: exists, ideasDir: emptyIdeas });
+    assert.ok(r.error, `${bad} should be an error, got ${JSON.stringify(r)}`);
+    assert.equal(r.kind, undefined);
+  }
+});
+
+test("the near-miss guard does not swallow a real ticket, or real free text", () => {
+  const exists = (id) => id === "CAL-11";
+  const deps = { ticketFileExists: exists, ideasDir: emptyIdeas };
+
+  // A ticket that exists still wins — step 4 is above the guard.
+  assert.equal(resolveInput("CAL-11", {}, deps).kind, "ticket");
+
+  // Free text is untouched: a sentence, and a single token that is not letters-dash-digits.
+  assert.equal(resolveInput("an admin picks a team", {}, deps).kind, "intake");
+  assert.equal(resolveInput("many-teams", {}, deps).kind, "intake");
+
+  // And the explicit flag always overrides, which is the documented escape from a false positive.
+  assert.equal(resolveInput(null, { forced: { kind: "idea-text", value: "pto-2026" } }, deps).kind,
+    "intake");
+});
