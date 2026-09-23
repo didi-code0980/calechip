@@ -27,7 +27,7 @@ import fs from "node:fs";
 import path from "node:path";
 
 import { readTicket, readFrontMatter } from "./lib/ticket-yaml.mjs";
-import { ROOT, TICKETS_DIR, carryContext, planCarry, parsePorcelainZ } from "./lib/entry.mjs";
+import { ROOT, TICKETS_DIR, carryContext, planCarry, parsePorcelainZ, splitStrayByLanded } from "./lib/entry.mjs";
 
 const id = process.argv[2];
 if (!id) {
@@ -55,9 +55,42 @@ const { carried, stray } = planCarry(dirty, carryContext(ticket, dirty, { readFr
 console.log(`check-carry: ticket ${id}, ${dirty.length} uncommitted path(s)`);
 for (const c of carried) console.log(`  carried  ${c.path}  <- ${c.why}`);
 
+// Split the stray list by whether the content already exists on `origin/main`. Both halves fail, and
+// `planCarry` is right about both — but they are different problems with different fixes, and a
+// reviewer told only "stray" reaches for the wrong one. **The already-landed half is not unmerged
+// work**; it is a tree that a steward session left dirty after pushing to `ops/<slug>`, or a ticket
+// branch sitting behind `origin/main`. It cost CAL-11 two reviews before this split existed.
+function landedOnMain(p) {
+  try {
+    const row = execFileSync("git", ["ls-tree", "origin/main", "--", p], { cwd: ROOT, encoding: "utf8" });
+    const oid = row.trim().split(/\s+/)[2];
+    if (!oid) return false;
+    return oid === execFileSync("git", ["hash-object", "--", p], { cwd: ROOT, encoding: "utf8" }).trim();
+  } catch { return false; }
+}
+
 if (stray.length) {
+  const { landed, real } = splitStrayByLanded(stray,
+    (p) => fs.existsSync(path.join(ROOT, p)) && landedOnMain(p));
+
   console.error("check-carry: FAIL — uncommitted paths that are not this ticket's (RULE-03):");
-  for (const s of stray) console.error(`  stray    ${s}`);
+  for (const s of real) console.error(`  stray     ${s}`);
+  for (const s of landed) console.error(`  landed    ${s}  <- identical to origin/main`);
+
+  if (landed.length) {
+    console.error("");
+    console.error(`  ${landed.length} path(s) already match origin/main, so no unmerged work is at risk.`);
+    console.error("  This is the tree left behind by an ops/<slug> landing, or a branch behind main.");
+    console.error("  Restore them and re-run — .ai/standards/git-conventions.md, landing step 3:");
+    console.error("    git checkout -- <the tracked ones>");
+    console.error("    rm <the untracked ones>");
+    console.error("    git merge --ff-only origin/main   # if the branch is also behind");
+  }
+  if (real.length) {
+    console.error("");
+    console.error(`  ${real.length} path(s) exist on no ref. That is real work, and deleting it loses it.`);
+    console.error("  Land it on ops/<slug> first, then restore. Never restore before the push is verified.");
+  }
   process.exit(1);
 }
 

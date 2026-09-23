@@ -2430,3 +2430,59 @@ moved**), `.ai/templates/review-report.md` (doc_version 5).
 
 Registry writes: ADR-043 and the `rules.md` enforcement map. CODEOWNERS reviews both at merge.
 No feature row, no invariant, no ticket artifact.
+
+### 2026-09-23 — the fix for the loop blocked the loop: ADR-043's own landing failed CAL-11
+
+`tech-lead-review` returned CAL-11 FAIL with nine stray paths, **every one of them ADR-043's own**,
+and a second finding that is worth more than the verdict. Both are correct. Verified before acting:
+`git rev-list --left-right --count HEAD...origin/main` gave `0 2`, and all nine blobs matched
+`git ls-tree origin/main` exactly. Nothing unmerged was at risk.
+
+**Finding 1 — the branch was stale, and I made it so.** PR #93 pushed nine files to
+`ops/adr-043-r1-carry` with plumbing, deliberately never moving HEAD so CAL-11's uncommitted work
+was safe. That much worked. What I did not do was **put the working tree back**, so byte-identical
+copies stayed dirty on `feat/CAL-11` and `check-carry.mjs` — the check I had written that
+morning — called them stray. Correctly.
+
+Fixed by restoring: deleted the three untracked, `git checkout --` the six tracked,
+`git merge --ff-only origin/main`. `check-carry CAL-11` now exits 0 with eleven carried paths and
+CAL-11's work intact.
+
+**Finding 2 is the one that matters, and the reviewer was right to refuse the obvious fix.** Under
+ADR-006 every role shares one working directory, so **every steward landing made while a ticket is in
+flight leaves that ticket's tree dirty.** This is not an accident that happened to ADR-043; it is the
+normal outcome. ADR-042 (PR #92) escaped only because an unrelated `git switch` cleaned up.
+
+The reviewer said in terms that this is not a place to widen `planCarry` — calling unmerged-looking
+model work stray is that function working correctly — and that **ADR-043's revert condition guessed
+wrong about half the problem.** It did. It said two consecutive R1 FAILs on legitimate paths meant the
+carried set was too narrow and pointed at `planCarry`. Had anyone followed it they would have
+loosened a correct rule to hide a procedural gap. Amended in place, same day, with the amendment
+naming who caught it: the revert signal is two FAILs on paths that are **not** on `origin/main`.
+
+Three changes, none of them to `planCarry`:
+
+- **`.ai/standards/git-conventions.md`** — landing is three steps, and step 3 is restore. It
+  restores rather than waiting for a merge, because the content is already safe on a pushed branch
+  and waiting blocks the ticket for no reason. Step 2 is verifying the push before touching anything.
+- **`scripts/check-carry.mjs`** — stray splits into `landed` (blob already on `origin/main`:
+  restore, nothing is at risk) and real stray (on no ref: land first, deleting it loses it), with the
+  commands for each. The pure half is `splitStrayByLanded` in `entry.mjs`, so it is tested; the
+  git plumbing stays in the CLI.
+- **`.claude/commands/thuki.md`** — run `check-carry` against the in-flight ticket before signing
+  off, exit 0 or say what was left dirty and why.
+
+**What is still owed, as MD-038: nothing enforces step 3.** The check now says what to do instead of
+preventing the situation. The durable shape is a `/thuki` exit condition that refuses to finish on a
+non-empty real-stray list, which is a decision rather than a line of code.
+
+**And this entry is being written into the same trap.** Everything above is dirty on `feat/CAL-11`
+right now. It goes to `ops/` and then the tree gets restored, in this turn, by the procedure it
+documents.
+
+Changed: `.ai/standards/git-conventions.md`, `scripts/check-carry.mjs`, `scripts/lib/entry.mjs`,
+`scripts/tests/check-carry.test.mjs` (+2 tests), `.claude/commands/thuki.md`,
+`.ai/board/model-debt.md` (doc_version 6, MD-038),
+`.ai/registry/decisions/ADR-043-r1-asks-the-runner-what-is-carried.md` (revert condition amended).
+
+Registry write: the ADR-043 amendment. No rule text changed, no `v` moved, no feature row.

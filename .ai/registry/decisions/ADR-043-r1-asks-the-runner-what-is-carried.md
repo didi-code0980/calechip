@@ -118,6 +118,25 @@ Watch also for the opposite: two consecutive reviews recording R1 FAIL on a path
 has to explain is legitimate. That means the carried set is too narrow, and the fix belongs in
 `planCarry` where both readers get it at once.
 
+**Amended 2026-09-23, same day, by `tech-lead-review` on CAL-11's second review — the paragraph above
+guessed wrong and would have sent the next reader to the wrong file.** That review recorded R1 FAIL
+on nine paths, and the cause was not a narrow carried set. It was **this ADR's own landing**: PR #93
+pushed the nine files to `ops/adr-043-r1-carry` and left byte-identical copies dirty on
+`feat/CAL-11`. `planCarry` calling unmerged-looking model work stray is that function working
+correctly, and widening it would have been a real defect introduced to hide a procedural gap.
+
+The gap is in the landing procedure, not in the rule, and it recurs by construction: under ADR-006
+every role shares one working directory, so **every steward landing made while a ticket is in flight
+leaves that ticket's tree dirty.** ADR-042 (PR #92) escaped only because an unrelated `git switch`
+happened to clean up. The fix is in `.ai/standards/git-conventions.md` § *Landing `ops/` work while a
+ticket is in flight* — restore the tree after verifying the push — and in `scripts/check-carry.mjs`,
+which now reports a stray path whose blob is already on `origin/main` as `landed` with the restore
+commands, instead of as indistinguishable from unmerged work.
+
+**So the revert signal for a too-narrow carried set is narrower than written above:** two consecutive
+R1 FAILs on paths that are **not** on `origin/main`. A FAIL on paths that are is a stale tree, and no
+amount of editing `planCarry` will fix it.
+
 ## Affected documents
 
 | File | To doc_version |

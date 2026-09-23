@@ -169,6 +169,35 @@ by this exception.
 standards and tooling work goes there in the session that produced it — `/thuki` for the model — and
 is never folded into a ticket's ship.
 
+#### Landing `ops/` work while a ticket is in flight — the step that is always forgotten
+
+**Under ADR-006 every role shares one working directory, so steward work is written into the same
+tree a ticket is living in.** Pushing it to `ops/<slug>` does not remove it from that tree: the files
+stay modified or untracked on `feat/<TICKET-ID>`, and `scripts/check-carry.mjs` correctly calls them
+stray, which fails R1 on a ticket that did nothing wrong.
+
+**So landing is three steps, not two, and the third is not optional:**
+
+1. Build the branch **without moving `HEAD`**. A `git switch` on a tree holding an uncommitted ticket
+   is the loss ADR-006 names. Use plumbing against `origin/main` — `git hash-object -w`, a throwaway
+   `GIT_INDEX_FILE`, `git write-tree`, `git commit-tree`, `git update-ref` — then push and open the
+   pull request.
+2. **Verify the content is on the pushed branch** before touching the tree: `git hash-object <path>`
+   against `git ls-tree <branch> -- <path>` for every file. Nothing below is safe until this passes.
+3. **Restore the working tree to `HEAD`.** `rm` the files the work created, `git checkout --` the
+   ones it modified. `node scripts/check-carry.mjs <TICKET-ID>` must return to exit 0.
+
+**Step 3 restores rather than waits for a merge.** Syncing the ticket branch also clears the tree,
+but only after a human has merged the pull request — which leaves the ticket blocked in the meantime,
+for no reason, since the content is already safe on a pushed branch. Restore now; the ticket branch
+picks the work up from `main` at its own next sync.
+
+*Written 2026-09-23 after it cost two reviews. ADR-043's own landing (PR #93) left all nine of its
+files dirty on `feat/CAL-11` and failed that ticket's R1 a second time; ADR-042 (PR #92) escaped only
+because an unrelated `git switch` happened to clean the tree. Both were the steward's, and the
+steward is the role this happens to most, because it is the one that works on the model while a
+ticket is running.*
+
 Two limits are not the orchestrator's to weigh:
 
 - **`main` is never a commit or a push target.** `git push origin main` and `git push --force` stay

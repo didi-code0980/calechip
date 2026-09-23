@@ -535,6 +535,25 @@ export function carryContext(t, dirty, deps) {
   return { id: t.id, allowedPaths: t.allowed_paths ?? [], ticketText, ideas, siblings, inAllowedPaths };
 }
 
+/**
+ * Split a stray list into work that exists on no ref and work whose content is already on `main`.
+ *
+ * **Both halves are stray and `planCarry` is right about both.** They are different problems: the
+ * first is unmerged work and deleting it loses it; the second is a tree a steward session left dirty
+ * after pushing to `ops/<slug>`, or a ticket branch behind `origin/main`, and the fix is to restore
+ * rather than to land. A reviewer told only "stray" reaches for the wrong one — which is what
+ * happened to CAL-11 twice, the second time to ADR-043's own landing.
+ *
+ * `isLanded` is a predicate so this stays pure; the CLI supplies the `git ls-tree` / `git
+ * hash-object` comparison.
+ */
+export function splitStrayByLanded(stray, isLanded) {
+  const landed = [];
+  const real = [];
+  for (const p of stray) (isLanded(p) ? landed : real).push(p);
+  return { landed, real };
+}
+
 export function planCarry(dirty, ctx) {
   const own = `.ai/board/tickets/${ctx.id}/`;
   const provenance = (ctx.ideas ?? []).filter((i) =>
