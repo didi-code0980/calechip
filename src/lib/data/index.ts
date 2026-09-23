@@ -693,6 +693,44 @@ export interface DataSeam {
    */
   listAllMembers(): Promise<Member[]>;
 
+  // -------------------------------------------------------------------------
+  // CAL-11 — the read half of a two-row split (ADR-039, ADR-040). 01-plan.md section 4.2. CAL-12
+  // is the only consumer; no screen, hook or component is this ticket's.
+  //
+  // Three functions, none changed: the cross-team twins of `listMembers`, `listTeamEntries` and
+  // `listTeamEntriesOverlapping`, each returning exactly what an approved member of the named team
+  // receives from its own-team twin — same rows, same shapes, same order — for an ADMIN caller, and
+  // an EMPTY list for anybody else. Neither table policy is widened (ADR-039 § Rationale); each is
+  // `security definer` and tests `public.is_admin` in its own body, the shape
+  // `listAllMembers`/`listTeams` above already use.
+  // -------------------------------------------------------------------------
+
+  /**
+   * CAL-11 AC-1, AC-2, AC-6, AC-7, AC-8, AC-12. Team `teamId`'s roster, REMOVED members included,
+   * for an ADMIN; an empty list for anybody else. `listMembers()` is unchanged and stays the
+   * caller's own team.
+   * Ordered by `createdAt` ascending, then `id` ascending — `listMembers`' order.
+   * THROWS on a transport failure and on a possibly-truncated answer (ROSTER_LIMIT).
+   */
+  listMembersForTeam(teamId: string): Promise<Member[]>;
+
+  /**
+   * CAL-11 AC-3, AC-6, AC-7, AC-8, AC-12. Every entry of team `teamId`, note included, for an
+   * ADMIN; an empty list for anybody else. The cross-team twin of `listTeamEntries()`: same rows a
+   * member of that team would receive, same order (`startDate` descending, then `id` ascending).
+   * THROWS on a transport failure and on a possibly-truncated answer (TEAM_ENTRY_LIMIT).
+   */
+  listTeamEntriesForTeam(teamId: string): Promise<Entry[]>;
+
+  /**
+   * CAL-11 AC-4, AC-5, AC-6, AC-7, AC-8, AC-12. Every entry of team `teamId` whose inclusive range
+   * OVERLAPS `range`, rejected rows included, for an ADMIN; an empty list for anybody else. The
+   * cross-team twin of `listTeamEntriesOverlapping(range)`: same rows, same order (`startDate`
+   * ascending, then `id` ascending), same page-and-assemble completeness rule (CAL-09).
+   * THROWS on a transport failure and on any answer it cannot prove complete.
+   */
+  listTeamEntriesOverlappingForTeam(teamId: string, range: DateRange): Promise<Entry[]>;
+
   /**
    * SOLO, 2026-09-11. Creates an EMPTY team. Admin only (`public.create_team`); its threshold is the
    * column default, 0.5. `empty_team_name` for a name that is empty once trimmed.

@@ -1507,6 +1507,124 @@ export const seam: DataSeam = {
     return (data as MemberRow[]).map(toMember);
   },
 
+  // -------------------------------------------------------------------------
+  // CAL-11 — the read half of a two-row split (ADR-039, ADR-040). 01-plan.md section 4.3. Three
+  // more `.rpc()` calls, the shape SOLO's own-team twins above already use: each names ITS
+  // function, and `is_admin` is tested inside that function's body rather than here — this file
+  // issues the request and maps rows, exactly as `listAllMembers` does above.
+  // -------------------------------------------------------------------------
+
+  // The cross-team twin of `listMembers`. Same columns, same order, same truncation refusal;
+  // `ROSTER_LIMIT` is reused for the reason `listTeams` reuses it above — one cap on "how many
+  // people can this read believably return".
+  async listMembersForTeam(teamId: string): Promise<Member[]> {
+    const { data, error } = await client()
+      .rpc("list_members_for_team", { p_team_id: teamId })
+      .select(MEMBER_COLUMNS)
+      .order("created_at", { ascending: true })
+      .order("id", { ascending: true })
+      .limit(ROSTER_LIMIT)
+      .returns<MemberRow[]>();
+
+    if (error) throw new Error(`listMembersForTeam failed: ${error.message}`);
+    if (!Array.isArray(data)) {
+      throw new Error("listMembersForTeam received a body that is not a list");
+    }
+    if (data.length >= ROSTER_LIMIT) {
+      throw new Error(
+        `listMembersForTeam returned ${data.length} rows at the ${ROSTER_LIMIT} limit: the roster ` +
+          `may be truncated and must not be consumed`,
+      );
+    }
+    return data.map(toMember);
+  },
+
+  // The cross-team twin of `listTeamEntries`. Same columns, same order, same truncation refusal.
+  async listTeamEntriesForTeam(teamId: string): Promise<Entry[]> {
+    const { data, error } = await client()
+      .rpc("list_team_entries_for_team", { p_team_id: teamId })
+      .select(ENTRY_COLUMNS)
+      .order("start_date", { ascending: false })
+      .order("id", { ascending: true })
+      .limit(TEAM_ENTRY_LIMIT)
+      .returns<EntryRow[]>();
+
+    if (error) throw new Error(`listTeamEntriesForTeam failed: ${error.message}`);
+    if (!Array.isArray(data)) {
+      throw new Error("listTeamEntriesForTeam received a body that is not a list");
+    }
+    if (data.length >= TEAM_ENTRY_LIMIT) {
+      throw new Error(
+        `listTeamEntriesForTeam returned ${data.length} rows at the ${TEAM_ENTRY_LIMIT} limit: the ` +
+          `list may be truncated and must not be consumed`,
+      );
+    }
+    return data.map(toEntry);
+  },
+
+  // The cross-team twin of `listTeamEntriesOverlapping` — the same page-and-assemble loop
+  // (CAL-09), with the request replaced by an RPC call carrying the team and the range as
+  // arguments rather than a table filter. NO `.filter("date_range", ...)`: the range is the
+  // function's own argument, matched server-side by `daterange(p_start, p_end, '[]')`.
+  async listTeamEntriesOverlappingForTeam(teamId: string, range: DateRange): Promise<Entry[]> {
+    const assembled: EntryRow[] = [];
+    const seen = new Set<string>();
+    let matching: number | null = null;
+
+    for (let request = 0; request < TEAM_ENTRY_MAX_PAGES; request += 1) {
+      const from = assembled.length;
+      const to = from + TEAM_ENTRY_PAGE_SIZE - 1;
+
+      const { data, error, count } = await client()
+        .rpc(
+          "list_team_entries_overlapping_for_team",
+          { p_team_id: teamId, p_start: range.start, p_end: range.end },
+          { count: "exact" },
+        )
+        .select(ENTRY_COLUMNS)
+        .order("start_date", { ascending: true })
+        .order("id", { ascending: true })
+        .range(from, to)
+        .returns<EntryRow[]>();
+
+      if (error) throw new Error(`listTeamEntriesOverlappingForTeam failed: ${error.message}`);
+
+      if (count === null || count === undefined) {
+        throw new Error(
+          "listTeamEntriesOverlappingForTeam got no exact count: completeness must never be " +
+            "derived from the number of rows received",
+        );
+      }
+
+      if (matching === null) matching = count;
+
+      const rows = data ?? [];
+
+      for (const row of rows) {
+        if (seen.has(row.id)) {
+          throw new Error(
+            `listTeamEntriesOverlappingForTeam received entry ${row.id} twice across pages: the ` +
+              `result is not a set and must not be counted`,
+          );
+        }
+        seen.add(row.id);
+        assembled.push(row);
+      }
+
+      if (assembled.length >= matching) break;
+      if (rows.length === 0) break; // no progress; the comparison below is the refusal
+    }
+
+    if (matching === null || assembled.length !== matching) {
+      throw new Error(
+        `listTeamEntriesOverlappingForTeam assembled ${assembled.length} rows while ` +
+          `${matching ?? "no"} match: the range may be incomplete and must not be counted`,
+      );
+    }
+
+    return assembled.map(toEntry);
+  },
+
   // The empty name is refused BEFORE the round trip, as `createEntry` refuses an inverted range; the
   // function's own 22023 is the second lock.
   async createTeam(input: CreateTeamInput): Promise<Result<Team>> {
