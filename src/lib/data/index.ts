@@ -343,11 +343,16 @@ export interface DataSeam {
   removeMember(memberId: string): Promise<Result<Member>>;
 
   /**
-   * TEA-04 AC-4, AC-5, AC-6, AC-10, AC-11, AC-12. Promotes a member of the caller's own team to
-   * admin. ONE-WAY: there is no `demoteMember`, and adding one would be inventing a permission -
-   * `Demote an admin to member` is not decided and is denied until it is.
+   * TEA-04 AC-4, AC-5, AC-6, AC-10, AC-11, AC-12. Promotes a member to admin. ONE-WAY: there is no
+   * `demoteMember`, and adding one would be inventing a permission - `Demote an admin to member` is
+   * not decided and is denied until it is.
    *
-   * Returns the updated row, and treats zero rows as a refusal, for the same reason as above.
+   * **SOLO, 2026-09-24 — ADR-044: "of the caller's own team" WAS TRUE HERE UNTIL THIS DATE AND IS
+   * NOT ANY MORE.** Any team, and the reason it had to change is in `setMemberRole` below.
+   *
+   * Returns the updated row. A refusal now arrives as a 42501 from `public.set_member_role` rather
+   * than as zero rows from a filtered update; the seam maps both to `not_permitted` and no caller
+   * branches on the difference.
    */
   promoteMember(memberId: string): Promise<Result<Member>>;
 
@@ -360,17 +365,28 @@ export interface DataSeam {
    * agree because both end in the same `update { role }` against the same policy and the same
    * trigger. `promoteMember(id)` is `setMemberRole(id, "admin")` with a narrower refusal message.
    *
-   * **ADMIN-ONLY, AND THE DATASTORE IS WHAT SAYS SO** — `member_update_admin` plus the
-   * `grant update (role, removed_at)` column list. A manager calling this is refused by the policy,
-   * not by this seam.
+   * **ADMIN-ONLY, AND THE DATASTORE IS WHAT SAYS SO** — `public.set_member_role`, which tests
+   * `public.is_admin` as its first statement. A manager calling this is refused by the function, not
+   * by this seam.
+   *
+   * **ANY TEAM, SINCE 2026-09-24 — ADR-044, AND THE REASON IS WORTH THE PARAGRAPH.** This was a
+   * plain `update public.member set role = …` admitted by `member_update_admin`, whose `using`
+   * carries `team_id = member_team_id(auth.uid())` — the CALLER'S OWN TEAM. The Members screen has
+   * read every team since `list_all_members()` shipped on 2026-09-11, so it drew *Make manager* on
+   * rows the datastore then refused, and the refusal was correct and the button was not. The write
+   * is now a `security definer` function, the shape ADR-039 chose for every cross-team operation;
+   * `member_update_admin` is untouched and still governs `removeMember` and every other table write.
+   *
+   * **REMOVAL DID NOT MOVE WITH IT.** `removeMember` above is still own-team, because ADR-039
+   * § Decision 1's list of cross-team powers does not carry it and ADR-044 did not add it.
    *
    * **IT CANNOT DEMOTE AN ADMIN.** `.ai/standards/rbac-and-security.md` carries *Demote an admin to
-   * member* as not decided, and the member trigger refuses any role change on an admin's row. Moving
-   * somebody between `member` and `manager` is what this is for, which is the one pair ADR-035
-   * § Decision item 6 settled.
+   * member* as not decided; the function's `where` carries `role <> 'admin'` and the member trigger
+   * refuses it behind that. Moving somebody between `member` and `manager` is what this is for,
+   * which is the one pair ADR-035 § Decision item 6 settled.
    *
-   * ZERO ROWS RETURNED IS A REFUSAL, not a success — the shape `removeMember`, `promoteMember` and
-   * `setOverloadThreshold` all document.
+   * **A 42501 IS THE REFUSAL, NOT ZERO ROWS.** A definer function raises where a policy filtered.
+   * Both reach a caller as `not_permitted`, so nothing downstream changed.
    */
   setMemberRole(memberId: string, role: MemberRole): Promise<Result<Member>>;
 

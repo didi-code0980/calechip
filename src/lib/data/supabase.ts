@@ -263,6 +263,11 @@ const TEAM_NOT_EMPTY =
   "This team still has people on it and cannot be deleted. Anybody who was removed from it stays " +
   "on it for history, so a team that has ever had somebody removed can never be deleted.";
 const MEMBER_MOVE_REFUSED = "That person could not be moved.";
+// SOLO, 2026-09-24 — ADR-044. Repeated verbatim in src/lib/data/mock.ts, and they are the sentences
+// TEA-04 and ADR-035 already shipped: the write moved off the table, the words a person reads did
+// not, so nothing on the Members screen changed wording under somebody mid-task.
+const MEMBER_PROMOTE_REFUSED = "That person could not be promoted.";
+const MEMBER_RANK_REFUSED = "That person's role could not be changed.";
 
 /**
  * SOLO, 2026-09-11 — the SQLSTATEs the seven team functions raise, and a FOURTH mapper rather than
@@ -293,6 +298,69 @@ const isTeamRow = (value: unknown): value is TeamRow =>
   value !== null &&
   !Array.isArray(value) &&
   typeof (value as TeamRow).id === "string";
+
+/** SOLO, 2026-09-24. `isTeamRow`'s twin, and the same reason: `public.set_member_role` returns ONE
+ *  `public.member`, which PostgREST answers as an OBJECT and not a one-element array. Anything else
+ *  is a contract violation and is reported as one, never cast and trusted. */
+const isMemberRow = (value: unknown): value is MemberRow =>
+  typeof value === "object" &&
+  value !== null &&
+  !Array.isArray(value) &&
+  typeof (value as MemberRow).id === "string";
+
+/**
+ * SOLO, 2026-09-24 — ADR-044. The one rank write, which `promoteMember` and `setMemberRole` both
+ * reach and neither duplicates.
+ *
+ * **IT IS AN RPC AND NOT A TABLE UPDATE, WHICH IS THE WHOLE CHANGE.** `member_update_admin` carries
+ * `team_id = member_team_id(auth.uid())`, so the update it admits is the caller's OWN team's — while
+ * the Members screen has read every team since `list_all_members()` shipped. The mismatch reached a
+ * person as *"That person's role could not be changed."* on a button the screen had just drawn for
+ * them. `public.set_member_role` is `security definer` and tests `is_admin` in its own body, the
+ * shape ADR-039 chose for every cross-team operation; the table policy is untouched.
+ *
+ * **A 42501 IS THE REFUSAL, WHERE ZERO ROWS USED TO BE.** A definer function raises rather than
+ * filtering, so the "no row matched" case that `removeMember` still documents does not arise here —
+ * `if not found` inside the function becomes the same `42501` as the admin test. `!error` is
+ * success, and the row guard below is what stops a body of some other shape being read as one.
+ *
+ * The sentence is a PARAMETER for `toEntryFailure`'s reason: "That person could not be promoted."
+ * on a press of *Make manager* is the wrong message, and the two callers press different buttons.
+ */
+async function setRankThroughRpc(
+  memberId: string,
+  role: MemberRole,
+  refusal: string,
+): Promise<Result<Member>> {
+  const { data, error } = await client().rpc("set_member_role", {
+    p_member_id: memberId,
+    p_role: role,
+  });
+
+  if (error) return { ok: false, error: toRankFailure(error, refusal) };
+  if (!isMemberRow(data)) return { ok: false, error: { code: "unknown", message: refusal } };
+
+  return { ok: true, value: toMember(data) };
+}
+
+/**
+ * SOLO, 2026-09-24. The SQLSTATEs `public.set_member_role` can answer with, and a FIFTH mapper for
+ * the reason `toTeamFailure` and `toEntryFailure` both record: the sentence differs per screen even
+ * where the code does not.
+ *
+ * `22P02` is reachable and is deliberately NOT `not_permitted`: it is PostgREST failing to cast a
+ * string to `public.member_role` before the function body runs, which means a caller that is not
+ * this application, and calling that "you may not" would be false.
+ */
+function toRankFailure(error: PostgrestError, refusal: string): Failure {
+  switch (error.code) {
+    case "42501":
+    case "PGRST301": // JWT missing or expired: the request reaches the function as nobody
+      return { code: "not_permitted", message: refusal };
+    default:
+      return { code: "unknown", message: "Something went wrong. Please try again." };
+  }
+}
 const APPROVAL_SETTINGS_REFUSED = "Only an admin can change which entries need approval.";
 
 function toHoliday(row: HolidayRow): Holiday {
@@ -904,49 +972,18 @@ export const seam: DataSeam = {
     return { ok: true, value: toMember(row) };
   },
 
+  // SOLO, 2026-09-24 — ADR-044. `setMemberRole(id, "admin")`, and the narrower sentence is the whole
+  // difference. It was a table update of its own until the rank write moved to
+  // `public.set_member_role`; keeping it as a separate seam function keeps TEA-04's contract and the
+  // sixty-odd assertions that address it, and routing it through the one RPC keeps there from being
+  // two answers to *may this rank move*.
   async promoteMember(memberId: string): Promise<Result<Member>> {
-    const { data, error } = await client()
-      .from("member")
-      .update({ role: "admin" })
-      .eq("id", memberId)
-      .select(MEMBER_COLUMNS)
-      .returns<MemberRow[]>();
-
-    if (error) return { ok: false, error: toPostgrestFailure(error) };
-
-    const row = (data ?? [])[0];
-    if (!row) {
-      return {
-        ok: false,
-        error: { code: "not_permitted", message: "That person could not be promoted." },
-      };
-    }
-
-    return { ok: true, value: toMember(row) };
+    return setRankThroughRpc(memberId, "admin", MEMBER_PROMOTE_REFUSED);
   },
 
-  // SOLO 2026-09-12, ADR-035. The general form of the function above, and the same shape: one
-  // `update { role }`, the policy and the trigger doing every check, and ZERO ROWS MEANING REFUSED
-  // rather than done. PostgREST answers 200 with an empty array when the policy admitted no row.
+  // SOLO 2026-09-12, ADR-035; the write moved off the table on 2026-09-24 by ADR-044.
   async setMemberRole(memberId: string, role: MemberRole): Promise<Result<Member>> {
-    const { data, error } = await client()
-      .from("member")
-      .update({ role })
-      .eq("id", memberId)
-      .select(MEMBER_COLUMNS)
-      .returns<MemberRow[]>();
-
-    if (error) return { ok: false, error: toPostgrestFailure(error) };
-
-    const row = (data ?? [])[0];
-    if (!row) {
-      return {
-        ok: false,
-        error: { code: "not_permitted", message: "That person's role could not be changed." },
-      };
-    }
-
-    return { ok: true, value: toMember(row) };
+    return setRankThroughRpc(memberId, role, MEMBER_RANK_REFUSED);
   },
 
   // -------------------------------------------------------------------------

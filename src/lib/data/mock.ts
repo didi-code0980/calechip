@@ -346,6 +346,49 @@ const refused = (
   error: { code, message },
 });
 
+// SOLO, 2026-09-24 — ADR-044. Repeated verbatim in src/lib/data/supabase.ts, the shape the team
+// refusals above already use, so the two implementations cannot drift a sentence apart.
+const MEMBER_PROMOTE_REFUSED = "That person could not be promoted.";
+const MEMBER_RANK_REFUSED = "That person's role could not be changed.";
+
+/**
+ * SOLO, 2026-09-24 — ADR-044. `public.set_member_role` reproduced, and `promoteMember` and
+ * `setMemberRole` are both it.
+ *
+ * **THE OWN-TEAM FILTER IS GONE AND THAT IS THE CHANGE.** Until now this read
+ * `m.id === memberId && m.teamId === me.teamId`, which reproduced `member_update_admin` — correctly,
+ * while the rank write was a table update. It is now a `security definer` function that tests
+ * `is_admin` and nothing about teams, so a mock that kept the team comparison would refuse what the
+ * datastore admits, and every cross-team test would pass against the wrong thing.
+ *
+ * **THE FOUR CONDITIONS ARE THE FUNCTION'S `where`, IN ITS ORDER**, and the function's header is the
+ * authority for each. They collapse to ONE sentence here exactly as the function collapses them to
+ * one `if not found`: a caller who is refused learns that they were refused and nothing about the
+ * row.
+ */
+const setRank = (
+  memberId: string,
+  role: MemberRole,
+  notAnAdmin: string,
+  refusal: string,
+): Result<Member> => {
+  const me = currentAdmin();
+  if (!me) return refused("not_permitted", notAnAdmin);
+
+  const target = members.find(
+    (m) =>
+      m.id === memberId &&
+      m.teamId !== null &&
+      m.status === "approved" &&
+      m.removedAt === null &&
+      m.role !== "admin",
+  );
+  if (!target) return refused("not_permitted", refusal);
+
+  target.role = role;
+  return { ok: true, value: { ...target } };
+};
+
 // ---------------------------------------------------------------------------
 // CAL-01. 01-plan.md section 5.
 // ---------------------------------------------------------------------------
@@ -860,14 +903,11 @@ export const seam: DataSeam = {
 
   // TEA-04 AC-4, AC-5, AC-6, AC-10, AC-11, AC-12.
   //
-  // ONE PLACE THIS MOCK IS DELIBERATELY STRICTER THAN THE DATASTORE, called out because it will
-  // otherwise read as drift: promoting somebody who is already an admin updates zero columns in
-  // PostgreSQL and returns the row unchanged, so the real seam sees one row back and reports
-  // success. This refuses it. Neither behaviour is reachable from the interface - AC-13 draws no
-  // promote control on an admin row - and the honest reading is that `promoteMember` has no meaning
-  // for a row that is already admin. If this divergence is judged wrong at review, the correction is
-  // to make THIS report success, not to add a policy clause: the datastore is the authority on what
-  // the policy does, and there is nothing here to enforce.
+  // SOLO, 2026-09-24 — ADR-044. **THE DIVERGENCE THAT STOOD HERE IS GONE**, and the note is kept
+  // rather than deleted because a reader of the old file will come looking for it: this mock used to
+  // refuse promoting somebody who is already an admin while the datastore's bare `update` reported
+  // success on zero changed columns. The rank write is now `public.set_member_role`, whose `where`
+  // carries `role <> 'admin'`, so the datastore refuses it too and the two agree by construction.
   // SOLO, 2026-09-10. The mock reproduces the POLICY: an admin, the caller's own team on both sides.
   async setMemberTeam(memberId: string, teamId: string): Promise<Result<Member>> {
     const me = currentAdmin();
@@ -882,54 +922,14 @@ export const seam: DataSeam = {
   },
 
   async promoteMember(memberId: string): Promise<Result<Member>> {
-    const me = currentAdmin();
-    if (!me) return refused("not_permitted", "Only an admin can promote a member.");
-
-    const target = members.find((m) => m.id === memberId && m.teamId === me.teamId);
-    if (!target) return refused("not_permitted", "That person could not be promoted.");
-
-    if (target.role === "admin") {
-      return refused("not_permitted", "That person is already an admin.");
-    }
-
-    // AC-10, the trigger. `is_admin` filters `removed_at is null`, so a promoted removed member
-    // would hold a role that answers false everywhere - a row that says `admin` and behaves as
-    // nobody.
-    if (target.removedAt !== null) {
-      return refused("not_permitted", "Someone who has left the team cannot be promoted.");
-    }
-
-    target.role = "admin";
-    return { ok: true, value: { ...target } };
+    return setRank(memberId, "admin", "Only an admin can promote a member.", MEMBER_PROMOTE_REFUSED);
   },
 
-  // SOLO 2026-09-12, ADR-035. The general form of the function above. **IT REPRODUCES THE POLICY AND
-  // THE TRIGGER, NOT THE SCREEN**, which is this file's standing contract: the acceptance suite
-  // drives this seam, so a mock that let a manager set a role would make the refusal pass against
-  // nothing.
+  // SOLO 2026-09-12, ADR-035. The general form of the function above. **IT REPRODUCES THE FUNCTION,
+  // NOT THE SCREEN**, which is this file's standing contract: the acceptance suite drives this seam,
+  // so a mock that let a manager set a role would make the refusal pass against nothing.
   async setMemberRole(memberId: string, role: MemberRole): Promise<Result<Member>> {
-    const me = currentAdmin();
-    if (!me) return refused("not_permitted", "Only an admin can change a role.");
-
-    const target = members.find((m) => m.id === memberId && m.teamId === me.teamId);
-    if (!target) return refused("not_permitted", "That person's role could not be changed.");
-
-    // TEA-04's trigger, reproduced: a removed member's role answers false everywhere, so setting one
-    // produces a row that says `manager` and behaves as nobody.
-    if (target.removedAt !== null) {
-      return refused("not_permitted", "Someone who has left the team cannot change role.");
-    }
-
-    // `.ai/standards/rbac-and-security.md`: *Demote an admin to member* is NOT DECIDED and is denied
-    // until it is. The member trigger refuses any role change on an admin's row, and this is that.
-    if (target.role === "admin") {
-      return refused("not_permitted", "An admin's role cannot be changed.");
-    }
-
-    if (target.role === role) return { ok: true, value: { ...target } };
-
-    target.role = role;
-    return { ok: true, value: { ...target } };
+    return setRank(memberId, role, "Only an admin can change a role.", MEMBER_RANK_REFUSED);
   },
 
   // -------------------------------------------------------------------------
