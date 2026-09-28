@@ -83,6 +83,19 @@ export default defineConfig({
   server: {
     port: 4000,
     strictPort: true,
+    // The dev server is reached through a reverse proxy at `calechip.mmlabs.online`, and Vite
+    // refuses a request whose `Host` header it does not recognise — *"Blocked request. This host is
+    // not allowed."* The check is a DNS-rebinding defence: without it, a page on any origin could
+    // point a name at 127.0.0.1 and read this server's responses from the browser of whoever is
+    // running it.
+    //
+    // NAMED HOSTS, NEVER `true`. `allowedHosts: true` turns the check off for every name at once,
+    // which is the setting that exists so a developer can stop reading the error rather than fix
+    // it. `localhost` and `127.0.0.1` are always allowed and are not listed here.
+    //
+    // This affects `vite` only. `vite preview` — which `playwright.config.ts` runs on 4173 — has
+    // its own `preview.allowedHosts` and does not read this one.
+    allowedHosts: ["calechip.mmlabs.online"],
   },
   test: {
     environment: "node",
