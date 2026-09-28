@@ -337,7 +337,17 @@ export default function MemberList() {
   // `m.removedAt === null` is deliberately NOT in either predicate: the screen only ever draws
   // active members — `current` below runs first — and re-testing it here would imply the list might
   // contain one.
-  const canRemove = (m: Member): boolean => me.role === "admin" && m.id !== me.id;
+  //
+  // SOLO, 2026-09-24 — ADR-044. `m.teamId === me.teamId` ON `canRemove` AND ON NEITHER OF THE OTHER
+  // TWO, which reads like an inconsistency and is the opposite. The rank write moved to
+  // `public.set_member_role` and reaches every team; removal is still `member_update_admin`, whose
+  // `using` is the caller's own team — ADR-039 § Decision 1 lists three cross-team powers and
+  // removing somebody is not one of them. So this line is what stops the screen offering a control
+  // the datastore refuses, which is the defect that produced ADR-044 in the first place. It is an
+  // AFFORDANCE (ADR-005): the policy refuses the statement whoever issues it, and the day removal is
+  // decided for every team, this conjunct comes out and nothing else here changes.
+  const canRemove = (m: Member): boolean =>
+    me.role === "admin" && m.id !== me.id && m.teamId === me.teamId;
   const canPromote = (m: Member): boolean =>
     me.role === "admin" && m.id !== me.id && m.role === "member";
 
@@ -346,8 +356,12 @@ export default function MemberList() {
   // draws neither control, because *Demote an admin to member* is NOT DECIDED in
   // `.ai/standards/rbac-and-security.md` and the member trigger refuses the write either way.
   //
-  // AN AFFORDANCE (ADR-005). `member_update_admin` and the `grant update (role, removed_at)` column
-  // list are the controls; this decides what to draw.
+  // AN AFFORDANCE (ADR-005). **SOLO, 2026-09-24 — ADR-044 moved the control**: it is now
+  // `public.set_member_role`, a `security definer` function that tests `is_admin` and says nothing
+  // about teams, so this predicate's silence about `teamId` is finally true rather than the mismatch
+  // that produced that ADR. `member_update_admin` and the `grant update (role, removed_at)` column
+  // list no longer govern this write; they still govern `canRemove` above, which is why that one
+  // compares teams and this one does not.
   const canSetManager = (m: Member): boolean =>
     me.role === "admin" && m.id !== me.id && m.role !== "admin";
 
