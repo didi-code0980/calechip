@@ -7,7 +7,7 @@
 // change it there in the same commit.
 //
 // The uuids are fixed literals and never generated, for the same reason.
-import type { AuthUser, Entry, Holiday, Member, Team } from "./domain/types";
+import type { AuthUser, Entry, Holiday, IssueReport, Member, Team } from "./domain/types";
 
 /**
  * CAL-04 gives this row a TYPE and a `createdAt`. The inline object literal that stood here predated
@@ -557,3 +557,43 @@ export const FIXTURE_HOLIDAYS: readonly Holiday[] = [
   FIXTURE_HOLIDAY_THURSDAY,
   FIXTURE_HOLIDAY_WORKING_SATURDAY,
 ];
+
+// ---------------------------------------------------------------------------
+// SOLO, 2026-09-26 — report an issue. One row, and it is the same reasoning FIXTURE_HOLIDAYS
+// carries: the admin list screen would render its empty state in every spec that had not sent a
+// report first, and the list markup would be exercised by nothing at all.
+//
+// supabase/seed.sql inserts THIS ROW with THESE literals. Change one and change the other in the
+// same commit.
+// ---------------------------------------------------------------------------
+
+/**
+ * A report sent by an ordinary member, still `open`.
+ *
+ * **`memberId` IS `FIXTURE_MEMBER`'s AND NOT THE ADMIN'S**, deliberately: the screen that reads this
+ * belongs to an admin, and a fixture written by the admin themselves would let a list that showed
+ * only the reader's own reports pass every test. The one this file holds is somebody else's.
+ *
+ * `message` CARRIES VIETNAMESE DIACRITICS, and that is not decoration — this file is the product's
+ * only coverage for the type requirement in `CLAUDE.md` § Visual direction, which
+ * `ui-language.json` names it for and `tests/ui-language.test.ts` asserts. A report is USER CONTENT:
+ * a person writes it in their own language, so an English literal here would be the wrong fixture as
+ * well as a lost assertion.
+ *
+ * `page` is a pathname the product actually has, so a reader of the admin list can follow it.
+ */
+export const FIXTURE_ISSUE_REPORT: IssueReport = {
+  id: "dd000000-0000-4000-8000-000000000001",
+  memberId: FIXTURE_MEMBER.id,
+  kind: "bug",
+  message: "Lịch tuần không hiển thị ngày nghỉ bù, chỉ thấy ô trắng.",
+  page: "/week",
+  status: "open",
+  createdAt: "2026-09-25T02:30:00+00:00",
+  // SOLO, 2026-09-26 (second run). **EMPTY, AND THAT IS THE RIGHT FIXTURE.** Attachments are
+  // optional — the operator's word was *"if they want"* — so the seeded row is the ordinary case,
+  // and the admin screen's no-images arm is the one every spec exercises for free. A fixture with
+  // images would need an object in a bucket that no seed can create, and the mock's own uploads are
+  // what `tests/issue-reports.test.ts` drives the other arm with.
+  images: [],
+};

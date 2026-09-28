@@ -32,7 +32,11 @@ import type {
   DateRange,
   Entry,
   EntryStatus,
+  // SOLO, 2026-09-26 — report an issue.
+  CreateIssueReportInput,
   Holiday,
+  IssueReport,
+  IssueStatus,
   Member,
   PendingEntryPage,
   PendingEntryQuery,
@@ -58,6 +62,14 @@ import { needsApproval } from "./approval";
 // SOLO, 2026-09-11. INV-01's comparison, and the dates it collides on — one predicate for the refusal
 // and the sentence. See the note where `PORTION_SLOTS` used to be.
 import { clashingDates, overlapMessage } from "./overlap";
+// SOLO, 2026-09-26 — report an issue. A ceiling, imported as a value at the call, exactly as the
+// four limits above it are.
+import {
+  ISSUE_IMAGE_MAX_BYTES,
+  ISSUE_IMAGE_MAX_COUNT,
+  ISSUE_IMAGE_TYPES,
+  ISSUE_REPORT_LIMIT,
+} from "../domain/types";
 import {
   AVATAR_CHOICES,
   DEFAULT_AVATAR,
@@ -75,6 +87,7 @@ import {
   FIXTURE_APPROVED_MEMBER_CREDENTIAL,
   FIXTURE_CREDENTIALS,
   FIXTURE_HOLIDAYS,
+  FIXTURE_ISSUE_REPORT,
   FIXTURE_MEMBER,
   FIXTURE_OTHER_TEAM,
   FIXTURE_OTHER_TEAM_ENTRY,
@@ -486,6 +499,132 @@ const TEAM_NOT_EMPTY =
   "on it for history, so a team that has ever had somebody removed can never be deleted.";
 const MEMBER_MOVE_REFUSED = "That person could not be moved.";
 const APPROVAL_SETTINGS_REFUSED = "Only an admin can change which entries need approval.";
+
+// ---------------------------------------------------------------------------
+// SOLO, 2026-09-26 — report an issue. The mock's table, its id shape, its sentences and the one
+// rule it repeats from src/lib/data/supabase.ts.
+// ---------------------------------------------------------------------------
+
+// **SEEDED WITH ONE ROW, WHICH IS THE OPPOSITE OF WHAT CAL-01 DID FOR `entry` AND FOR A DIFFERENT
+// REASON.** An entry a test needs, a test creates, because a person can create one. A report a test
+// needs could also be created — but the ADMIN list screen then renders its empty state in every
+// spec that has not sent one first, and the list markup is never exercised at all. One fixture row
+// is what `FIXTURE_HOLIDAYS` does for the calendar, and the same argument.
+//
+// NO TEAM COLUMN, so unlike every other read in this file `listIssueReports` applies no team filter.
+// That is the operator's fourth decision of 2026-09-26, and `issue_report_select_admin` carries no
+// team predicate either.
+const reports: IssueReport[] = [{ ...FIXTURE_ISSUE_REPORT }];
+
+/**
+ * Test-only. Puts this table back to the one seeded row.
+ *
+ * **IT EXISTS BECAUSE THIS FEATURE HAS NO DELETE PATH AND MUST NOT GROW ONE.** The operator's third
+ * decision stopped at *mark done*; there is no delete policy, no `grant delete`, and no seam
+ * function. So a test that sends a report has no way to undo it, and `reports` lives for the whole
+ * module — which would make every count after it wrong.
+ *
+ * A NAMED EXPORT BESIDE `seam`, exactly as `__setCurrentMember` is, so seam parity — which compares
+ * the keys of `seam` — is untouched. Nothing under `src/` may call it, and nothing does.
+ */
+export function __resetIssueReports(): void {
+  reports.length = 0;
+  reports.push({ ...FIXTURE_ISSUE_REPORT });
+  // The objects go with them. A test that uploaded and then reset would otherwise leave bytes in the
+  // map keyed by a path no row names any more — an orphan the real seam also has, reproduced here by
+  // accident rather than on purpose, which is the kind of agreement nobody wants.
+  issueObjects.clear();
+}
+
+// The id a row added through the product gets, in the shape `newEntryId` and `newHolidayId` already
+// use — a `dd` prefix, matching the fixture row so a reader can tell at a glance which table an id
+// belongs to.
+let nextReportId = 0;
+// The mock bucket's object counter. Separate from `nextReportId` because a report may carry none or
+// three, so the two sequences cannot be one.
+let nextObjectId = 0;
+const newReportId = (): string =>
+  `dd000000-0000-4000-8000-${String(++nextReportId).padStart(12, "0")}`;
+
+// Repeated verbatim in src/lib/data/supabase.ts so the two implementations carry the same words —
+// the rule CAL-01's three refusal constants state.
+const ISSUE_SEND_REFUSED = "That report could not be sent.";
+const ISSUE_STATUS_REFUSED = "That report could not be updated.";
+const ISSUE_MESSAGE_REQUIRED = "Please write what went wrong before sending.";
+const ISSUE_MESSAGE_TOO_LONG = "That report is too long. Please keep it under 2000 characters.";
+const ISSUE_MESSAGE_MAX = 2000;
+const ISSUE_TOO_MANY_IMAGES = `Please attach at most ${ISSUE_IMAGE_MAX_COUNT} images.`;
+const ISSUE_IMAGE_TOO_LARGE = "One of those images is over 5 MB. Please attach a smaller one.";
+const ISSUE_IMAGE_WRONG_TYPE = "Images must be PNG, JPEG or WebP.";
+
+/**
+ * SOLO, 2026-09-26 (second run) — **THE MOCK'S BUCKET, WHICH IS A `Map`.**
+ *
+ * The real seam uploads to Supabase Storage and stores object paths; the mock has no storage and
+ * cannot have one. So it mints the same SHAPE of path and keeps the bytes here, as a data URL, which
+ * is the one form that loads in a browser (the acceptance suite) and exists under node (vitest)
+ * without a DOM — `URL.createObjectURL` would work in only one of the two.
+ *
+ * **`IssueReport.images` HOLDS PATHS IN BOTH IMPLEMENTATIONS, AND THAT IS WHAT KEEPS THEM
+ * SWAPPABLE.** The screen never reads a path directly; it calls `issueImageUrls`, which is identity
+ * -shaped here and a signing round trip there. A mock that put data URLs in the column would be a
+ * different seam shape wearing the same type.
+ */
+const issueObjects = new Map<string, string>();
+
+/**
+ * `issueMessageFailure` from src/lib/data/supabase.ts, repeated rather than imported.
+ *
+ * **THE DUPLICATION IS THIS FILE'S CONVENTION AND NOT AN OVERSIGHT.** Importing it would put a
+ * runtime import edge from the mock to the real implementation, between two modules whose whole
+ * point is that either can be swapped for the other. Every shared sentence above is written twice
+ * for the same reason. What makes it checkable rather than merely intended is
+ * `tests/issue-reports.test.ts`, which asserts both implementations refuse the same two inputs with
+ * the same code — so a copy that drifts fails a test instead of reaching a person.
+ */
+const issueMessageFailure = (
+  message: string,
+): { ok: false; error: { code: "invalid_issue_message"; message: string } } | null => {
+  const trimmed = message.trim();
+  if (trimmed === "") {
+    return { ok: false, error: { code: "invalid_issue_message", message: ISSUE_MESSAGE_REQUIRED } };
+  }
+  if (trimmed.length > ISSUE_MESSAGE_MAX) {
+    return { ok: false, error: { code: "invalid_issue_message", message: ISSUE_MESSAGE_TOO_LONG } };
+  }
+  return null;
+};
+
+/** `issueImageFailure` from src/lib/data/supabase.ts, repeated for the reason above it. Same order —
+ *  count, then type, then size — because the order decides which of three sentences a person is
+ *  shown, and the two implementations disagreeing about that is exactly the drift these tests pin. */
+const issueImageFailure = (
+  files: readonly File[],
+): { ok: false; error: { code: "invalid_issue_image"; message: string } } | null => {
+  if (files.length > ISSUE_IMAGE_MAX_COUNT) {
+    return { ok: false, error: { code: "invalid_issue_image", message: ISSUE_TOO_MANY_IMAGES } };
+  }
+  for (const file of files) {
+    if (!ISSUE_IMAGE_TYPES.includes(file.type)) {
+      return { ok: false, error: { code: "invalid_issue_image", message: ISSUE_IMAGE_WRONG_TYPE } };
+    }
+    if (file.size > ISSUE_IMAGE_MAX_BYTES) {
+      return { ok: false, error: { code: "invalid_issue_image", message: ISSUE_IMAGE_TOO_LARGE } };
+    }
+  }
+  return null;
+};
+
+/** The bytes, as a data URL. `arrayBuffer` and a manual base64 rather than `FileReader`, which is a
+ *  DOM API and absent under the vitest `node` environment this file also runs in. */
+async function issueDataUrl(file: File): Promise<string> {
+  const bytes = new Uint8Array(await file.arrayBuffer());
+  let binary = "";
+  for (const byte of bytes) binary += String.fromCharCode(byte);
+  // `btoa` is available in both node 18+ and every browser. The mock holds test-sized files, so the
+  // single-pass concatenation above is not worth optimising.
+  return `data:${file.type};base64,${btoa(binary)}`;
+}
 
 let nextEntryId = 0;
 const newEntryId = (): string => `ee000000-0000-4000-8000-${String(++nextEntryId).padStart(12, "0")}`;
@@ -2267,5 +2406,140 @@ export const seam: DataSeam = {
     // AC-18. `rejected` is the number of rows that were actually changed and `requested` the number
     // of distinct ids asked for. The two are separate numbers even when they are equal.
     return { ok: true, value: { requested: ids.length, rejected: admitted.length } };
+  },
+
+  // -------------------------------------------------------------------------
+  // SOLO, 2026-09-26 — report an issue.
+  //
+  // **THESE REPRODUCE THE POLICIES AND THE GRANTS, NOT THE SCREEN**, which is this file's standing
+  // contract: the acceptance suite drives this seam (BUG-001, tests/e2e/seam.setup.ts), so a mock
+  // that let a member read the report list would make the refusal on `IssueReports.tsx` pass against
+  // nothing at all.
+  // -------------------------------------------------------------------------
+
+  // `issue_report_insert_own`, which is one clause: the row is the caller's.
+  //
+  // **NO ROLE PREDICATE AND NO `status`/`removedAt` PREDICATE**, because the policy has none — see
+  // its comment in the migration for why the interface makes the question moot rather than why the
+  // datastore answers it. `currentMemberId` being null stands for `auth.uid()` being null, which
+  // `with check (member_id = auth.uid())` refuses.
+  //
+  // IT RETURNS `void`, matching the real seam, and the reason is the real seam's: there is no
+  // `issue_report_select_own`, so a report the caller just wrote is not a row they can read back.
+  async createIssueReport(input: CreateIssueReportInput): Promise<Result<void>> {
+    const files = input.images ?? [];
+
+    // The real seam's order, reproduced: every refusal before anything is uploaded. Here nothing
+    // leaves the process either way, and the order is kept so the two tell one story.
+    const invalid = issueMessageFailure(input.message) ?? issueImageFailure(files);
+    if (invalid) return invalid;
+
+    const me = members.find((m) => m.id === currentMemberId) ?? null;
+    if (!me) return refused("not_permitted", ISSUE_SEND_REFUSED);
+
+    // `<uid>/<something>` — the SHAPE `issue_image_insert_own` requires, reproduced so a path built
+    // wrongly would look wrong here too. The second segment is a counter rather than a uuid, because
+    // a fixed sequence is what lets a test name a path it expects.
+    const paths: string[] = [];
+    for (const file of files) {
+      const path = `${me.id}/${++nextObjectId}-${file.name}`;
+      issueObjects.set(path, await issueDataUrl(file));
+      paths.push(path);
+    }
+
+    reports.push({
+      id: newReportId(),
+      memberId: me.id,
+      kind: input.kind,
+      // Trimmed HERE and stored trimmed, exactly as the real seam stores it and as
+      // `updateOwnProfile` stores the display name. A mock that stored the untrimmed string would
+      // disagree with the datastore about what was saved, one space at a time.
+      message: input.message.trim(),
+      page: input.page,
+      // The column default. `status` is withheld from the insert grant, so nothing a caller sends
+      // can reach it — which is why this is a literal here and not a field on the input.
+      status: "open",
+      createdAt: new Date().toISOString(),
+      images: paths,
+    });
+
+    return { ok: true, value: undefined };
+  },
+
+  // `issue_report_select_admin` again, counted rather than listed. A non-admin is answered `0`
+  // because the policy filters, which is the same answer by the same route as the empty list above —
+  // not a branch this function makes about roles.
+  async countOpenIssueReports(): Promise<number> {
+    if (!currentAdmin()) return 0;
+    return reports.filter((r) => r.status === "open").length;
+  },
+
+  // SOLO, 2026-09-26 (third run). `listPendingMembers` above, counted — the same two filters in the
+  // same order, so the badge and the queue cannot say different numbers. `member_select_pending_admin`
+  // is what answers a non-admin nothing, reproduced here as `currentAdmin()` exactly as that function
+  // does it.
+  async countPendingMembers(): Promise<number> {
+    if (!currentAdmin()) return 0;
+    return members.filter((m) => m.teamId === null && m.status === "pending").length;
+  },
+
+  // The signing round trip, with the `Map` standing in for the bucket. SAME ORDER, SAME LENGTH, and
+  // a `null` in place for a path nothing was stored under — the real seam's contract, so a screen
+  // rendering a gallery behaves identically against either.
+  async issueImageUrls(paths: string[]): Promise<(string | null)[]> {
+    // The policy behind the real one is `issue_image_select_admin`, so a non-admin is answered
+    // nothing loadable. Without this the mock would hand a member every screenshot in the product.
+    if (!currentAdmin()) return paths.map(() => null);
+    return paths.map((path) => issueObjects.get(path) ?? null);
+  },
+
+  // `issue_report_select_admin`: `is_admin` and NO team predicate, which is the operator's fourth
+  // decision. `currentAdmin()` is that helper's three conjuncts as this file already reproduces them
+  // everywhere else.
+  //
+  // AN EMPTY ARRAY AND NOT A REFUSAL for a non-admin, because a select policy FILTERS. The screen is
+  // what turns that into *this page is for admins*; a mock that threw here would make that fork
+  // untestable.
+  async listIssueReports(): Promise<IssueReport[]> {
+    if (!currentAdmin()) return [];
+
+    const rows = reports
+      .slice()
+      // The real seam's `order`, reproduced: `created_at` descending, `id` descending as the
+      // tiebreaker. Newest first, so today's report is not buried under a year of history.
+      .sort((a, b) => b.createdAt.localeCompare(a.createdAt) || b.id.localeCompare(a.id))
+      .slice(0, ISSUE_REPORT_LIMIT);
+
+    // The same limit and the same raise as supabase.ts, for the reason every other bounded read here
+    // records: this array is bounded by the fixtures so it never fires, and it exists so the two
+    // implementations tell one story rather than because the mock can truncate.
+    if (rows.length >= ISSUE_REPORT_LIMIT) {
+      throw new Error(
+        `listIssueReports returned ${rows.length} rows at the ${ISSUE_REPORT_LIMIT} limit: the ` +
+          `list may be truncated and must not be shown as complete`,
+      );
+    }
+
+    return rows.map((r) => ({ ...r }));
+  },
+
+  // `issue_report_update_admin` plus the `grant update (status)` column list, together.
+  //
+  // A MISSING ROW IS `not_permitted` AND NOT A DISTINCT ANSWER, which is the filtered UPDATE
+  // reproduced: in the datastore a row the policy refuses and a row that does not exist are the same
+  // empty body, and a mock that told them apart would be reporting something the real seam cannot
+  // know.
+  //
+  // **ONLY `status` MOVES**, and here that is the signature rather than a check: there is no
+  // parameter that could carry a message. In the datastore it is the column grant, which is a
+  // control; here it is an affordance, and the distinction is the whole of ADR-005.
+  async setIssueReportStatus(reportId: string, status: IssueStatus): Promise<Result<IssueReport>> {
+    if (!currentAdmin()) return refused("not_permitted", ISSUE_STATUS_REFUSED);
+
+    const row = reports.find((r) => r.id === reportId);
+    if (!row) return refused("not_permitted", ISSUE_STATUS_REFUSED);
+
+    row.status = status;
+    return { ok: true, value: { ...row } };
   },
 };

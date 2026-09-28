@@ -11,12 +11,19 @@
 // as the anchor's `title` rather than deleted, because the sentence explaining what *Allow list*
 // means is the only thing in the product that explains it.
 //
-// **WHAT THIS IS NOT.** It is not a dashboard and it renders no count. The transcription showed a
-// pink `5` on the approvals tab and the operator was asked and chose to leave it out: UIE-09
-// `01-plan.md` § 1 fences a count as *"a seam read, a loading state and a refusal path on a screen
-// that otherwise has none ... a different ticket"*, and that is exactly as true of a tab as it was
-// of a link. **THIS COMPONENT MAKES NO SEAM CALL AT ALL** — it holds five addresses and no data, so
-// it has no phases, no failure path and nothing to get out of date.
+// **WHAT THIS IS NOT.** It is not a dashboard. The transcription showed a pink `5` on the approvals
+// tab and the operator was asked and chose to leave it out: UIE-09 `01-plan.md` § 1 fences a count
+// as *"a seam read, a loading state and a refusal path on a screen that otherwise has none ... a
+// different ticket"*. **THIS COMPONENT MAKES NO SEAM CALL AT ALL** — it holds eight addresses and no
+// data, so it has no phases, no failure path and nothing to get out of date.
+//
+// **SOLO, 2026-09-26 (second run) — ONE TAB NOW RENDERS A COUNT, AND THE PARAGRAPH ABOVE IS STILL
+// TRUE IN THE PART THAT MATTERS.** The operator asked for *"the number of issue not done in the
+// navigation tab"*. The number arrives as a PROP: `AdminLayout` reads it, owns its loading and its
+// failure, and passes a number or `null`. So the fence UIE-09 put up — a seam read and a failure
+// path on a component that has neither — is honoured rather than crossed, and this file still has
+// nothing to get out of date. The paragraph above is left standing because it is the record of the
+// decision that was made then, and this one says what changed.
 //
 // **IT IS AN AFFORDANCE, NOT A CONTROL** (ADR-005). Every destination keeps its own guard, its own
 // refusal and its own row-level security; a caller who types one of these addresses is refused by
@@ -24,6 +31,17 @@
 import { NavLink } from "react-router-dom";
 import type { MemberRole } from "@/lib/domain/types";
 import { mayAdminister } from "@/lib/roles";
+
+/**
+ * SOLO, 2026-09-26 — the counts a tab may carry, named as a union so a tab DECLARES which one it
+ * reads and `AdminLayout` cannot hand over a number nothing asked for.
+ *
+ * **EACH ENTRY IS A QUEUE OF THINGS WAITING FOR AN ADMIN, AND THAT IS THE RULE FOR ADDING A
+ * THIRD.** A badge says *there is something here for you*; a count of things that are merely TRUE —
+ * how many members, how many teams, how many holidays — is a statistic, and a strip that carried
+ * those would be the dashboard `AdminTabs` has said since UIE-09 that it is not.
+ */
+export type AdminBadge = "openReports" | "openSignups";
 
 /**
  * The five destinations, declared once as data so the strip and its order are one thing rather than
@@ -55,6 +73,23 @@ export const ADMIN_TABS: readonly {
    * refuse a manager on their own, and `/entries/team` is an admin power by ADR-035 § Rationale.
    */
   forManager: boolean;
+  /**
+   * SOLO, 2026-09-26 (second run) — whether this tab carries a count, and which one.
+   *
+   * **A DECLARED FIELD AND NOT `tab.to === "/reports"` IN THE RENDER**, for the reason `forManager`
+   * above gives about itself: a tab added later has to answer the question at the point it is
+   * declared, rather than the strip growing a chain of comparisons against magic addresses. Today
+   * exactly one tab answers anything but `null`.
+   *
+   * The value a badge shows arrives as a PROP — `AdminTabs` makes no seam call, and this field only
+   * says which entry of `badges` a tab reads.
+   *
+   * SOLO, 2026-09-26 (third run) — `openSignups` joins it, on the operator's instruction to put *the
+   * same number* on the sign-ups tab. TWO TABS ANSWER SOMETHING NOW, which is what turned the prop
+   * from one number into a record: a third badge is a value in this union and a key in that record,
+   * and nothing else moves.
+   */
+  badge: AdminBadge | null;
 }[] = [
   {
     testId: "admin-hub-pending-link",
@@ -64,6 +99,7 @@ export const ADMIN_TABS: readonly {
       "Entries waiting for a decision. Approve or reject them one at a time or together.",
     // ADR-035. THE ONE TAB A MANAGER SEES, and their only route into the admin area.
     forManager: true,
+    badge: null,
   },
   {
     testId: "admin-hub-team-entries-link",
@@ -73,6 +109,7 @@ export const ADMIN_TABS: readonly {
       "Every entry the team has declared, with the controls to edit or remove one.",
     // ADR-035: not a manager's. Denied by the screen behind it as well as by its absence here.
     forManager: false,
+    badge: null,
   },
   {
     testId: "admin-hub-members-link",
@@ -81,6 +118,7 @@ export const ADMIN_TABS: readonly {
     blurb: "Who is on the team. Remove somebody, or make somebody an admin.",
     // ADR-035: not a manager's. Denied by the screen behind it as well as by its absence here.
     forManager: false,
+    badge: null,
   },
   {
     testId: "admin-hub-allow-list-link",
@@ -89,6 +127,37 @@ export const ADMIN_TABS: readonly {
     blurb: "People who have signed up and are waiting to be let into the team.",
     // ADR-035: not a manager's. Denied by the screen behind it as well as by its absence here.
     forManager: false,
+    // SOLO, 2026-09-26 (third run) — *"apply the same number in navigation for tab new sign-up"*.
+    // The same shape as `Reports`, deliberately: this queue and that one are the two places the
+    // product has where something sits waiting for an admin to act, and a person scanning the strip
+    // should be able to read both the same way.
+    badge: "openSignups",
+  },
+  {
+    // SOLO, 2026-09-26 — **THE EIGHTH TAB**, on the operator's instruction *"thêm feature 1 nút
+    // report issue và trên admin có chỗ xem những report đó"*.
+    //
+    // **HERE AND NOT LAST, BECAUSE § 2b ORDERS BY HOW OFTEN AN ADMIN NEEDS EACH.** It sits directly
+    // after `New sign-ups` because the two are the same kind of thing — a queue of things people
+    // sent that an admin has to look at and decide about — and a reader scanning the strip should
+    // find them together. It is needed more often than the holiday calendar, which the government
+    // changes once a year, and far more often than creating a team.
+    //
+    // The cost is that `tests/e2e/solo-admin-tabs.spec.ts` and `tests/e2e/uie-09-admin-hub.spec.ts`
+    // each keep their own ordered copy of this list and both had to be amended. That is by design in
+    // those files: they pin the ORDER, so a list that imported this one would assert only that the
+    // component renders whatever it was given.
+    testId: "admin-hub-reports-link",
+    to: "/reports",
+    name: "Reports",
+    blurb: "Issues and ideas people have sent from the report button, and which are still open.",
+    // ADR-035: not a manager's. Reading everybody's reports is not deciding an entry, which is the
+    // one power that rank adds. Denied by the screen behind it as well as by its absence here.
+    forManager: false,
+    // SOLO, 2026-09-26 (second run) — the operator's fourth item: *"display the number of issue not
+    // done in the navigation tab"*. The first tab to carry one; `New sign-ups` joined it the same
+    // day, and the two are the product's only queues that wait on an admin.
+    badge: "openReports",
   },
   {
     testId: "admin-hub-threshold-link",
@@ -112,6 +181,7 @@ export const ADMIN_TABS: readonly {
       "The team's name and size, the share above which a day is called crowded, and which entries need approval.",
     // ADR-035: not a manager's. Denied by the screen behind it as well as by its absence here.
     forManager: false,
+    badge: null,
   },
   {
     // SOLO, 2026-09-12 — **THE SEVENTH TAB, ON THE OPERATOR'S INSTRUCTION** *"move Public holidays
@@ -133,6 +203,7 @@ export const ADMIN_TABS: readonly {
       "The national calendar: public holidays, and the swap and compensatory days announced each year.",
     // ADR-035: not a manager's. Denied by the screen behind it as well as by its absence here.
     forManager: false,
+    badge: null,
   },
   {
     // SOLO, 2026-09-11 — many teams. **THE SIXTH TAB, AND A TAB RATHER THAN A SECTION OF
@@ -147,6 +218,7 @@ export const ADMIN_TABS: readonly {
     blurb: "Every team on the system. Create, rename or delete one, and move people between them.",
     // ADR-035: not a manager's. Denied by the screen behind it as well as by its absence here.
     forManager: false,
+    badge: null,
   },
 ];
 
@@ -220,6 +292,21 @@ export const isAdminAddress = (pathname: string): boolean =>
 export interface AdminTabsProps {
   /** The signed-in caller's rank. `App.tsx` resolved it; this component re-reads nothing. */
   role: MemberRole;
+  /**
+   * SOLO, 2026-09-26. How many things are waiting in each queue, keyed by the name a tab declares —
+   * or `null` where that is not known: not read yet, the read failed, or the caller is not an admin.
+   *
+   * **`null` AND `0` MEAN DIFFERENT THINGS AND THE STRIP DRAWS NEITHER.** `0` is *nothing is
+   * waiting*, which needs no badge; `null` is *nobody has told me*, which must not be drawn as `0`.
+   * The one wrong answer these numbers can give is a confident zero on a read that failed, which is
+   * why both count functions throw rather than returning one.
+   *
+   * **A RECORD AND NOT ONE PROP PER BADGE — SOLO, 2026-09-26 (third run).** It was `openReports:
+   * number | null` while one tab carried a count; the second one made the shape's cost visible, so
+   * it became a lookup keyed by `AdminBadge`. A third badge is now a union member and a key, and
+   * this signature does not change again.
+   */
+  badges: Record<AdminBadge, number | null>;
 }
 
 /**
@@ -232,8 +319,22 @@ export interface AdminTabsProps {
  * which is exactly what UIE-10 AC-1 removed from the sidebar, on the ground that handing somebody a
  * list of addresses that will turn them away is worse than not offering them.
  */
-export default function AdminTabs({ role }: AdminTabsProps) {
+export default function AdminTabs({ role, badges }: AdminTabsProps) {
   const tabs = mayAdminister(role) ? ADMIN_TABS : ADMIN_TABS.filter((tab) => tab.forManager);
+
+  /**
+   * The number a tab's declared badge resolves to, or `null` for no badge at all.
+   *
+   * ONE LOOKUP FOR EVERY BADGE, so the two tabs cannot acquire different rules about what they draw.
+   * `0` IS NOT DRAWN, for either of them: a badge means *there is something waiting*, and a grey
+   * zero on a tab is noise that people learn to stop reading — which costs the badge its meaning on
+   * the day it matters.
+   */
+  const badgeFor = (badge: AdminBadge | null): number | null => {
+    if (badge === null) return null;
+    const count = badges[badge];
+    return count !== null && count > 0 ? count : null;
+  };
 
   return (
     // `overflow-x-auto` and `shrink-0` on the rows: five tabs do not fit a narrow viewport, and the
@@ -252,24 +353,53 @@ export default function AdminTabs({ role }: AdminTabsProps) {
           `data-testid` per element is the constraint that splits them across the two, exactly as
           `AdminHub.tsx` had it. */}
       <ol className="flex items-center gap-1">
-        {tabs.map((tab) => (
-          <li key={tab.to} data-testid="admin-hub-link" data-to={tab.to}>
-            <NavLink
-              data-testid={tab.testId}
-              to={tab.to}
-              title={tab.blurb}
-              className={({ isActive }) =>
-                "block shrink-0 whitespace-nowrap rounded-pill px-4 py-2 text-[13px] font-semibold transition-colors " +
-                "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink " +
-                (isActive
-                  ? "bg-primary text-white"
-                  : "text-ink-2 hover:bg-field hover:text-ink")
-              }
-            >
-              {tab.name}
-            </NavLink>
-          </li>
-        ))}
+        {tabs.map((tab) => {
+          const count = badgeFor(tab.badge);
+          return (
+            <li key={tab.to} data-testid="admin-hub-link" data-to={tab.to}>
+              <NavLink
+                data-testid={tab.testId}
+                to={tab.to}
+                title={tab.blurb}
+                className={({ isActive }) =>
+                  // `inline-flex` replaces `block` so the label and the badge sit on one line. The
+                  // rest of the class list is UNCHANGED — UIE-09's tab is what it was, plus a
+                  // possible pill after the word.
+                  "inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-pill px-4 py-2 text-[13px] font-semibold transition-colors " +
+                  "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink " +
+                  (isActive
+                    ? "bg-primary text-white"
+                    : "text-ink-2 hover:bg-field hover:text-ink")
+                }
+              >
+                {tab.name}
+                {count !== null ? (
+                  // **THE COUNT IS IN THE ACCESSIBLE NAME TOO, AND NOT ONLY IN THE PILL.** A bare
+                  // `7` beside `Reports` is announced as "Reports 7", which is a guess a screen
+                  // reader should not have to make. The visible pill is `aria-hidden` and the
+                  // sentence beside it is `sr-only`, so both readings say the same thing once.
+                  //
+                  // `bg-busy` is the product's coral — the token `.ai/standards/ui-design-system.md`
+                  // uses for *needs attention* — and deliberately NOT an alarm red, which
+                  // `CLAUDE.md` § Visual direction rules out for the whole product.
+                  <>
+                    <span
+                      data-testid={`${tab.testId}-badge`}
+                      data-count={count}
+                      aria-hidden="true"
+                      className="rounded-pill bg-busy px-1.5 py-0.5 text-[11px] font-bold text-busy-ink"
+                    >
+                      {count}
+                    </span>
+                    <span className="sr-only">
+                      {count === 1 ? "1 not done yet" : `${count} not done yet`}
+                    </span>
+                  </>
+                ) : null}
+              </NavLink>
+            </li>
+          );
+        })}
       </ol>
     </nav>
   );

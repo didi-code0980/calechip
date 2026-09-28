@@ -213,6 +213,29 @@ export type FailureCode =
   // things and one code carrying two sentences is how a wrong message reaches a screen (CAL-01's
   // reasoning, applied a third time).
   | "no_entries_selected"
+  // SOLO, 2026-09-26 — the report form. The message is blank once trimmed, or longer than
+  // `issue_report_message_length` allows. Raised in the SEAM before the request is issued, so the
+  // interface never meets the raw 23514 the two check constraints would answer with — the shape
+  // ADM-05's `rejection_reason_required` gives the same class of refusal, for the same reason: the
+  // CHECK is still the control and this is the sentence.
+  //
+  // NOT `not_permitted`, which means the policy refused the caller. This one means the caller is
+  // allowed and the value is not, and the message belongs beside the text box rather than under the
+  // send button — `empty_team_name` above draws the same distinction in the same words.
+  | "invalid_issue_message"
+  // SOLO, 2026-09-26 (second run) — the optional images. Too many, too large, or a type the bucket
+  // does not accept. Raised in the SEAM before anything is uploaded, so a person is told before five
+  // megabytes leave their machine rather than after.
+  //
+  // **ONE CODE FOR THREE CONDITIONS, AND THE SENTENCE IS WRITTEN AT THE CALL SITE** — the shape
+  // `not_permitted` has carried since TEA-02 and `holiday_date_taken`'s docblock explains. The rule
+  // this file states for splitting a code is that the two refusals reach DIFFERENT CONTROLS; these
+  // three all reach the same file input, so three codes would be three names for one place.
+  //
+  // NOT `invalid_issue_message`: that one belongs beside the text box and this one beside the
+  // attachments, and a screen showing either message under the wrong control is the exact failure
+  // the profile screen's three codes were split to avoid.
+  | "invalid_issue_image"
   | "unknown";
 
 export interface Failure {
@@ -795,3 +818,120 @@ export interface BulkRejectionOutcome {
   /** `get diagnostics row_count` from `public.reject_entries`. NEVER derived from `requested`. */
   rejected: number;
 }
+
+// ---------------------------------------------------------------------------
+// SOLO, 2026-09-26 — a member reports an issue; an admin reads the reports.
+//
+// Four types and one constant, added at the END beside every other feature's shapes. Nothing
+// existing changes shape, so no existing caller changes — the CAL-04, ADM-02, CAL-08, ADM-04 and
+// ADM-06 precedent, each recorded in the block above its own additions.
+//
+// The authority is the operator's four answers of 2026-09-26, transcribed in
+// `supabase/migrations/20260926100000_solo_issue_report.sql`'s header. `CLAUDE.md` § No invention
+// names database fields as the one thing an agent may not originate, which is why those four
+// questions were asked before a line of this was written.
+// ---------------------------------------------------------------------------
+
+/**
+ * What kind of thing is being reported. `public.issue_kind`.
+ *
+ * THREE AND NOT TWO: *other* exists so the picker never forces somebody to mis-file a report in
+ * order to send it, which is the failure mode of a required category with no escape. It is the
+ * DEFAULT the form opens on for the same reason — a person who does not care which of three it is
+ * should be able to type and send.
+ */
+export type IssueKind = "bug" | "idea" | "other";
+
+/**
+ * Whether an admin has dealt with it. `public.issue_status`.
+ *
+ * **TWO VALUES, AND `done` DOES NOT MEAN FIXED.** It means an admin has read it and taken it off
+ * their list. A third value — *wont_fix*, *duplicate* — is a triage vocabulary nobody asked for, and
+ * the operator's answer was *"xem + đánh dấu đã xử lý"*, which is two states.
+ */
+export type IssueStatus = "open" | "done";
+
+/** A row of `public.issue_report`, in application casing. NO `teamId`: a report is about the
+ *  product, not about a team, which is the operator's fourth decision and the reason no policy
+ *  below the seam carries a team predicate. */
+export interface IssueReport {
+  id: string;
+  /** The author. Resolved from the session by the datastore's own `with check`, never from an
+   *  argument the caller chose — see `CreateIssueReportInput`, which has no such field. */
+  memberId: string;
+  kind: IssueKind;
+  message: string;
+  /** The pathname the reporter was on, as the client sent it. A hint for whoever reads the report;
+   *  nothing derives behaviour from it. */
+  page: string;
+  status: IssueStatus;
+  createdAt: string; // ISO 8601
+  /**
+   * SOLO, 2026-09-26 (second run) — OBJECT PATHS IN THE `issue-report` BUCKET, NEVER URLS.
+   *
+   * The bucket is PRIVATE, so a path is not something a browser can load: it has to be exchanged for
+   * a short-lived signed URL, which is what `issueImageUrls` is for. Storing the URL instead would
+   * put a credential in a table row and a stale one in every read after it expired.
+   *
+   * Empty for a report sent without images, which is most of them — the operator asked for optional.
+   */
+  images: string[];
+}
+
+/**
+ * What a person sends.
+ *
+ * **THERE IS NO `memberId`, AND THERE MUST NEVER BE ONE.** The row written is the caller's, resolved
+ * inside the implementation from the session, so no argument exists that could aim this at somebody
+ * else. That is the affordance `createEntry` uses for `member_id` and `updateOwnProfile` uses for
+ * the whole row, and the reason both are shaped that way: a field a caller can set is a field a
+ * caller can set to a stranger, and the policy then becomes the only thing standing there.
+ *
+ * **AND NO `status`.** A report arrives `open`, from the column default, and the insert grant does
+ * not name the column — so neither this type nor a hand-written request can deliver one already
+ * dealt with.
+ */
+export interface CreateIssueReportInput {
+  kind: IssueKind;
+  message: string;
+  page: string;
+  /**
+   * SOLO, 2026-09-26 (second run). The files a person chose, if any. **`File` AND NOT A PATH OR A
+   * DATA URL**: the seam is what uploads them, so nothing above the seam has to know there is a
+   * bucket, and no component can be handed a half-finished upload to carry around.
+   *
+   * OPTIONAL, which is the operator's word — *"if they want"*. An omitted field and an empty array
+   * mean the same thing and both are ordinary.
+   */
+  images?: File[];
+}
+
+/**
+ * How many images one report may carry, how large each may be, and which types are accepted.
+ *
+ * **THE OPERATOR CHOSE THESE THREE NUMBERS ON 2026-09-26**, asked with their costs: three images at
+ * five megabytes each, which is enough for a few screenshots of one fault and leaves a ceiling the
+ * seam can refuse against instead of letting the datastore throw.
+ *
+ * **THEY ARE REPEATED IN THE MIGRATION'S CHECK CONSTRAINT AND IN THE BUCKET'S OWN LIMITS**, and both
+ * copies have to move together. That is the same arrangement `ISSUE_MESSAGE_MAX` already has and for
+ * the same reason: the datastore is the control, and this is what lets a person be told before a
+ * five-megabyte upload leaves their machine rather than after.
+ */
+export const ISSUE_IMAGE_MAX_COUNT = 3;
+export const ISSUE_IMAGE_MAX_BYTES = 5 * 1024 * 1024;
+/** MIME types, not extensions: a file's name is the caller's and its type is the browser's. The
+ *  bucket repeats this list in `allowed_mime_types`, which is the control. */
+export const ISSUE_IMAGE_TYPES: readonly string[] = ["image/png", "image/jpeg", "image/webp"];
+
+/**
+ * The explicit row limit `listIssueReports` asks for, and the count at which it refuses to answer.
+ * Same shape and same reasoning as ROSTER_LIMIT, HOLIDAY_LIMIT and the entry limits above: it must
+ * not EXCEED DATASTORE_MAX_ROWS, so this assertion fires before the server's silent one does.
+ *
+ * **A TRUNCATED REPORT LIST IS A DIFFERENT KIND OF WRONG FROM A TRUNCATED CALENDAR**, and it is
+ * worth saying which: no derivation reads this list, so nothing is computed incorrectly. What
+ * happens is that a report somebody wrote is silently not shown to the person it was written for,
+ * which is the whole feature failing quietly. Hence the same refusal rather than a softer one.
+ */
+export const ISSUE_REPORT_LIMIT = 500;
