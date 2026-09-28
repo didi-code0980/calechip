@@ -28,6 +28,8 @@ import TeamEntries from "./routes/TeamEntries";
 import Threshold from "./routes/Threshold";
 // SOLO, 2026-09-11 — many teams. The sixth admin tab.
 import Teams from "./routes/Teams";
+// SOLO, 2026-09-26 — the eighth admin tab: the reports people send from the bubble in `AppShell`.
+import IssueReports from "./routes/IssueReports";
 import NotOnATeam from "./routes/NotOnATeam";
 import SignIn from "./routes/SignIn";
 import SignUp from "./routes/SignUp";
@@ -439,6 +441,24 @@ export default function App() {
                 <Route
                   path="/teams"
                   element={membership.state === "member" ? <Teams /> : <Navigate to="/" replace />}
+                />
+
+                {/* SOLO, 2026-09-26 — the eighth admin address, inside this layout block so the tab
+                    strip draws above it. The guard is `/teams`' shape and is an AFFORDANCE, not the
+                    control: `IssueReports.tsx` refuses a non-admin in place, and the read itself is
+                    refused by `issue_report_select_admin` — which answers an EMPTY LIST rather than
+                    an error, so somebody who reaches the screen another way sees nothing rather than
+                    somebody else's report.
+
+                    GUARDED ON `member` AND NOT ON `admin`, which is the choice every screen in this
+                    block already makes: the membership guard keeps a signed-out caller off the
+                    address, and the RANK question belongs to the screen, which has a sentence for
+                    it. A guard on `admin` here would convert a documented refusal into a redirect. */}
+                <Route
+                  path="/reports"
+                  element={
+                    membership.state === "member" ? <IssueReports /> : <Navigate to="/" replace />
+                  }
                 />
 
                 {/* UIE-09. The admin hub — one screen naming every administrative destination, and

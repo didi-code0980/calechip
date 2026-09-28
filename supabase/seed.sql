@@ -629,3 +629,35 @@ values
     '2026-09-05T00:00:00+00:00'
   )
 on conflict (id) do nothing;
+
+-- ---------------------------------------------------------------------------------------------
+-- SOLO, 2026-09-26 — report an issue. One row, matching FIXTURE_ISSUE_REPORT in src/lib/fixtures.ts
+-- literal for literal.
+--
+-- IT DEPENDS ON `member`, which is inserted above: `issue_report.member_id` references it and does
+-- not cascade, so this block must stay after that one.
+--
+-- `status` and `created_at` ARE WRITTEN HERE AND ARE WITHHELD FROM EVERY CLIENT. The insert grant
+-- names only `member_id`, `kind`, `message` and `page`, so no signed-in caller can set either — a
+-- seed runs as the owner and is the one writer that may, which is the same position
+-- supabase/seed.sql already holds for `entry.status` on the approved fixture entry.
+--
+-- The message is Vietnamese because it is USER CONTENT: a person writes a report in their own
+-- language. `ui-language.json` names this file, with src/lib/fixtures.ts, as the product's only
+-- coverage for the diacritic requirement in CLAUDE.md § Visual direction.
+-- SOLO, 2026-09-26 (second run) — `images` joins the column list, empty. Attachments are optional
+-- and the seeded row is the ordinary case; a seed cannot put an object in a bucket, so a row
+-- claiming images would name paths that no signed URL could ever be minted for.
+insert into public.issue_report (id, member_id, kind, message, page, status, created_at, images)
+values
+  (
+    'dd000000-0000-4000-8000-000000000001',
+    '55555555-5555-4555-8555-555555555555',
+    'bug',
+    'Lịch tuần không hiển thị ngày nghỉ bù, chỉ thấy ô trắng.',
+    '/week',
+    'open',
+    '2026-09-25T02:30:00+00:00',
+    '{}'
+  )
+on conflict (id) do nothing;

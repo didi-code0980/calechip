@@ -17,6 +17,9 @@ import type {
   EntryType,
   Holiday,
   HolidayKind,
+  CreateIssueReportInput,
+  IssueReport,
+  IssueStatus,
   Member,
   PendingEntryPage,
   PendingEntryQuery,
@@ -1121,6 +1124,119 @@ export interface DataSeam {
    * function is never called to reject one entry from the row-level panel.
    */
   rejectEntries(entryIds: string[], reason: string): Promise<Result<BulkRejectionOutcome>>;
+
+  // -------------------------------------------------------------------------
+  // SOLO, 2026-09-26 — report an issue. No ticket, no plan; ADR-033.
+  //
+  // Three functions: one write every member makes, one read only an admin is answered, and one
+  // write only an admin makes. The operator's four decisions of 2026-09-26 are transcribed in
+  // `supabase/migrations/20260926100000_solo_issue_report.sql`'s header and are the authority for
+  // all three.
+  // -------------------------------------------------------------------------
+
+  /**
+   * Sends a report. The author is the caller, resolved from the session by
+   * `issue_report_insert_own`'s `with check (member_id = auth.uid())` — `CreateIssueReportInput`
+   * carries no `memberId` and must never grow one.
+   *
+   * **`Result<void>` AND NOT `Result<IssueReport>`, WHICH IS A CONSEQUENCE OF THE POLICIES AND NOT A
+   * SHORTCUT.** There is no `issue_report_select_own`: a reporter has no screen that reads a report
+   * back, so that permission would exist for nothing. A `RETURNING` clause is checked against the
+   * SELECT policies, so an insert that asked for its own row would be answered with nothing for the
+   * very person who just wrote it — success indistinguishable from refusal. So it does not ask.
+   *
+   * **`!error` IS SUCCESS HERE, AND ONLY HERE.** Every other write in this seam documents the
+   * opposite, because a refused UPDATE or SELECT under row-level security is FILTERED and answers an
+   * empty body. An INSERT is not: `with check` RAISES `42501`. The asymmetry is the policy's, not
+   * this seam's, and it is written out at both implementations' call sites so neither can be read as
+   * having forgotten the rule the other follows.
+   *
+   * A blank or over-long message is refused in the seam as `invalid_issue_message`, before a request
+   * is issued — the two check constraints are still the control.
+   *
+   * **SOLO, 2026-09-26 (second run) — IT UPLOADS THE IMAGES TOO, AND THE ORDER MATTERS.** Every
+   * refusal this function can make is made FIRST, before a byte is sent: the message rule, then the
+   * count, size and type of each file. Only then are the objects uploaded and only then is the row
+   * inserted. A person who attached a fourth image learns that immediately rather than after three
+   * successful uploads.
+   *
+   * **AN UPLOAD THAT SUCCEEDS BEFORE AN INSERT THAT FAILS LEAVES AN ORPHANED OBJECT**, and there is
+   * no delete path to collect it. No transaction spans storage and a table, so a window like this
+   * exists in every design of this feature; this is where it is, and its residue is invisible rather
+   * than harmful.
+   */
+  createIssueReport(input: CreateIssueReportInput): Promise<Result<void>>;
+
+  /**
+   * SOLO, 2026-09-26 (second run). How many reports are still `open`.
+   *
+   * **A COUNT AND NOT `listIssueReports().length`**, which is what the admin tab strip needs and the
+   * only thing it needs. The real implementation asks PostgREST for a count with no body at all;
+   * reading five hundred rows on every admin navigation to render one number is the shape this
+   * function exists to avoid.
+   *
+   * A NON-ADMIN IS ANSWERED `0`, not refused. `issue_report_select_admin` filters, so the count of
+   * what they may see is genuinely zero — the badge is simply absent for them, which is the same
+   * answer by a different route and leaks nothing.
+   */
+  countOpenIssueReports(): Promise<number>;
+
+  /**
+   * SOLO, 2026-09-26 (third run). How many people have signed up and are still waiting for an admin
+   * to decide — `listPendingMembers()`'s count, and the badge on the `New sign-ups` tab.
+   *
+   * **IT SITS BESIDE `countOpenIssueReports` AND IS THE SAME SHAPE ON PURPOSE.** The operator asked
+   * for *"the same number"* on this tab, so the two are one pattern rather than two: a count
+   * function per badge, read in one place by `AdminLayout`, each answering `0` for somebody the
+   * policy filters and THROWING rather than guessing when the read fails.
+   *
+   * A count and not `listPendingMembers().length` for the reason that one records: reading whole
+   * member rows on every admin navigation to render one digit is what these functions exist instead
+   * of. `member_select_pending_admin` is the policy either way.
+   */
+  countPendingMembers(): Promise<number>;
+
+  /**
+   * SOLO, 2026-09-26 (second run). Exchanges the object paths on a report for URLs a browser can
+   * load.
+   *
+   * **THE BUCKET IS PRIVATE, WHICH IS WHY THIS EXISTS.** A path is not loadable; a signed URL is,
+   * for a short time. Minting one is checked against `issue_image_select_admin` exactly as a direct
+   * read would be, so this widens nothing — it moves the check to minting time and lets an `<img>`
+   * tag load without carrying a session.
+   *
+   * Answers in the SAME ORDER it was given, and DROPS nothing: a path that cannot be signed comes
+   * back as `null` in its own position, so a caller rendering a gallery shows a broken slot rather
+   * than silently shifting the images that follow it.
+   */
+  issueImageUrls(paths: string[]): Promise<(string | null)[]>;
+
+  /**
+   * Every report, newest first. **EVERY ADMIN READS EVERY REPORT** — the operator's fourth decision,
+   * and `issue_report_select_admin` carries no team predicate at all.
+   *
+   * A non-admin is answered an EMPTY ARRAY and not an error, which is what a filtering select policy
+   * does and what every other admin read in this seam already documents: a screen asking is told
+   * "no reports" rather than "forbidden", and the screen is what decides to say *this page is for
+   * admins* instead.
+   *
+   * Throws — never returns a short list — when the row count reaches `ISSUE_REPORT_LIMIT`. A report
+   * silently not shown is the whole feature failing quietly.
+   */
+  listIssueReports(): Promise<IssueReport[]>;
+
+  /**
+   * Marks one report `done`, or puts it back to `open`. Admin-only, by
+   * `issue_report_update_admin` plus the `grant update (status)` column list — which is also what
+   * stops an admin editing the `message` of a report they disagree with. That grant is the control;
+   * this signature's inability to carry a message is only an affordance.
+   *
+   * ZERO ROWS RETURNED IS A REFUSAL, not a success — the shape `removeMember`, `promoteMember`,
+   * `updateHoliday` and `setOverloadThreshold` all document, and the reason this one does `.select()`
+   * where `createIssueReport` above does not: an admin holds the select policy, so the row comes
+   * back and its absence means something.
+   */
+  setIssueReportStatus(reportId: string, status: IssueStatus): Promise<Result<IssueReport>>;
 }
 
 export type { DataSeam as Seam };

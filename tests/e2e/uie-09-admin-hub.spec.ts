@@ -76,6 +76,15 @@ const DESTINATIONS: readonly {
     path: "/signups",
     landmarks: ["signups", "signups-empty"],
   },
+  // SOLO, 2026-09-26 — the eighth destination, on the operator's instruction. Directly after
+  // `New sign-ups`, which is § 2b's ordering rule applied: both are queues of what people sent.
+  // TWO LANDMARKS, for the reason the docblock above gives: whether the seed holds a report is that
+  // feature's business and not this ticket's, so either the list or its empty state satisfies AC-4.
+  {
+    testId: "admin-hub-reports-link",
+    path: "/reports",
+    landmarks: ["reports", "reports-empty"],
+  },
   {
     testId: "admin-hub-threshold-link",
     path: "/setting", // SOLO, 2026-09-11 — re-addressed from `/threshold` by the operator

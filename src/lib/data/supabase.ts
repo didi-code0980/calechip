@@ -39,8 +39,12 @@ import type {
   EntryStatus,
   EntryType,
   Failure,
+  CreateIssueReportInput,
   Holiday,
   HolidayKind,
+  IssueKind,
+  IssueReport,
+  IssueStatus,
   Member,
   MemberRole,
   PendingEntryPage,
@@ -58,6 +62,10 @@ import type {
 import {
   AVATAR_CHOICES,
   HOLIDAY_LIMIT,
+  ISSUE_IMAGE_MAX_BYTES,
+  ISSUE_IMAGE_MAX_COUNT,
+  ISSUE_IMAGE_TYPES,
+  ISSUE_REPORT_LIMIT,
   OWN_ENTRY_LIMIT,
   PENDING_PAGE_SIZE,
   ROSTER_LIMIT,
@@ -65,6 +73,168 @@ import {
   TEAM_ENTRY_MAX_PAGES,
   TEAM_ENTRY_PAGE_SIZE,
 } from "../domain/types";
+
+// ---------------------------------------------------------------------------
+// SOLO, 2026-09-26 — report an issue. The row, its mapper, its sentences and its SQLSTATEs.
+// ---------------------------------------------------------------------------
+
+interface IssueReportRow {
+  id: string;
+  member_id: string;
+  kind: IssueKind;
+  message: string;
+  page: string;
+  status: IssueStatus;
+  created_at: string;
+  /** Optional in the TYPE and `not null` in the table, for the reason `toIssueReport` records: a
+   *  build whose database predates the images migration is answered without this column. */
+  images?: string[] | null;
+}
+
+// Named explicitly rather than selected with `*`, the shape this file uses everywhere: a column
+// added to the table by a later migration stays invisible here until somebody names it.
+const ISSUE_REPORT_COLUMNS = "id, member_id, kind, message, page, status, created_at, images";
+
+/** The bucket, named once. It is PRIVATE — see `20260926140000_solo_issue_report_images.sql` § 2 for
+ *  why that is the whole security property of this feature. */
+const ISSUE_BUCKET = "issue-report";
+
+/** How long a signed URL lives. Long enough to read a page of reports without a re-mint, short
+ *  enough that a URL pasted into a chat stops working the same afternoon. */
+const ISSUE_URL_TTL_SECONDS = 60 * 60;
+
+function toIssueReport(row: IssueReportRow): IssueReport {
+  return {
+    id: row.id,
+    memberId: row.member_id,
+    kind: row.kind,
+    message: row.message,
+    page: row.page,
+    status: row.status,
+    createdAt: row.created_at,
+    // `?? []` because a build running against a database where
+    // `20260926140000_solo_issue_report_images.sql` has not been applied selects a column that does
+    // not exist and PostgREST answers without it. The column is `not null` once it exists, so this
+    // is about the unapplied state and nothing else — and it is the difference between the admin
+    // list rendering and `report.images.length` throwing on every row.
+    images: row.images ?? [],
+  };
+}
+
+// Repeated verbatim in src/lib/data/mock.ts, the shape the team and rank refusals already use, so
+// the two implementations cannot drift a sentence apart.
+const ISSUE_SEND_REFUSED = "That report could not be sent.";
+const ISSUE_STATUS_REFUSED = "That report could not be updated.";
+const ISSUE_MESSAGE_REQUIRED = "Please write what went wrong before sending.";
+const ISSUE_MESSAGE_TOO_LONG = "That report is too long. Please keep it under 2000 characters.";
+
+/**
+ * The longest message `issue_report_message_length` accepts. **A SECOND COPY OF A NUMBER IN THE
+ * MIGRATION, AND IT IS DELIBERATE.** The constraint is the control and this is a courtesy: refusing
+ * in the seam means a person is told before a request leaves rather than meeting a raw 23514. Both
+ * copies moving together is the cost, and the constant is named so a diff shows it.
+ */
+const ISSUE_MESSAGE_MAX = 2000;
+
+// SOLO, 2026-09-26 (second run) — the image refusals, repeated verbatim in src/lib/data/mock.ts for
+// the reason `issueMessageFailure` records below.
+const ISSUE_TOO_MANY_IMAGES = `Please attach at most ${ISSUE_IMAGE_MAX_COUNT} images.`;
+const ISSUE_IMAGE_TOO_LARGE = "One of those images is over 5 MB. Please attach a smaller one.";
+const ISSUE_IMAGE_WRONG_TYPE = "Images must be PNG, JPEG or WebP.";
+const ISSUE_UPLOAD_FAILED = "That image could not be uploaded. Please try again.";
+
+/**
+ * SOLO, 2026-09-26 — the SQLSTATEs the report writes answer with, and a SIXTH mapper rather than
+ * more cases in `toPostgrestFailure`, for the reason `toEntryFailure` and `toTeamFailure` both
+ * record: `23514` here means "the message is blank or too long" and nowhere else in this file means
+ * that, and one function answering two tables with one sentence is how a wrong message reaches a
+ * screen.
+ *
+ * `23514` should be unreachable — the seam refuses both conditions before the request is issued —
+ * so it is mapped rather than left in `unknown` for the caller that is NOT this application.
+ */
+function toIssueFailure(error: PostgrestError, refusal: string): Failure {
+  switch (error.code) {
+    case "23514":
+      return { code: "invalid_issue_message", message: ISSUE_MESSAGE_REQUIRED };
+    case "42501":
+    case "PGRST301": // JWT missing or expired: the request reaches the policy as nobody
+      return { code: "not_permitted", message: refusal };
+    default:
+      return { code: "unknown", message: "Something went wrong. Please try again." };
+  }
+}
+
+/**
+ * The two seam-side refusals of a message: blank once trimmed, or longer than the check constraint
+ * accepts. Returns the failure, or `null` when the message is acceptable.
+ *
+ * **REPEATED IN `src/lib/data/mock.ts` RATHER THAN IMPORTED FROM HERE, AND THE CHOICE IS THE FILE'S
+ * OWN CONVENTION.** Every shared sentence in these two implementations is written twice with a note
+ * saying so — `TEAM_RENAME_REFUSED`, `MEMBER_MOVE_REFUSED`, `MEMBER_RANK_REFUSED` and the entry
+ * refusals all do it. The alternative was exporting this and having the mock import the real seam,
+ * which adds a runtime import edge between two implementations that are meant to be swappable, to
+ * save eight lines. `tests/issue-reports.test.ts` asserts the two agree on the code, which is what
+ * makes the duplication checkable rather than merely intended.
+ */
+function issueMessageFailure(message: string): Failure | null {
+  const trimmed = message.trim();
+  if (trimmed === "") {
+    return { code: "invalid_issue_message", message: ISSUE_MESSAGE_REQUIRED };
+  }
+  if (trimmed.length > ISSUE_MESSAGE_MAX) {
+    return { code: "invalid_issue_message", message: ISSUE_MESSAGE_TOO_LONG };
+  }
+  return null;
+}
+
+/**
+ * SOLO, 2026-09-26 (second run). The three refusals of the optional attachments, in the order a
+ * person is most likely to hit them. Repeated in `src/lib/data/mock.ts`, like the rule above.
+ *
+ * **THE BUCKET'S `file_size_limit` AND `allowed_mime_types` ARE THE CONTROL AND THIS IS THE
+ * COURTESY** — but it is a courtesy worth the duplication here and nowhere else in this seam,
+ * because the thing it saves is five megabytes leaving somebody's machine before they are told no.
+ *
+ * ONE CODE FOR THREE CONDITIONS: they all reach the same file input, and `FailureCode`'s own entry
+ * records why that means one code with three sentences rather than three codes.
+ */
+function issueImageFailure(files: readonly File[]): Failure | null {
+  if (files.length > ISSUE_IMAGE_MAX_COUNT) {
+    return { code: "invalid_issue_image", message: ISSUE_TOO_MANY_IMAGES };
+  }
+  for (const file of files) {
+    // TYPE BEFORE SIZE, so somebody who attached a PDF is told what is wrong with it rather than
+    // being told it is too big — which would send them to compress a file that would be refused at
+    // any size.
+    if (!ISSUE_IMAGE_TYPES.includes(file.type)) {
+      return { code: "invalid_issue_image", message: ISSUE_IMAGE_WRONG_TYPE };
+    }
+    if (file.size > ISSUE_IMAGE_MAX_BYTES) {
+      return { code: "invalid_issue_image", message: ISSUE_IMAGE_TOO_LARGE };
+    }
+  }
+  return null;
+}
+
+/**
+ * The object path an uploaded image gets: `<the caller's uid>/<a uuid>.<ext>`.
+ *
+ * **THE FIRST SEGMENT IS LOAD-BEARING AND IS NOT A TIDY-UP.** `issue_image_insert_own` compares
+ * `(storage.foldername(name))[1]` with `auth.uid()`, so this shape is what makes an upload the
+ * caller's own; a flat path would be refused by that policy, and a path built from anything the
+ * caller controls would be the policy's whole predicate handed to them.
+ *
+ * **THE NAME IS A UUID AND NOT THE FILE'S OWN NAME.** A person's filename can carry their identity,
+ * their employer, a customer's name or a path from their machine, and a bucket's object names are
+ * not covered by the row-level story the rest of this feature tells. The extension is derived from
+ * the TYPE — which the browser set — and not from the name, for the same reason.
+ */
+function issueObjectPath(uid: string, file: File): string {
+  const extension =
+    file.type === "image/png" ? "png" : file.type === "image/webp" ? "webp" : "jpg";
+  return `${uid}/${crypto.randomUUID()}.${extension}`;
+}
 
 // Vite exposes only variables prefixed VITE_. The anon key is public by design and ships in the
 // bundle; the service role key must never appear here. See "Secrets" in
@@ -2309,5 +2479,208 @@ export const seam: DataSeam = {
     }
 
     return { ok: true, value: { requested: ids.length, rejected: data } };
+  },
+
+  // -------------------------------------------------------------------------
+  // SOLO, 2026-09-26 — report an issue.
+  // -------------------------------------------------------------------------
+
+  // **`!error` IS SUCCESS, AND THIS IS THE ONE WRITE IN THIS FILE WHERE THAT IS TRUE.** Every other
+  // one documents the opposite: a refused UPDATE or SELECT under row-level security is FILTERED, so
+  // PostgREST answers 200 with an empty body and `!error` would report a refusal as done. An INSERT
+  // is not filtered — `issue_report_insert_own`'s `with check` RAISES 42501 — so there is nothing to
+  // detect by asking for the row back.
+  //
+  // AND THERE IS A SECOND REASON NOT TO ASK. No `issue_report_select_own` policy exists, by design,
+  // so a `RETURNING` clause here would be checked against the select policies and answer NOTHING for
+  // the person who just wrote the row: `.select()` would turn every successful report into an
+  // apparent failure.
+  //
+  // `member_id` IS SENT AND IS NOT TRUSTED. It is the caller's own id read from the session, and the
+  // policy re-derives it from `auth.uid()` and refuses a mismatch — so the value on the wire cannot
+  // aim this at somebody else. It is sent because the column is `not null` with no default; the
+  // policy is what makes sending it safe.
+  async createIssueReport(input: CreateIssueReportInput): Promise<Result<void>> {
+    const files = input.images ?? [];
+
+    // **EVERY REFUSAL FIRST, BEFORE A BYTE IS SENT.** Somebody who attached a fourth image, or a
+    // PDF, learns it immediately rather than after three successful five-megabyte uploads. The
+    // bucket would refuse them anyway; this is what makes the refusal cheap.
+    const invalid = issueMessageFailure(input.message) ?? issueImageFailure(files);
+    if (invalid) return { ok: false, error: invalid };
+
+    const { data: auth } = await client().auth.getUser();
+    const uid = auth.user?.id;
+    if (!uid) return { ok: false, error: { code: "not_permitted", message: ISSUE_SEND_REFUSED } };
+
+    // **UPLOADS BEFORE THE INSERT, AND THE ORDER IS FORCED.** The row stores the paths, so the paths
+    // have to exist first. The cost is stated in the seam contract and in the migration's § 4: an
+    // upload that succeeds before an insert that fails leaves an orphan nothing can collect, because
+    // this feature has no delete path by decision. No transaction spans storage and a table, so a
+    // window like this is in every design of this feature; this is where it is.
+    //
+    // SEQUENTIAL AND NOT `Promise.all`. Three files at five megabytes on a phone tether is a lot of
+    // parallel upstream, and the first failure should stop the rest rather than race them.
+    const paths: string[] = [];
+    for (const file of files) {
+      const path = issueObjectPath(uid, file);
+      const { error: uploadError } = await client()
+        .storage.from(ISSUE_BUCKET)
+        // `upsert: false` so a path collision is an ERROR rather than a silent overwrite. The name
+        // is a fresh uuid, so a collision means something is wrong that nobody should paper over.
+        .upload(path, file, { contentType: file.type, upsert: false });
+
+      if (uploadError) {
+        return { ok: false, error: { code: "invalid_issue_image", message: ISSUE_UPLOAD_FAILED } };
+      }
+      paths.push(path);
+    }
+
+    const { error } = await client()
+      .from("issue_report")
+      .insert({
+        member_id: uid,
+        kind: input.kind,
+        // TRIMMED HERE AND STORED TRIMMED, exactly as `updateOwnProfile` stores the display name: a
+        // seam that refused on the trimmed value and stored the untrimmed one would disagree with
+        // itself about what it checked.
+        message: input.message.trim(),
+        page: input.page,
+        images: paths,
+      });
+
+    if (error) return { ok: false, error: toIssueFailure(error, ISSUE_SEND_REFUSED) };
+    return { ok: true, value: undefined };
+  },
+
+  // **`head: true` — NO ROWS COME BACK AT ALL**, only the count in a `Content-Range` header. The tab
+  // strip needs one number on every admin navigation, and reading five hundred rows to compute it is
+  // what this function exists instead of.
+  //
+  // A NON-ADMIN IS ANSWERED `0` AND NOT REFUSED: `issue_report_select_admin` filters, so the count
+  // of what they may see is genuinely zero. The badge is absent for them by arithmetic rather than
+  // by a branch, which is the same shape every other admin read in this seam has.
+  //
+  // A THROW IS NOT A ZERO. A transport failure must not render as *nothing to look at*, which is the
+  // one wrong answer this number can give — so it throws and `AdminLayout` draws no badge at all.
+  async countOpenIssueReports(): Promise<number> {
+    const { count, error } = await client()
+      .from("issue_report")
+      .select("id", { count: "exact", head: true })
+      .eq("status", "open");
+
+    if (error) throw new Error(`countOpenIssueReports failed: ${error.message}`);
+    return count ?? 0;
+  },
+
+  // SOLO, 2026-09-26 (third run). `listPendingMembers`'s two filters, counted rather than listed —
+  // `head: true`, so no member rows come back at all, only the count in a `Content-Range` header.
+  //
+  // **THE TWO FILTERS ARE THE QUEUE'S DEFINITION AND ARE COPIED FROM THAT FUNCTION, NOT INVENTED
+  // HERE.** A waiting sign-up is `team_id is null` AND `status = 'pending'`: the first is what makes
+  // them invisible to every team-scoped read, the second is what an admin decides. A count that
+  // dropped either would put a number on the tab that the screen behind it disagrees with.
+  //
+  // A non-admin is answered `0` because `member_select_pending_admin` filters, and a throw is not a
+  // zero — both for the reasons `countOpenIssueReports` above records at length.
+  async countPendingMembers(): Promise<number> {
+    const { count, error } = await client()
+      .from("member")
+      .select("id", { count: "exact", head: true })
+      .is("team_id", null)
+      .eq("status", "pending");
+
+    if (error) throw new Error(`countPendingMembers failed: ${error.message}`);
+    return count ?? 0;
+  },
+
+  // **MINTED, NOT STORED.** The bucket is private, so a path is not loadable; `createSignedUrl` is
+  // checked against `issue_image_select_admin` exactly as a direct read would be, so this widens
+  // nothing — it moves the check to minting time and lets an `<img>` tag load with no session.
+  //
+  // SAME ORDER, SAME LENGTH, AND A `null` IN PLACE RATHER THAN A DROPPED ENTRY. A caller rendering a
+  // gallery shows a broken slot instead of silently shifting every image after the failed one, which
+  // would attach the wrong caption to the wrong picture.
+  async issueImageUrls(paths: string[]): Promise<(string | null)[]> {
+    if (paths.length === 0) return [];
+
+    const { data, error } = await client()
+      .storage.from(ISSUE_BUCKET)
+      .createSignedUrls(paths, ISSUE_URL_TTL_SECONDS);
+
+    // A REFUSAL IS NOT A THROW HERE. A member who somehow reached the admin screen is refused by the
+    // storage policy, and the screen should draw broken slots rather than fall into its
+    // `unavailable` phase — the reports themselves were readable or it would not have got this far.
+    if (error || !data) return paths.map(() => null);
+
+    // The API answers in order, one entry per path, each carrying either a URL or its own error.
+    // Read positionally rather than by matching `path`, because the returned `path` is not
+    // guaranteed to be spelled as it was sent.
+    return paths.map((_, index) => data[index]?.signedUrl ?? null);
+  },
+
+  // NEWEST FIRST, and the order is the seam's rather than the policy's — `issue_report_select_admin`
+  // says who, not in what sequence. A list read oldest-first buries today's report under a year of
+  // history on the one screen whose job is to surface what just arrived. `id` is the tiebreaker, as
+  // `listMembers` uses it, so two reports written in the same millisecond have a stable order rather
+  // than the one the planner happened to produce.
+  //
+  // A NON-ADMIN GETS `[]` AND NOT A THROW. The select policy filters, so that is the datastore's own
+  // answer and not a check this function makes; `IssueReports.tsx` is what decides to say *this page
+  // is for admins* rather than *no reports*.
+  async listIssueReports(): Promise<IssueReport[]> {
+    const { data, error } = await client()
+      .from("issue_report")
+      .select(ISSUE_REPORT_COLUMNS)
+      .order("created_at", { ascending: false })
+      .order("id", { ascending: false })
+      .limit(ISSUE_REPORT_LIMIT)
+      .returns<IssueReportRow[]>();
+
+    if (error) throw new Error(`listIssueReports failed: ${error.message}`);
+
+    const rows = data ?? [];
+
+    // The assertion every bounded read in this file carries, with this table's own sentence. A short
+    // list computes nothing incorrectly — no derivation reads it — and is worse than that: a report
+    // somebody wrote is silently not shown to the person it was written for, which is the whole
+    // feature failing quietly.
+    if (rows.length >= ISSUE_REPORT_LIMIT) {
+      throw new Error(
+        `listIssueReports returned ${rows.length} rows at the ${ISSUE_REPORT_LIMIT} limit: the ` +
+          `list may be truncated and must not be shown as complete`,
+      );
+    }
+
+    return rows.map(toIssueReport);
+  },
+
+  // ZERO ROWS BACK IS A REFUSAL, and here the trap is real: an UPDATE refused by
+  // `issue_report_update_admin` is FILTERED, matches no row, and PostgREST answers 200 with an empty
+  // array — so `!error` would report a member's refused press as done.
+  //
+  // `.returns<IssueReportRow[]>()` and NOT `.maybeSingle()`, for the reason `setOverloadThreshold`
+  // records: on zero rows `maybeSingle()` gives `data: null` with no error, which is
+  // indistinguishable from a successful update of a row that no longer exists.
+  //
+  // ONE COLUMN. `status` is the only column in the update grant, so a statement naming `message` is
+  // refused with `42501 permission denied for column` before the policy runs — that grant is what
+  // stops an admin rewriting what somebody wrote, and this signature's shape is only the affordance.
+  async setIssueReportStatus(reportId: string, status: IssueStatus): Promise<Result<IssueReport>> {
+    const { data, error } = await client()
+      .from("issue_report")
+      .update({ status })
+      .eq("id", reportId)
+      .select(ISSUE_REPORT_COLUMNS)
+      .returns<IssueReportRow[]>();
+
+    if (error) return { ok: false, error: toIssueFailure(error, ISSUE_STATUS_REFUSED) };
+
+    const row = (data ?? [])[0];
+    if (!row) {
+      return { ok: false, error: { code: "not_permitted", message: ISSUE_STATUS_REFUSED } };
+    }
+
+    return { ok: true, value: toIssueReport(row) };
   },
 };

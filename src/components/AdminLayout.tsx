@@ -20,14 +20,70 @@
 // `Member` prop invites the layout to grow a second reason to hold a member row. `App.tsx` computes
 // the expression in the file that already holds the row, exactly as it does for `TopBar`.
 //
-// **THIS COMPONENT MAKES NO SEAM CALL AND HAS NO STATE.** It re-reads nothing, so it adds no phase
-// to any screen below it. Each of the six destinations keeps its own loading, refusal and failure
-// states untouched — including `/admin` itself, whose four phases `AdminHub.tsx` still owns.
+// **(Superseded 2026-09-26.) THIS COMPONENT MAKES NO SEAM CALL AND HAS NO STATE.** It re-reads
+// nothing, so it adds no phase to any screen below it. Each of the six destinations keeps its own
+// loading, refusal and failure states untouched — including `/admin` itself, whose four phases
+// `AdminHub.tsx` still owns.
+//
+// **SOLO, 2026-09-26 (second run) — IT NOW MAKES EXACTLY ONE SEAM CALL, AND THE PARAGRAPH ABOVE IS
+// KEPT AS THE RECORD OF WHAT IT COST TO GIVE UP.** The operator asked for the number of reports not
+// yet done to appear on the navigation tab. That number has to be read somewhere, and every other
+// candidate is worse:
+//   * `AdminTabs` reading it would put a seam call, a loading state and a failure path on a
+//     presentational component whose whole documented value is having none — the fence UIE-09
+//     `01-plan.md` § 1 put up, which still stands;
+//   * `IssueReports.tsx` reading it cannot work, because the badge has to be right on the seven
+//     admin screens that are NOT `/reports`;
+//   * `App.tsx` reading it would put an admin-only read above the router, on every page in the
+//     product including the calendar, for a number only the admin strip draws.
+// So it is here: the one component that exists exactly where the strip does and nowhere else.
+//
+// **WHAT THIS DOES NOT COST.** It adds no phase to any screen below: each count starts `null`, the
+// strip draws no badge for `null`, and the outlet renders immediately either way. A failed read
+// leaves that one `null` for ever, which draws nothing — a badge is the one thing whose absence is a
+// safe answer, and both count functions throw rather than returning a confident `0`.
+//
+// **SOLO, 2026-09-26 (third run) — IT NOW MAKES TWO, on the operator's instruction to put the same
+// number on the `New sign-ups` tab.** The argument above is unchanged by the second one and would be
+// unchanged by a third: the reads belong wherever the strip is, the strip is here, and each badge
+// fails on its own rather than as a pair.
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { Outlet, useOutletContext } from "react-router-dom";
+// The seam, through its one door. Nothing above the seam names an implementation, and this file must
+// never import `@/lib/data/supabase` or `@/lib/data/mock` (RULE-02).
+import { seam } from "@/lib/data";
 import type { MemberRole } from "@/lib/domain/types";
 import { mayDecide } from "@/lib/roles";
-import AdminTabs from "./AdminTabs";
+import AdminTabs, { type AdminBadge } from "./AdminTabs";
 import type { ShellContext } from "./AppShell";
+
+/**
+ * SOLO, 2026-09-26 (second run). What a screen INSIDE THE ADMIN AREA may ask of the layout above it,
+ * on top of everything `ShellContext` already offers.
+ *
+ * **ONE ENTRY, AND IT IS THERE FOR THE SAME REASON `refreshMembership` IS**: a screen writes
+ * something that a component it does not own is rendering, and there is no other way to say so. A
+ * screen that needs neither keeps calling `useShellContext()` and sees no difference — this type
+ * extends that one rather than replacing it.
+ */
+export interface AdminContext extends ShellContext {
+  /**
+   * Re-reads the counts behind the tab badges.
+   *
+   * **ONE FUNCTION FOR BOTH QUEUES AND NOT ONE PER BADGE — SOLO, 2026-09-26 (third run).** It was
+   * `refreshOpenReports` while one tab carried a count. A screen that has just written something
+   * knows that A badge may be stale; making it also know WHICH would put the strip's arrangement
+   * into every screen that writes. Both reads are one round trip each and neither is on a path
+   * anybody waits for.
+   */
+  refreshBadges(): void;
+}
+
+/** The typed reader, beside `useShellContext`. An admin screen calls this one; every other screen
+ *  keeps calling that one, so the shape grows one entry at a time rather than per caller. */
+export function useAdminContext(): AdminContext {
+  return useOutletContext<AdminContext>();
+}
 
 export interface AdminLayoutProps {
   /**
@@ -58,6 +114,67 @@ export default function AdminLayout({ role }: AdminLayoutProps) {
   // a read of the datastore.
   const shell = useOutletContext<ShellContext>();
 
+  // SOLO, 2026-09-26 (second run). `null` until a read answers, and `null` again never — a failed
+  // read simply leaves it here, which draws no badge. See the header for why `null` and `0` are
+  // different answers and why neither is guessed.
+  const [badges, setBadges] = useState<Record<AdminBadge, number | null>>({
+    openReports: null,
+    openSignups: null,
+  });
+
+  /**
+   * Reads both counts, for an admin and nobody else.
+   *
+   * **THE ROLE TEST IS AN AFFORDANCE AND NOT THE CONTROL.** `issue_report_select_admin` and
+   * `member_select_pending_admin` each answer a member `0` anyway, because a filtering select policy
+   * counts nothing for them. This just avoids two requests that are certain to say zero, on every
+   * admin-addressed screen a manager can reach.
+   */
+  const refreshBadges = useCallback((): void => {
+    if (role !== "admin") {
+      setBadges({ openReports: null, openSignups: null });
+      return;
+    }
+
+    // **TWO READS, SETTLED INDEPENDENTLY AND NOT AS A PAIR.** `Promise.all` would let one failing
+    // read blank the other tab's badge, which is a worse answer than the one it replaced: the count
+    // that DID arrive is correct and there is no reason to throw it away. So each lands on its own
+    // and each fails on its own.
+    //
+    // A THROW LEAVES ITS BADGE UNKNOWN RATHER THAN ZERO. A confident `0` on a read that failed is
+    // the one wrong answer a badge can give — it says *nothing is waiting* about a thing nobody
+    // asked.
+    void seam
+      .countOpenIssueReports()
+      .then((openReports) => setBadges((previous) => ({ ...previous, openReports })))
+      .catch(() => setBadges((previous) => ({ ...previous, openReports: null })));
+
+    void seam
+      .countPendingMembers()
+      .then((openSignups) => setBadges((previous) => ({ ...previous, openSignups })))
+      .catch(() => setBadges((previous) => ({ ...previous, openSignups: null })));
+  }, [role]);
+
+  // Once when the admin area is entered, which is when this layout mounts. It does NOT re-read per
+  // tab: the layout stays mounted as an admin moves between the eight addresses, so a read per
+  // navigation would be seven requests for a number that cannot have changed in between.
+  useEffect(() => refreshBadges(), [refreshBadges]);
+
+  /**
+   * **THIS LAYOUT NOW BUILDS A CONTEXT RATHER THAN ONLY FORWARDING ONE, AND THE NOTE BELOW IS WHY
+   * THAT WAS WORTH DOING.** `IssueReports.tsx` marks a report done, and the badge two hundred pixels
+   * above it would keep the old number until somebody left the admin area and came back. That is the
+   * same defect `ShellContext.refreshMembership` exists for one layer up — a write that changes a
+   * fact somebody ELSE is rendering, with no way to say so — and it is answered the same way.
+   *
+   * IT ADDS ONE ENTRY AND CARRIES THE SHELL'S OWN THROUGH UNCHANGED, so there is still exactly one
+   * `member` and one `refreshMembership` in the application and this file invents neither.
+   */
+  const adminShell = useMemo<AdminContext>(
+    () => ({ ...shell, refreshBadges }),
+    [shell, refreshBadges],
+  );
+
   return (
     // **THE ADMIN AREA'S MEASURE IS DECIDED HERE, ONCE.** It used to be decided six times: the tab
     // strip capped itself at `max-w-3xl`, three list screens at `max-w-3xl` and two at `max-w-2xl`,
@@ -70,8 +187,10 @@ export default function AdminLayout({ role }: AdminLayoutProps) {
     // `.ai/standards/ui-design-system.md` names no content width, so this is a choice and not a
     // citation — it is one token, in one file, and changing it moves the whole admin area together.
     <div className="mx-auto w-full max-w-6xl">
-      {role !== null && mayDecide(role) ? <AdminTabs role={role} /> : null}
-      <Outlet context={shell} />
+      {role !== null && mayDecide(role) ? (
+        <AdminTabs role={role} badges={badges} />
+      ) : null}
+      <Outlet context={adminShell} />
     </div>
   );
 }

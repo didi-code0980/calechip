@@ -43,6 +43,9 @@ import { format } from "date-fns";
 import { seam } from "@/lib/data";
 import { ROLE_BADGE_COLORS, ROLE_LABELS } from "@/lib/roles";
 import { useShellContext } from "@/components/AppShell";
+// SOLO, 2026-09-28. The box and the eye, moved out of this file so `/signin` and `/signup` use the
+// same control rather than a copy of it.
+import PasswordInput from "@/components/PasswordInput";
 import { PILL_OUTLINE } from "@/components/TopBar";
 import Avatar from "@/components/Avatar";
 import { AVATAR_CHOICES, type Member, type Team } from "@/lib/domain/types";
@@ -105,37 +108,20 @@ const FIELD =
   "w-full rounded-pill bg-field px-4 py-2.5 text-sm text-ink placeholder:text-ink-3 " +
   "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink";
 
-/** The reveal eye. Inline SVG rather than `lucide-react`, following the decision recorded on
- *  `Sidebar.tsx`'s chevron: the package is a dependency that no file under `src/` imports, and a
- *  password box is not the change that should decide whether this product carries an icon set.
- *
- *  Open and closed are DIFFERENT PATHS and not one path with a strike-through added, because the
- *  difference has to survive at 16px. */
-function EyeIcon({ open }: { open: boolean }) {
-  return (
-    <svg
-      aria-hidden
-      viewBox="0 0 20 20"
-      className="h-4 w-4"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="1.5"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    >
-      <path d="M1.8 10S4.8 4.5 10 4.5 18.2 10 18.2 10 15.2 15.5 10 15.5 1.8 10 1.8 10Z" />
-      <circle cx="10" cy="10" r="2.6" />
-      {open ? null : <path d="m3.5 3.5 13 13" />}
-    </svg>
-  );
-}
-
 /** A password box and its reveal control. Written once because the screen has three of them, and
  *  three hand-written copies of an input with a button positioned inside it is three chances to get
  *  the padding that keeps the text clear of the icon wrong.
  *
- *  **THE REVEAL IS A `<button type="button">`.** Inside a form, a button with no explicit type is a
- *  SUBMIT button — so an unset type here would mean that showing your password saves the page. */
+ *  **SOLO, 2026-09-28 — THE BOX AND THE EYE MOVED TO `src/components/PasswordInput.tsx`, AND THE
+ *  SENTENCE ABOVE IS THE REASON THEY DID.** The operator asked for the same control on `/signin` and
+ *  `/signup`; the argument for writing it once across three boxes on one screen is the same argument
+ *  across five boxes on three screens, one size larger. `EyeIcon` and the `type="button"` note went
+ *  with it, unchanged.
+ *
+ *  **WHAT STAYED HERE IS THE LABEL AND THE ERROR**, which are this screen's and not the control's:
+ *  Profile draws a `<label htmlFor>` above and a `role="alert"` paragraph below, and the two auth
+ *  screens do neither. A shared component that owned them would have to be told which screen it was
+ *  on. */
 function PasswordField({
   id,
   label,
@@ -153,38 +139,24 @@ function PasswordField({
   error: string | null;
   autoComplete: string;
 }) {
-  const [revealed, setRevealed] = useState(false);
-
   return (
     <div className="min-w-0">
       <label className={FIELD_LABEL} htmlFor={id}>
         {label}
       </label>
-      <div className="relative mt-1.5">
-        <input
-          id={id}
-          data-testid={id}
-          type={revealed ? "text" : "password"}
+      <div className="mt-1.5">
+        {/* `pr-11` is NOT passed here any more: `PasswordInput` adds it, because the space the
+            reveal button occupies belongs to the button. */}
+        <PasswordInput
+          testId={id}
           value={value}
-          placeholder={placeholder}
+          onChange={onChange}
+          className={FIELD}
           autoComplete={autoComplete}
-          onChange={(event) => onChange(event.target.value)}
-          aria-invalid={error ? true : undefined}
-          aria-describedby={error ? `${id}-error` : undefined}
-          className={`${FIELD} pr-11`}
+          placeholder={placeholder}
+          invalid={error !== null}
+          describedBy={error ? `${id}-error` : undefined}
         />
-        <button
-          type="button"
-          data-testid={`${id}-reveal`}
-          data-revealed={revealed}
-          onClick={() => setRevealed((on) => !on)}
-          // The label states what pressing it DOES, which is what a screen reader announces, and it
-          // changes with the state — "Show password" on a hidden box, "Hide password" on a shown one.
-          aria-label={revealed ? "Hide password" : "Show password"}
-          className="absolute inset-y-0 right-0 flex w-11 items-center justify-center rounded-pill text-ink-3 transition-colors hover:text-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
-        >
-          <EyeIcon open={revealed} />
-        </button>
       </div>
       {error ? (
         <p

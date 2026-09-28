@@ -16,6 +16,12 @@
 import { Outlet, useOutletContext } from "react-router-dom";
 import Sidebar from "./Sidebar";
 import TopBar from "./TopBar";
+// SOLO, 2026-09-26 — the report bubble. Mounted HERE and not in `App.tsx` for the reason this file's
+// header gives about the shell itself: the shell IS the set of pages a signed-in member sees, so
+// "every page" is expressible as one line in it rather than as a condition somebody has to extend
+// by hand every time a route is added. It makes no seam call until it is pressed, so
+// `IT RE-READS NOTHING` above is unchanged.
+import ReportIssueButton from "./ReportIssueButton";
 import type { Member, Result } from "@/lib/domain/types";
 
 export interface AppShellProps {
@@ -98,6 +104,13 @@ export default function AppShell({ member, signOut, refreshMembership }: AppShel
           <Outlet context={{ member, refreshMembership } satisfies ShellContext} />
         </div>
       </div>
+
+      {/* SOLO, 2026-09-26. **OUTSIDE THE SCROLLING PANE, ON PURPOSE.** It is `position: fixed`, so
+          it would render in the corner from anywhere in this tree — but placed inside the pane it
+          would be a child of the one element that scrolls, and a fixed child of a scrolling
+          container is the arrangement that breaks the moment somebody adds a transform or a filter
+          to that container. Here it is a sibling of both panes and belongs to the frame. */}
+      <ReportIssueButton />
     </div>
   );
 }

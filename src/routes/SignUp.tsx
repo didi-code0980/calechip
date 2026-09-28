@@ -22,6 +22,8 @@ import AuthCard, {
   FORM_ERROR,
   primaryButtonClass,
 } from "@/components/AuthCard";
+// SOLO, 2026-09-28. The password box with its reveal eye, shared with `/profile`.
+import PasswordInput from "@/components/PasswordInput";
 
 // AC-13: `submitted` is terminal. The notice, and nothing after it — no navigation, no session, no
 // member read. That is what makes this half of TEA-01 an operation that begins and ends on one screen.
@@ -236,13 +238,21 @@ export default function SignUp() {
 
         <label className="block">
           <span className={FIELD_LABEL}>Password</span>
-          <input
-            data-testid="signup-password"
-            type="password"
-            required
+          {/* SOLO, 2026-09-28 — the reveal eye, on the operator's instruction. The control
+              is `src/components/PasswordInput.tsx`, extracted from `Profile.tsx` rather than
+              copied: the padding that keeps the typed characters clear of the icon is the
+              part that goes wrong when it is written twice.
+
+              `autoComplete="new-password"` is UNCHANGED and is not decoration — it is what
+              tells a password manager which box this is, and the component requires it for
+              that reason rather than defaulting it. */}
+          <PasswordInput
+            testId="signup-password"
             value={password}
-            onChange={(e) => setPassword(e.target.value)}
+            onChange={setPassword}
             className={FIELD_INPUT}
+            autoComplete="new-password"
+            required
           />
         </label>
 

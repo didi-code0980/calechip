@@ -34,6 +34,9 @@ import type { Failure, Member, Team } from "@/lib/domain/types";
 // below carries `role="status"` and an emptied one announces nothing.
 import Loader from "@/components/Loader";
 import Avatar from "@/components/Avatar";
+// SOLO, 2026-09-26 (third run). The `New sign-ups` badge is the admin layout's, and deciding a
+// sign-up is the only thing in the product that changes it — see `AdminContext`.
+import { useAdminContext } from "@/components/AdminLayout";
 
 /**
  * The four phases `AllowList.tsx` established and this screen keeps, so a reader meets no new shape.
@@ -55,6 +58,10 @@ export default function NewSignups() {
   // SOLO, 2026-09-11. The team chosen for each waiting person, keyed by member id. Absent means the
   // default — the admin's own team — so a row nobody touched approves exactly as it always did.
   const [chosen, setChosen] = useState<Record<string, string>>({});
+  // SOLO, 2026-09-26 (third run). The handle on the count behind this screen's own tab. Without it
+  // the badge keeps the old number until an admin leaves the admin area and comes back, with the
+  // list beneath it already saying otherwise.
+  const { refreshBadges } = useAdminContext();
 
   const load = useCallback(async (): Promise<void> => {
     setView({ phase: "loading" });
@@ -126,6 +133,10 @@ export default function NewSignups() {
       return;
     }
     await load();
+    // SOLO, 2026-09-26 (third run). The queue just got shorter, and the number on the tab above this
+    // screen is the same fact. AFTER `load()`, not before: the badge and the list should agree, and
+    // re-reading the count first would let the two disagree for as long as the list took.
+    refreshBadges();
   }
 
   if (view.phase === "loading") {

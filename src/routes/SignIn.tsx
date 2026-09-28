@@ -20,6 +20,8 @@ import AuthCard, {
   FORM_ERROR,
   primaryButtonClass,
 } from "@/components/AuthCard";
+// SOLO, 2026-09-28. The password box with its reveal eye, shared with `/profile`.
+import PasswordInput from "@/components/PasswordInput";
 
 interface SignInProps {
   signIn(input: SignInInput): Promise<Result<Session>>;
@@ -92,14 +94,21 @@ export default function SignIn({ signIn }: SignInProps) {
 
         <label className="block">
           <span className={FIELD_LABEL}>Password</span>
-          <input
-            data-testid="sign-in-password"
-            type="password"
-            required
-            autoComplete="current-password"
+          {/* SOLO, 2026-09-28 — the reveal eye, on the operator's instruction. The control
+              is `src/components/PasswordInput.tsx`, extracted from `Profile.tsx` rather than
+              copied: the padding that keeps the typed characters clear of the icon is the
+              part that goes wrong when it is written twice.
+
+              `autoComplete="current-password"` is UNCHANGED and is not decoration — it is what
+              tells a password manager which box this is, and the component requires it for
+              that reason rather than defaulting it. */}
+          <PasswordInput
+            testId="sign-in-password"
             value={password}
-            onChange={(e) => setPassword(e.target.value)}
+            onChange={setPassword}
             className={FIELD_INPUT}
+            autoComplete="current-password"
+            required
           />
         </label>
 

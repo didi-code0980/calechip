@@ -44,6 +44,10 @@ const TABS = [
   { testId: "admin-hub-team-entries-link", path: "/entries/team" },
   { testId: "admin-hub-members-link", path: "/members" },
   { testId: "admin-hub-allow-list-link", path: "/signups" },
+  // SOLO, 2026-09-26 — Reports joined the strip on the operator's instruction, directly after
+  // `New sign-ups`: § 2b orders by how often an admin needs each, and the two are the same kind of
+  // thing — a queue of what people sent that somebody has to decide about.
+  { testId: "admin-hub-reports-link", path: "/reports" },
   { testId: "admin-hub-threshold-link", path: "/setting" },
   // SOLO 2026-09-12 — Public holidays joined the strip on the operator's instruction. It is the one
   // destination whose screen is not admin-only: the route is guarded on a session, so a member who
@@ -103,7 +107,17 @@ test.describe("SOLO — the admin area is a tab strip", () => {
 
     for (const tab of TABS) {
       await page.getByTestId(tab.testId).click();
-      await expect(page).toHaveURL(new RegExp(`${tab.path}$`));
+      // **`(/|$)` AND NOT `$` — SOLO, 2026-09-26 (third run), a pre-existing race found while
+      // running this file for another reason.** `/holidays` RESOLVES to `/holidays/<year>`: the
+      // screen puts the displayed year in the address. `toHaveURL` polls, so this line passed only
+      // when the first poll happened to catch the pre-redirect URL, and failed under load when it
+      // did not — which is why it looked like a timeout rather than the wrong assertion it was.
+      //
+      // The widened pattern is also what the test MEANS: the tab opened its own address, and
+      // `/holidays/2026` is that address resolved rather than a different one. No other tab has a
+      // child route today, and none of the eight is a prefix of another, so this cannot pass on the
+      // wrong screen.
+      await expect(page).toHaveURL(new RegExp(`${tab.path}(/|$)`));
 
       // THE STRIP TRAVELS WITH YOU. This is the layout half of the request — each tab is a page,
       // and the strip is on the page rather than only on the one you left.
@@ -186,16 +200,43 @@ test.describe("SOLO — the admin area is a tab strip", () => {
     await expect(page.getByTestId("threshold-refused")).toBeVisible();
   });
 
-  test("5: the strip renders no count and no badge", async ({ page }) => {
+  test("5: the strip renders no count except the one the operator asked for", async ({ page }) => {
     await signIn(page, ADMIN_EMAIL);
     await page.getByTestId("shell-admin-link").click();
 
-    // The transcription put a pink `5` on the approvals tab. UIE-09 § 1 fences a count as a seam
-    // read, a loading state and a refusal path on a surface that otherwise has none, and the
-    // operator chose to leave it out. **NO DIGIT ANYWHERE IN THE STRIP** — asserted over the whole
-    // text rather than over one tab, so a count added to any of the five fails here.
+    // **AMENDED BY SOLO, 2026-09-26 (second run), AND THE ORIGINAL IS KEPT BELOW BECAUSE IT WAS
+    // RIGHT WHEN IT WAS WRITTEN.** This test read *no digit anywhere in the strip*. The operator has
+    // since asked in terms for *"the number of issue not done in the navigation tab"*, so the
+    // criterion it pinned is superseded by an instruction rather than broken by an accident — and
+    // the honest change is to narrow the assertion to *no OTHER tab has one*, not to delete it.
+    //
+    // (Original.) The transcription put a pink `5` on the approvals tab. UIE-09 § 1 fences a count
+    // as a seam read, a loading state and a refusal path on a surface that otherwise has none, and
+    // the operator chose to leave it out. The fence still stands where it was built: `AdminTabs`
+    // still makes no seam call, and the number arrives as a prop from `AdminLayout`, which owns the
+    // read and its failure.
+    //
+    // **EXACTLY TWO BADGES, ON EXACTLY THE TWO QUEUE TABS.** Asserted over the rendered strip rather
+    // than over `ADMIN_TABS`, so a badge added to a third tab fails here.
+    //
+    // SOLO, 2026-09-26 (third run): this read *exactly one, on Reports* for a few hours. The
+    // operator then asked for the same number on `New sign-ups`, so the assertion widens by one
+    // NAMED tab rather than becoming a count with no names — the point of this test is which tabs
+    // may carry one, and a bare `toHaveCount(2)` would pass if the two moved to the wrong pair.
+    const badged = page.locator('[data-testid="admin-tabs"] [data-testid$="-badge"]');
+    await expect(badged).toHaveCount(2);
+    await expect(page.getByTestId("admin-hub-allow-list-link-badge")).toHaveCount(1);
+    await expect(page.getByTestId("admin-hub-reports-link-badge")).toHaveCount(1);
+
+    // Every OTHER tab is still free of digits. Read off each anchor rather than off the whole strip,
+    // which is what lets the permitted counts be excluded by name.
+    const BADGED = ["admin-hub-reports-link", "admin-hub-allow-list-link"];
+    for (const tab of TABS.filter((t) => !BADGED.includes(t.testId))) {
+      const label = (await page.getByTestId(tab.testId).textContent()) ?? "";
+      expect(label.match(/\d/), `${tab.testId} grew a count`).toBeNull();
+    }
+
     const text = (await page.getByTestId("admin-tabs").textContent()) ?? "";
-    expect(text.match(/\d/)).toBeNull();
 
     // The strip is navigation and holds no control: no form, no input, no select, no button. A
     // write surface here would be one this area has never had.
