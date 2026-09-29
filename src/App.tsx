@@ -30,6 +30,10 @@ import Threshold from "./routes/Threshold";
 import Teams from "./routes/Teams";
 // SOLO, 2026-09-26 — the eighth admin tab: the reports people send from the bubble in `AppShell`.
 import IssueReports from "./routes/IssueReports";
+// EVT-01 — events: the list, one event, and the one form that creates and edits.
+import Events from "./routes/Events";
+import EventDetail from "./routes/EventDetail";
+import EventEditor from "./routes/EventEditor";
 import NotOnATeam from "./routes/NotOnATeam";
 import SignIn from "./routes/SignIn";
 import SignUp from "./routes/SignUp";
@@ -527,6 +531,33 @@ export default function App() {
                   }
                 />
               </Route>
+              {/* EVT-01, 01-plan.md § 4.4. Four addresses, guarded exactly as the calendar and entry
+                  routes are — `membership.state === "member"` — inside the shell layout and NOT under
+                  `AdminLayout`: every approved member of every role creates and reads events, and it
+                  is not administration.
+
+                  The guard is an affordance. `event_select_visible`, `event_insert_own` and the two
+                  manage policies are the controls, and a pending, rejected or removed person is
+                  refused by them whoever reaches these screens (AC-9). `/events/new` is declared
+                  before `/events/:id` for the reader; the router ranks a static segment above a
+                  parameter either way. */}
+              <Route
+                path="/events"
+                element={membership.state === "member" ? <Events /> : <Navigate to="/" replace />}
+              />
+              <Route
+                path="/events/new"
+                element={membership.state === "member" ? <EventEditor /> : <Navigate to="/" replace />}
+              />
+              <Route
+                path="/events/:id"
+                element={membership.state === "member" ? <EventDetail /> : <Navigate to="/" replace />}
+              />
+              <Route
+                path="/events/:id/edit"
+                element={membership.state === "member" ? <EventEditor /> : <Navigate to="/" replace />}
+              />
+
               {/* **SOLO, 2026-09-10 — the personal profile screen.** No ticket and no plan;
                   `.claude/agents/solo.md` and ADR-033 are the authority, and `Profile.tsx` carries
                   the reasoning.

@@ -27,8 +27,14 @@ import type {
   UpdateEntryInput,
   UpdateHolidayInput,
   UpdateOwnProfileInput,
+  // EVT-01, 01-plan.md section 4.2.
+  SaveEventInput,
 } from "./index";
 import type {
+  // EVT-01, 01-plan.md section 4.1.
+  CalEvent,
+  DirectoryMember,
+  EventScope,
   MemberDecision,
   MemberStatus,
   BulkRejectionOutcome,
@@ -61,6 +67,8 @@ import type {
 // records why it was not deleted.
 import {
   AVATAR_CHOICES,
+  // EVT-01. The bound `listEvents` asks for and refuses at — see its comment.
+  DATASTORE_MAX_ROWS,
   HOLIDAY_LIMIT,
   ISSUE_IMAGE_MAX_BYTES,
   ISSUE_IMAGE_MAX_COUNT,
@@ -73,6 +81,141 @@ import {
   TEAM_ENTRY_MAX_PAGES,
   TEAM_ENTRY_PAGE_SIZE,
 } from "../domain/types";
+
+// ---------------------------------------------------------------------------
+// EVT-01 — events. The rows, their mappers, the sentences and the SQLSTATEs.
+// 01-plan.md sections 4.2 and 4.3; `supabase/migrations/20260929120000_evt01_event.sql`.
+// ---------------------------------------------------------------------------
+
+interface EventRow {
+  id: string;
+  creator_id: string;
+  team_id: string;
+  name: string;
+  description: string | null;
+  location: string | null;
+  start_date: string;
+  end_date: string;
+  scope: EventScope;
+  created_at: string;
+  updated_at: string;
+}
+
+// Named explicitly rather than `*`, the shape this file uses everywhere.
+const EVENT_COLUMNS =
+  "id, creator_id, team_id, name, description, location, start_date, end_date, scope, created_at, updated_at";
+
+function toEvent(row: EventRow): CalEvent {
+  return {
+    id: row.id,
+    creatorId: row.creator_id,
+    teamId: row.team_id,
+    name: row.name,
+    description: row.description,
+    location: row.location,
+    startDate: row.start_date,
+    endDate: row.end_date,
+    scope: row.scope,
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
+  };
+}
+
+/** `public.save_event` returns ONE `public.event`, which PostgREST answers as an OBJECT. Anything
+ *  else is a contract violation and is reported as one — `isTeamRow`'s reasoning. */
+const isEventRow = (value: unknown): value is EventRow =>
+  typeof value === "object" &&
+  value !== null &&
+  !Array.isArray(value) &&
+  typeof (value as EventRow).id === "string";
+
+/** `public.list_member_directory()`'s five columns. There is no sixth to select. */
+interface DirectoryRow {
+  id: string;
+  display_name: string;
+  avatar: string;
+  team_id: string;
+  team_name: string;
+}
+
+const DIRECTORY_COLUMNS = "id, display_name, avatar, team_id, team_name";
+
+// Repeated verbatim in src/lib/data/mock.ts, so the two implementations cannot drift a sentence
+// apart. The two refusals never confirm that the event exists (01-plan.md § 4.2).
+const EVENT_NAME_REQUIRED = "Please give the event a name.";
+const EVENT_DATES_REVERSED = "The end date must be the same as, or after, the start date.";
+const EVENT_INVITEE_INVALID =
+  "One of the people you named can no longer be invited. Please choose again.";
+const EVENT_SAVE_REFUSED = "This event could not be saved.";
+const EVENT_DELETE_REFUSED = "This event could not be deleted.";
+
+/** The two seam-side refusals, before the round trip — AFFORDANCES; `event_name_present` and
+ *  `event_dates_ordered` are the controls. Repeated in mock.ts. */
+function eventInputFailure(input: SaveEventInput): Failure | null {
+  if (input.name.trim() === "") return { code: "empty_event_name", message: EVENT_NAME_REQUIRED };
+  if (input.endDate < input.startDate) {
+    return { code: "invalid_event_dates", message: EVENT_DATES_REVERSED };
+  }
+  return null;
+}
+
+/** Blank after trimming is null — `SaveEventInput`'s docblock. */
+function blankToNull(value: string | null): string | null {
+  const trimmed = (value ?? "").trim();
+  return trimmed === "" ? null : trimmed;
+}
+
+/**
+ * The SQLSTATEs `save_event` and the event tables answer with — a separate mapper for the reason
+ * `toEntryFailure` records: one function answering two tables with one sentence is how a wrong
+ * message reaches a screen.
+ *
+ * MATCHED ON THE SQLSTATE, NEVER ON THE MESSAGE. `23514` is both check constraints and only this
+ * application's own refusals above tell them apart, so the INPUT decides which of the two it was —
+ * the constraint name is not read. It is unreachable from this application for the same reason.
+ */
+function toEventFailure(error: PostgrestError, input: SaveEventInput | null, refusal: string): Failure {
+  switch (error.code) {
+    case "23514":
+      return input && input.name.trim() === ""
+        ? { code: "empty_event_name", message: EVENT_NAME_REQUIRED }
+        : { code: "invalid_event_dates", message: EVENT_DATES_REVERSED };
+    case "22023":
+      return { code: "invalid_event_invitee", message: EVENT_INVITEE_INVALID };
+    case "42501":
+    case "PGRST301": // JWT missing or expired: the request reaches the policy as nobody
+      return { code: "event_not_permitted", message: refusal };
+    default:
+      return { code: "unknown", message: "Something went wrong. Please try again." };
+  }
+}
+
+/** Both writes are ONE call to `public.save_event` (01-plan.md § 8, rejected alternative 3), so the
+ *  row and its named list are written in one transaction. `null` id inserts. */
+async function saveEventThroughRpc(
+  eventId: string | null,
+  input: SaveEventInput,
+): Promise<Result<CalEvent>> {
+  const invalid = eventInputFailure(input);
+  if (invalid) return { ok: false, error: invalid };
+
+  const { data, error } = await client().rpc("save_event", {
+    p_event_id: eventId,
+    p_name: input.name.trim(),
+    p_description: blankToNull(input.description),
+    p_location: blankToNull(input.location),
+    p_start_date: input.startDate,
+    p_end_date: input.endDate,
+    p_scope: input.scope,
+    // Ignored and stored empty unless `named` — `SaveEventInput`'s docblock.
+    p_invitee_ids: input.scope === "named" ? [...new Set(input.inviteeIds)] : [],
+  });
+
+  if (error) return { ok: false, error: toEventFailure(error, input, EVENT_SAVE_REFUSED) };
+  if (!isEventRow(data)) return { ok: false, error: { code: "unknown", message: EVENT_SAVE_REFUSED } };
+
+  return { ok: true, value: toEvent(data) };
+}
 
 // ---------------------------------------------------------------------------
 // SOLO, 2026-09-26 — report an issue. The row, its mapper, its sentences and its SQLSTATEs.
@@ -2730,5 +2873,141 @@ export const seam: DataSeam = {
     }
 
     return { ok: true, value: toIssueReport(row) };
+  },
+
+  // -------------------------------------------------------------------------
+  // EVT-01 — events. 01-plan.md § 5: reads through `from("event")` and `from("event_invitee")` under
+  // row-level security, the directory through `rpc("list_member_directory")`, both writes through
+  // `rpc("save_event")`, and the delete as a table delete that reads back what it removed.
+  // -------------------------------------------------------------------------
+
+  // `event_select_visible` does all the filtering; this adds none. `DATASTORE_MAX_ROWS` is the bound
+  // because no event limit was designed and a new constant would be a name the contract never
+  // declared — the throw is the shape every bounded read in this file carries: a short list would
+  // hide an event from the people it is for.
+  async listEvents(): Promise<CalEvent[]> {
+    const { data, error } = await client()
+      .from("event")
+      .select(EVENT_COLUMNS)
+      .order("start_date", { ascending: true })
+      .order("id", { ascending: true })
+      .limit(DATASTORE_MAX_ROWS)
+      .returns<EventRow[]>();
+
+    if (error) throw new Error(`listEvents failed: ${error.message}`);
+
+    const rows = data ?? [];
+    if (rows.length >= DATASTORE_MAX_ROWS) {
+      throw new Error(
+        `listEvents returned ${rows.length} rows at the ${DATASTORE_MAX_ROWS} limit: the list may ` +
+          `be truncated and must not be shown as complete`,
+      );
+    }
+    return rows.map(toEvent);
+  },
+
+  // Null for "does not exist" and "may not read" alike — the policy filters, and zero rows is the
+  // same body either way (AC-22). A malformed id (`22P02`, PostgREST failing to cast it to uuid) is
+  // also an event that does not exist, not a fault.
+  async getEvent(eventId: string): Promise<CalEvent | null> {
+    const { data, error } = await client()
+      .from("event")
+      .select(EVENT_COLUMNS)
+      .eq("id", eventId)
+      .returns<EventRow[]>();
+
+    if (error) {
+      if (error.code === "22P02") return null;
+      throw new Error(`getEvent failed: ${error.message}`);
+    }
+    const row = (data ?? [])[0];
+    return row ? toEvent(row) : null;
+  },
+
+  // `event_invitee_select_manage`: a caller who may not edit the event is answered no rows, and that
+  // is the whole of AC-13's mechanism.
+  async listEventInvitees(eventId: string): Promise<string[]> {
+    const { data, error } = await client()
+      .from("event_invitee")
+      .select("member_id")
+      .eq("event_id", eventId)
+      .order("member_id", { ascending: true })
+      .limit(ROSTER_LIMIT)
+      .returns<{ member_id: string }[]>();
+
+    if (error) {
+      if (error.code === "22P02") return [];
+      throw new Error(`listEventInvitees failed: ${error.message}`);
+    }
+    const rows = data ?? [];
+    if (rows.length >= ROSTER_LIMIT) {
+      throw new Error(
+        `listEventInvitees returned ${rows.length} rows at the ${ROSTER_LIMIT} limit: the list ` +
+          `may be truncated and must not be consumed`,
+      );
+    }
+    return rows.map((r) => r.member_id);
+  },
+
+  // `public.list_member_directory()`. FIVE COLUMNS AND NO MORE (ADR-045 point 4); ordering is here,
+  // not in the function (CAL-11's header). `ROSTER_LIMIT` for the reason `listTeams` reuses it — one
+  // cap on how many people a read can believably return.
+  async listMemberDirectory(): Promise<DirectoryMember[]> {
+    const { data, error } = await client()
+      .rpc("list_member_directory")
+      .select(DIRECTORY_COLUMNS)
+      .order("team_name", { ascending: true })
+      .order("display_name", { ascending: true })
+      .order("id", { ascending: true })
+      .limit(ROSTER_LIMIT)
+      .returns<DirectoryRow[]>();
+
+    if (error) throw new Error(`listMemberDirectory failed: ${error.message}`);
+    if (!Array.isArray(data)) {
+      throw new Error("listMemberDirectory received a body that is not a list");
+    }
+    if (data.length >= ROSTER_LIMIT) {
+      throw new Error(
+        `listMemberDirectory returned ${data.length} rows at the ${ROSTER_LIMIT} limit: the ` +
+          `directory may be truncated and must not be consumed`,
+      );
+    }
+    return data.map((row) => ({
+      id: row.id,
+      displayName: row.display_name,
+      avatar: row.avatar,
+      teamId: row.team_id,
+      teamName: row.team_name,
+    }));
+  },
+
+  async createEvent(input: SaveEventInput): Promise<Result<CalEvent>> {
+    return saveEventThroughRpc(null, input);
+  },
+
+  async updateEvent(eventId: string, input: SaveEventInput): Promise<Result<CalEvent>> {
+    return saveEventThroughRpc(eventId, input);
+  },
+
+  // ZERO ROWS BACK IS A REFUSAL: a DELETE that `event_delete_manage` filters answers 200 with an
+  // empty body, exactly as `deleteEntry` records. The named list goes with the row by the cascade.
+  async deleteEvent(eventId: string): Promise<Result<void>> {
+    const { data, error } = await client()
+      .from("event")
+      .delete()
+      .eq("id", eventId)
+      .select("id")
+      .returns<{ id: string }[]>();
+
+    if (error) {
+      if (error.code === "22P02") {
+        return { ok: false, error: { code: "event_not_permitted", message: EVENT_DELETE_REFUSED } };
+      }
+      return { ok: false, error: toEventFailure(error, null, EVENT_DELETE_REFUSED) };
+    }
+    if (!(data ?? [])[0]) {
+      return { ok: false, error: { code: "event_not_permitted", message: EVENT_DELETE_REFUSED } };
+    }
+    return { ok: true, value: undefined };
   },
 };
