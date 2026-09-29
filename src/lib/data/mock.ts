@@ -21,6 +21,8 @@ import type {
   UpdateEntryInput,
   UpdateHolidayInput,
   UpdateOwnProfileInput,
+  // EVT-01, 01-plan.md section 4.2.
+  SaveEventInput,
 } from "./index";
 // SOLO 2026-09-12, ADR-035. The role predicates, above the seam and shared with the screens so
 // the mock and the interface cannot disagree about who may decide.
@@ -44,6 +46,10 @@ import type {
   Session,
   Team,
   MemberRole,
+  // EVT-01, 01-plan.md section 4.1.
+  CalEvent,
+  DirectoryMember,
+  Failure,
 } from "../domain/types";
 // TEA-03, and CAL-04 for the third. RUNTIME imports, not type ones - 02-design.md section 1.1.
 // ADM-04 adds PENDING_PAGE_SIZE, which is a WINDOW and not a ceiling - see its own comment there.
@@ -535,6 +541,119 @@ export function __resetIssueReports(): void {
   // accident rather than on purpose, which is the kind of agreement nobody wants.
   issueObjects.clear();
 }
+
+// ---------------------------------------------------------------------------
+// EVT-01 — events. 01-plan.md sections 3, 4 and 5.
+//
+// **THESE REPRODUCE `20260929120000_evt01_event.sql`'S POLICIES, GRANTS AND CONSTRAINTS, NOT THE
+// SCREEN**, which is this file's standing contract: the acceptance suite drives this seam, so a mock
+// that let a member of team B read team A's own-team event would make every denial in
+// `tests/events.test.ts` pass against nothing.
+//
+// Both tables start EMPTY — an event a test needs, a test creates, because any approved member can
+// create one (01-plan.md § 7: no fixture literal, so none can drift from the seed).
+// ---------------------------------------------------------------------------
+
+const events: CalEvent[] = [];
+
+/** `public.event_invitee`, reproduced. `createdAt` is carried so the row is the table's shape. */
+const eventInvitees: { eventId: string; memberId: string; createdAt: string }[] = [];
+
+/**
+ * Test-only. Empties both event tables.
+ *
+ * A NAMED EXPORT BESIDE `seam`, exactly as `__resetIssueReports` is, so seam parity — which compares
+ * the keys of `seam` — is untouched. Nothing under `src/` may call it, and nothing does.
+ */
+export function __resetEvents(): void {
+  events.length = 0;
+  eventInvitees.length = 0;
+}
+
+// The id an event gets, in the shape the other generators use: an `ec` prefix, which no other
+// table's ids in this file or the fixtures use.
+let nextEventId = 0;
+const newEventId = (): string =>
+  `ec000000-0000-4000-8000-${String(++nextEventId).padStart(12, "0")}`;
+
+// Repeated verbatim in src/lib/data/supabase.ts, the shape every shared sentence in these two files
+// uses, so the two implementations cannot drift a sentence apart. `EVENT_SAVE_REFUSED` and
+// `EVENT_DELETE_REFUSED` never confirm that the event exists (01-plan.md § 4.2).
+const EVENT_NAME_REQUIRED = "Please give the event a name.";
+const EVENT_DATES_REVERSED = "The end date must be the same as, or after, the start date.";
+const EVENT_INVITEE_INVALID =
+  "One of the people you named can no longer be invited. Please choose again.";
+const EVENT_SAVE_REFUSED = "This event could not be saved.";
+const EVENT_DELETE_REFUSED = "This event could not be deleted.";
+
+const eventFailure = (
+  code: "empty_event_name" | "invalid_event_dates" | "invalid_event_invitee" | "event_not_permitted",
+  message: string,
+): { ok: false; error: Failure } => ({ ok: false, error: { code, message } });
+
+/** The two seam-side refusals, made before the round trip in both implementations — AFFORDANCES;
+ *  `event_name_present` and `event_dates_ordered` are the controls. Repeated in supabase.ts. */
+const eventInputFailure = (input: SaveEventInput): { ok: false; error: Failure } | null => {
+  if (input.name.trim() === "") return eventFailure("empty_event_name", EVENT_NAME_REQUIRED);
+  if (input.endDate < input.startDate) {
+    return eventFailure("invalid_event_dates", EVENT_DATES_REVERSED);
+  }
+  return null;
+};
+
+/** Blank after trimming is null — `SaveEventInput`'s docblock, and AC-2's "never an empty label". */
+const blankToNull = (value: string | null): string | null => {
+  const trimmed = (value ?? "").trim();
+  return trimmed === "" ? null : trimmed;
+};
+
+// `public.is_admin`, with its `status = 'approved'` and `removed_at is null` clauses — which
+// `currentAdmin()` above does not carry, so it is not reused here. `memberTeamId` carries both.
+const eventIsAdmin = (uid: string | null): boolean =>
+  memberTeamId(uid) !== null && members.find((m) => m.id === uid)?.role === "admin";
+
+// `public.is_event_invitee`.
+const isEventInvitee = (eventId: string, uid: string | null): boolean =>
+  eventInvitees.some((i) => i.eventId === eventId && i.memberId === uid);
+
+// `public.may_manage_event`, and `event_update_manage` / `event_delete_manage`'s shared predicate.
+// Keyed on `is_admin` and NEVER on `mayDecide`: a manager gains nothing here (Q9, Q24).
+const mayManageEvent = (event: CalEvent, uid: string | null): boolean =>
+  (event.creatorId === uid && memberTeamId(uid) !== null) || eventIsAdmin(uid);
+
+// `event_select_visible`, clause for clause.
+const mayReadEvent = (event: CalEvent, uid: string | null): boolean => {
+  const mine = memberTeamId(uid);
+  if (mine === null) return false;
+  return (
+    eventIsAdmin(uid) ||
+    event.creatorId === uid ||
+    event.scope === "public" ||
+    (event.scope === "team" && event.teamId === mine) ||
+    (event.scope === "named" && isEventInvitee(event.id, uid))
+  );
+};
+
+/** `save_event`'s invitee half: the 22023 test, then delete-what-is-not-listed, then insert-what-is-
+ *  missing. Called only after the row write was admitted, as the SQL orders it. */
+const writeEventInvitees = (
+  eventId: string,
+  input: SaveEventInput,
+): { ok: false; error: Failure } | null => {
+  const ids = [...new Set(input.scope === "named" ? input.inviteeIds : [])];
+  if (ids.some((id) => memberTeamId(id) === null)) {
+    return eventFailure("invalid_event_invitee", EVENT_INVITEE_INVALID);
+  }
+  for (let i = eventInvitees.length - 1; i >= 0; i--) {
+    const row = eventInvitees[i];
+    if (row && row.eventId === eventId && !ids.includes(row.memberId)) eventInvitees.splice(i, 1);
+  }
+  const now = new Date().toISOString();
+  for (const memberId of ids) {
+    if (!isEventInvitee(eventId, memberId)) eventInvitees.push({ eventId, memberId, createdAt: now });
+  }
+  return null;
+};
 
 // The id a row added through the product gets, in the shape `newEntryId` and `newHolidayId` already
 // use — a `dd` prefix, matching the fixture row so a reader can tell at a glance which table an id
@@ -2541,5 +2660,149 @@ export const seam: DataSeam = {
 
     row.status = status;
     return { ok: true, value: { ...row } };
+  },
+
+  // -------------------------------------------------------------------------
+  // EVT-01 — events. The seven functions of 01-plan.md § 4.2, each reproducing the policy, grant or
+  // constraint named beside it rather than the screen.
+  // -------------------------------------------------------------------------
+
+  // `event_select_visible`. `startDate` ascending, then `id` — the real seam's `order`.
+  async listEvents(): Promise<CalEvent[]> {
+    return events
+      .filter((e) => mayReadEvent(e, currentMemberId))
+      .slice()
+      .sort((a, b) => a.startDate.localeCompare(b.startDate) || a.id.localeCompare(b.id))
+      .map((e) => ({ ...e }));
+  },
+
+  // Null for "does not exist" and for "may not read" alike (AC-22) — a filtered select cannot tell
+  // them apart, and this must not either.
+  async getEvent(eventId: string): Promise<CalEvent | null> {
+    const row = events.find((e) => e.id === eventId);
+    return row && mayReadEvent(row, currentMemberId) ? { ...row } : null;
+  },
+
+  // `event_invitee_select_manage`: only whoever may manage the event reads its list (AC-13). Member
+  // id ascending — the real seam's `order`.
+  async listEventInvitees(eventId: string): Promise<string[]> {
+    const row = events.find((e) => e.id === eventId);
+    if (!row || !mayManageEvent(row, currentMemberId)) return [];
+    return eventInvitees
+      .filter((i) => i.eventId === eventId)
+      .map((i) => i.memberId)
+      .sort((a, b) => a.localeCompare(b));
+  },
+
+  // `public.list_member_directory()`: the caller must have a team; the row must be approved and not
+  // removed. FIVE FIELDS AND NO MORE (ADR-045 point 4). Ordered as the real seam orders it.
+  async listMemberDirectory(): Promise<DirectoryMember[]> {
+    if (memberTeamId(currentMemberId) === null) return [];
+    const rows: DirectoryMember[] = [];
+    for (const m of members) {
+      if (m.status !== "approved" || m.removedAt !== null || m.teamId === null) continue;
+      // The fixtures carry two rows under one id (FIXTURE_SECOND_ADMIN and FIXTURE_PENDING_SIGNUP);
+      // the table cannot, so the first approved row is the one the join would return.
+      if (rows.some((r) => r.id === m.id)) continue;
+      const team = teams.find((t) => t.id === m.teamId);
+      if (!team) continue;
+      rows.push({
+        id: m.id,
+        displayName: m.displayName,
+        avatar: m.avatar,
+        teamId: m.teamId,
+        teamName: team.name,
+      });
+    }
+    return rows.sort(
+      (a, b) =>
+        a.teamName.localeCompare(b.teamName) ||
+        a.displayName.localeCompare(b.displayName) ||
+        a.id.localeCompare(b.id),
+    );
+  },
+
+  // `save_event` with a null id: the seam-side refusals, then `event_insert_own`, then
+  // `event_stamp()` setting the team, then the named list. A refused invitee undoes the row, as the
+  // transaction would.
+  async createEvent(input: SaveEventInput): Promise<Result<CalEvent>> {
+    const invalid = eventInputFailure(input);
+    if (invalid) return invalid;
+
+    const teamId = memberTeamId(currentMemberId);
+    if (currentMemberId === null || teamId === null) {
+      return eventFailure("event_not_permitted", EVENT_SAVE_REFUSED);
+    }
+
+    const now = new Date().toISOString();
+    const row: CalEvent = {
+      id: newEventId(),
+      creatorId: currentMemberId,
+      teamId,
+      name: input.name.trim(),
+      description: blankToNull(input.description),
+      location: blankToNull(input.location),
+      startDate: input.startDate,
+      endDate: input.endDate,
+      scope: input.scope,
+      createdAt: now,
+      updatedAt: now,
+    };
+    events.push(row);
+
+    const refusedInvitee = writeEventInvitees(row.id, input);
+    if (refusedInvitee) {
+      events.splice(events.indexOf(row), 1);
+      return refusedInvitee;
+    }
+
+    return { ok: true, value: { ...row } };
+  },
+
+  // `save_event` with an id: `event_update_manage` filters, zero rows is 42501. `creatorId` and
+  // `teamId` never move — they are not in the update grant (AC-16).
+  async updateEvent(eventId: string, input: SaveEventInput): Promise<Result<CalEvent>> {
+    const invalid = eventInputFailure(input);
+    if (invalid) return invalid;
+
+    const row = events.find((e) => e.id === eventId);
+    if (!row || !mayManageEvent(row, currentMemberId)) {
+      return eventFailure("event_not_permitted", EVENT_SAVE_REFUSED);
+    }
+
+    // Snapshots, so a refused invitee rolls the whole write back as the transaction does.
+    const before = { ...row };
+    const listBefore = eventInvitees.map((i) => ({ ...i }));
+
+    row.name = input.name.trim();
+    row.description = blankToNull(input.description);
+    row.location = blankToNull(input.location);
+    row.startDate = input.startDate;
+    row.endDate = input.endDate;
+    row.scope = input.scope;
+    row.updatedAt = new Date().toISOString();
+
+    const refusedInvitee = writeEventInvitees(row.id, input);
+    if (refusedInvitee) {
+      Object.assign(row, before);
+      eventInvitees.length = 0;
+      eventInvitees.push(...listBefore);
+      return refusedInvitee;
+    }
+
+    return { ok: true, value: { ...row } };
+  },
+
+  // `event_delete_manage`, and the cascade on `event_invitee.event_id`. Zero rows is a refusal.
+  async deleteEvent(eventId: string): Promise<Result<void>> {
+    const row = events.find((e) => e.id === eventId);
+    if (!row || !mayManageEvent(row, currentMemberId)) {
+      return eventFailure("event_not_permitted", EVENT_DELETE_REFUSED);
+    }
+    events.splice(events.indexOf(row), 1);
+    for (let i = eventInvitees.length - 1; i >= 0; i--) {
+      if (eventInvitees[i]?.eventId === eventId) eventInvitees.splice(i, 1);
+    }
+    return { ok: true, value: undefined };
   },
 };

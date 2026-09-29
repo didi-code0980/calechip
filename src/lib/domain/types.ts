@@ -236,6 +236,16 @@ export type FailureCode =
   // attachments, and a screen showing either message under the wrong control is the exact failure
   // the profile screen's three codes were split to avoid.
   | "invalid_issue_image"
+  // EVT-01. The name is empty once trimmed — AC-2. `event_name_present` (23514).
+  | "empty_event_name"
+  // EVT-01. End before start — AC-3. `event_dates_ordered` (23514). Not `invalid_date_range`,
+  // whose sentence is written about entries.
+  | "invalid_event_dates"
+  // EVT-01. A named person is not an approved member — AC-11. Raised by `save_event` as 22023.
+  | "invalid_event_invitee"
+  // EVT-01. A policy or a withheld column refused the write, or the row is not the caller's to
+  // change — AC-4, AC-17. 42501, or an update/delete that touched zero rows.
+  | "event_not_permitted"
   | "unknown";
 
 export interface Failure {
@@ -935,3 +945,42 @@ export const ISSUE_IMAGE_TYPES: readonly string[] = ["image/png", "image/jpeg", 
  * which is the whole feature failing quietly. Hence the same refusal rather than a softer one.
  */
 export const ISSUE_REPORT_LIMIT = 500;
+
+// ---------------------------------------------------------------------------
+// EVT-01 — events. 01-plan.md section 4.1. ADR-045, ADR-046.
+// ---------------------------------------------------------------------------
+
+/** EVT-01. Glossary *Event*. `named` is the glossary's "named people"; `team` is the creator's own
+ *  team and never another (Q6). The values are the database enum's, verbatim. */
+export type EventScope = "team" | "named" | "public";
+
+/** EVT-01. Named `CalEvent`, not `Event`, because `Event` is the DOM global and shadowing it in
+ *  every file that imports this one is a trap. */
+export interface CalEvent {
+  id: string;
+  creatorId: string;
+  /** The creator's team at creation, set by the database. Meaningful for `scope: "team"`; carried
+   *  for every scope because it never changes and is the only team an event has. */
+  teamId: string;
+  name: string;
+  /** Null, never "", when absent — AC-2. */
+  description: string | null;
+  location: string | null;
+  /** `yyyy-MM-dd`, inclusive both ends, as `Entry` does. */
+  startDate: string;
+  endDate: string;
+  scope: EventScope;
+  createdAt: string;
+  updatedAt: string;
+}
+
+/** EVT-01, ADR-045 point 4. THE NARROW PROJECTION: exactly these five fields, and never `role`,
+ *  `status`, `removedAt`, `email` or anything else on `Member`. It is NOT a `Member` and must never
+ *  be widened into one — the reason is INV-04's denominator. */
+export interface DirectoryMember {
+  id: string;
+  displayName: string;
+  avatar: string;
+  teamId: string;
+  teamName: string;
+}

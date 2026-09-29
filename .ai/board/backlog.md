@@ -23,14 +23,19 @@ planned, sized, and safe to build** — the next stage for a row here is IN_PROG
 | # | Ticket | Title | Size | Depends on |
 |---|--------|-------|------|------------|
 
-**Empty — `CAL-11` left this section for `## ARCHIVE` at its own ship on 2026-09-23.** It had been
+**Empty — `EVT-01` left this section for `## ARCHIVE` at its own ship on 2026-09-29.** It had been
 moved here from `## BACKLOG` at `/advance` the same day, on `gate: PASS` in
-`.ai/board/tickets/CAL-11/01-plan.md` and all six Definition of Ready items passing, sized `S` from
-`ticket.yaml` — the verdict, not `size_estimate: "M"` (ADR-012).
+`.ai/board/tickets/EVT-01/01-plan.md` and all six Definition of Ready items passing, sized `M` from
+`ticket.yaml` — the verdict, not `size_estimate` (ADR-012); for this ticket the two agreed. It sat
+here through IN_PROGRESS and REVIEW, because the board has no section for either.
 
-**`CAL-12` is the next row and it is in `## BACKLOG`, not here**: its `depends_on` is `CAL-11`, which
-this ship satisfies only once a human merges the pull request. It needs `/plan` before it can sit in
-this section.
+**Before it, the section had been empty since `CAL-11` left it for `## ARCHIVE` on 2026-09-23**,
+having arrived the same way and sized `S` from `ticket.yaml` against a `size_estimate` of `M` — the
+case ADR-012 is about, and the reason the sentence above says which of the two fields was read.
+
+**`CAL-12` is the next row and it is in `## BACKLOG`, not here.** Its `depends_on` — `CAL-11` — has
+been satisfied since [#95](https://github.com/didi-code0980/calechip/pull/95) merged on 2026-09-23.
+Nothing blocks it; it simply needs `/plan` before it can sit in this section.
 
 ## BACKLOG
 
@@ -41,7 +46,20 @@ Under the current gate placement a ticket sits here until it has been planned �
 
 | # | Ticket | Title | State | Blocked on |
 |---|--------|-------|-------|------------|
-| 1 | CAL-12 | An admin chooses which team the three calendar screens and the sidebar roster show, read-only | BACKLOG | CAL-11 |
+| 1 | CAL-12 | An admin chooses which team the three calendar screens and the sidebar roster show, read-only | BACKLOG | — |
+| 2 | EVT-02 | A member joins an event they can read, within its capacity, approval mode and deadline, and everyone who can read it sees who is coming | BACKLOG | EVT-01 — `DONE`, merge pending |
+
+**`EVT-01` was row 2 here until `/advance` on 2026-09-29 moved it to `## READY`; `EVT-02` was row 3
+and is now row 2. `CAL-12`'s *Blocked on* column read `CAL-11` until the same run and now reads `—`:
+`CAL-11` has been `DONE` since 2026-09-23 and its pull request is merged, so the column was stale,
+not wrong at the time.** The paragraph below is left as written because it records the placement.
+
+**Rows 2 and 3 were appended by `product` at /triage on 2026-09-29**, from
+`.ai/board/ideas/2026-09-29-a-gathering-has-nowhere-to-be-announced-or-joined.md`, whose
+`## Re-triage verdict — PROMOTE, as EVT-01 then EVT-02` section is the reasoning. They sit below
+`CAL-12` because it was already here, not because anybody placed them. **Split at triage** for the
+reason UIE-09/UIE-10 were (MD-017). **`EVT-01` owes the charter amendment** ADR-045 records, unless
+`/thuki` lands it first.
 
 **Rows 1 and 2 were appended by `product` at /triage on 2026-09-22**, from
 `.ai/board/ideas/2026-09-22-an-admin-manages-every-team-and-sees-only-one-calendar.md`, whose
@@ -1253,26 +1271,26 @@ Tickets that cannot proceed until a human decides something. Name the decision, 
 
 | # | Ticket | Title | Shipped | PR |
 |---|--------|-------|---------|-----|
-| 1 | CAL-08 | Holidays and bridge days shown in the calendar views | 2026-09-05 | [#56](https://github.com/didi-code0980/calechip/pull/56) |
-| 2 | ADM-04 | The worklist of entries awaiting a decision | 2026-09-05 | [#58](https://github.com/didi-code0980/calechip/pull/58), merged — corrected from `PENDING_PR` at ADM-05's ship |
-| 3 | ADM-05 | Approve or reject an entry, with a reason on rejection | 2026-09-05 | [#59](https://github.com/didi-code0980/calechip/pull/59) |
-| 4 | ADM-06 | Reject several entries at once, with one reason for the batch | 2026-09-06 | [#60](https://github.com/didi-code0980/calechip/pull/60) |
-| 5 | OPS-002 | UI copy to English — entry screens and the seam's error messages | 2026-09-07 | [#62](https://github.com/didi-code0980/calechip/pull/62) |
-| 6 | UIE-01 | Restyle the sign-in and sign-up screens to the product's visual direction | 2026-09-07 | [#63](https://github.com/didi-code0980/calechip/pull/63) |
-| 7 | UIE-02 | The application shell — a persistent sidebar and top bar | 2026-09-07 | [#64](https://github.com/didi-code0980/calechip/pull/64) |
-| 8 | UIE-03 | The calendar screens give up their own chrome to the shell | 2026-09-07 | [#65](https://github.com/didi-code0980/calechip/pull/65) |
-| 9 | UIE-04 | The week view as seven day columns | 2026-09-07 | [#66](https://github.com/didi-code0980/calechip/pull/66) |
-| 10 | OPS-004 | A password-free bootstrap file that creates the first team and the first admin | 2026-09-07 | [#71](https://github.com/didi-code0980/calechip/pull/71) |
-| 11 | UIE-05 | The week column fills the viewport, and its header strip and entry chip are restacked | 2026-09-08 | [#72](https://github.com/didi-code0980/calechip/pull/72) |
-| 12 | UIE-06 | The month grid becomes one ruled full-width card with taller cells, on the product's tokens | 2026-09-08 | [#73](https://github.com/didi-code0980/calechip/pull/73) |
-| 13 | BUG-002 | Two row limits sit above the datastore cap, so four truncation assertions can never fire | 2026-09-08 | [#76](https://github.com/didi-code0980/calechip/pull/76) |
-| 14 | UIE-07 | The week view renders a per-day absence count | 2026-09-08 | [#77](https://github.com/didi-code0980/calechip/pull/77) |
-| 15 | CAL-09 | The calendar reads serve a year larger than one datastore page | 2026-09-08 | [#79](https://github.com/didi-code0980/calechip/pull/79) |
-| 16 | UIE-08 | The year grid is repainted onto the product's semantic tokens and its card treatment | 2026-09-08 | [#81](https://github.com/didi-code0980/calechip/pull/81), merged — corrected from `PENDING_PR` at CAL-10's ship |
-| 17 | CAL-10 | Year overview — twelve month cards with a year summary band | 2026-09-09 | [#84](https://github.com/didi-code0980/calechip/pull/84), merged — corrected from `PENDING_PR` at UIE-09's ship |
-| 18 | UIE-09 | An admin hub screen at `/admin`, reachable from one control in the top bar | 2026-09-09 | [#85](https://github.com/didi-code0980/calechip/pull/85), merged — corrected from `PENDING_PR` at UIE-10's ship |
-| 19 | UIE-10 | The sidebar gives up its admin links and restyles its roster; the specs route through the hub | 2026-09-09 | [#86](https://github.com/didi-code0980/calechip/pull/86), merged — corrected from `PENDING_PR` at CAL-11's ship |
-| 20 | CAL-11 | An admin reads any team's entries and roster through the seam | 2026-09-23 | [#95](https://github.com/didi-code0980/calechip/pull/95) |
+| 1 | ADM-04 | The worklist of entries awaiting a decision | 2026-09-05 | [#58](https://github.com/didi-code0980/calechip/pull/58), merged — corrected from `PENDING_PR` at ADM-05's ship |
+| 2 | ADM-05 | Approve or reject an entry, with a reason on rejection | 2026-09-05 | [#59](https://github.com/didi-code0980/calechip/pull/59) |
+| 3 | ADM-06 | Reject several entries at once, with one reason for the batch | 2026-09-06 | [#60](https://github.com/didi-code0980/calechip/pull/60) |
+| 4 | OPS-002 | UI copy to English — entry screens and the seam's error messages | 2026-09-07 | [#62](https://github.com/didi-code0980/calechip/pull/62) |
+| 5 | UIE-01 | Restyle the sign-in and sign-up screens to the product's visual direction | 2026-09-07 | [#63](https://github.com/didi-code0980/calechip/pull/63) |
+| 6 | UIE-02 | The application shell — a persistent sidebar and top bar | 2026-09-07 | [#64](https://github.com/didi-code0980/calechip/pull/64) |
+| 7 | UIE-03 | The calendar screens give up their own chrome to the shell | 2026-09-07 | [#65](https://github.com/didi-code0980/calechip/pull/65) |
+| 8 | UIE-04 | The week view as seven day columns | 2026-09-07 | [#66](https://github.com/didi-code0980/calechip/pull/66) |
+| 9 | OPS-004 | A password-free bootstrap file that creates the first team and the first admin | 2026-09-07 | [#71](https://github.com/didi-code0980/calechip/pull/71) |
+| 10 | UIE-05 | The week column fills the viewport, and its header strip and entry chip are restacked | 2026-09-08 | [#72](https://github.com/didi-code0980/calechip/pull/72) |
+| 11 | UIE-06 | The month grid becomes one ruled full-width card with taller cells, on the product's tokens | 2026-09-08 | [#73](https://github.com/didi-code0980/calechip/pull/73) |
+| 12 | BUG-002 | Two row limits sit above the datastore cap, so four truncation assertions can never fire | 2026-09-08 | [#76](https://github.com/didi-code0980/calechip/pull/76) |
+| 13 | UIE-07 | The week view renders a per-day absence count | 2026-09-08 | [#77](https://github.com/didi-code0980/calechip/pull/77) |
+| 14 | CAL-09 | The calendar reads serve a year larger than one datastore page | 2026-09-08 | [#79](https://github.com/didi-code0980/calechip/pull/79) |
+| 15 | UIE-08 | The year grid is repainted onto the product's semantic tokens and its card treatment | 2026-09-08 | [#81](https://github.com/didi-code0980/calechip/pull/81), merged — corrected from `PENDING_PR` at CAL-10's ship |
+| 16 | CAL-10 | Year overview — twelve month cards with a year summary band | 2026-09-09 | [#84](https://github.com/didi-code0980/calechip/pull/84), merged — corrected from `PENDING_PR` at UIE-09's ship |
+| 17 | UIE-09 | An admin hub screen at `/admin`, reachable from one control in the top bar | 2026-09-09 | [#85](https://github.com/didi-code0980/calechip/pull/85), merged — corrected from `PENDING_PR` at UIE-10's ship |
+| 18 | UIE-10 | The sidebar gives up its admin links and restyles its roster; the specs route through the hub | 2026-09-09 | [#86](https://github.com/didi-code0980/calechip/pull/86), merged — corrected from `PENDING_PR` at CAL-11's ship |
+| 19 | CAL-11 | An admin reads any team's entries and roster through the seam | 2026-09-23 | [#95](https://github.com/didi-code0980/calechip/pull/95) |
+| 20 | EVT-01 | A member announces an event to their own team, to named people, or to every team, and those it is for can read it | 2026-09-29 | PENDING_PR |
 
 **The window displaced `ADM-03` at CAL-11's ship** — *ADM-03, Add, edit or delete a holiday or swap
 day, shipped 2026-09-05,* [#55](https://github.com/didi-code0980/calechip/pull/55).

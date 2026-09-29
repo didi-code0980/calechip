@@ -27,6 +27,10 @@ import type {
   Session,
   Team,
   MemberRole,
+  // EVT-01, 01-plan.md section 4.2.
+  CalEvent,
+  DirectoryMember,
+  EventScope,
 } from "../domain/types";
 import { seam as mockSeam } from "./mock";
 import { seam as supabaseSeam } from "./supabase";
@@ -212,6 +216,19 @@ export interface UpdateHolidayInput {
   date: string;
   name: string;
   kind: HolidayKind;
+}
+
+/** EVT-01. NO `creatorId` AND NO `teamId`: both are the database's (AC-4), and a field here would
+ *  invite a caller to pass somebody else's. `inviteeIds` is ignored and stored empty unless
+ *  `scope === "named"`. `description` and `location` are sent as null when blank after trimming. */
+export interface SaveEventInput {
+  name: string;
+  description: string | null;
+  location: string | null;
+  startDate: string;
+  endDate: string;
+  scope: EventScope;
+  inviteeIds: string[];
 }
 
 export interface SignUpOutcome {
@@ -1253,6 +1270,45 @@ export interface DataSeam {
    * back and its absence means something.
    */
   setIssueReportStatus(reportId: string, status: IssueStatus): Promise<Result<IssueReport>>;
+
+  // -------------------------------------------------------------------------
+  // EVT-01 — events. 01-plan.md section 4.2. ADR-045, ADR-046.
+  //
+  // Seven functions, none of them changing an existing one. Every check below the seam is a policy,
+  // a column grant, a constraint or one of two `security definer` helpers in
+  // `supabase/migrations/20260929120000_evt01_event.sql` (ADR-005); anything either implementation
+  // refuses before the round trip is an affordance and says so.
+  //
+  // `listMembers()` IS UNTOUCHED, AND SO IS EVERY POLICY ON `public.member` (AC-12, INV-04). The
+  // picker reads `listMemberDirectory()`, a separate definer read with five columns.
+  // -------------------------------------------------------------------------
+
+  /** Every event the caller may read (§ 3), ordered by `startDate` ascending, then `id`. The policy
+   *  does the filtering; this function adds none. */
+  listEvents(): Promise<CalEvent[]>;
+
+  /** One event, or null when it does not exist OR the caller may not read it — deliberately the same
+   *  answer (AC-22). */
+  getEvent(eventId: string): Promise<CalEvent | null>;
+
+  /** The member ids named on an event. Empty for a caller who may not edit it (AC-13) — the policy
+   *  returns no rows, and that is the whole mechanism. */
+  listEventInvitees(eventId: string): Promise<string[]>;
+
+  /** The picker's source (AC-10): every approved, non-removed member of every team, the caller
+   *  included, ordered by `teamName` then `displayName`. Empty for a caller with no team. */
+  listMemberDirectory(): Promise<DirectoryMember[]>;
+
+  /** AC-1, AC-2, AC-3, AC-11. One call to `public.save_event`, so the row and its named list are
+   *  written in one transaction. */
+  createEvent(input: SaveEventInput): Promise<Result<CalEvent>>;
+
+  /** AC-14, AC-16, AC-17. Replaces every field and the named list. */
+  updateEvent(eventId: string, input: SaveEventInput): Promise<Result<CalEvent>>;
+
+  /** AC-15, AC-16, AC-17. The named list goes with the row (`on delete cascade`, § 6). A delete that
+   *  touches zero rows is `event_not_permitted`, not success. */
+  deleteEvent(eventId: string): Promise<Result<void>>;
 }
 
 export type { DataSeam as Seam };

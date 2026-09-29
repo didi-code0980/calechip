@@ -273,6 +273,18 @@ export default function TopBar({ role }: TopBarProps) {
           </Link>
         ) : null}
 
+        {/* EVT-01 AC-19. **Events**, immediately before `+ Book`, on every shell screen for every
+            role — outside the `nav !== null` condition, as `shell-admin-link` is. The same outline
+            pill as `Today` and `Admin` (§ 2b), and `aria-current` on the events screens. */}
+        <Link
+          data-testid="nav-events-link"
+          to="/events"
+          aria-current={pathname === "/events" || pathname.startsWith("/events/") ? "page" : undefined}
+          className={PILL_OUTLINE}
+        >
+          Events
+        </Link>
+
         <Link
           data-testid="home-new-entry-link"
           to="/entries/new"
