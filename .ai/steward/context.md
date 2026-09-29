@@ -2562,3 +2562,25 @@ Changed: `scripts/lib/entry.mjs` (`TICKET_ID_NEAR`, step 5), `scripts/tests/entr
 `.ai/board/tickets/CAL-12/ticket.yaml` (landed as written by `product`, unedited).
 
 No registry write. No ADR — MD-039 is the operator's to decide and ADR-042 is untouched.
+
+### 2026-09-29 — ADR-045: refusals 4 and 5 narrowed for events
+
+Operator decision, verbatim, to *"Có gỡ refusal 4 và 5 không?"*: *"(a) Có. Viết ADR sửa charter qua
+/thuki, rồi làm tính năng qua /idea và loop."* The feature: a user creates an event and others click
+to join it, with the invite scope a chosen team, specific users, or all users.
+
+- **Registry write:** added `.ai/registry/decisions/ADR-045-refusals-4-and-5-narrow-to-admit-events-people-join.md`
+  (new file, v1). Status records the *decision to amend* as the operator's and says explicitly that
+  the text is the steward's and is accepted only by CODEOWNERS review of the pull request.
+- **Charter:** `.ai/00-charter.md` v2 → v3. Refusals 4 and 5 amended in place, with the v2 wording
+  quoted beside each and ADR-045 cited. Still six refusals, so `CLAUDE.md`'s "six refusals" stands.
+- **What still stands:** no joint absence entry; nobody joined by another's action; no reserving
+  slots; no capacity limits; no negotiating a day off; a join counts toward INV-04 only if a
+  separate ADR says so.
+- **Left open, deliberately:** cross-team and public scopes widen ADR-040's read boundary, to be
+  decided at `/idea` or PLAN. Who creates, grid display, date vs time, edit/cancel and leaving go
+  to `/idea`.
+- **Claim checked and found false:** the task said the tree was dirty on `main` with uncommitted
+  solo work labelled with a TEA ID that has no row in `features.md` (`src/lib/data/supabase.ts`, `src/lib/fixtures.ts`,
+  `tests/roster-excludes-signups.test.ts`). The tree was clean, and all three files are in
+  `051409f` ("bugfic user not verify"), already on `origin/main`. Nothing was at risk.

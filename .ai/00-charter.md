@@ -1,6 +1,6 @@
 ---
-doc_version: 2
-last_updated: 2026-08-31
+doc_version: 3
+last_updated: 2026-09-29
 governed_by: [RULE-01, RULE-09]
 ---
 
@@ -50,12 +50,30 @@ only by arguing with the reason beside it — and that argument is the point.
 3. **It will never do timekeeping, payroll, or hours tracking.** A different problem, an order of
    magnitude more complexity, and a class of risk this system is not built to carry.
 
-4. **It will never model group activity.** Everyone registers independently. Whether people are
-   travelling together is outside the system.
+4. **It will never model group absence.** Everyone registers independently: an absence entry is one
+   person's own declaration, never joint, and nobody is entered into anything by someone else's
+   action. Whether people are travelling together is outside the system. An **event** that people
+   each choose to join is permitted, and it creates or implies no absence entry for anyone.
 
-5. **It will never be a booking tool.** No reserving slots, no invitations, no negotiating a day with
-   another person inside the app. This is an information board; the negotiating happens between
-   people.
+   *Amended 2026-09-29 by
+   [ADR-045](registry/decisions/ADR-045-refusals-4-and-5-narrow-to-admit-events-people-join.md).*
+   This refusal read *"It will never model group activity. Everyone registers independently.
+   Whether people are travelling together is outside the system."* The reason, independent
+   registration, protects the entry, and an event does not touch the entry. The rest of the old
+   wording was wider than its reason.
+
+5. **It will never be a booking tool.** No reserving slots, no capacity limits, no negotiating a day
+   with another person inside the app. This is an information board; the negotiating happens between
+   people. An event's **invite scope** (a team, specific users, or everyone) decides who can see and
+   join it. It reserves nothing, obliges nobody and decides no one's leave, and joining an event
+   never counts toward the absence count.
+
+   *Amended 2026-09-29 by
+   [ADR-045](registry/decisions/ADR-045-refusals-4-and-5-narrow-to-admit-events-people-join.md).*
+   This refusal read *"No reserving slots, no invitations, no negotiating a day with another person
+   inside the app."* An invitation to an occasion is information, not negotiation. The other two
+   things it named stay refused, and capacity limits are refused with them explicitly. Whether a
+   cross-team or public event may widen ADR-040's read boundary is not decided by the amendment.
 
 6. **A warning will never block an action.** Overload is reported, in detail, at the moment of
    choosing — and the person can always save anyway. The instant this system can refuse someone's
