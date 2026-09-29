@@ -71,12 +71,34 @@ because no session ever checks it out.
 
 **Artifacts in:** `ticket.yaml`, `.ai/registry/**`, `.ai/standards/**`, and the source tree
 **Artifact out:** `.ai/board/tickets/$ARGUMENTS/01-plan.md`, plus `invariants_touched`,
-`size_estimate`, `size` and `allowed_paths` written back into `ticket.yaml`
+`size_estimate`, `size` and `allowed_paths` written back into `ticket.yaml`, plus one row in
+`.ai/registry/glossary.md` for each term in `glossary_owed` (ADR-047)
 **Template:** `.ai/templates/plan.md`
 
 **Gate:** all eight sections complete; ACs in Given/When/Then each with an ID; **§ 2b carrying
 exactly one of its two lines**; `invariants_touched` populated; `size_estimate` and `size` set;
-`allowed_paths` enumerated; Out-of-scope non-empty.
+`allowed_paths` enumerated; Out-of-scope non-empty; **every term in `glossary_owed` has a row in
+`.ai/registry/glossary.md`, and that path is in `allowed_paths`** — `[]` or an absent field passes.
+
+## Glossary terms owed by triage — ADR-047
+
+Read `glossary_owed` in `ticket.yaml`. `/triage` names the terms and deliberately writes no row,
+because nothing before this stage can commit one (MD-041). **The rows are yours, and they ship with
+this ticket.**
+
+1. **Add `.ai/registry/glossary.md` to `allowed_paths` first**, then write the rows. RULE-03 reads
+   the list at the moment of the edit, and the order is what makes the write in scope.
+2. **One row per owed term**, in the table's three columns: the term, its Vietnamese word and meaning,
+   and what it is not to be confused with. **Take the meaning from the provenance idea file and the
+   ADRs this ticket cites, never from what the design would find convenient.** A meaning those files
+   do not settle is a placeholder in the row and an entry under *Open questions* — the same
+   no-invention rule as an acceptance criterion, because agents name fields from this file.
+3. **Cite the source in the row**, as the existing rows do: *Added <date> by ADR-nnn* or the idea
+   filename. That is the reviewer's only way to tell a recorded term from an invented one.
+4. **A term that already has a row is not owed.** Leave the row alone and say so in section 7 in one
+   line; rewriting a definition is a registry change with an ADR, not a PLAN output.
+
+Do not touch any other registry file this way. `glossary_owed` is the only carrier ADR-047 creates.
 
 ## The visual reference — § 2b
 

@@ -1,6 +1,6 @@
 ---
 doc_version: 3
-last_updated: 2026-09-23
+last_updated: 2026-09-29
 governed_by: [RULE-03, RULE-09, RULE-10]
 ---
 
@@ -142,7 +142,7 @@ the very merge a human is meant to perform.
 | Set | Contents | Branch | Result |
 |---|---|---|---|
 | Ship | paths matching `allowed_paths`, plus `.ai/board/tickets/<TICKET-ID>/**`, plus the ship-owned set | `feat/<TICKET-ID>` | the ticket's pull request — the only one |
-| Everything else | model, standards, hooks, scripts, tooling, any registry path but `features.md` | not committed by `/ship`; left dirty | the session that wrote it lands it on `ops/<slug>` |
+| Everything else | model, standards, hooks, scripts, tooling, any registry path but `features.md` that `allowed_paths` does not name — `glossary.md` is in the ship set when PLAN listed it (ADR-047) | not committed by `/ship`; left dirty | the session that wrote it lands it on `ops/<slug>` |
 
 **The ship-owned set is exactly three files** — `.ai/board/backlog.md`, `.ai/board/metrics.md`,
 `.ai/registry/features.md`. They are what `/ship` step 3 writes, they sit outside every ticket's

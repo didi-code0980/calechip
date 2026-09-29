@@ -13,6 +13,7 @@ size: ""              # S|M|L|XL - set by tech-lead-design at PLAN; decides spli
 depends_on: []
 invariants_touched: []
 allowed_paths: []
+glossary_owed: []     # terms /triage found missing from .ai/registry/glossary.md; PLAN writes the rows (ADR-047)
 schema_delta: none
 requires_adr: false
 rework_count: 0
@@ -43,6 +44,11 @@ gates:
 #                     Definition of Ready requires it to be explicit.
 # allowed_paths       [] is a control, not a placeholder. guard-allowed-paths.mjs blocks every
 #                     write outside this ticket folder while it is empty. PLAN fills it.
+# glossary_owed       Written by `product` at /triage on PROMOTE, read by `tech-lead-design` at /plan.
+#                     Bare term names, e.g. [Event, Attendee]. /triage never writes glossary.md itself:
+#                     nothing would commit it (MD-041). A non-empty list puts
+#                     `.ai/registry/glossary.md` in `allowed_paths` and the rows ship with the ticket.
+#                     [] means "considered, none owed". ADR-047.
 # rework_count        Only Developer-caused failures increment it (RULE-08). Two failures
 #                     escalate (RULE-06).
 # chat_budget         Six messages per pair per ticket (RULE-15). chat-guard.mjs increments

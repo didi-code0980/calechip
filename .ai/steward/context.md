@@ -2601,3 +2601,40 @@ glossary.md in model-debt.md"*.
 - **Not landed, deliberately:** `backlog.md`, `features.md` (ship-owned) and the idea file (carried
   as provenance) ride EVT-01's branch under the rules that exist.
 - **Tree restored** per git-conventions § *Landing `ops/` work while a ticket is in flight*.
+
+### 2026-09-29 — MD-041 fixed as option (b): owed glossary terms are named at TRIAGE, written at PLAN
+
+Operator's words, verbatim: *"đã merged chọn B"* — PR #103 merged, and of the three MD-041 fixes the
+previous run offered, (b): *"Triage không ghi row nữa, chỉ ghi 'còn nợ' trong `ticket.yaml`; PLAN đưa
+`glossary.md` vào `allowed_paths`. Không thêm miễn trừ nào."*
+
+- **State read first.** Local `main` was at `dfec229`, two behind `origin/main` (#103 not pulled);
+  `git merge --ff-only origin/main` on the dirty tree, no overlap with the ticket, idea or board files.
+  EVT-01 and EVT-02 are `BACKLOG` and untracked — nothing mid-stage, so no ticket is judged under this.
+- **What told triage to write the rows: nothing, explicitly.** `/triage` had no glossary step and
+  `prompts.mjs` has none. The write followed from RULE-01's glossary exemption, this file's *"glossary
+  entries — write them"* (which is the steward's instruction, not `product`'s), and ADR-045's
+  *Affected documents* row that `product` wrote itself. So the fix is a prohibition plus a carrier,
+  not a deletion. There is no plan prompt in `prompts.mjs` — `/plan` is spawned with the slash
+  command and the id only — so nothing changed there.
+- **New field `glossary_owed`** in `.ai/templates/ticket.yaml`; no existing field carried it.
+  `/triage`, `product`, `/plan`, `tech-lead-design`, plan template § 7 and the operating-model stage
+  table (9 → 10) now say who writes it and who reads it. The PLAN gate gained one condition.
+- **ADR-047** records the choice. Status says `ACCEPTED by the operator` **for the choice only** and
+  states that the wording is the steward's and unread; the PR review is its acceptance. No RULE-01,
+  ADR-007, ADR-023 or operating-model line is contradicted — each cited in the ADR. ADR-023's rejected
+  "widen `allowed_paths` at PLAN" is the nearest objection and its developer-edit cost is recorded as
+  a consequence.
+- **Registry writes:** ADR-047 (new); `.ai/registry/glossary.md` header only — *"Human-only, per
+  RULE-01. An agent that needs a term added stops with `gate: BLOCKED`…"* replaced, old wording kept
+  in an *Amended by ADR-047* note. No row touched. Diff printed in the reply after writing rather than
+  before — the order in the registry protocol was not followed for this one file; recorded here.
+- **Out of scope, fixed in passing:** `.claude/agents/product.md`'s triage table still said a human
+  writes the ADR and PROMOTE is only a recommendation — reversed by ADR-007 and ADR-008. Corrected,
+  with the old wording noted.
+- **Not done, deliberately:** no DoR item 7. It would change "six items" in five documents; ADR-047's
+  revert condition 1 adds it on the first miss.
+- `.ai/board/model-debt.md` 8 → 9, MD-041 RESOLVED. Test added in `scripts/tests/entry.test.mjs`.
+  Suite 350/350; `check-docs` 0 errors.
+- **EVT-01:** nothing to adjust. Its four rows are on `main` via #103; it has no `glossary_owed`, and
+  absent passes PLAN's gate.

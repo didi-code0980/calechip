@@ -128,8 +128,18 @@ report nothing to do.
 1. `.ai/board/tickets/<ID>/ticket.yaml`, copied from `.ai/templates/ticket.yaml`, `state: BACKLOG`.
 2. Fill **Definition of Ready items 1, 3, 4 and 6** — all four are produced at BACKLOG:
    `feature_ids`, `depends_on`, `schema_delta` with its ADR linked when it is not `none`, and one
-   feature group per ticket.
+   feature group per ticket. Fill `glossary_owed` too — see below.
 3. Append a row to `## BACKLOG` in `.ai/board/backlog.md`.
+
+**A term the idea needs and `.ai/registry/glossary.md` lacks goes in `glossary_owed`, never in
+`glossary.md`** — ADR-047. Write the bare term names into the ticket shell (`glossary_owed: [Event,
+Attendee]`), and nothing else about them; the meaning comes from the idea file and the ADRs this
+ticket cites, which is where `tech-lead-design` will read it. **Do not edit `glossary.md` at
+triage.** No stage commits a registry file written here other than `features.md`: `planCarry` calls
+it stray and `/plan` step 0 stops on it (MD-041, observed on the EVT PROMOTE of 2026-09-29). PLAN
+puts `glossary.md` in `allowed_paths` and writes the rows, so they ship in the ticket's own pull
+request. `[]` means you looked and nothing is owed. An ADR you draft here still lists the terms
+under *Affected documents*; the row write itself is PLAN's.
 
 **Leave `invariants_touched` and `size_estimate` empty.** They are items 2 and 5, they belong to
 PLAN, and the gate sits after PLAN precisely so they can. Filling them here is inventing an
