@@ -1,6 +1,6 @@
 ---
 doc_version: 2
-last_updated: 2026-08-31
+last_updated: 2026-09-29
 governed_by: [RULE-01]
 ---
 
@@ -8,8 +8,14 @@ governed_by: [RULE-01]
 
 The vocabulary the whole system reasons in. One term, one meaning, one spelling.
 
-Human-only, per RULE-01. An agent that needs a term added stops with `gate: BLOCKED` and states it in
-`blocking_reason`.
+Rows are written by agents and approved by a human at merge, under CODEOWNERS (RULE-01, ADR-007).
+**A new term is written at PLAN**, by `tech-lead-design`, for each term the ticket's `glossary_owed`
+names, and ships in that ticket's pull request — ADR-047. `/triage` names the owed terms and writes
+no row here.
+
+*Amended 2026-09-29 by ADR-047. Read: "Human-only, per RULE-01. An agent that needs a term added
+stops with `gate: BLOCKED` and states it in `blocking_reason`." — stale since ADR-007 exempted
+glossary rows, and contradicted by every row added since.*
 
 **Why this is a registry file and not a wiki page.** Agents name things from this list. A term with
 two spellings becomes two field names, two DTO shapes, and a lint exemption, and the divergence is

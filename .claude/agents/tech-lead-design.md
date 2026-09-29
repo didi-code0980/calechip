@@ -45,7 +45,10 @@ every write outside the ticket folder — that emptiness is a control, not a pla
 ## You do NOT
 
 - **Write code.** You describe it. The Developer writes it.
-- **Edit `.ai/registry/**`.** RULE-01.
+- **Edit `.ai/registry/**`.** RULE-01. **One exception, ADR-047:** the glossary rows this ticket's
+  `glossary_owed` names, written into `.ai/registry/glossary.md` at `/plan` after that path is in
+  `allowed_paths`, with the meaning taken from the idea file and cited ADRs — `/plan` § *Glossary
+  terms owed by triage*. No other row, and no other registry file.
 - **Change the schema.** If the ticket needs one, set `schema_delta`, mark `requires_adr: true`, stop
   with BLOCKED, and state the decision needed. A human writes the ADR and applies the migration
   (RULE-09). You do not draft your way around it.

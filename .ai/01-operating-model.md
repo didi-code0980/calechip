@@ -1,6 +1,6 @@
 ---
-doc_version: 9
-last_updated: 2026-09-23
+doc_version: 10
+last_updated: 2026-09-29
 governed_by: [RULE-01, RULE-03, RULE-04, RULE-05, RULE-06, RULE-07, RULE-08, RULE-09, RULE-10, RULE-11, RULE-12, RULE-13, RULE-14, RULE-15, RULE-16, RULE-17]
 ---
 
@@ -76,9 +76,9 @@ this list and the stage ownership table below stay in agreement in both directio
 
 | State | Agent | Reads | Writes | Gate |
 |---|---|---|---|---|
-| TRIAGE | `product` + `tech-lead-design` | the raw request, registry | `.ai/board/ideas/**`; `features.md` and the ticket shell on PROMOTE | An idea file exists stating a problem and not a solution, **and** `verdict` is REJECT, NEEDS-ADR or PROMOTE in its front-matter with `verdict_reason` beside it — ADR-037. On PROMOTE, `ticket_id` names the ticket and a feature row exists citing that idea file |
+| TRIAGE | `product` + `tech-lead-design` | the raw request, registry | `.ai/board/ideas/**`; `features.md` and the ticket shell on PROMOTE — owed glossary terms go in the shell's `glossary_owed`, never in `glossary.md` (ADR-047) | An idea file exists stating a problem and not a solution, **and** `verdict` is REJECT, NEEDS-ADR or PROMOTE in its front-matter with `verdict_reason` beside it — ADR-037. On PROMOTE, `ticket_id` names the ticket and a feature row exists citing that idea file |
 | BACKLOG | `orchestrator` | `features.md`, `backlog.md` | `backlog.md` | Feature IDs exist in the registry |
-| PLAN | `tech-lead-design` | registry, standards, `ticket.yaml`, the source tree | `01-plan.md`, `ticket.yaml` | Sections 1-8 complete; ACs in Given/When/Then each with an ID; `invariants_touched` populated; `size_estimate` and `size` set; `allowed_paths` enumerated; Out-of-scope non-empty |
+| PLAN | `tech-lead-design` | registry, standards, `ticket.yaml`, the source tree | `01-plan.md`, `ticket.yaml`; the `glossary_owed` rows in `glossary.md`, which goes in `allowed_paths` (ADR-047) | Sections 1-8 complete; ACs in Given/When/Then each with an ID; `invariants_touched` populated; `size_estimate` and `size` set; `allowed_paths` enumerated; Out-of-scope non-empty; every `glossary_owed` term has a row |
 | READY | `orchestrator`, via `/advance` | `ticket.yaml`, `01-plan.md`, `features.md` | `ticket.yaml`, `backlog.md` | Full DoR, below |
 | IN_PROGRESS | `developer` | the plan first, then the source tree within `allowed_paths` | code, `03-impl-log.md` | typecheck + lint exit 0; every contract item implemented |
 | REVIEW | `tech-lead-review` | plan, impl-log, `git diff` | `04-review.md` | R1-R8, each citing `file:line` |

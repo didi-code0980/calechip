@@ -26,6 +26,10 @@ anything else.
   `Notes`. The citation is the whole safeguard: a row without one cannot be told apart from a feature
   nobody asked for. Never write a row for an idea you have not just triaged, and never write one at
   any other stage.
+- **Write `.ai/registry/glossary.md`.** A term the idea needs and the glossary lacks goes into the
+  ticket shell as `glossary_owed: [Term, ...]`; `tech-lead-design` writes the row at `/plan` and it
+  ships with the ticket — ADR-047. A row written here has no stage that commits it (MD-041). The same
+  holds for every registry file except `features.md` and an ADR you draft.
 - **Write acceptance criteria.** That is `tech-lead-design`'s output, at PLAN, from a registry entry.
 - **Write a solution.** An idea that opens with a design has skipped the step where the problem gets
   checked.
@@ -45,10 +49,12 @@ Exactly one verdict, with a reason:
 | Verdict | Means |
 |---|---|
 | REJECT | Not worth doing, or already covered. Say which. |
-| NEEDS-ADR | Requires a registry, schema, or dependency decision. Name what must be decided. A human writes the ADR; you do not. |
-| PROMOTE | Ready for a human to add feature IDs to the registry. |
+| NEEDS-ADR | Requires a registry, schema, or dependency decision. Draft the ADR — `.claude/commands/triage.md` § *The verdict*. |
+| PROMOTE | Worth building. You write the feature row and the ticket shell — ADR-007, ADR-010. |
 
-PROMOTE is a recommendation, not a state change. The human step between TRIAGE and BACKLOG is real.
+*Corrected 2026-09-29. This table read "A human writes the ADR; you do not" and "PROMOTE is a
+recommendation … The human step between TRIAGE and BACKLOG is real", which ADR-007 and ADR-008
+had both reversed and `/triage` already contradicted.*
 
 ## Chat
 

@@ -22,9 +22,9 @@ import {
   orphanPaths, renderReport, parseTrackerYaml, trackerConfigured,
   MAX_INTAKE_QUESTIONS, ON_SPLIT, ON_OPEN_QUESTIONS_AFTER_PLAN, IDEAS_DIR,
   matchIdeaFile, awaitedAdrs, adrStatus, adrsSettled, needsAdrDecision, DECISIONS_DIR,
-  parsePorcelainZ, planCarry, wipBlockers, IN_FLIGHT_STATES, SHIP_OWNED,
+  parsePorcelainZ, planCarry, wipBlockers, IN_FLIGHT_STATES, SHIP_OWNED, inAllowedPaths,
 } from "../lib/entry.mjs";
-import { readFrontMatter } from "../lib/ticket-yaml.mjs";
+import { readFrontMatter, parseSimpleYaml } from "../lib/ticket-yaml.mjs";
 import { INTAKE_SCHEMA, intakePrompt, triagePrompt, triageFromFilePrompt, retriagePrompt } from "../lib/prompts.mjs";
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..", "..");
@@ -616,6 +616,30 @@ test("a sibling that has started, or cites another idea, or an unrelated idea, i
   // A sibling at BACKLOG that already holds a plan was demoted from PLAN, not freshly promoted.
   const demoted = planCarry([...dirty, ".ai/board/tickets/A-02/01-plan.md"], base).stray;
   assert.ok(demoted.includes(".ai/board/tickets/A-02/ticket.yaml"));
+});
+
+test("ADR-047: glossary.md is stray until PLAN lists it, then carried as allowed_paths — no exemption", () => {
+  // MD-041, observed: `/triage` wrote four EVT rows to glossary.md and `check-carry EVT-01` called it
+  // stray and on no ref. ADR-047 moved the write to PLAN, after the path is in `allowed_paths`. The
+  // carrier is the `allowed_paths` branch that already existed; SHIP_OWNED must not have grown.
+  const GLOSSARY = ".ai/registry/glossary.md";
+  assert.ok(fs.existsSync(path.join(ROOT, GLOSSARY)), "the real glossary moved; this test targets it");
+  assert.ok(!SHIP_OWNED.includes(GLOSSARY), "ADR-047 chose (b): glossary.md is not ship-owned");
+
+  // The real template carries the field, and the reader the runner uses parses both shapes.
+  const tpl = parseSimpleYaml(fs.readFileSync(path.join(ROOT, ".ai", "templates", "ticket.yaml"), "utf8"));
+  assert.deepEqual(tpl.glossary_owed, []);
+  const owed = parseSimpleYaml("id: EVT-01\nglossary_owed: [Event, Attendee, Invitation, Capacity]\n");
+  assert.deepEqual(owed.glossary_owed, ["Event", "Attendee", "Invitation", "Capacity"]);
+
+  const ctx = { id: "EVT-01", ticketText: "", ideas: [], siblings: [], inAllowedPaths };
+  const dirty = [GLOSSARY, ".ai/board/tickets/EVT-01/ticket.yaml"];
+  // Before PLAN: allowed_paths is empty, so a triage-written row is stray — /plan step 0 stops on it.
+  assert.deepEqual(planCarry(dirty, { ...ctx, allowedPaths: [] }).stray, [GLOSSARY]);
+  // After PLAN listed it: carried, and carried *because* of allowed_paths, not a named exemption.
+  const after = planCarry(dirty, { ...ctx, allowedPaths: ["src/lib/**", GLOSSARY] });
+  assert.deepEqual(after.stray, []);
+  assert.equal(after.carried.find((c) => c.path === GLOSSARY)?.why, "allowed_paths");
 });
 
 /** An ideas directory with nothing in it, so step 4b never matches and step 5 is what answers. */

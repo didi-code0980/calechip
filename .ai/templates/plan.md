@@ -165,6 +165,10 @@ allowed_paths:
 
 Enumerate. A glob broad enough to be convenient is a glob broad enough to make R1 meaningless.
 
+**When `glossary_owed` in `ticket.yaml` is non-empty, `.ai/registry/glossary.md` is on this list** and
+its rows are written at PLAN — ADR-047, `/plan` § *Glossary terms owed by triage*. Name the terms
+written here in one line.
+
 `size` is read from the length of this list and written back to `ticket.yaml`. Where it disagrees with
 `size_estimate` in section 1, the verdict wins and PLAN proceeds — ADR-012. Say in one line that they
 disagreed and why; the disagreement is information even when both were written by the same agent
