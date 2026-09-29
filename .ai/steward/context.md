@@ -2584,3 +2584,20 @@ operator` from Q1 of the 2026-09-29 idea, *"Gỡ #4 và #5"*.
   was offered and did not choose — under a colliding number. Superseded; nothing reused.
 
 No registry write authored: the two ADRs are committed exactly as `product` wrote them.
+
+### 2026-09-29 — the four EVT glossary rows landed on `ops/`; MD-041 recorded
+
+Operator instruction, verbatim: *"Commit the four EVT glossary rows triage wrote (Event, Attendee,
+Invitation, Capacity) on an ops/ branch with a PR, like #102; log the planCarry/SHIP_OWNED gap for
+glossary.md in model-debt.md"*.
+
+- **State read first.** Branch `main` at `dfec229`, equal to `origin/main`; PR #102 merged. EVT-01
+  and EVT-02 are `BACKLOG` and untracked — nothing is mid-stage, so no ticket is judged under this.
+- **`.ai/registry/glossary.md`** — the four rows committed exactly as triage wrote them, the file's
+  only change. No registry write authored; glossary rows need no ADR under RULE-01.
+- **`.ai/board/model-debt.md` 7 → 8, MD-041.** Before landing, `node scripts/check-carry.mjs EVT-01`
+  returned exit 1 with `glossary.md` stray and on no ref — the gap observed, not inferred. Fix not
+  implemented; the three candidates are the operator's to choose.
+- **Not landed, deliberately:** `backlog.md`, `features.md` (ship-owned) and the idea file (carried
+  as provenance) ride EVT-01's branch under the rules that exist.
+- **Tree restored** per git-conventions § *Landing `ops/` work while a ticket is in flight*.
