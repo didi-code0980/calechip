@@ -12,6 +12,12 @@
 // check made here is that both dates were picked at all, because an unpicked date input is an empty
 // string and not a date either implementation could compare.
 //
+// EVT-02. Three fields between the dates and the scope — seats, needs approval, registration closes
+// (01-plan.md § 2 AC-1 to AC-4, AC-28; § 2b). The seam refuses a capacity that is not a whole number
+// ≥ 1 and a deadline after the end date before the round trip, as affordances;
+// `event_capacity_positive`, `event_deadline_by_end` and `event_capacity_guard` are the controls.
+// The form always sends all three.
+//
 // **THE PICKER IS INLINE, NOT A DIALOG** (§ 2b): a scrollable checklist grouped under team names,
 // with a text filter, drawn only while `Named people` is chosen. It omits the caller — an
 // affordance; `list_member_directory()` returns them and the policy would accept them.
@@ -32,6 +38,11 @@ interface FormValues {
   inviteeIds: string[];
   location: string;
   description: string;
+  // EVT-02. Kept as the input's text so an empty field means no limit; parsed at submit.
+  capacity: string;
+  requiresApproval: boolean;
+  /** `""` means registration runs to the end date. */
+  registrationDeadline: string;
 }
 
 type LoadState =
@@ -78,6 +89,9 @@ export default function EventEditor(): JSX.Element {
             inviteeIds: [],
             location: "",
             description: "",
+            capacity: "",
+            requiresApproval: false,
+            registrationDeadline: "",
           },
         });
         return;
@@ -103,6 +117,10 @@ export default function EventEditor(): JSX.Element {
           inviteeIds,
           location: event.location ?? "",
           description: event.description ?? "",
+          // EVT-02, AC-28. The edit form opens holding the event's current three values.
+          capacity: event.capacity === null ? "" : String(event.capacity),
+          requiresApproval: event.requiresApproval,
+          registrationDeadline: event.registrationDeadline ?? "",
         },
       });
     } catch {
@@ -225,6 +243,11 @@ function EventForm({
       endDate: values.endDate,
       scope: values.scope,
       inviteeIds: values.scope === "named" ? values.inviteeIds : [],
+      // EVT-02. Empty is no limit; anything else is handed to the seam as a number, which refuses a
+      // value that is not a whole number ≥ 1 (AC-2) — `NaN` included.
+      capacity: values.capacity.trim() === "" ? null : Number(values.capacity.trim()),
+      requiresApproval: values.requiresApproval,
+      registrationDeadline: values.registrationDeadline === "" ? null : values.registrationDeadline,
     };
     const result =
       editing && eventId !== null
@@ -282,6 +305,48 @@ function EventForm({
               type="date"
               value={values.endDate}
               onChange={(e) => set("endDate", e.target.value)}
+              className={FIELD}
+            />
+          </label>
+        </div>
+
+        {/* EVT-02, AC-28. Seats, needs approval, registration closes — in that order. Seats and the
+            deadline sit side by side from `sm`, as § 2b draws them, and stack at phone width. */}
+        <div className="grid gap-3 sm:grid-cols-2">
+          <label className="flex flex-col gap-1.5">
+            <span className={LABEL}>Seats</span>
+            <input
+              data-testid="event-capacity-input"
+              type="number"
+              inputMode="numeric"
+              min={1}
+              step={1}
+              value={values.capacity}
+              onChange={(e) => set("capacity", e.target.value)}
+              placeholder="No limit"
+              className={FIELD}
+            />
+          </label>
+          <label className="flex items-center gap-2 sm:order-3 sm:col-span-2">
+            <input
+              data-testid="event-approval-input"
+              type="checkbox"
+              role="switch"
+              checked={values.requiresApproval}
+              onChange={(e) => set("requiresApproval", e.target.checked)}
+              className="h-4 w-4 accent-ink"
+            />
+            <span className="text-sm font-semibold text-ink">Needs approval</span>
+            <span className="text-[11px] text-ink-3">You decide who gets a seat</span>
+          </label>
+          <label className="flex flex-col gap-1.5 sm:order-2">
+            <span className={LABEL}>Registration closes (optional)</span>
+            <input
+              data-testid="event-deadline-input"
+              type="date"
+              value={values.registrationDeadline}
+              onChange={(e) => set("registrationDeadline", e.target.value)}
+              placeholder="At the end date"
               className={FIELD}
             />
           </label>

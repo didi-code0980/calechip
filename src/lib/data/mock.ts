@@ -27,6 +27,8 @@ import type {
 // SOLO 2026-09-12, ADR-035. The role predicates, above the seam and shared with the screens so
 // the mock and the interface cannot disagree about who may decide.
 import { mayDecide, mayDecideEntriesOf } from "@/lib/roles";
+// EVT-02, 01-plan.md section 4.2. `public.event_registration_open`, reproduced.
+import { eventToday, registrationOpen } from "@/lib/event-registration";
 import type {
   MemberDecision,
   BulkRejectionOutcome,
@@ -50,6 +52,8 @@ import type {
   CalEvent,
   DirectoryMember,
   Failure,
+  // EVT-02, 01-plan.md section 4.1.
+  EventAttendance,
 } from "../domain/types";
 // TEA-03, and CAL-04 for the third. RUNTIME imports, not type ones - 02-design.md section 1.1.
 // ADM-04 adds PENDING_PAGE_SIZE, which is a WINDOW and not a ceiling - see its own comment there.
@@ -568,6 +572,8 @@ const eventInvitees: { eventId: string; memberId: string; createdAt: string }[] 
 export function __resetEvents(): void {
   events.length = 0;
   eventInvitees.length = 0;
+  // EVT-02. The attendance table goes with the events, as the cascade would take it.
+  eventAttendance.length = 0;
 }
 
 // The id an event gets, in the shape the other generators use: an `ec` prefix, which no other
@@ -586,17 +592,30 @@ const EVENT_INVITEE_INVALID =
 const EVENT_SAVE_REFUSED = "This event could not be saved.";
 const EVENT_DELETE_REFUSED = "This event could not be deleted.";
 
+// EVT-02. 01-plan.md § 4.3. Repeated verbatim in supabase.ts.
+const EVENT_CAPACITY_INVALID = "Seats must be a whole number of at least 1, or left empty for no limit.";
+const EVENT_DEADLINE_AFTER_END = "Registration must close on or before the event's end date.";
+const EVENT_CAPACITY_BELOW_ATTENDEES =
+  "Seats cannot be fewer than the number of people already attending.";
+
 const eventFailure = (
-  code: "empty_event_name" | "invalid_event_dates" | "invalid_event_invitee" | "event_not_permitted",
+  code: Failure["code"],
   message: string,
 ): { ok: false; error: Failure } => ({ ok: false, error: { code, message } });
 
-/** The two seam-side refusals, made before the round trip in both implementations — AFFORDANCES;
- *  `event_name_present` and `event_dates_ordered` are the controls. Repeated in supabase.ts. */
+/** The four seam-side refusals, made before the round trip in both implementations — AFFORDANCES;
+ *  `event_name_present`, `event_dates_ordered`, `event_capacity_positive` and `event_deadline_by_end`
+ *  are the controls. Repeated in supabase.ts. */
 const eventInputFailure = (input: SaveEventInput): { ok: false; error: Failure } | null => {
   if (input.name.trim() === "") return eventFailure("empty_event_name", EVENT_NAME_REQUIRED);
   if (input.endDate < input.startDate) {
     return eventFailure("invalid_event_dates", EVENT_DATES_REVERSED);
+  }
+  if (input.capacity != null && !(Number.isInteger(input.capacity) && input.capacity >= 1)) {
+    return eventFailure("invalid_event_capacity", EVENT_CAPACITY_INVALID);
+  }
+  if (input.registrationDeadline != null && input.registrationDeadline > input.endDate) {
+    return eventFailure("invalid_event_deadline", EVENT_DEADLINE_AFTER_END);
   }
   return null;
 };
@@ -630,8 +649,66 @@ const mayReadEvent = (event: CalEvent, uid: string | null): boolean => {
     event.creatorId === uid ||
     event.scope === "public" ||
     (event.scope === "team" && event.teamId === mine) ||
+    (event.scope === "named" && isEventInvitee(event.id, uid)) ||
+    // EVT-02, AC-5. The disjunct `event_select_visible` gains: someone pending or attending keeps
+    // reading the event after its scope or named list stops including them.
+    isEventParticipant(event.id, uid)
+  );
+};
+
+// ---------------------------------------------------------------------------
+// EVT-02 — attendance. 01-plan.md sections 3, 4.4 and 5.
+//
+// **THESE REPRODUCE `20260929140000_evt02_attendance.sql`'S POLICIES, GRANTS AND TRIGGERS**, the
+// standing contract above. CHECK AND WRITE RUN WITH NO `await` BETWEEN THEM, so `Promise.all` against
+// this seam proves the DECISION under concurrency — never the LOCK, which only PostgreSQL can
+// (01-plan.md § 3).
+// ---------------------------------------------------------------------------
+
+/** `public.event_attendance`, reproduced. Starts EMPTY, as `events` does. */
+const eventAttendance: EventAttendance[] = [];
+
+// Repeated verbatim in src/lib/data/supabase.ts.
+const EVENT_FULL = "This event is full.";
+const EVENT_REGISTRATION_CLOSED = "Registration for this event has closed.";
+const EVENT_ALREADY_ON = "You have already responded to this event.";
+const ATTENDANCE_CHANGE_INVALID = "That change cannot be made to this person's place.";
+const ATTENDANCE_JOIN_REFUSED = "You cannot join this event.";
+const ATTENDANCE_LEAVE_REFUSED = "You cannot leave this event.";
+const ATTENDANCE_DECIDE_REFUSED = "This request could not be changed.";
+
+const findAttendance = (eventId: string, uid: string | null): EventAttendance | undefined =>
+  eventAttendance.find((a) => a.eventId === eventId && a.memberId === uid);
+
+// `public.is_event_participant`: a row for the pair, pending or attending.
+function isEventParticipant(eventId: string, uid: string | null): boolean {
+  const row = findAttendance(eventId, uid);
+  return row !== undefined && (row.status === "pending" || row.status === "attending");
+}
+
+// `public.is_event_audience`. **NO ADMIN CLAUSE** — AC-11: an admin reads every event to manage it,
+// not to attend it.
+const isEventAudience = (event: CalEvent, uid: string | null): boolean => {
+  const mine = memberTeamId(uid);
+  if (mine === null) return false;
+  return (
+    event.creatorId === uid ||
+    event.scope === "public" ||
+    (event.scope === "team" && event.teamId === mine) ||
     (event.scope === "named" && isEventInvitee(event.id, uid))
   );
+};
+
+// Seats taken — every `attending` row, whoever holds it (AC-26: a removed member's seat stays).
+const seatsTaken = (eventId: string, except: string | null = null): number =>
+  eventAttendance.filter(
+    (a) => a.eventId === eventId && a.status === "attending" && a.memberId !== except,
+  ).length;
+
+// `event_attendance_guard`'s transition table, and nothing else.
+const ALLOWED_TRANSITIONS: Record<string, readonly string[]> = {
+  pending: ["attending", "rejected"],
+  attending: ["removed"],
 };
 
 /** `save_event`'s invitee half: the 22023 test, then delete-what-is-not-listed, then insert-what-is-
@@ -2745,6 +2822,10 @@ export const seam: DataSeam = {
       startDate: input.startDate,
       endDate: input.endDate,
       scope: input.scope,
+      // EVT-02. Absent is the default — `SaveEventInput`'s docblock.
+      capacity: input.capacity ?? null,
+      requiresApproval: input.requiresApproval ?? false,
+      registrationDeadline: input.registrationDeadline ?? null,
       createdAt: now,
       updatedAt: now,
     };
@@ -2770,6 +2851,13 @@ export const seam: DataSeam = {
       return eventFailure("event_not_permitted", EVENT_SAVE_REFUSED);
     }
 
+    // EVT-02, AC-4. `event_capacity_guard` (EV003), which runs under the row's lock in the real
+    // seam. No `await` between this count and the write below.
+    const capacity = input.capacity ?? null;
+    if (capacity !== null && capacity < seatsTaken(row.id)) {
+      return eventFailure("event_capacity_below_attendees", EVENT_CAPACITY_BELOW_ATTENDEES);
+    }
+
     // Snapshots, so a refused invitee rolls the whole write back as the transaction does.
     const before = { ...row };
     const listBefore = eventInvitees.map((i) => ({ ...i }));
@@ -2780,6 +2868,9 @@ export const seam: DataSeam = {
     row.startDate = input.startDate;
     row.endDate = input.endDate;
     row.scope = input.scope;
+    row.capacity = capacity;
+    row.requiresApproval = input.requiresApproval ?? false;
+    row.registrationDeadline = input.registrationDeadline ?? null;
     row.updatedAt = new Date().toISOString();
 
     const refusedInvitee = writeEventInvitees(row.id, input);
@@ -2803,6 +2894,102 @@ export const seam: DataSeam = {
     for (let i = eventInvitees.length - 1; i >= 0; i--) {
       if (eventInvitees[i]?.eventId === eventId) eventInvitees.splice(i, 1);
     }
+    // EVT-02, AC-25. The cascade on `event_attendance.event_id`.
+    for (let i = eventAttendance.length - 1; i >= 0; i--) {
+      if (eventAttendance[i]?.eventId === eventId) eventAttendance.splice(i, 1);
+    }
     return { ok: true, value: undefined };
+  },
+
+  // -------------------------------------------------------------------------
+  // EVT-02 — attendance. The four functions of 01-plan.md § 4.3, each reproducing the policy, grant
+  // or trigger named beside it rather than the screen.
+  // -------------------------------------------------------------------------
+
+  // `event_attendance_select_visible`: the caller must have a team and read the event; then attending
+  // rows to anyone, every row to whoever manages it, the caller's own to the caller (AC-21, AC-22).
+  async listEventAttendance(eventId: string): Promise<EventAttendance[]> {
+    const uid = currentMemberId;
+    const event = events.find((e) => e.id === eventId);
+    if (!event || memberTeamId(uid) === null || !mayReadEvent(event, uid)) return [];
+    const manages = mayManageEvent(event, uid);
+    return eventAttendance
+      .filter(
+        (a) => a.eventId === eventId && (a.status === "attending" || a.memberId === uid || manages),
+      )
+      .sort((a, b) => a.createdAt.localeCompare(b.createdAt) || a.memberId.localeCompare(b.memberId))
+      .map((a) => ({ ...a }));
+  },
+
+  // `event_attendance_guard` on insert, then `event_attendance_insert_own`, then the primary key —
+  // in the order the guard raises them: audience (42501), an existing row (23505), registration
+  // (EV002), capacity (EV001). The state is the guard's, from `requiresApproval` (Q22).
+  async joinEvent(eventId: string): Promise<Result<EventAttendance>> {
+    const uid = currentMemberId;
+    const event = events.find((e) => e.id === eventId);
+    if (uid === null || !event || !isEventAudience(event, uid)) {
+      return eventFailure("attendance_not_permitted", ATTENDANCE_JOIN_REFUSED);
+    }
+    if (findAttendance(eventId, uid)) return eventFailure("already_on_event", EVENT_ALREADY_ON);
+    if (!registrationOpen(event, eventToday())) {
+      return eventFailure("event_registration_closed", EVENT_REGISTRATION_CLOSED);
+    }
+    const status = event.requiresApproval ? "pending" : "attending";
+    if (status === "attending" && event.capacity !== null && seatsTaken(eventId) >= event.capacity) {
+      return eventFailure("event_full", EVENT_FULL);
+    }
+    const now = new Date().toISOString();
+    const row: EventAttendance = { eventId, memberId: uid, status, createdAt: now, updatedAt: now };
+    eventAttendance.push(row);
+    return { ok: true, value: { ...row } };
+  },
+
+  // `event_attendance_delete_own`: own row, a team, pending or attending, registration open. Zero
+  // rows is a refusal, told apart as the real seam tells it (§ 4.3).
+  async leaveEvent(eventId: string): Promise<Result<void>> {
+    const uid = currentMemberId;
+    const event = events.find((e) => e.id === eventId);
+    const row = findAttendance(eventId, uid);
+    if (
+      !event ||
+      !row ||
+      memberTeamId(uid) === null ||
+      (row.status !== "pending" && row.status !== "attending")
+    ) {
+      return eventFailure("attendance_not_permitted", ATTENDANCE_LEAVE_REFUSED);
+    }
+    if (!registrationOpen(event, eventToday())) {
+      return eventFailure("event_registration_closed", EVENT_REGISTRATION_CLOSED);
+    }
+    eventAttendance.splice(eventAttendance.indexOf(row), 1);
+    return { ok: true, value: undefined };
+  },
+
+  // `event_attendance_update_manage` (the creator or an admin, never a manager as such), then
+  // `event_attendance_guard` on update: a legal transition (22023), then the cap on `attending`
+  // (EV001). No registration clause — AC-18.
+  async decideAttendance(
+    eventId: string,
+    memberId: string,
+    status: "attending" | "rejected" | "removed",
+  ): Promise<Result<EventAttendance>> {
+    const event = events.find((e) => e.id === eventId);
+    const row = findAttendance(eventId, memberId);
+    if (!event || !row || !mayManageEvent(event, currentMemberId)) {
+      return eventFailure("attendance_not_permitted", ATTENDANCE_DECIDE_REFUSED);
+    }
+    if (!(ALLOWED_TRANSITIONS[row.status] ?? []).includes(status)) {
+      return eventFailure("invalid_attendance_change", ATTENDANCE_CHANGE_INVALID);
+    }
+    if (
+      status === "attending" &&
+      event.capacity !== null &&
+      seatsTaken(eventId, memberId) >= event.capacity
+    ) {
+      return eventFailure("event_full", EVENT_FULL);
+    }
+    row.status = status;
+    row.updatedAt = new Date().toISOString();
+    return { ok: true, value: { ...row } };
   },
 };

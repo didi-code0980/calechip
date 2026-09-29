@@ -246,6 +246,24 @@ export type FailureCode =
   // EVT-01. A policy or a withheld column refused the write, or the row is not the caller's to
   // change — AC-4, AC-17. 42501, or an update/delete that touched zero rows.
   | "event_not_permitted"
+  // EVT-02. Capacity is not a whole number ≥ 1 — AC-2. `event_capacity_positive` (23514).
+  | "invalid_event_capacity"
+  // EVT-02. Deadline after the end date — AC-3. `event_deadline_by_end` (23514).
+  | "invalid_event_deadline"
+  // EVT-02. Capacity below seats taken — AC-4. `event_capacity_guard` (EV003).
+  | "event_capacity_below_attendees"
+  // EVT-02. No seat — AC-8, AC-9. `event_attendance_guard` (EV001).
+  | "event_full"
+  // EVT-02. Registration is closed — AC-10, AC-15. `event_attendance_guard` (EV002), or a
+  // withdrawal the delete policy filtered once registration closed.
+  | "event_registration_closed"
+  // EVT-02. The caller already has an attendance of any state — AC-13, AC-19. 23505.
+  | "already_on_event"
+  // EVT-02. Not a transition the guard allows — AC-16, AC-17. 22023.
+  | "invalid_attendance_change"
+  // EVT-02. A policy refused, or the write touched zero rows — AC-11, AC-20. 42501. Never
+  // confirms that the event exists.
+  | "attendance_not_permitted"
   | "unknown";
 
 export interface Failure {
@@ -970,6 +988,12 @@ export interface CalEvent {
   startDate: string;
   endDate: string;
   scope: EventScope;
+  /** EVT-02. Glossary *Capacity*. Null is no limit; otherwise a whole number ≥ 1. */
+  capacity: number | null;
+  /** EVT-02. True: every join is a request the creator or an admin decides (Q22). */
+  requiresApproval: boolean;
+  /** EVT-02. `yyyy-MM-dd`, on or before `endDate`, or null — registration then runs to `endDate`. */
+  registrationDeadline: string | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -983,4 +1007,22 @@ export interface DirectoryMember {
   avatar: string;
   teamId: string;
   teamName: string;
+}
+
+// ---------------------------------------------------------------------------
+// EVT-02 — attendance. 01-plan.md section 4.1. ADR-045.
+// ---------------------------------------------------------------------------
+
+/** EVT-02. The four states of one person's standing on one event. The database enum's values,
+ *  verbatim. Withdrawing deletes the row; there is no fifth state. */
+export type AttendanceStatus = "pending" | "attending" | "rejected" | "removed";
+
+/** EVT-02. One row of `public.event_attendance`, and nothing else — no name, avatar, team or role
+ *  (AC-23). Names come from `listMemberDirectory()`. */
+export interface EventAttendance {
+  eventId: string;
+  memberId: string;
+  status: AttendanceStatus;
+  createdAt: string;
+  updatedAt: string;
 }

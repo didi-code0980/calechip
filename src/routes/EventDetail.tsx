@@ -9,6 +9,9 @@
 // `event_invitee_select_manage` are the controls, and `listEventInvitees` answers an empty list to
 // anybody else whatever this page draws.
 //
+// EVT-02. Beneath EVT-01's fields, `EventAttendancePanel` — seats, deadline, the join panel, the
+// requests and who is coming (01-plan.md § 2 AC-27, § 2b). EVT-01's order above it is unchanged.
+//
 // The delete confirmation is a dialog; the picker on the form is deliberately not, so the route
 // family never stacks one dialog on another (§ 2b).
 import { useCallback, useEffect, useState, type JSX } from "react";
@@ -18,6 +21,7 @@ import type { CalEvent, DirectoryMember, Member } from "@/lib/domain/types";
 import Avatar from "@/components/Avatar";
 import Loader from "@/components/Loader";
 import Modal from "@/components/Modal";
+import EventAttendancePanel from "@/components/EventAttendancePanel";
 import { EventScopeBadge, creatorName, eventDateLabel } from "./Events";
 
 type LoadState =
@@ -200,6 +204,16 @@ export default function EventDetail(): JSX.Element {
             )}
           </div>
         ) : null}
+
+        {/* EVT-02, AC-27. Keyed on `updatedAt` so an edit elsewhere reloads the list with the event. */}
+        <EventAttendancePanel
+          key={event.updatedAt}
+          event={event}
+          me={me}
+          directory={directory}
+          invitees={invitees}
+          canManage={canEdit}
+        />
       </article>
 
       {confirming ? (

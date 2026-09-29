@@ -31,6 +31,8 @@ import type {
   CalEvent,
   DirectoryMember,
   EventScope,
+  // EVT-02, 01-plan.md section 4.3.
+  EventAttendance,
 } from "../domain/types";
 import { seam as mockSeam } from "./mock";
 import { seam as supabaseSeam } from "./supabase";
@@ -229,6 +231,14 @@ export interface SaveEventInput {
   endDate: string;
   scope: EventScope;
   inviteeIds: string[];
+  // EVT-02, 01-plan.md section 4.3. OPTIONAL so no existing caller has to change; absent means the
+  // default. The editor always sends all three.
+  /** EVT-02. Absent or null: no limit. */
+  capacity?: number | null;
+  /** EVT-02. Absent: false. */
+  requiresApproval?: boolean;
+  /** EVT-02. Absent or null: registration runs to `endDate`. */
+  registrationDeadline?: string | null;
 }
 
 export interface SignUpOutcome {
@@ -1309,6 +1319,41 @@ export interface DataSeam {
   /** AC-15, AC-16, AC-17. The named list goes with the row (`on delete cascade`, § 6). A delete that
    *  touches zero rows is `event_not_permitted`, not success. */
   deleteEvent(eventId: string): Promise<Result<void>>;
+
+  // -------------------------------------------------------------------------
+  // EVT-02 — attendance. 01-plan.md section 4.3. ADR-045.
+  //
+  // Four functions. Every check below the seam is a policy, a column grant, a constraint or a trigger
+  // in `supabase/migrations/20260929140000_evt02_attendance.sql` (ADR-005). THE CAP IS HELD BY
+  // `event_attendance_guard` UNDER THE EVENT ROW'S LOCK — anything either implementation checks
+  // before the round trip is an affordance, never the control (ADR-045 § Consequences).
+  //
+  // `listMembers()` IS UNTOUCHED, AND SO IS EVERY POLICY ON `public.member` (AC-23, INV-04). An
+  // attendance carries ids and a state only; names resolve through `listMemberDirectory()`.
+  // -------------------------------------------------------------------------
+
+  /** EVT-02. The attendance rows of one event the caller may read (§ 3): every `attending` row to any
+   *  reader of the event; every row to its creator and admins; the caller's own row to the caller.
+   *  Empty for an event the caller cannot read. Ordered `createdAt` ascending, then `memberId`.
+   *  Bounded by `DATASTORE_MAX_ROWS` and throws at the bound, as `listEvents` does. */
+  listEventAttendance(eventId: string): Promise<EventAttendance[]>;
+
+  /** EVT-02. AC-6, AC-7, AC-8, AC-10, AC-11, AC-13, AC-19. Inserts the caller's row; the DATABASE
+   *  decides whether it is `pending` or `attending`. No parameter can name a member or a state. */
+  joinEvent(eventId: string): Promise<Result<EventAttendance>>;
+
+  /** EVT-02. AC-14, AC-15. Deletes the caller's own `pending` or `attending` row. Zero rows deleted is
+   *  a refusal: `event_registration_closed` when the caller can read a row of theirs that is pending
+   *  or attending (so the only clause left is the date), otherwise `attendance_not_permitted`. */
+  leaveEvent(eventId: string): Promise<Result<void>>;
+
+  /** EVT-02. AC-16, AC-17, AC-18. `attending` approves a pending row, `rejected` rejects it,
+   *  `removed` removes an attendee. Zero rows updated is `attendance_not_permitted`. */
+  decideAttendance(
+    eventId: string,
+    memberId: string,
+    status: "attending" | "rejected" | "removed",
+  ): Promise<Result<EventAttendance>>;
 }
 
 export type { DataSeam as Seam };
