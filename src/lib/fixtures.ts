@@ -151,6 +151,12 @@ export const FIXTURE_OTHER_TEAM_MEMBER: Member = {
  * counted by no `currentMemberCount`, and moves no overload threshold. It shows up in exactly one
  * place: `listPendingMembers`, which is scoped by `team_id is null` instead of by a team.
  *
+ * **SOLO (TEA-09), 2026-09-29 — THE PARAGRAPH ABOVE WAS TRUE OF THE MOCK ONLY, UNTIL THEN.** The real
+ * `listMembers` had no filter and relied on row-level policy, and `member_select_pending_admin` admits
+ * this row to an admin — so on the real datastore an admin's sidebar, year grid and INV-04
+ * denominator all carried waiting sign-ups. `supabase.ts` now filters `team_id` not null, and
+ * `tests/roster-excludes-signups.test.ts` pins both halves.
+ *
  * It exists so the new sign-ups screen has a row to draw in the suite. Without it that list renders
  * `signups-empty` in every test and the list markup is never exercised at all.
  */

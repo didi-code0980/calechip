@@ -1037,10 +1037,21 @@ export const seam: DataSeam = {
   //
   // Two `order` calls, not one: `FIXTURE_ADMIN` and `FIXTURE_MEMBER` share a `created_at` literal,
   // so created_at alone leaves their order undefined in PostgreSQL (02-design.md section 1.4).
+  //
+  // SOLO (TEA-09), 2026-09-29 — THE `team_id` NOT-NULL FILTER, AND WHY IT IS NOT A SECOND COPY OF
+  // THE TEAM BOUNDARY. "The policies OR together" above has a third party: `member_select_pending_admin`
+  // (20260910100000_solo_member_approval.sql) admits every row with `team_id is null and status <>
+  // 'approved'` to an ADMIN. Without this filter an admin's roster carried every waiting and every
+  // rejected sign-up — drawn in the sidebar as ordinary members, drawn as rows in the year grid, and
+  // counted in INV-04's denominator so an admin saw fewer overloaded days than a member did for the
+  // same date. The filter only NARROWS: `member_select_team` stays the boundary, and a teamless row
+  // is on no team's roster by definition. The mock already behaves this way (`mock.ts`, the
+  // `m.teamId === me.teamId` filter); this makes the real seam agree with it.
   async listMembers(): Promise<Member[]> {
     const { data, error } = await client()
       .from("member")
       .select(MEMBER_COLUMNS)
+      .not("team_id", "is", null)
       .order("created_at", { ascending: true })
       .order("id", { ascending: true })
       .limit(ROSTER_LIMIT)
