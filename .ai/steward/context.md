@@ -2562,3 +2562,25 @@ Changed: `scripts/lib/entry.mjs` (`TICKET_ID_NEAR`, step 5), `scripts/tests/entr
 `.ai/board/tickets/CAL-12/ticket.yaml` (landed as written by `product`, unedited).
 
 No registry write. No ADR — MD-039 is the operator's to decide and ADR-042 is untouched.
+
+### 2026-09-29 — ADR-045 applied to the charter; PR #101 closed as superseded
+
+Operator instruction, verbatim: *"Apply ADR-045 to .ai/00-charter.md: remove refusals 4 and 5, keep
+the old wording beside an 'Amended 2026-09-29 by ADR-045' note"*. ADR-045 is `ACCEPTED by the
+operator` from Q1 of the 2026-09-29 idea, *"Gỡ #4 và #5"*.
+
+- **`.ai/00-charter.md` 2 → 3.** Refusals 4 and 5 removed whole; their text kept verbatim in an
+  *Amended 2026-09-29 by ADR-045* note under the list, the shape the Roles section uses.
+- **Not renumbered.** Refusal 6 is cited by number in `src/`, `tests/`, `invariants.md:182`,
+  `features.md` and shipped tickets, and refusal 6 itself cites refusal 2. Renumbering would turn
+  every one of those into a citation of the wrong sentence. 4 and 5 are retired, as RULE-05 is.
+- **`CLAUDE.md:9`** — "the six refusals" → "the four standing refusals". The only count anywhere
+  outside board history; nothing in `check-docs.mjs` reads the charter's count.
+- **Landed with the triage output it depends on.** ADR-045, ADR-046 and the idea file are
+  `/triage`'s, and `/ship` commits none of them (ADR-023's ship set) — MD-031 is the record of
+  exactly this pair of paths being lost. They go on the same `ops/` branch as the charter edit,
+  unedited, and stay untracked in the tree so the runner can read the idea file.
+- **PR #101 closed**, unmerged. It carried a different ADR-045 — the narrow amendment the operator
+  was offered and did not choose — under a colliding number. Superseded; nothing reused.
+
+No registry write authored: the two ADRs are committed exactly as `product` wrote them.

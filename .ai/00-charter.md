@@ -1,6 +1,6 @@
 ---
-doc_version: 2
-last_updated: 2026-08-31
+doc_version: 3
+last_updated: 2026-09-29
 governed_by: [RULE-01, RULE-09]
 ---
 
@@ -50,16 +50,32 @@ only by arguing with the reason beside it — and that argument is the point.
 3. **It will never do timekeeping, payroll, or hours tracking.** A different problem, an order of
    magnitude more complexity, and a class of risk this system is not built to carry.
 
-4. **It will never model group activity.** Everyone registers independently. Whether people are
-   travelling together is outside the system.
-
-5. **It will never be a booking tool.** No reserving slots, no invitations, no negotiating a day with
-   another person inside the app. This is an information board; the negotiating happens between
-   people.
+<!-- Refusals 4 and 5 were removed by ADR-045. Their numbers are not reused: see the note below. -->
 
 6. **A warning will never block an action.** Overload is reported, in detail, at the moment of
    choosing — and the person can always save anyway. The instant this system can refuse someone's
    plan it becomes an approval gate, which is refusal 2 arriving through the back door.
+
+*Amended 2026-09-29 by [ADR-045](registry/decisions/ADR-045-charter-refusals-4-and-5-are-lifted-for-events.md).*
+This list carried six refusals. Refusals 4 and 5 read:
+
+> 4. **It will never model group activity.** Everyone registers independently. Whether people are
+>    travelling together is outside the system.
+>
+> 5. **It will never be a booking tool.** No reserving slots, no invitations, no negotiating a day with
+>    another person inside the app. This is an information board; the negotiating happens between
+>    people.
+
+The operator removed both, whole, so that a member may announce an event and others may join it,
+across teams. A narrower amendment — keep refusal 5 for entries and open only a separate event
+concept — was offered and not chosen. **What the removal does not reach:** an event is not an entry.
+It creates no entry, is not in the absence count and is not drawn on the grids, so refusals 1, 2, 3
+and 6 stand exactly as written, and a warning still blocks nothing. The cross-team exposure an event
+opens, and the fence around it, are ADR-045's to state, not this file's.
+
+**The remaining refusals keep their numbers.** Refusal 6 is cited by that number across the source,
+the tests and the shipped tickets, and renumbering it would make every one of those citations point
+at the wrong sentence — so 4 and 5 are retired rather than reused, as RULE-05's number is.
 
 **These are refusals, not a backlog.** The brief's P2 list — multiple teams in one workspace,
 role-based constraints, per-period thresholds, two-way HR sync, a year-end recap — is *deferred*, not
