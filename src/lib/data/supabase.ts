@@ -35,6 +35,9 @@ import type {
   CalEvent,
   DirectoryMember,
   EventScope,
+  // EVT-02, 01-plan.md section 4.1.
+  AttendanceStatus,
+  EventAttendance,
   MemberDecision,
   MemberStatus,
   BulkRejectionOutcome,
@@ -97,13 +100,18 @@ interface EventRow {
   start_date: string;
   end_date: string;
   scope: EventScope;
+  // EVT-02. 01-plan.md § 4.4.
+  capacity: number | null;
+  requires_approval: boolean;
+  registration_deadline: string | null;
   created_at: string;
   updated_at: string;
 }
 
 // Named explicitly rather than `*`, the shape this file uses everywhere.
 const EVENT_COLUMNS =
-  "id, creator_id, team_id, name, description, location, start_date, end_date, scope, created_at, updated_at";
+  "id, creator_id, team_id, name, description, location, start_date, end_date, scope, " +
+  "capacity, requires_approval, registration_deadline, created_at, updated_at";
 
 function toEvent(row: EventRow): CalEvent {
   return {
@@ -116,6 +124,9 @@ function toEvent(row: EventRow): CalEvent {
     startDate: row.start_date,
     endDate: row.end_date,
     scope: row.scope,
+    capacity: row.capacity,
+    requiresApproval: row.requires_approval,
+    registrationDeadline: row.registration_deadline,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };
@@ -148,13 +159,25 @@ const EVENT_INVITEE_INVALID =
   "One of the people you named can no longer be invited. Please choose again.";
 const EVENT_SAVE_REFUSED = "This event could not be saved.";
 const EVENT_DELETE_REFUSED = "This event could not be deleted.";
+// EVT-02. 01-plan.md § 4.3. Repeated verbatim in mock.ts.
+const EVENT_CAPACITY_INVALID = "Seats must be a whole number of at least 1, or left empty for no limit.";
+const EVENT_DEADLINE_AFTER_END = "Registration must close on or before the event's end date.";
+const EVENT_CAPACITY_BELOW_ATTENDEES =
+  "Seats cannot be fewer than the number of people already attending.";
 
-/** The two seam-side refusals, before the round trip — AFFORDANCES; `event_name_present` and
- *  `event_dates_ordered` are the controls. Repeated in mock.ts. */
+/** The four seam-side refusals, before the round trip — AFFORDANCES; `event_name_present`,
+ *  `event_dates_ordered`, `event_capacity_positive` and `event_deadline_by_end` are the controls.
+ *  Repeated in mock.ts. */
 function eventInputFailure(input: SaveEventInput): Failure | null {
   if (input.name.trim() === "") return { code: "empty_event_name", message: EVENT_NAME_REQUIRED };
   if (input.endDate < input.startDate) {
     return { code: "invalid_event_dates", message: EVENT_DATES_REVERSED };
+  }
+  if (input.capacity != null && !(Number.isInteger(input.capacity) && input.capacity >= 1)) {
+    return { code: "invalid_event_capacity", message: EVENT_CAPACITY_INVALID };
+  }
+  if (input.registrationDeadline != null && input.registrationDeadline > input.endDate) {
+    return { code: "invalid_event_deadline", message: EVENT_DEADLINE_AFTER_END };
   }
   return null;
 }
@@ -176,10 +199,24 @@ function blankToNull(value: string | null): string | null {
  */
 function toEventFailure(error: PostgrestError, input: SaveEventInput | null, refusal: string): Failure {
   switch (error.code) {
+    // Four check constraints, told apart by the input in eventInputFailure's order (EVT-02 § 4.3).
     case "23514":
-      return input && input.name.trim() === ""
-        ? { code: "empty_event_name", message: EVENT_NAME_REQUIRED }
-        : { code: "invalid_event_dates", message: EVENT_DATES_REVERSED };
+      if (input && input.name.trim() === "") {
+        return { code: "empty_event_name", message: EVENT_NAME_REQUIRED };
+      }
+      if (input && input.endDate < input.startDate) {
+        return { code: "invalid_event_dates", message: EVENT_DATES_REVERSED };
+      }
+      if (input && input.capacity != null && !(Number.isInteger(input.capacity) && input.capacity >= 1)) {
+        return { code: "invalid_event_capacity", message: EVENT_CAPACITY_INVALID };
+      }
+      if (input && input.registrationDeadline != null) {
+        return { code: "invalid_event_deadline", message: EVENT_DEADLINE_AFTER_END };
+      }
+      return { code: "invalid_event_dates", message: EVENT_DATES_REVERSED };
+    // EVT-02. `event_capacity_guard` — AC-4.
+    case "EV003":
+      return { code: "event_capacity_below_attendees", message: EVENT_CAPACITY_BELOW_ATTENDEES };
     case "22023":
       return { code: "invalid_event_invitee", message: EVENT_INVITEE_INVALID };
     case "42501":
@@ -209,12 +246,77 @@ async function saveEventThroughRpc(
     p_scope: input.scope,
     // Ignored and stored empty unless `named` — `SaveEventInput`'s docblock.
     p_invitee_ids: input.scope === "named" ? [...new Set(input.inviteeIds)] : [],
+    // EVT-02. Absent is the default — `SaveEventInput`'s docblock.
+    p_capacity: input.capacity ?? null,
+    p_requires_approval: input.requiresApproval ?? false,
+    p_registration_deadline: input.registrationDeadline ?? null,
   });
 
   if (error) return { ok: false, error: toEventFailure(error, input, EVENT_SAVE_REFUSED) };
   if (!isEventRow(data)) return { ok: false, error: { code: "unknown", message: EVENT_SAVE_REFUSED } };
 
   return { ok: true, value: toEvent(data) };
+}
+
+// ---------------------------------------------------------------------------
+// EVT-02 — attendance. The row, its mapper, the sentences and the SQLSTATEs.
+// 01-plan.md sections 4.3 and 4.4; `supabase/migrations/20260929140000_evt02_attendance.sql`.
+// ---------------------------------------------------------------------------
+
+/** Five columns and no more — AC-23. No name, avatar, team or role is selectable here. */
+interface AttendanceRow {
+  event_id: string;
+  member_id: string;
+  status: AttendanceStatus;
+  created_at: string;
+  updated_at: string;
+}
+
+const ATTENDANCE_COLUMNS = "event_id, member_id, status, created_at, updated_at";
+
+function toAttendance(row: AttendanceRow): EventAttendance {
+  return {
+    eventId: row.event_id,
+    memberId: row.member_id,
+    status: row.status,
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
+  };
+}
+
+// Repeated verbatim in src/lib/data/mock.ts. `EVENT_FULL` promises no waitlist (§ 4.3); the
+// not-permitted sentences never confirm that the event exists (AC-21).
+const EVENT_FULL = "This event is full.";
+const EVENT_REGISTRATION_CLOSED = "Registration for this event has closed.";
+const EVENT_ALREADY_ON = "You have already responded to this event.";
+const ATTENDANCE_CHANGE_INVALID = "That change cannot be made to this person's place.";
+const ATTENDANCE_JOIN_REFUSED = "You cannot join this event.";
+const ATTENDANCE_LEAVE_REFUSED = "You cannot leave this event.";
+const ATTENDANCE_DECIDE_REFUSED = "This request could not be changed.";
+
+/**
+ * The SQLSTATEs the attendance table and its guard answer with — a separate mapper, as
+ * `toEventFailure` is separate from `toEntryFailure`. MATCHED ON THE SQLSTATE, NEVER ON THE MESSAGE:
+ * `EV001`–`EV002` are the custom codes the migration header documents.
+ */
+function toAttendanceFailure(error: PostgrestError, refusal: string): Failure {
+  switch (error.code) {
+    case "EV001":
+      return { code: "event_full", message: EVENT_FULL };
+    case "EV002":
+      return { code: "event_registration_closed", message: EVENT_REGISTRATION_CLOSED };
+    case "23505":
+      return { code: "already_on_event", message: EVENT_ALREADY_ON };
+    case "22023":
+      return { code: "invalid_attendance_change", message: ATTENDANCE_CHANGE_INVALID };
+    case "42501":
+    case "PGRST301": // JWT missing or expired: the request reaches the policy as nobody
+    case "22P02": // a malformed id is an event that does not exist — the same answer (AC-21)
+    case "23503": // no such event: the foreign key, answered the same as a policy refusal
+      return { code: "attendance_not_permitted", message: refusal };
+    default:
+      return { code: "unknown", message: "Something went wrong. Please try again." };
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -3009,5 +3111,120 @@ export const seam: DataSeam = {
       return { ok: false, error: { code: "event_not_permitted", message: EVENT_DELETE_REFUSED } };
     }
     return { ok: true, value: undefined };
+  },
+
+  // -------------------------------------------------------------------------
+  // EVT-02 — attendance. 01-plan.md § 5: every read and write is a table call on
+  // `event_attendance` under row-level security. THE CAP IS HELD BY `event_attendance_guard` UNDER
+  // THE EVENT ROW'S LOCK; nothing here counts seats before writing (ADR-045 § Consequences).
+  // -------------------------------------------------------------------------
+
+  // `event_attendance_select_visible` does all the filtering: attending rows to every reader, every
+  // row to the creator and admins, the caller's own to the caller. `DATASTORE_MAX_ROWS` and the throw
+  // for `listEvents`'s reason.
+  async listEventAttendance(eventId: string): Promise<EventAttendance[]> {
+    const { data, error } = await client()
+      .from("event_attendance")
+      .select(ATTENDANCE_COLUMNS)
+      .eq("event_id", eventId)
+      .order("created_at", { ascending: true })
+      .order("member_id", { ascending: true })
+      .limit(DATASTORE_MAX_ROWS)
+      .returns<AttendanceRow[]>();
+
+    if (error) {
+      if (error.code === "22P02") return [];
+      throw new Error(`listEventAttendance failed: ${error.message}`);
+    }
+    const rows = data ?? [];
+    if (rows.length >= DATASTORE_MAX_ROWS) {
+      throw new Error(
+        `listEventAttendance returned ${rows.length} rows at the ${DATASTORE_MAX_ROWS} limit: the ` +
+          `list may be truncated and must not be shown as complete`,
+      );
+    }
+    return rows.map(toAttendance);
+  },
+
+  // ONLY `event_id` IS SENT. `member_id` defaults to `auth.uid()` and `status` is set by the guard
+  // from `requires_approval`; both are withheld from the insert grant, so naming either is 42501
+  // (AC-20). `.select()` reads back the state the guard chose.
+  async joinEvent(eventId: string): Promise<Result<EventAttendance>> {
+    const { data, error } = await client()
+      .from("event_attendance")
+      .insert({ event_id: eventId })
+      .select(ATTENDANCE_COLUMNS)
+      .returns<AttendanceRow[]>();
+
+    if (error) return { ok: false, error: toAttendanceFailure(error, ATTENDANCE_JOIN_REFUSED) };
+    const row = (data ?? [])[0];
+    if (!row) {
+      return { ok: false, error: { code: "attendance_not_permitted", message: ATTENDANCE_JOIN_REFUSED } };
+    }
+    return { ok: true, value: toAttendance(row) };
+  },
+
+  // ZERO ROWS BACK IS A REFUSAL — `deleteEvent`'s reasoning. `event_attendance_delete_own` filters on
+  // ownership, state and open registration together, so the zero-row case reads the caller's own row
+  // back to tell the date apart from the rest (§ 4.3's docblock). That read is for the SENTENCE only;
+  // the policy already refused.
+  async leaveEvent(eventId: string): Promise<Result<void>> {
+    const { data: auth } = await client().auth.getUser();
+    const uid = auth.user?.id;
+    if (!uid) {
+      return { ok: false, error: { code: "attendance_not_permitted", message: ATTENDANCE_LEAVE_REFUSED } };
+    }
+
+    const { data, error } = await client()
+      .from("event_attendance")
+      .delete()
+      .eq("event_id", eventId)
+      .eq("member_id", uid)
+      .select("event_id")
+      .returns<{ event_id: string }[]>();
+
+    if (error) return { ok: false, error: toAttendanceFailure(error, ATTENDANCE_LEAVE_REFUSED) };
+    if ((data ?? [])[0]) return { ok: true, value: undefined };
+
+    const { data: own } = await client()
+      .from("event_attendance")
+      .select("status")
+      .eq("event_id", eventId)
+      .eq("member_id", uid)
+      .in("status", ["pending", "attending"])
+      .returns<{ status: AttendanceStatus }[]>();
+    if ((own ?? [])[0]) {
+      return {
+        ok: false,
+        error: { code: "event_registration_closed", message: EVENT_REGISTRATION_CLOSED },
+      };
+    }
+    return { ok: false, error: { code: "attendance_not_permitted", message: ATTENDANCE_LEAVE_REFUSED } };
+  },
+
+  // ONLY `status` IS SENT — the one column in the update grant. `event_attendance_update_manage`
+  // decides who; `event_attendance_guard` decides which transitions, and the cap on `attending`.
+  async decideAttendance(
+    eventId: string,
+    memberId: string,
+    status: "attending" | "rejected" | "removed",
+  ): Promise<Result<EventAttendance>> {
+    const { data, error } = await client()
+      .from("event_attendance")
+      .update({ status })
+      .eq("event_id", eventId)
+      .eq("member_id", memberId)
+      .select(ATTENDANCE_COLUMNS)
+      .returns<AttendanceRow[]>();
+
+    if (error) return { ok: false, error: toAttendanceFailure(error, ATTENDANCE_DECIDE_REFUSED) };
+    const row = (data ?? [])[0];
+    if (!row) {
+      return {
+        ok: false,
+        error: { code: "attendance_not_permitted", message: ATTENDANCE_DECIDE_REFUSED },
+      };
+    }
+    return { ok: true, value: toAttendance(row) };
   },
 };
