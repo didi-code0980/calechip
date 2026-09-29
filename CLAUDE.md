@@ -6,7 +6,7 @@ being created rather than the night before. It distinguishes exactly two roles: 
 create and edit their own entries and read everyone's, and **admins**, who additionally approve,
 reject, maintain the Vietnamese holiday calendar, invite people and set the overload threshold.
 It is not an HR system, it holds no leave quota, and a warning here never blocks an action —
-[.ai/00-charter.md](.ai/00-charter.md) carries the six refusals and the reason for each.
+[.ai/00-charter.md](.ai/00-charter.md) carries the four standing refusals and the reason for each.
 
 **This repository was stood up from `aifw-template`.** Until the `TODO(project):` markers below and
 in `.ai/` are resolved, the loop will run and produce nothing useful: `/plan` has no feature ID to
