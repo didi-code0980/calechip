@@ -5,16 +5,48 @@ id: CAL-12
 title: "An admin chooses which team the three calendar screens and the sidebar roster show, read-only"
 feature_ids: [CAL-12]
 group: CAL
-state: BACKLOG
+state: READY     # orchestrator at /advance, 2026-10-01, on 01-plan.md `gate: PASS` /
+                 # `next_state: READY`, with all six Definition of Ready items passing. Items 1, 3, 4
+                 # and 6 read the same as they did on 2026-09-29; items 2 and 5 are this plan's own.
+                 #
+                 # THIS IS CAL-12 PLANNED A SECOND TIME. The first 01-plan.md was produced
+                 # 2026-09-29T16:40:00+0700, advanced to READY, implemented, reviewed to `gate: FAIL`
+                 # on R1, and LOST — four artifacts, three new source and test files and nine modified
+                 # files, never `git add`ed, gone when the tree moved from feat/CAL-12 to main
+                 # (MD-042; ADR-006 § Revert condition, met for the first time; ADR-048 is the answer).
+                 # The replan is NOT a restoration and does not claim to be: `size` counts TWELVE files
+                 # from `allowed_paths` where the lost plan counted eleven. Nothing survives to diff it
+                 # against, so the difference is recorded and not explained.
+                 #
+                 # FROM THIS RUN ON, /advance CHECKPOINTS. ADR-048 makes handoff steps 0-3 the last
+                 # step of every /advance, so this transition and the plan that produced it are
+                 # committed on feat/CAL-12 in the same run rather than waiting for /ship. The loss
+                 # above is the whole reason that exists.
+# PREVIOUS VALUE, `BACKLOG`: the shell as committed by ops/cal-12-shell. The ticket returned to it
+# when the uncommitted work was lost; the 2026-09-29 run of this command had written `READY` here and
+# that write went with everything else.
 owner: ""
 branch: ""
-size_estimate: ""     # S|M - set by tech-lead-design at PLAN; gates DoR
-size: ""              # S|M|L|XL - set by tech-lead-design at PLAN; decides splitting
+size_estimate: "M"    # S|M - set by tech-lead-design at PLAN; gates DoR. 01-plan.md section 1.
+size: "M"             # Twelve files, counted from allowed_paths below - 01-plan.md section 7. Agrees
+                      # with size_estimate; exactly on the M ceiling.
 depends_on: [CAL-11]
 # ^ CAL-11 supplies the cross-team reads this ticket renders. Without them the only way to show
 #   another team is a widened table policy, which ADR-039 § Rationale refuses.
-invariants_touched: []    # PLAN's (DoR item 2). Left empty at /triage deliberately.
-allowed_paths: []
+invariants_touched: [INV-04, INV-05, INV-07]    # 01-plan.md section 2; mechanisms in section 4.
+allowed_paths:
+  - "src/lib/viewed-team.ts"
+  - "src/hooks/useViewedTeam.tsx"
+  - "src/hooks/useRoster.ts"
+  - "src/components/AppShell.tsx"
+  - "src/components/Sidebar.tsx"
+  - "src/components/TopBar.tsx"
+  - "src/routes/WeekView.tsx"
+  - "src/routes/MonthView.tsx"
+  - "src/routes/YearView.tsx"
+  - "src/routes/YearOverview.tsx"
+  - "tests/viewed-team.test.ts"
+  - "tests/e2e/cal-12-team-picker.spec.ts"
 schema_delta: none
 # ^ DoR item 4. Every read it needs arrives with CAL-11; this ticket is interface only. If PLAN finds
 #   it needs a function CAL-11 did not deliver, that is BLOCKED, not a migration here.
@@ -25,7 +57,10 @@ chat_budget:
   developer->tech-lead-design: { used: 0, max: 6 }
 tracker: { provider: "", external_id: "", sync_enabled: false }
 gates:
-  plan:   { passed: false, at: null }
+  plan:   { passed: true, at: 2026-10-01T15:24:34+0700 }   # orchestrator at /advance, transcribed
+                                                          # from 01-plan.md front-matter `gate: PASS`.
+                                                          # The 2026-09-29 grant of this same gate was
+                                                          # lost uncommitted; this one is checkpointed.
   review: { passed: false, at: null }
 
 # Provenance: .ai/board/ideas/2026-09-22-an-admin-manages-every-team-and-sees-only-one-calendar.md,

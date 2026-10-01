@@ -22,18 +22,28 @@ planned, sized, and safe to build** — the next stage for a row here is IN_PROG
 
 | # | Ticket | Title | Size | Depends on |
 |---|--------|-------|------|------------|
+| 1 | CAL-12 | An admin chooses which team the three calendar screens and the sidebar roster show, read-only | M | CAL-11 — `DONE`, merged |
 
-**Empty — `EVT-02` left this section for `## ARCHIVE` at its own ship on 2026-09-29.** It had arrived
-at `/advance` earlier the same day, on `gate: PASS` in `.ai/board/tickets/EVT-02/01-plan.md` and all
-six Definition of Ready items passing, sized `M` from `ticket.yaml`.
+**`CAL-12` arrived here at `/advance` on 2026-10-01**, on `gate: PASS` / `next_state: READY` in
+`.ai/board/tickets/CAL-12/01-plan.md` and all six Definition of Ready items passing. Sized `M` from
+`size` in `ticket.yaml`.
+
+**It arrived here once before, on 2026-09-29, and that is the row this one replaces.** That run
+advanced to `READY`, was implemented, was reviewed to `gate: FAIL` on R1, and then **the whole of its
+uncommitted work was lost** when the tree moved from `feat/CAL-12` to `main` — four artifacts, three
+new source and test files and nine modified files, none ever `git add`ed and so on no ref and in no
+object (MD-042). That is `ADR-006` § *Revert condition* met for the first time.
+
+**This plan is a replan, not a restoration.** `size` counts twelve files from `allowed_paths` where
+the lost plan counted eleven. Nothing survives to compare, so the difference is recorded rather than
+explained.
+
+**From this transition on, `/advance` commits a checkpoint** — ADR-048 makes `handoff` steps 0–3 its
+last step, so a row reaching this section is now persisted on its branch rather than waiting for
+`/ship`.
 
 **`EVT-01` and `EVT-02` both passed through here on 2026-09-29** — planned, built, reviewed and
-shipped on one day each, with `rework_count: 0` on both and the `EVT` group going from its first
-ticket to its second in a single session of the board.
-
-**`CAL-12` is the next row and it is in `## BACKLOG`, not here.** Its `depends_on` — `CAL-11` — has
-been satisfied since [#95](https://github.com/didi-code0980/calechip/pull/95) merged on 2026-09-23.
-Nothing blocks it; it has simply never been planned, and it is now the only row on the board.
+shipped on one day each, with `rework_count: 0` on both.
 
 
 ## BACKLOG
@@ -45,7 +55,6 @@ Under the current gate placement a ticket sits here until it has been planned �
 
 | # | Ticket | Title | State | Blocked on |
 |---|--------|-------|-------|------------|
-| 1 | CAL-12 | An admin chooses which team the three calendar screens and the sidebar roster show, read-only | BACKLOG | — |
 
 **Both `EVT` rows have now left this table.** `EVT-01` was row 2 until `/advance` on 2026-09-29
 moved it to `## READY`, and it has since shipped; `EVT-02` became row 2 and left the same way later
