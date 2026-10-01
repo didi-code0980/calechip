@@ -29,7 +29,8 @@ git status --porcelain --untracked-files=all
 ```
 
 **First sort every dirty path into *carried* or *stray*.** A fresh PROMOTE cannot leave a clean tree
-— agents commit only at `/ship` (ADR-023), so this ticket's own triage output is dirty when you run,
+— nothing commits before the first `/advance` checkpoint after PLAN (ADR-023, ADR-048), so this
+ticket's own triage output is dirty when you run,
 by construction. Stopping on it made every PROMOTE block itself. **Carried** is exactly this list,
 each item checked against a file, never inferred from a folder name:
 

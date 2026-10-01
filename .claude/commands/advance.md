@@ -40,6 +40,9 @@ be on disk when you arrive; that is not an error.
 Only `.ai/board/tickets/<ID>/ticket.yaml` and `.ai/board/backlog.md`. Never an artifact, never code,
 never `.ai/registry/**`.
 
+**Then one commit — the checkpoint, ADR-048.** You write nothing more, but you persist what the
+stage left: see *Last — the checkpoint* below.
+
 ### Out of PLAN — `gate: PASS` in `01-plan.md`
 
 1. Set `gates.plan: { passed: true, at: <ISO8601 from `date`> }`.
@@ -82,6 +85,21 @@ three weeks and the drift is why this rule is written down — ADR-036.
 There is no third attempt, and the check belongs here rather than in the next stage's preamble,
 because a stage that has already been dispatched has already cost what RULE-06 exists to cap.
 
+## Last — the checkpoint
+
+**After the transition is written, and on every outcome** — PASS, FAIL, BLOCKED, REWORK, ESCALATED,
+a DoR demotion, and `already recorded` — run `.claude/commands/handoff.md` steps 0 to 3 for this
+ticket. It commits the ticket's ship set on `feat/<ID>` and nothing else; it does not push.
+
+**Skip it only when you stopped without writing** because front-matter was absent or
+self-contradictory: the stage re-runs, and a checkpoint of a void artifact is not one.
+
+*Added 2026-10-01 by ADR-048. Until then this command wrote and never committed, and nothing before
+`/ship` did — ADR-006's single commit point. CAL-12 lost four artifacts and its source and tests to
+one `git switch`, which is the revert condition ADR-006 named.* If the checkpoint stops — wrong
+branch, or `check-allowed-paths` FAIL — the transition you recorded stands; say so in your one line
+and name what stopped it.
+
 ## You do NOT
 
 - **Grant a gate the artifact did not.** You copy `gate`; you never compute it.
@@ -94,7 +112,7 @@ because a stage that has already been dispatched has already cost what RULE-06 e
 
 ## Your reply
 
-Per `## Replying` in `CLAUDE.md`. One line above the block, naming the transition you recorded and
-the artifact you read it from — or, on a stop, the field that was missing and the file it was
+Per `## Replying` in `CLAUDE.md`. One line above the block, naming the transition you recorded, the
+artifact you read it from and the checkpoint's short sha (or `nothing to checkpoint`) — or, on a stop, the field that was missing and the file it was
 missing from. On a DoR failure, the failing item number and its text; that is the whole value of the
 reply and it is what routes the ticket next.

@@ -5,9 +5,15 @@ argument-hint: <TICKET-ID>
 
 Run in the **orchestrator session** (`.ai/standards/session-model.md`). Nothing is dispatched.
 
-Since ADR-006 this is **the only command in the loop that commits.** Every stage before it left the
-tree dirty, so the whole ticket — plan, source, tests, all three artifacts — is sitting
-uncommitted when you arrive.
+Since ADR-048 this is **the only command in the loop that pushes**, and one of two that commit. Every
+`/advance` ends with a checkpoint (`.claude/commands/handoff.md`) that commits the ticket's ship set
+on `feat/<ID>` without pushing, so most of the ticket is already in local history when you arrive.
+What is dirty is what step 3 writes, plus whatever the last checkpoint left behind.
+
+*Until ADR-048 this paragraph read: "Since ADR-006 this is **the only command in the loop that
+commits.** Every stage before it left the tree dirty, so the whole ticket — plan, source, tests, all
+three artifacts — is sitting uncommitted when you arrive." CAL-12 lost all of that to one
+`git switch` on 2026-10-01.*
 
 **Preconditions — both gates `passed: true` with timestamps:** `plan` and `review`. Verify against
 `ticket.yaml`, not against a summary.
@@ -25,8 +31,9 @@ Steps:
 
    **If the branch does not exist, stop and report**; this command never creates one.
 
-   **Expect a dirty tree full of source files — that is the normal state here, not a warning sign.**
-   Nothing before this command commits. What you must not find is work belonging to a *different*
+   **Expect a dirty tree — that is the normal state here, not a warning sign.** Since ADR-048 the
+   `/advance` checkpoints have committed most of the ticket, so it is usually small; before ADR-048
+   it was the whole ticket. What you must not find is work belonging to a *different*
    ticket: read `git status` in full and classify every path before staging anything. A file you
    cannot place belongs to a human, not to a guess.
 
@@ -79,9 +86,9 @@ Steps:
    *The one surface that still collides* in `.ai/standards/session-model.md`.
 
 5. **Commit the ship set on `feat/$ARGUMENTS`.** Confirm the branch first; if it is anything else,
-   stop. `git add` with explicit paths — never `-A`, never `.`. This is the **only** commit the
-   ticket gets: the artifacts, the source, the tests, the state transition, the board files and the
-   `features.md` row, all of it. Message form per `.ai/standards/git-conventions.md`. Then
+   stop. `git add` with explicit paths — never `-A`, never `.`. This is the **last** commit the
+   ticket gets: whatever of the ship set is still dirty — at least the state transition, the board
+   files and the `features.md` row — on top of the checkpoints `/advance` made (ADR-048). Message form per `.ai/standards/git-conventions.md`. Then
    `git push origin feat/$ARGUMENTS`, which prompts.
 
 6. `node scripts/check-allowed-paths.mjs`. It diffs `origin/main...HEAD` — the **whole branch**, not
@@ -142,8 +149,8 @@ Steps:
 **The output is one open pull request. Never two, and never a merge.** ADR-023 makes the count one;
 RULE-09 makes merging permanently human, and `gh pr merge` is denied in settings.
 
-You commit here and nowhere else. Every stage leaves its tree dirty and this command is the only one
-that persists it. Two things are never yours: `main` as a target, and the merge.
+You push here and nowhere else. `/advance`'s checkpoint commits locally (ADR-048); this command
+commits what remains, pushes, and opens the pull request. Two things are never yours: `main` as a target, and the merge.
 
 **Definition of Done item 2 — "diff is a subset of `allowed_paths`" — is a statement about the
 ticket branch, and since ADR-023 about `allowed_paths` plus the three ship-owned paths.** It was

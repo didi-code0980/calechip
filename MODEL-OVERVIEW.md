@@ -295,7 +295,7 @@ invented.
 
 **Additive only.** Do not delete or rewrite a file you did not create in the current run.
 
-**Humans merge; agents commit at `/ship` only** (RULE-09).
+**Humans merge; agents commit at the `/advance` checkpoint and at `/ship`, and push only at `/ship`** (RULE-09, ADR-048).
 
 **Windows-native.** No `.sh` files, no `chmod`, no shebang execution. Every hook is `.mjs` run via
 `node`.

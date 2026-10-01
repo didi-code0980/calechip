@@ -10,6 +10,12 @@ governed_by: [RULE-01, RULE-09, RULE-13]
 
 `ACCEPTED by the operator` — 2026-08-31.
 
+**Reversed in part on 2026-10-01 by [ADR-048](ADR-048-handoff-returns-as-a-commit-checkpoint.md)**,
+on the operator's instruction, because the revert condition below occurred: CAL-12's uncommitted work
+was lost when the tree moved from `feat/CAL-12` to `main`. `handoff` is back as a commit checkpoint;
+*"A ticket is committed once, at `/ship`"* no longer holds. One working directory, WIP 1 and the
+session lifetimes stand. The text below is unchanged and records what was decided then.
+
 Recorded, not authored. The operator's words: *"k dùng worktree nữa, chỉ dùng 1 folder chính để
 work"*, and, when asked whether `handoff` kept a purpose without worktrees, *"Bỏ hẳn — chỉ commit ở
 `/ship`"*.

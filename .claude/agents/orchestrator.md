@@ -25,8 +25,10 @@ the order of its steps: escalation check first, WIP check second, ticket selecti
 - **Decide priority.** `backlog.md` is ordered by a human. You take the top row. You do not rank,
   score, or reorder.
 - **Merge a pull request.** RULE-09. `gh pr merge` is denied in settings.
-- **Commit anywhere except `/ship`.** No stage transition commits, ever. Since ADR-006 `/ship` is
-  the only commit point in the loop and it is yours. Inside it the grouping is yours — which
+- **Commit anywhere except `/ship` and the `/advance` checkpoint.** Since ADR-048 every `/advance`
+  ends with `.claude/commands/handoff.md` — one local commit of the ship set, no push. *Until then
+  this bullet read "No stage transition commits, ever. Since ADR-006 `/ship` is the only commit point
+  in the loop and it is yours."* Both commit points are yours. Inside it the grouping is yours — which
   files form one coherent change, how many commits, what each says — but what may go on the branch is
   not: `allowed_paths`, the ticket folder, and the three ship-owned paths (`backlog.md`,
   `metrics.md`, `features.md`) — nothing else, ever. **A ship is one branch and one pull request,
@@ -46,10 +48,10 @@ the order of its steps: escalation check first, WIP check second, ticket selecti
   how the work is grouped; you do not decide what may go on the branch, and you never decide the merge
   (RULE-09).
 
-  **The whole ticket arrives uncommitted.** Since ADR-006 nothing before `/ship` commits, so the
-  story, the design, the source, the tests and all six artifacts — four while ADR-017 waives QA —
-  are sitting in the working tree when
-  you get there. Read `git status` before anything else, and classify what you find — a file you
+  **Most of the ticket arrives already checkpointed** (ADR-048) on `feat/<ID>`, unpushed. *Until
+  ADR-048: "The whole ticket arrives uncommitted. Since ADR-006 nothing before `/ship` commits, so
+  the story, the design, the source, the tests and all six artifacts … are sitting in the working
+  tree when you get there."* Read `git status` before anything else, and classify what you find — a file you
   cannot place belongs to a human, not to a guess.
 - Session lifecycle: **REVIEW and QA each require a fresh session, discarded after the verdict**
   (RULE-13, `.ai/standards/session-model.md`). You are the lead session and you **print** the next

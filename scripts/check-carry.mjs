@@ -7,9 +7,9 @@
 //   - **Committed changes** go to `origin/main...HEAD` and are judged against `allowed_paths`, with
 //     the ticket folder and the ship-owned set exempt (ADR-023 for CI, ADR-041 for R1). That half is
 //     `scripts/check-allowed-paths.mjs`, which runs in CI where it cannot be misreported.
-//   - **Uncommitted changes** — modified and untracked — are what a ticket looks like for its whole
-//     life, because agents commit only at `/ship` (ADR-023). They are judged by `planCarry`, which
-//     is the same function the runner's preflight uses.
+//   - **Uncommitted changes** — modified and untracked. Until ADR-048 that was the whole ticket for
+//     its whole life; since then it is what the stage since the last `/advance` checkpoint left.
+//     They are judged by `planCarry`, which is the same function the runner's preflight uses.
 //
 // **Before ADR-043 the second half had no reader at REVIEW**, so R1 judged uncommitted paths against
 // `allowed_paths` too, and failed CAL-11 on `.ai/board/tickets/CAL-12/ticket.yaml` — a BACKLOG shell
