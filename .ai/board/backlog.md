@@ -42,9 +42,16 @@ explained.
 last step, so a row reaching this section is now persisted on its branch rather than waiting for
 `/ship`.
 
-**`CAL-12` is at `REVIEW` as of 2026-10-01**, recorded at `/advance` from `gate: PASS` /
-`next_state: REVIEW` in `03-impl-log.md`. The row stays here because the board has no `## REVIEW`
-section; `ticket.yaml` is where the live state is read.
+**`CAL-12` is at `REVIEW` with both gates `passed: true`** — `plan` at 15:24, `review` at 16:31, the
+second transcribed at `/advance` from `gate: PASS` / `verdict: PASS` in `04-review.md`, R1–R8 clean
+and `rework_count: 0`. The next stage for this row is `/ship`. The row stays here because the board
+has no `## REVIEW` section; `ticket.yaml` is where the live state is read.
+
+**R1 passed this time, and it is worth knowing why.** The 2026-09-29 review of this same ticket
+failed on R1 — one stray path, the EVT idea file, which no stage was able to commit. It is no longer
+stray because its uncommitted section was **lost** (MD-042), not because anything landed it. The
+green is the absence of a file rather than the discharge of a debt, and MD-042's open choice is still
+the operator's.
 
 **Its plan was amended mid-stage, through the channel built for that.** The `<select>` picker § 4.4
 specified would have failed `UIE-10` AC-10 — a spec § 4.8 requires to pass unedited — so the Developer

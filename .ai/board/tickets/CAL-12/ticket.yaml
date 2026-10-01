@@ -80,7 +80,32 @@ gates:
                                                           # from 01-plan.md front-matter `gate: PASS`.
                                                           # The 2026-09-29 grant of this same gate was
                                                           # lost uncommitted; this one is checkpointed.
-  review: { passed: false, at: null }
+  review: { passed: true, at: 2026-10-01T16:31:29+0700 }   # orchestrator at /advance, transcribed
+                                                          # from 04-review.md front-matter: `gate: PASS`,
+                                                          # `verdict: PASS`, `failed_checks: []`,
+                                                          # `invariant_violation: false`, `route_to: none`,
+                                                          # `increments_rework: false`. `gate` and `verdict`
+                                                          # agree, so the artifact is not void under RULE-13.
+                                                          # `state` STAYS `REVIEW`: 04-review.md says
+                                                          # `next_state: DONE` and /advance never writes it —
+                                                          # `/ship` does, when the pull request opens.
+                                                          #
+                                                          # R1 PASSES THIS TIME, AND THAT IS THE ONE RESULT
+                                                          # WORTH READING TWICE. The 2026-09-29 review of this
+                                                          # same ticket FAILED on R1 — one stray path,
+                                                          # the EVT idea file, which no stage could commit.
+                                                          # It is no longer stray because its uncommitted
+                                                          # section was LOST (MD-042), not because anything
+                                                          # landed it. A green R1 here is the absence of a
+                                                          # file, not the discharge of a debt, and MD-042's
+                                                          # open choice (a)/(b) is still open.
+                                                          #
+                                                          # Provenance declared properly: `inputs_read` lists
+                                                          # seven files against 56 distinct file:line
+                                                          # citations in the body. EVT-02's review declared
+                                                          # two against twelve and that under-declaration is
+                                                          # recorded on its own ticket; this one does not
+                                                          # repeat it.
 
 # Provenance: .ai/board/ideas/2026-09-22-an-admin-manages-every-team-and-sees-only-one-calendar.md,
 # § Re-triage verdict. DoR item 6: feature_ids is one group, CAL.
