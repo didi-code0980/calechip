@@ -69,6 +69,7 @@
 import { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useRoster } from "@/hooks/useRoster";
+import { useViewedTeam } from "@/hooks/useViewedTeam";
 import { seam } from "@/lib/data";
 import type { Member, MemberRole, Result } from "@/lib/domain/types";
 import { ROLE_LABELS } from "@/lib/roles";
@@ -236,7 +237,11 @@ function RosterRow({ member, isMe }: { member: Member; isMe: boolean }) {
 }
 
 export default function Sidebar({ member, signOut }: SidebarProps) {
-  const roster = useRoster();
+  // CAL-12 § 4.4. The roster follows the viewed team; the picker's options are already filtered to
+  // an admin, more than one team, and a calendar screen (`pickableTeams`, `useViewedTeam`).
+  const { viewed, teams, ownTeamId, hrefFor } = useViewedTeam();
+  const roster = useRoster(viewed);
+  const selectedTeamId = viewed.kind === "other" ? viewed.team.id : ownTeamId;
   const navigate = useNavigate();
   const [signingOut, setSigningOut] = useState(false);
 
@@ -315,6 +320,47 @@ export default function Sidebar({ member, signOut }: SidebarProps) {
         <p className="mt-1.5 text-[11px] text-ink-3">{TAGLINE}</p>
       </div>
 
+      {/* CAL-12 AC-2. The team picker, between the brand and the roster it governs. LINKS, and not
+          a `<select>` or a button: UIE-10 AC-10 (`tests/e2e/uie-10-sidebar.spec.ts:442`-`:445`)
+          holds this pane to no form, no input, no select and exactly one button, and choosing a
+          team is a change of address (`?team=`), which is what a link is — the same move this file
+          made for the roster toggle (`<details>`). Absent, not disabled, for everybody `teams`
+          excludes: a member, a manager, a one-team system and every non-calendar screen. */}
+      {teams.length > 0 ? (
+        <nav data-testid="shell-team-picker" aria-labelledby="shell-team-picker-label" className="flex flex-col gap-1">
+          <p
+            id="shell-team-picker-label"
+            data-testid="shell-team-picker-label"
+            className="text-[10px] font-bold uppercase tracking-wider text-ink-3"
+          >
+            Team
+          </p>
+          <ul className="flex flex-col gap-0.5 rounded-card bg-track p-0.5">
+            {teams.map((t) => {
+              const selected = t.id === selectedTeamId;
+              return (
+                <li key={t.id}>
+                  <Link
+                    data-testid="shell-team-option"
+                    data-team-id={t.id}
+                    data-own={t.id === ownTeamId}
+                    aria-current={selected ? "true" : undefined}
+                    to={hrefFor(t.id)}
+                    className={[
+                      "block truncate rounded-pill px-3 py-1 text-xs transition-colors",
+                      "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink",
+                      selected ? "bg-card font-bold text-ink shadow-soft" : "font-semibold text-ink-3 hover:text-ink-2",
+                    ].join(" ")}
+                  >
+                    {t.id === ownTeamId ? `${t.name} (your team)` : t.name}
+                  </Link>
+                </li>
+              );
+            })}
+          </ul>
+        </nav>
+      ) : null}
+
       {/* AC-9 and AC-10. Three phases and three different sentences. `shell-roster-count` is
           rendered ONLY in the ready phase, so a failed read never reads as a team of nobody. */}
       <div>
@@ -339,9 +385,10 @@ export default function Sidebar({ member, signOut }: SidebarProps) {
             <p
               data-testid="shell-roster-count"
               data-count={roster.members.length}
+              data-team-id={viewed.kind === "other" ? viewed.team.id : (member.teamId ?? undefined)}
               className="text-[10px] font-bold uppercase tracking-wider text-ink-3"
             >
-              {teamName ?? "Team"} ({roster.members.length})
+              {(viewed.kind === "other" ? viewed.team.name : teamName) ?? "Team"} ({roster.members.length})
             </p>
             {/* SOLO. One `<details>` per group, both OPEN on first paint — the transcription shows
                 every chevron up, and a roster that greets a new session closed hides the one thing

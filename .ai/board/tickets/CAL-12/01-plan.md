@@ -226,6 +226,11 @@ None that block. ADR-042 decision 3's ticket is owed and out of scope (item 8).
 
 Visual reference: none. The layout below is the Tech Lead's own and was never specified.
 
+*Amended 2026-10-01 (99-questions.md).* The picker sits in the sidebar between the brand and the
+roster, as a short vertical list of team **links** under a small uppercase `Team` heading — the
+selected team drawn as the selected pill, like the top bar's Week/Month/Year segment. Not a
+`<select>`: UIE-10 AC-10 holds the pane to no form control (§ 4.4).
+
 ## 3. Permission model
 
 **No row of the permission table changes.** This ticket adds no capability; it renders, for an
@@ -349,9 +354,12 @@ export interface ViewedTeamValue {
   /** pickableTeams(member.role, loaded teams); [] while loading, after a failure, off-calendar. */
   teams: readonly Team[];
   ownTeamId: string | null;
-  /** own team id -> delete TEAM_PARAM; any other id -> set it. A PUSH navigation (Back works),
-   *  other search params kept, path unchanged (AC-4). No-op off the calendar screens. */
-  select(teamId: string): void;
+  /** The address that views `teamId`: current pathname + current search with TEAM_PARAM deleted
+   *  when teamId === ownTeamId, else set to teamId; other search params kept; "?" only when the
+   *  search is non-empty. Off the calendar screens: pathname unchanged. Followed by a <Link>, so a
+   *  PUSH navigation (Back works), path unchanged (AC-4).
+   *  (Amended 2026-10-01: replaces `select(teamId): void` — 99-questions.md.) */
+  hrefFor(teamId: string): string;
 }
 
 export function ViewedTeamProvider(props: { member: Member; children: ReactNode }): JSX.Element;
@@ -368,7 +376,8 @@ Behaviour the Developer must hold:
   the requested parameter changes to an id not in the loaded list. A throw stores `"failed"`.
 - When the resolution's `dropParam` is true, delete `TEAM_PARAM` with `{ replace: true }` (AC-11).
 - **Default context value** (no provider — a screen rendered under `BareLayout` for a signed-out
-  visitor): `{ viewed: { kind: "own" }, teams: [], ownTeamId: null, select: () => {} }`.
+  visitor): `{ viewed: { kind: "own" }, teams: [], ownTeamId: null, hrefFor: () => "" }` —
+  unreachable, since `teams` is `[]` and no picker renders.
 - The context value is memoised on `viewed`'s identity key (`kind` + team id) so consumers can key
   effects on it — the warning in `AppShell.tsx:99-103` about context objects in dependency lists.
 
@@ -394,19 +403,28 @@ Behaviour the Developer must hold:
   already encodes admin, >1 team, calendar path):
 
 ```tsx
-<label data-testid="shell-team-picker-label" htmlFor="shell-team-picker">Team</label>
-<select id="shell-team-picker" data-testid="shell-team-picker" value={selectedId}
-        onChange={(e) => select(e.target.value)}>
-  {teams.map((t) => (
-    <option key={t.id} data-testid="shell-team-option" data-own={t.id === ownTeamId} value={t.id}>
-      {t.id === ownTeamId ? `${t.name} (your team)` : t.name}
-    </option>
-  ))}
-</select>
+<nav data-testid="shell-team-picker" aria-labelledby="shell-team-picker-label">
+  <p id="shell-team-picker-label" data-testid="shell-team-picker-label">Team</p>
+  <ul>
+    {teams.map((t) => (
+      <li key={t.id}>
+        <Link data-testid="shell-team-option" data-team-id={t.id} data-own={t.id === ownTeamId}
+              aria-current={t.id === selectedId ? "true" : undefined} to={hrefFor(t.id)}>
+          {t.id === ownTeamId ? `${t.name} (your team)` : t.name}
+        </Link>
+      </li>
+    ))}
+  </ul>
+</nav>
 ```
 
-  `selectedId` = `viewed.team.id` when `other`, else `ownTeamId`. A `<select>`, **not a button** —
-  UIE-10 AC-10 asserts the sidebar holds exactly one `<button>` (`tests/e2e/uie-10-sidebar.spec.ts:445`).
+  `selectedId` = `viewed.team.id` when `other`, else `ownTeamId`. **Links, not a `<select>` and not
+  a button** — UIE-10 AC-10 (`tests/e2e/uie-10-sidebar.spec.ts:442`–`:445`) holds this pane to zero
+  `form`, zero `input`, zero `select` and exactly one `button` (`home-sign-out`), for an admin on
+  `/week`. Choosing a team is a change of address (§ 1), so a link is also the honest element, and
+  the same move `Sidebar.tsx` made for the roster toggle (`<details>`, not `<button>`).
+  *Amended 2026-10-01 from a `<label>`/`<select>` — 99-questions.md.* Styling: existing tokens only;
+  the `aria-current` link drawn as the selected pill.
 - **Roster**: `useRoster(viewed)` replaces `useRoster()`. The team name in `shell-roster-count` is
   `viewed.team.name` when `other`, else today's `getTeam()` name. `shell-roster-count` gains
   `data-team-id` (the viewed team's id, or the own `member.teamId`). Every other id unchanged.
@@ -486,13 +504,15 @@ team B `44444444-4444-4444-8444-444444444444` (*Nhóm khác*), B's member
 `dd000000-0000-4000-8000-000000000002` (2026-09-21..22, pending, note *Nghỉ của nhóm khác*). Admin
 `quan@example.com`, member `thanh@example.com`, password `password123`. Test names carry the AC id.
 
-- AC-1: admin on `/month/2026-09` — picker value is A, `shell-roster-count[data-team-id]` is A, no
-  `shell-viewing-other-team`.
+- AC-1: admin on `/month/2026-09` — the `shell-team-option` with `aria-current="true"` has
+  `data-team-id` A, `shell-roster-count[data-team-id]` is A, no `shell-viewing-other-team`.
 - AC-2: two `shell-team-option`, alphabetical, the own one `data-own="true"`; on `/events` and
-  `/setting` no `shell-team-picker`.
+  `/setting` no `shell-team-picker`. And, admin on `/week` with the picker rendered: inside
+  `shell-sidebar`, `select`, `input` and `form` count 0 (UIE-10 AC-10's property, asserted from the
+  side that would break it).
 - AC-3: member on `/month/2026-09?team=<B>` — no picker, `month-cell[data-date="2026-09-21"]`
   `data-count` equals the no-parameter value, no `shell-viewing-other-team`.
-- AC-4: admin selects B on `/month/2026-09` — URL has `team=<B>`, `month-anchor` still 2026-09, a
+- AC-4: admin clicks B's `shell-team-option` on `/month/2026-09` — URL has `team=<B>`, `month-anchor` still 2026-09, a
   `month-avatar` on 2026-09-21; on `/week/2026-09-21?team=<B>` a `week-row` with B's entry id and
   `week-row-note` text *Nghỉ của nhóm khác*; no `week-row` of a team-A member.
 - AC-5: roster rows are exactly B's non-removed members (`data-member-id` B's member), each with
@@ -513,9 +533,14 @@ team B `44444444-4444-4444-8444-444444444444` (*Nhóm khác*), B's member
 - AC-12, AC-13: unit only (above) — the mock seam cannot be made to fail from the browser, and the
   denial is below the interface.
 
-**No existing test is edited.** In particular `uie-10-sidebar.spec.ts:445` (one button) and the
-fifteen specs that click `home-new-entry-link` after sign-in (no parameter → own team) must pass
-unchanged.
+**No existing test is edited.** In particular `uie-10-sidebar.spec.ts` AC-10 (`:442`–`:445`: no
+form, no input, no select, one button) and the fifteen specs that click `home-new-entry-link` after
+sign-in (no parameter → own team) must pass unchanged.
+
+*Amended 2026-10-01 (99-questions.md).* As first written this cited only `:445` and concluded from
+it — the one negative assertion that constrained the element rejected, not the one at `:444` that
+constrained the element chosen. Negative assertions about a surface this ticket adds to are read in
+full, not for the line that agrees.
 
 ### How each invariant is held
 
@@ -606,3 +631,13 @@ screens with no picker.
     edit, delete, approve or reject control today.
   - **Out-of-scope 13, 14** added: busy days have no cross-team read (`listTeamBusyDaysOverlapping`
     only), and there is no component-test environment.
+- 2026-10-01T15:41:51+0700 — § 2b, § 4.2, § 4.4 and § 4.8 amended. Raised by `developer` in
+  `99-questions.md` (developer->tech-lead-design, message 1): § 4.4's `<select>` fails UIE-10 AC-10
+  at `tests/e2e/uie-10-sidebar.spec.ts:444` (admin, `/week`, `select` count 0), measured. Amended by
+  `tech-lead-design`. The picker becomes a list of `<Link>`s in the same sidebar position;
+  `ViewedTeamValue.select(teamId): void` is replaced by `hrefFor(teamId): string`; option links gain
+  `data-team-id` and `aria-current`; the e2e locators follow, plus a sidebar no-form-control
+  assertion under AC-2. **No AC changes, § 7 unchanged (twelve paths, `size: M`), UIE-10 stays
+  unedited.** Rejected: adding `uie-10-sidebar.spec.ts` to `allowed_paths` (thirteen files is `L`,
+  must split, and AC-10's property is still true and keepable); moving the picker to the top bar
+  (rewords AC-2 to protect a test, and separates the picker from the roster it governs).

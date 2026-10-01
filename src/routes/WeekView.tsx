@@ -139,11 +139,15 @@
 // screens this ticket may not touch — the same collision src/index.css:117-123 already records one
 // token over. A `--radius-day` token was rejected for having exactly one consumer. The consequence,
 // accepted: the day column and the sign-in card now have different corner radii.
-import { useCallback, useEffect, useMemo, useState } from "react";
-import { Link, Navigate, useParams } from "react-router-dom";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Link, Navigate, useLocation, useParams } from "react-router-dom";
 // The seam, through its one door. Nothing above the seam names an implementation, and this file must
 // never import `./supabase` or `./mock` (RULE-02).
 import { seam } from "@/lib/data";
+// CAL-12 § 4.7. The viewed team's reads, through the one switch (`teamReadsFor`), and the address
+// helpers that keep `?team=` across a redirect (AC-7).
+import { useViewedTeam } from "@/hooks/useViewedTeam";
+import { isReadOnly, teamReadsFor, withTeamParam } from "@/lib/viewed-team";
 // INV-04's module, imported DIRECTLY rather than through the seam — the same import MonthView.tsx
 // makes, for the same reason: neither seam implementation counts or derives anything, so there is no
 // second answer for tests/seam-parity.test.ts to miss.
@@ -300,12 +304,28 @@ export default function WeekView({ landing = false }: WeekViewProps) {
 
   const [view, setView] = useState<View>({ phase: "loading" });
 
+  // CAL-12 § 4.7. The viewed team decides which reads run; `resolving` and `unavailable` are this
+  // screen's own loading and unavailable phases (AC-12). `loadSeq` drops the answer of a load that a
+  // later one has replaced, so a slow read for one team can never be drawn under another's notice.
+  const { viewed } = useViewedTeam();
+  const { search } = useLocation();
+  const loadSeq = useRef(0);
+
   const load = useCallback(async (): Promise<void> => {
     if (!range) return;
+    const seq = ++loadSeq.current;
+    const stale = (): boolean => seq !== loadSeq.current;
     setView({ phase: "loading" });
+    if (viewed.kind === "resolving") return;
+    if (viewed.kind === "unavailable") {
+      setView({ phase: "unavailable" });
+      return;
+    }
+    const reads = teamReadsFor(seam, viewed);
 
     try {
       const me = await seam.getCurrentMember();
+      if (stale()) return;
 
       // A caller with no member row, and a removed one, land here. Both read no entries at all —
       // `member_team_id` filters `removed_at is null` inside its own body, so every policy built on
@@ -331,14 +351,16 @@ export default function WeekView({ landing = false }: WeekViewProps) {
       // `unavailable` branch — a short busy read draws a quieter day than the team really has, which
       // is the same silent wrong answer AC-15 exists for.
       const [roster, entries, holidays, busyDays] = await Promise.all([
-        seam.listMembers(),
-        seam.listTeamEntriesOverlapping(range),
+        reads.roster(),
+        reads.entriesOverlapping(range),
         seam.listHolidays(holidayReadRange(range)),
-        seam.listTeamBusyDaysOverlapping(range),
+        reads.busyDaysOverlapping(range),
       ]);
+      if (stale()) return;
 
       setView({ phase: "ready", me, roster, entries, holidays, busyDays });
     } catch {
+      if (stale()) return;
       // AC-15. All three reads throw on a transport failure and on a possibly-truncated answer
       // (`MONTH_ENTRY_LIMIT`, reused rather than joined by a second constant — section 4.2). This
       // branch is the refusal: nobody is listed, rather than a short list that reads as a quiet week.
@@ -348,7 +370,7 @@ export default function WeekView({ landing = false }: WeekViewProps) {
       // without its holidays is a believable wrong answer about a day whose own row arrived intact.
       setView({ phase: "unavailable" });
     }
-  }, [range]);
+  }, [range, viewed]);
 
   useEffect(() => {
     void load();
@@ -497,7 +519,7 @@ export default function WeekView({ landing = false }: WeekViewProps) {
 
   // Only reachable off `/`: at `/` the anchor is always resolved above, so this never fires there
   // and `/` never moves on its own (AC-23).
-  if (anchorDay === null) return <Navigate to={`/week/${currentDay()}`} replace />;
+  if (anchorDay === null) return <Navigate to={withTeamParam(`/week/${currentDay()}`, search)} replace />;
 
   if (view.phase === "loading") {
     return (
@@ -1018,6 +1040,13 @@ export default function WeekView({ landing = false }: WeekViewProps) {
                     list of display names is the density CLAUDE.md § Visual direction says the grid
                     never pays. Each avatar carries `title` and `data-member-id`, which is how the
                     month cell already names the people it draws. */}
+                {/* CAL-12 AC-9. Absent while another team is viewed: another team's busy days have no
+                    read (01-plan.md § 1, out of scope 13), and the toggle writes the CALLER's own
+                    mark. The empty `mt-auto` keeps the count strip below pinned to the column's foot,
+                    which this pair's own auto margin does when it is drawn. */}
+                {isReadOnly(viewed) ? (
+                  <div className="mt-auto" />
+                ) : (
                 <div className="mt-auto flex flex-wrap items-center gap-1 pt-2">
                   <button
                     type="button"
@@ -1062,6 +1091,7 @@ export default function WeekView({ landing = false }: WeekViewProps) {
                     </span>
                   ))}
                 </div>
+                )}
 
                 {/* UIE-07 AC-1, AC-7, AC-8, AC-10, AC-11. THE MIRROR OF THE HEADER STRIP above —
                     same full-bleed negative margin, same hairline token, same centred small type,

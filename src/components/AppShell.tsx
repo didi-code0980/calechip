@@ -11,9 +11,10 @@
 //
 // **IT RE-READS NOTHING.** `App.tsx` has already resolved the membership to `member` before this
 // component exists — `useSession()` is called exactly once, there (`useSession.ts`, TEA-05
-// 01-plan.md § 4.3) — so the member arrives as a prop and this file makes no session read. The one
-// seam call the shell makes anywhere is `seam.listMembers()` in `useRoster`, from the sidebar.
-import { Outlet, useOutletContext } from "react-router-dom";
+// 01-plan.md § 4.3) — so the member arrives as a prop and this file makes no session read. The
+// shell's seam calls are the roster's, from the sidebar, and — for an admin only, since CAL-12 —
+// `seam.listTeams()` in `ViewedTeamProvider`.
+import { Link, Outlet, useLocation, useOutletContext } from "react-router-dom";
 import Sidebar from "./Sidebar";
 import TopBar from "./TopBar";
 // SOLO, 2026-09-26 — the report bubble. Mounted HERE and not in `App.tsx` for the reason this file's
@@ -23,6 +24,9 @@ import TopBar from "./TopBar";
 // `IT RE-READS NOTHING` above is unchanged.
 import ReportIssueButton from "./ReportIssueButton";
 import type { Member, Result } from "@/lib/domain/types";
+// CAL-12. The viewed-team resolution, made ONCE here so the sidebar, the top bar and the outlet
+// cannot disagree about which team is on screen (01-plan.md § 4.2, § 4.3).
+import { ViewedTeamProvider, useViewedTeam } from "@/hooks/useViewedTeam";
 
 export interface AppShellProps {
   /** The signed-in member. `App.tsx` has already resolved it; the shell never re-reads it. */
@@ -71,12 +75,37 @@ export function useShellContext(): ShellContext {
   return useOutletContext<ShellContext>();
 }
 
-export default function AppShell({ member, signOut, refreshMembership }: AppShellProps) {
+/**
+ * CAL-12 AC-9. The read-only notice, directly above the outlet while another team is viewed. A
+ * local component and not an export: it must render INSIDE the provider to read it, and it is one
+ * line of copy with one link. `to={pathname}` with no search is the own team.
+ */
+function ViewingOtherTeamNotice() {
+  const { viewed } = useViewedTeam();
+  const { pathname } = useLocation();
+  if (viewed.kind !== "other") return null;
   return (
-    // § 4.9. Two panes, full bleed, no page margin. `min-h-0` on the row is what makes the content
-    // pane the ONLY scrolling region: without it a flex child's default `min-height: auto` lets the
-    // pane grow to its content and the whole page scrolls instead, which takes the sidebar's legend
-    // and footer off the bottom with it.
+    <div
+      data-testid="shell-viewing-other-team"
+      data-team-id={viewed.team.id}
+      role="status"
+      className="mb-3 flex flex-wrap items-center gap-3 rounded-card border border-line bg-card px-4 py-2 text-xs text-ink-2"
+    >
+      Viewing {viewed.team.name} — read only.
+      <Link data-testid="shell-back-to-own-team" to={pathname} className="font-semibold text-ink underline">
+        Back to my team
+      </Link>
+    </div>
+  );
+}
+
+export default function AppShell({ member, signOut, refreshMembership }: AppShellProps) {
+  // § 4.9. Two panes, full bleed, no page margin. `min-h-0` on the row is what makes the content
+  // pane the ONLY scrolling region: without it a flex child's default `min-height: auto` lets the
+  // pane grow to its content and the whole page scrolls instead, which takes the sidebar's legend
+  // and footer off the bottom with it.
+  return (
+    <ViewedTeamProvider member={member}>
     <div className="flex min-h-0 flex-1">
       <Sidebar member={member} signOut={signOut} />
 
@@ -101,6 +130,7 @@ export default function AppShell({ member, signOut, refreshMembership }: AppShel
               would add a dependency array that has to stay true for no behaviour anyone can see.
               NOTE for whoever adds the second entry: this reasoning stops holding the moment a
               consumer puts the context object in a `useEffect` dependency list. */}
+          <ViewingOtherTeamNotice />
           <Outlet context={{ member, refreshMembership } satisfies ShellContext} />
         </div>
       </div>
@@ -112,5 +142,6 @@ export default function AppShell({ member, signOut, refreshMembership }: AppShel
           to that container. Here it is a sibling of both panes and belongs to the frame. */}
       <ReportIssueButton />
     </div>
+    </ViewedTeamProvider>
   );
 }

@@ -70,14 +70,18 @@
 // screen — ADR-031 is PROPOSED and this ticket neither waits on it nor anticipates it), deleting
 // `month-threshold`, filling the bridge badge with pink (pink is the overload fill, and a second
 // meaning for it on one grid is worse than an outline), and translating any copy into Vietnamese.
-import { useCallback, useEffect, useMemo, useState } from "react";
-import { Link, Navigate, useParams } from "react-router-dom";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Link, Navigate, useLocation, useParams } from "react-router-dom";
 import EntryForm from "@/components/EntryForm";
 import type { EntryFormValues } from "@/components/EntryForm";
 import Modal from "@/components/Modal";
 // The seam, through its one door. Nothing above the seam names an implementation, and this file must
 // never import `./supabase` or `./mock` (RULE-02).
 import { seam } from "@/lib/data";
+// CAL-12 § 4.7. The viewed team's reads, through the one switch (`teamReadsFor`), and the address
+// helpers that keep `?team=` across a redirect (AC-7).
+import { useViewedTeam } from "@/hooks/useViewedTeam";
+import { isReadOnly, teamReadsFor, withTeamParam } from "@/lib/viewed-team";
 // INV-04's single implementation, imported DIRECTLY rather than through the seam. 01-plan.md
 // section 5: neither seam implementation counts anything, so there is no second arithmetic for
 // tests/seam-parity.test.ts to miss.
@@ -220,12 +224,31 @@ export default function MonthView() {
     [valid, month],
   );
 
+  // CAL-12 § 4.7. The viewed team decides which reads run; `resolving` and `unavailable` are this
+  // screen's own loading and unavailable phases (AC-12). `loadSeq` drops the answer of a load that a
+  // later one has replaced, so a slow read for one team can never be drawn under another's notice.
+  const { viewed } = useViewedTeam();
+  const { search } = useLocation();
+  const loadSeq = useRef(0);
+  // AC-9. While another team is viewed the cell starts no drag, the draft form cannot open and the
+  // busy control is not drawn — each would write on the CALLER's team, not the one on screen.
+  const readOnly = isReadOnly(viewed);
+
   const load = useCallback(async (): Promise<void> => {
     if (!range) return;
+    const seq = ++loadSeq.current;
+    const stale = (): boolean => seq !== loadSeq.current;
     setView({ phase: "loading" });
+    if (viewed.kind === "resolving") return;
+    if (viewed.kind === "unavailable") {
+      setView({ phase: "unavailable" });
+      return;
+    }
+    const reads = teamReadsFor(seam, viewed);
 
     try {
       const me = await seam.getCurrentMember();
+      if (stale()) return;
 
       // A caller with no member row, and a removed one, land here. Both read no team and no entries
       // at all — `member_team_id` filters `removed_at is null` inside its own body, so every policy
@@ -246,12 +269,13 @@ export default function MonthView() {
       // `unavailable` branch, for the reason AC-11 gives about the threshold: a grid that drew a
       // believable partial answer would say nothing about what it had not been given.
       const [team, roster, entries, holidays, busyDays] = await Promise.all([
-        seam.getTeam(),
-        seam.listMembers(),
-        seam.listTeamEntriesOverlapping(range),
+        reads.team(),
+        reads.roster(),
+        reads.entriesOverlapping(range),
         seam.listHolidays(holidayReadRange(range)),
-        seam.listTeamBusyDaysOverlapping(range),
+        reads.busyDaysOverlapping(range),
       ]);
+      if (stale()) return;
 
       // AC-7 and AC-14 need the threshold, and a grid drawn without it is exactly the failure AC-11
       // is written about one read over: the counts would be right, no overloaded day would be
@@ -268,6 +292,7 @@ export default function MonthView() {
 
       setView({ phase: "ready", me, team, roster, entries, holidays, busyDays });
     } catch {
+      if (stale()) return;
       // All four reads throw on a transport failure and on a possibly-truncated answer. AC-11 is
       // this branch: a capped read SUMS what it was given, so a day that was overloaded renders
       // normal and nothing anywhere says so. No count is displayed.
@@ -278,7 +303,7 @@ export default function MonthView() {
       // arrived intact.
       setView({ phase: "unavailable" });
     }
-  }, [range]);
+  }, [range, viewed]);
 
   useEffect(() => {
     void load();
@@ -428,7 +453,7 @@ export default function MonthView() {
     return failure;
   }
 
-  if (!valid) return <Navigate to={`/month/${currentMonth()}`} replace />;
+  if (!valid) return <Navigate to={withTeamParam(`/month/${currentMonth()}`, search)} replace />;
 
   const anchorMonth = month as string;
 
@@ -626,8 +651,8 @@ export default function MonthView() {
                   // handled on `window` above, so letting go outside the grid still produces a range.
                   // A press and a release on one cell is a one-day range, which is the same gesture a
                   // person uses to declare a single day.
-                  onMouseDown={inMonth ? () => { setDraft(null); setDrag({ anchor: date, over: date }); } : undefined}
-                  onMouseEnter={inMonth && drag ? () => setDrag({ anchor: drag.anchor, over: date }) : undefined}
+                  onMouseDown={inMonth && !readOnly ? () => { setDraft(null); setDrag({ anchor: date, over: date }); } : undefined}
+                  onMouseEnter={inMonth && !readOnly && drag ? () => setDrag({ anchor: drag.anchor, over: date }) : undefined}
                   className={[
                     // UIE-06 AC-3 and AC-4. `min-h-24` and `rounded-xl` are BOTH GONE. The height is
                     // the grid's `auto-rows-[minmax(170px,1fr)]` and belongs to the ROW rather than to
@@ -767,7 +792,7 @@ export default function MonthView() {
                       a button inside it would both toggle the mark AND open the entry form on a
                       one-day range. `stopPropagation` on the button is the narrowest fix — the cell
                       keeps its gesture everywhere else in its own area. */}
-                  {inMonth && (busyCount > 0 || iAmBusy) ? (
+                  {inMonth && !readOnly && (busyCount > 0 || iAmBusy) ? (
                     <div className="flex justify-end">
                       <button
                         type="button"
@@ -871,7 +896,7 @@ export default function MonthView() {
       {/* AC-13. CAL-01's form, with the dragged dates already in it and nothing written yet.
           `key` remounts it for each new range: `EntryForm` reads `initial` into `useState`, so a
           re-render with new dates would leave the old ones on screen. */}
-      {draft ? (
+      {draft && !readOnly ? (
         <Modal
           testIdPrefix="month-entry"
           label="Book leave or working from home"

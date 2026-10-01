@@ -42,6 +42,16 @@ explained.
 last step, so a row reaching this section is now persisted on its branch rather than waiting for
 `/ship`.
 
+**`CAL-12` is at `REVIEW` as of 2026-10-01**, recorded at `/advance` from `gate: PASS` /
+`next_state: REVIEW` in `03-impl-log.md`. The row stays here because the board has no `## REVIEW`
+section; `ticket.yaml` is where the live state is read.
+
+**Its plan was amended mid-stage, through the channel built for that.** The `<select>` picker § 4.4
+specified would have failed `UIE-10` AC-10 — a spec § 4.8 requires to pass unedited — so the Developer
+asked rather than edited it, and `tech-lead-design` replaced `select(teamId)` with `hrefFor(teamId)`
+and a list of `<Link>`s. `99-questions.md` is the record, `chat_budget` reads 1 of 6, and
+`allowed_paths` is still twelve: widening it to carry the `UIE-10` spec was the option refused.
+
 **`EVT-01` and `EVT-02` both passed through here on 2026-09-29** — planned, built, reviewed and
 shipped on one day each, with `rework_count: 0` on both.
 
