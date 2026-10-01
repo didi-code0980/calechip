@@ -1,6 +1,6 @@
 ---
-doc_version: 10
-last_updated: 2026-09-29
+doc_version: 11
+last_updated: 2026-10-01
 governed_by: [RULE-01, RULE-03, RULE-04, RULE-05, RULE-06, RULE-07, RULE-08, RULE-09, RULE-10, RULE-11, RULE-12, RULE-13, RULE-14, RULE-15, RULE-16, RULE-17]
 ---
 
@@ -151,8 +151,8 @@ because the check and the mandate had different subjects, and a ticket was faili
 never prohibited.
 
 - **R1 has two subjects and two rules** — ADR-043. A ticket's tree holds *committed* changes, which
-  belong on the branch, and *uncommitted* ones, which are what a ticket looks like for its whole life
-  because agents commit only at `/ship`. One rule applied to both is what failed CAL-11 twice.
+  belong on the branch, and *uncommitted* ones — until ADR-048 the whole ticket for its whole life,
+  since then at most the stage since the last `/advance` checkpoint. One rule applied to both is what failed CAL-11 twice.
   - **Committed** — `git diff --name-only origin/main...HEAD` must be a subset of `allowed_paths`,
     exempting `SHIP_OWNED` plus the ticket folder: `.ai/board/backlog.md`, `.ai/board/metrics.md`,
     `.ai/registry/features.md`, `.ai/board/tickets/<ID>/**`. That is the set
@@ -342,6 +342,7 @@ loop:
   read result front-matter                                 <-- /advance does this
   PASS -> t.state = next_state ; FAIL -> REWORK, route per table
   write ticket.yaml; repair backlog.md; append metrics.md
+  checkpoint: commit the ship set on feat/<id>, no push      <-- /advance's last step, ADR-048
 ```
 
 **The recording step is `/advance <ID>`** — `.claude/commands/advance.md`, added by ADR-036. It

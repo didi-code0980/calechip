@@ -2638,3 +2638,29 @@ previous run offered, (b): *"Triage không ghi row nữa, chỉ ghi 'còn nợ' 
   Suite 350/350; `check-docs` 0 errors.
 - **EVT-01:** nothing to adjust. Its four rows are on `main` via #103; it has no `glossary_owed`, and
   absent passes PLAN's gate.
+
+### 2026-10-01 — ADR-006's revert condition met on CAL-12; ADR-048 restores `handoff` as a checkpoint
+
+Operator instruction, verbatim (opening and the two asks): *"Điều kiện revert của ADR-006 đã xảy ra
+lần đầu: toàn bộ công việc chưa commit của CAL-12 mất khi cây làm việc chuyển từ feat/CAL-12 sang
+main. […] Viết ADR khôi phục handoff làm commit checkpoint, đúng cách ADR-006 § Revert condition tự
+nêu, và ghi một dòng vào model-debt.md cho phần idea đã mất. KHÔNG dựng lại § Re-triage verdict"*.
+
+- **State read first.** `main` clean at `5be0153` = `origin/main`. `feat/CAL-12` also at `5be0153`;
+  reflog `HEAD@{1}`: `checkout: moving from feat/CAL-12 to main`. CAL-12's `ticket.yaml` is the
+  `BACKLOG` shell — nothing mid-stage, so no ticket is judged under this change. How the switch
+  discarded the files is not recorded and was not guessed.
+- **Registry write: ADR-048 (new)**, `ACCEPTED by the operator` for the reversal only; the mechanics
+  (checkpoint = last step of `/advance`, commits `/ship` step 4's ship set, never pushes) are the
+  steward's and unread — the PR review is their acceptance. **ADR-006**: a Status note only, text
+  unchanged. Diff printed in the reply after writing, not before — the registry protocol's order not
+  followed for these two files; recorded here.
+- **Restored `.claude/commands/handoff.md`** as a commit-only checkpoint. Amended, each with the
+  replaced wording kept: `advance.md`, `ship.md`, `review.md`, `plan.md`, `orchestrator.md`,
+  `git-conventions.md` 3 → 4, `session-model.md` 2 → 3, `01-operating-model.md` 10 → 11, `CLAUDE.md`,
+  `MODEL-OVERVIEW.md`, comments in `check-carry.mjs` and `run-loop.mjs`. No rule text, no D7 copy.
+- **MD-042** (model-debt 9 → 10): the lost § *Re-triage verdict* of the 2026-09-29 EVT idea; cited
+  by `backlog.md:60` and the EVT-01/EVT-02 `ticket.yaml` provenance comments. Not reconstructed.
+  Verified on no ref. Same cause as MD-031; ADR-048 does not cover it.
+- **Open for the operator:** push at the checkpoint (needs `git push origin feat/*` allowed); MD-042's
+  fix shape.

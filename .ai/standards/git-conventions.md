@@ -1,6 +1,6 @@
 ---
-doc_version: 3
-last_updated: 2026-09-29
+doc_version: 4
+last_updated: 2026-10-01
 governed_by: [RULE-03, RULE-09, RULE-10]
 ---
 
@@ -79,7 +79,7 @@ Common to both modes, in every command:
   arrive at, which is how one ticket's artifacts land on another ticket's branch. Print the paths and
   say which ticket they belong to. **One exception, `/plan` only:** the ticket's own triage output —
   the list in `.claude/commands/plan.md` step 0, *carried* — rides onto the new branch, because a
-  PROMOTE cannot leave a clean tree before `/ship` commits anything. It is carried, not committed:
+  PROMOTE cannot leave a clean tree before the first `/advance` checkpoint commits anything (ADR-048). It is carried, not committed:
   `/ship`'s ship set is unchanged. *Added 2026-09-22 by `/thuki`, after run
   20260922-142836-510fe05c stopped CAL-11 on its own triage output.*
 - **Existence is two refs, not one.** Check `refs/heads/<branch>` and `refs/remotes/origin/<branch>`
@@ -90,32 +90,37 @@ Common to both modes, in every command:
 
 ## Commits
 
-**Agents do not commit — with one exception, and the exception is keyed to the command rather than to
-a role.** Every other stage leaves the working tree dirty. That is deliberate: a commit is an
-assertion that a change is coherent, and that assertion is one of the things being validated.
+**Agents commit in two commands, both keyed to the command rather than to a role, and push in one.**
+Stage commands (`/plan`, `/implement`, `/review`) leave the working tree dirty; the commit that
+follows each of them is `/advance`'s, not theirs.
 
-The exception exists because one command cannot complete without it. `/ship` step 7 requires an open
-pull request, a pull request requires commits on a pushed branch, and nothing else in the loop
-produces them.
+**Two commit points per ticket — the checkpoint and the ship.**
+[ADR-048](../registry/decisions/ADR-048-handoff-returns-as-a-commit-checkpoint.md) restored `handoff`
+as a plain checkpoint after ADR-006's revert condition occurred on CAL-12 (2026-10-01): a whole
+ticket, never `git add`ed, lost to one switch from `feat/CAL-12` to `main`.
 
-**One commit point per ticket, and it is `/ship`.**
-[ADR-006](../registry/decisions/ADR-006-single-working-directory.md) removed `handoff` along with
-the three worktrees it existed to serve: with a single working tree there is no next folder that
-needs the work committed before it can read it.
+| Command | Run by | Commits | Pushes |
+|---|---|---|---|
+| `/handoff`, as the last step of every `/advance` | `orchestrator` | the ship set as it stands — `/ship` step 4's rule — on `feat/<ID>` | **no** |
+| `/ship` | `orchestrator` | what remains of the ship set: at least `state: DONE`, the board files, the `features.md` row — then the pull request | yes, and it prompts |
 
-| Command | Run by | Commits |
-|---|---|---|
-| `/ship` | `orchestrator` | the story, the design, the source tree, the test tree, artifacts 01–06, `state: DONE`, the board files — then the pull request |
+**A checkpoint is not an assertion that the gates passed.** It runs after FAIL and BLOCKED too,
+because a failed stage's artifact is the record of why. The pull request, not a commit, is what
+claims the ticket is done.
 
-**What this costs, and it is a real cost rather than a footnote.** Everything a ticket produces stays
-uncommitted from `/plan` to `/ship`. There is no intermediate save point, no continuous integration
-result until the end, and nothing in history to revert to. ADR-006 records both the acceptance and
-the revert condition: the first time a ticket's work is lost or lands on the wrong branch is enough
-to restore `handoff` as a checkpoint.
+**What ADR-048 does not restore.** Nothing is pushed before `/ship`, so there is still no continuous
+integration result until the end, and the clone is still a single point of loss. Both are recorded in
+the ADR as open for the operator.
 
-**So the dirty-tree stop above is no longer defence in depth. It is the defence.** `git switch`
-carries modified and untracked files onto whichever branch is arrived at, and with a whole ticket
-uncommitted that is not an inconvenience — it is the loss.
+*Until ADR-048 this section read: "**One commit point per ticket, and it is `/ship`.** ADR-006
+removed `handoff` along with the three worktrees it existed to serve … Everything a ticket produces
+stays uncommitted from `/plan` to `/ship`. There is no intermediate save point." The cost it named
+was paid by CAL-12.*
+
+**The dirty-tree stop above stays.** With checkpoints, at most one stage's work is uncommitted at a
+time — still enough to lose, and `git switch` still carries modified and untracked files onto
+whichever branch is arrived at. Carried paths outside the ship set, such as the idea file, are not
+covered by any checkpoint (MD-042).
 
 **RULE-09 is unchanged and needs no ADR to permit this.** It names schema changes, ADRs, registry
 edits and PR merges. Committing was never among them — the prohibition lives here, in a standard, and
@@ -124,7 +129,8 @@ what a rule says, held confidently by every document that cites it, and contradi
 
 ### What the orchestrator decides
 
-How the work is grouped. It classifies the working tree, chooses which files form one coherent
+How the work is grouped at `/ship`. The checkpoint is one commit with a fixed message form —
+`.claude/commands/handoff.md`. At `/ship` it classifies the working tree, chooses which files form one coherent
 change, how many commits there are, and what each message says. That judgement is its own and this
 document does not constrain it.
 

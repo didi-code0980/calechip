@@ -13,8 +13,8 @@
 // agents this script spawns, not the thing doing the spawning.
 //
 // **What this script never does:** commit, push, merge, edit `ticket.yaml`, or write a stage
-// artifact. `/advance` writes `ticket.yaml`; `/ship` commits. The runner reads state and starts
-// processes. If you find yourself adding an `fs.writeFileSync` to a path under `.ai/board/tickets/`,
+// artifact. `/advance` writes `ticket.yaml` and checkpoints (ADR-048); `/ship` commits and pushes.
+// The runner reads state and starts processes. If you find yourself adding an `fs.writeFileSync` to a path under `.ai/board/tickets/`,
 // the design has been lost.
 //
 // Node built-ins only — no dependency may be added without an ADR (review check R8).

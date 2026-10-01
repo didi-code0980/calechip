@@ -35,7 +35,9 @@ which is the entire reason there is a second pass. Reviewer memory is a liabilit
 You have no channel to the Developer and you did not talk to one. `chat_before_verdict` must be
 `none`; if it cannot truthfully be, the review is void and this stage re-runs in a clean session.
 
-**Artifacts in:** `01-plan.md`, `03-impl-log.md`, `git diff`, `.ai/registry/**`
+**Artifacts in:** `01-plan.md`, `03-impl-log.md`, `git diff origin/main...HEAD` **and** the working
+tree (`git status`, `git diff`), `.ai/registry/**`. Since ADR-048 the `/advance` checkpoint commits
+the implementation before you run, so `git diff` alone is empty — read the branch diff.
 **Artifact out:** `.ai/board/tickets/$ARGUMENTS/04-review.md`
 **Template:** `.ai/templates/review-report.md`
 

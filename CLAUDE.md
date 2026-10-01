@@ -85,8 +85,10 @@ view. Details, and the Vui/Gọn density toggle, are in
   as its own in `01-plan.md` § 2b. Behaviour, permissions and invariants are not covered by this and
   are still never invented — `.ai/standards/ui-design-system.md` § *Visual specification*.
 - **Additive only.** Do not delete or rewrite a file you did not create in the current run.
-- **Humans merge. Agents commit at `/ship` only.** Every stage leaves the tree dirty, from `/plan`
-  all the way to the end. `/ship` classifies the tree, commits the ticket and the three ship-owned
+- **Humans merge. Agents commit at the `/advance` checkpoint and at `/ship`, and push only at
+  `/ship`** — ADR-048. Each stage leaves the tree dirty; the `/advance` after it commits the ticket's
+  ship set on `feat/<ID>` locally (`/handoff`). *Until 2026-10-01: "Agents commit at `/ship` only.
+  Every stage leaves the tree dirty, from `/plan` all the way to the end."* `/ship` classifies the tree, commits the ticket and the three ship-owned
   board and registry files on one branch, records the state transition and opens **one** pull request
   — ADR-023. Chore work is not its to commit: it names those paths and leaves them dirty for the
   session that wrote them. Merging is permanently human — RULE-09. Scope and limits in
@@ -94,8 +96,9 @@ view. Details, and the Vui/Gọn density toggle, are in
 - **One working directory.** Every role is launched in the same folder, and one working tree holds
   one branch — so exactly one ticket is ever in flight, enforced by git rather than by policy
   (ADR-006). **Read `git branch --show-current` and `git status` before the first instruction of a
-  session.** A whole ticket stays uncommitted until `/ship`, so a `git switch` on a dirty tree is not
-  an inconvenience, it is the loss.
+  session.** The current stage's work stays uncommitted until the next `/advance` checkpoint, so a
+  `git switch` on a dirty tree is still the loss — CAL-12 lost a whole ticket that way before
+  ADR-048.
   [.ai/standards/session-model.md](.ai/standards/session-model.md).
 
 ## Replying — the sign-off is the reply
@@ -178,7 +181,7 @@ stand as shipped and no translation is owed.
 ## Commands
 
 **The loop**, which builds the product — `/triage` `/next-ticket` `/plan` `/implement` `/review`
-`/advance` `/ship` `/sprint-status` `/pull-tickets` `/sync-tracker` `/docs-audit`
+`/advance` `/handoff` `/ship` `/sprint-status` `/pull-tickets` `/sync-tracker` `/docs-audit`
 
 **`/advance <ID>` is the recording step** — ADR-036. It reads the front-matter of the artifact the
 last stage produced and transcribes the gate and the next state into `ticket.yaml`. Until it existed

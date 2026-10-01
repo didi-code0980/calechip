@@ -1,6 +1,6 @@
 ---
-doc_version: 2
-last_updated: 2026-09-01
+doc_version: 3
+last_updated: 2026-10-01
 governed_by: [RULE-11, RULE-12, RULE-13, RULE-14, RULE-15, RULE-16]
 ---
 
@@ -119,34 +119,34 @@ stopped a session launched in the wrong folder from writing to the wrong branch 
 asking every session to check `pwd` first, which is a convention and not a control. With one folder
 there is nowhere else to be.
 
-### One ticket, one commit
+### One ticket, a checkpoint per stage
 
-**`handoff` no longer exists.** Its two jobs were to commit a lane's work so the next lane could read
-it, and to release the branch name so another worktree could check it out. With one folder the second
-is meaningless and the first is unnecessary: the next session reads the working tree directly.
+**`handoff` is back, as a commit checkpoint only** — ADR-048, 2026-10-01. The original had two jobs:
+commit a lane's work so the next lane could read it, and release the branch name for another
+worktree. With one folder both stay unnecessary. What returned is the third thing it did by side
+effect: **keep the work in history.** Every `/advance` ends with one local commit of the ship set on
+`feat/<ID>`; `/ship` commits the rest and is still the only push.
 
-**A ticket is committed once, at `/ship`.** Every stage before it leaves the tree dirty, which is the
-original shape of the model — a commit is an assertion that a change is coherent, and deferring it
-until the gates have all passed keeps that assertion honest.
+*Until ADR-048 this section read "`handoff` no longer exists" and "A ticket is committed once, at
+`/ship`." ADR-006's revert condition — the first lost ticket — was met by CAL-12.*
 
 ### The one thing this makes dangerous
 
 **`git branch --show-current` and `git status` before the first instruction of every session.** Not
 `pwd` any more — the folder is a constant. The branch and the tree are not.
 
-Everything a ticket has produced — the story, the design, the source, the tests, all six artifacts
-(four while ADR-017 waives QA) —
-is **uncommitted until `/ship`**. There is no intermediate save point. So:
+Since ADR-048 the work of every stage up to the last `/advance` is in local history. **What the
+current stage has written is not**, nor are carried paths outside the ship set (MD-042), and nothing
+is pushed until `/ship`. So:
 
 - **A dirty tree is a stop, in every ticket command.** `git switch` carries modified and untracked
   files onto whichever branch is arrived at, and that is how one ticket's work lands on another
   ticket's branch. `.ai/standards/git-conventions.md` states the check; under ADR-006 it stopped
   being defence in depth and became the only defence.
-- **Nothing is in history until the end**, so there is nothing to bisect, nothing to revert to, and
-  no CI result until `/ship` runs.
+- **Nothing is on the remote until the end**, so there is no CI result until `/ship` runs.
 
-ADR-006 records both as accepted costs, and names the revert condition: the first time a ticket's
-work is lost or lands on the wrong branch is enough to reverse the decision.
+ADR-006 recorded both as accepted costs and named the revert condition: the first time a ticket's
+work is lost or lands on the wrong branch. It happened on CAL-12 and ADR-048 is the reversal.
 
 ### The surface that used to collide
 
