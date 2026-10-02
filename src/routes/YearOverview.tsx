@@ -34,11 +34,15 @@
 // own in § 2b and are implemented here: the footer link is always at the RIGHT and the faces at the
 // LEFT, faces overflow after FOUR, and the card link takes the same focus treatment every other link
 // in the product carries.
-import { useCallback, useEffect, useMemo, useState } from "react";
-import { Link, Navigate, useParams } from "react-router-dom";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Link, Navigate, useLocation, useParams } from "react-router-dom";
 // The seam, through its one door. Nothing above the seam names an implementation, and this file must
 // never import `./supabase` or `./mock` (RULE-02).
 import { seam } from "@/lib/data";
+// CAL-12 § 4.7. The viewed team's reads, through the one switch (`teamReadsFor`), and the address
+// helpers that keep `?team=` across a redirect (AC-7).
+import { useViewedTeam } from "@/hooks/useViewedTeam";
+import { teamReadsFor, withTeamParam } from "@/lib/viewed-team";
 // INV-04's module, imported DIRECTLY rather than through the seam — the same import YearView.tsx and
 // MonthView.tsx make, for the same reason: neither seam implementation counts or derives anything,
 // so there is no second answer for tests/seam-parity.test.ts to miss (§ 5).
@@ -132,12 +136,28 @@ export default function YearOverview() {
 
   const [view, setView] = useState<View>({ phase: "loading" });
 
+  // CAL-12 § 4.7. The viewed team decides which reads run; `resolving` and `unavailable` are this
+  // screen's own loading and unavailable phases (AC-12). `loadSeq` drops the answer of a load that a
+  // later one has replaced, so a slow read for one team can never be drawn under another's notice.
+  const { viewed } = useViewedTeam();
+  const { search } = useLocation();
+  const loadSeq = useRef(0);
+
   const load = useCallback(async (): Promise<void> => {
     if (!range) return;
+    const seq = ++loadSeq.current;
+    const stale = (): boolean => seq !== loadSeq.current;
     setView({ phase: "loading" });
+    if (viewed.kind === "resolving") return;
+    if (viewed.kind === "unavailable") {
+      setView({ phase: "unavailable" });
+      return;
+    }
+    const reads = teamReadsFor(seam, viewed);
 
     try {
       const me = await seam.getCurrentMember();
+      if (stale()) return;
 
       // A caller with no member row, and a removed one, land here. Both read no entries at all —
       // `member_team_id` filters `removed_at is null` inside its own body — so this state is the
@@ -157,19 +177,21 @@ export default function YearOverview() {
       // month cards are twelve SLICES of one result rather than twelve reads — which is what makes
       // the band and the cards incapable of describing two different years (§ 8, alternative 4).
       const [roster, entries, holidays] = await Promise.all([
-        seam.listMembers(),
-        seam.listTeamEntriesOverlapping(range),
+        reads.roster(),
+        reads.entriesOverlapping(range),
         seam.listHolidays(holidayReadRange(range)),
       ]);
+      if (stale()) return;
 
       setView({ phase: "ready", roster, entries, holidays });
     } catch {
+      if (stale()) return;
       // AC-15. All three reads throw on a transport failure and on a possibly-truncated answer. This
       // branch is the refusal: no band and no cards at all, rather than four numbers summed from
       // part of a year — which is worse than an error, because nothing about it looks wrong.
       setView({ phase: "unavailable" });
     }
-  }, [range]);
+  }, [range, viewed]);
 
   useEffect(() => {
     void load();
@@ -229,7 +251,7 @@ export default function YearOverview() {
     [ready, range],
   );
 
-  if (!valid) return <Navigate to={`/year/${currentYear()}`} replace />;
+  if (!valid) return <Navigate to={withTeamParam(`/year/${currentYear()}`, search)} replace />;
 
   if (view.phase === "loading") {
     return (
@@ -485,7 +507,7 @@ export default function YearOverview() {
                     other link in the product carries, which the image draws nowhere. */}
                 <Link
                   data-testid="year-month-card-link"
-                  to={`/month/${month}`}
+                  to={withTeamParam(`/month/${month}`, search)}
                   className="text-xs underline opacity-70"
                 >
                   View →
@@ -518,9 +540,10 @@ export default function YearOverview() {
  */
 export function YearMembers() {
   const { year } = useParams<{ year: string }>();
+  const { search } = useLocation();
 
   if (year === undefined || !isRealYear(year)) {
-    return <Navigate to={`/year/${currentYear()}/members`} replace />;
+    return <Navigate to={withTeamParam(`/year/${currentYear()}/members`, search)} replace />;
   }
 
   return <YearView />;

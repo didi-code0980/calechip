@@ -36,11 +36,15 @@
 // dot instead. 01-plan.md § 2b records that no image was attached at either stage and that the
 // arrangement below is the Tech Lead's own; the prototype in _figma/ is not evidence for this row and
 // was not read, cited or copied.
-import { useCallback, useEffect, useMemo, useState } from "react";
-import { Link, Navigate, useParams } from "react-router-dom";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Link, Navigate, useLocation, useParams } from "react-router-dom";
 // The seam, through its one door. Nothing above the seam names an implementation, and this file must
 // never import `./supabase` or `./mock` (RULE-02).
 import { seam } from "@/lib/data";
+// CAL-12 § 4.7. The viewed team's reads, through the one switch (`teamReadsFor`), and the address
+// helpers that keep `?team=` across a redirect (AC-7).
+import { useViewedTeam } from "@/hooks/useViewedTeam";
+import { teamReadsFor, withTeamParam } from "@/lib/viewed-team";
 // INV-04's module, imported DIRECTLY rather than through the seam — the same import MonthView.tsx
 // and WeekView.tsx make, for the same reason: neither seam implementation counts or derives
 // anything, so there is no second answer for tests/seam-parity.test.ts to miss.
@@ -143,12 +147,28 @@ export default function YearView() {
 
   const [view, setView] = useState<View>({ phase: "loading" });
 
+  // CAL-12 § 4.7. The viewed team decides which reads run; `resolving` and `unavailable` are this
+  // screen's own loading and unavailable phases (AC-12). `loadSeq` drops the answer of a load that a
+  // later one has replaced, so a slow read for one team can never be drawn under another's notice.
+  const { viewed } = useViewedTeam();
+  const { search } = useLocation();
+  const loadSeq = useRef(0);
+
   const load = useCallback(async (): Promise<void> => {
     if (!range) return;
+    const seq = ++loadSeq.current;
+    const stale = (): boolean => seq !== loadSeq.current;
     setView({ phase: "loading" });
+    if (viewed.kind === "resolving") return;
+    if (viewed.kind === "unavailable") {
+      setView({ phase: "unavailable" });
+      return;
+    }
+    const reads = teamReadsFor(seam, viewed);
 
     try {
       const me = await seam.getCurrentMember();
+      if (stale()) return;
 
       // A caller with no member row, and a removed one, land here. Both read no entries at all —
       // `member_team_id` filters `removed_at is null` inside its own body, so every policy built on
@@ -168,13 +188,15 @@ export default function YearView() {
       // one exported function rather than an expression here, so the three views cannot disagree
       // about it (CAL-08 01-plan.md section 8, rejected alternative 2).
       const [roster, entries, holidays] = await Promise.all([
-        seam.listMembers(),
-        seam.listTeamEntriesOverlapping(range),
+        reads.roster(),
+        reads.entriesOverlapping(range),
         seam.listHolidays(holidayReadRange(range)),
       ]);
+      if (stale()) return;
 
       setView({ phase: "ready", roster, entries, holidays });
     } catch {
+      if (stale()) return;
       // AC-14. All three reads throw on a transport failure and on a possibly-truncated answer
       // (since CAL-09 the team-entry bound is `TEAM_ENTRY_PAGE_SIZE` × `TEAM_ENTRY_MAX_PAGES` —
       // @/lib/data/mock:1246-1270 — and NOT the `MONTH_ENTRY_LIMIT` this line used to cite, which
@@ -186,7 +208,7 @@ export default function YearView() {
       // `HOLIDAY_LIMIT` is the one row limit a YEAR-wide range could plausibly approach.
       setView({ phase: "unavailable" });
     }
-  }, [range]);
+  }, [range, viewed]);
 
   useEffect(() => {
     void load();
@@ -267,7 +289,7 @@ export default function YearView() {
     [ready],
   );
 
-  if (!valid) return <Navigate to={`/year/${currentYear()}`} replace />;
+  if (!valid) return <Navigate to={withTeamParam(`/year/${currentYear()}`, search)} replace />;
 
   if (view.phase === "loading") {
     return (

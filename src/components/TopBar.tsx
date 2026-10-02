@@ -41,6 +41,10 @@ import type { MemberRole } from "@/lib/domain/types";
 import { mayAdminister, mayDecide } from "@/lib/roles";
 import { isAdminAddress } from "./AdminTabs";
 import { periodNavFor, type PeriodKind } from "@/lib/period";
+// CAL-12 § 4.6. The bar's period links are built from the pathname and would drop `?team=`; each now
+// carries it across (AC-7), and the new-entry link is absent while another team is viewed (AC-9).
+import { useViewedTeam } from "@/hooks/useViewedTeam";
+import { isReadOnly, withTeamParam } from "@/lib/viewed-team";
 
 const ICON_BUTTON =
   "flex h-8 w-8 items-center justify-center rounded-pill text-lg leading-none text-ink-2 " +
@@ -82,8 +86,9 @@ export interface TopBarProps {
 }
 
 export default function TopBar({ role }: TopBarProps) {
-  const { pathname } = useLocation();
+  const { pathname, search } = useLocation();
   const nav = periodNavFor(pathname);
+  const { viewed } = useViewedTeam();
 
   // SOLO, 2026-09-11. **THE ONE CONTROL HAS TWO FACES, AND WHICH ONE IS SHOWING IS A FACT ABOUT THE
   // ADDRESS.** Standing on any admin screen it is the way back to the calendar; standing
@@ -131,7 +136,7 @@ export default function TopBar({ role }: TopBarProps) {
               share the week they are looking at. */}
           <Link
             data-testid={`${nav.kind}-prev`}
-            to={nav.prevTo}
+            to={withTeamParam(nav.prevTo, search)}
             aria-label="Previous"
             className={ICON_BUTTON}
           >
@@ -160,7 +165,7 @@ export default function TopBar({ role }: TopBarProps) {
           </p>
           <Link
             data-testid={`${nav.kind}-next`}
-            to={nav.nextTo}
+            to={withTeamParam(nav.nextTo, search)}
             aria-label="Next"
             className={ICON_BUTTON}
           >
@@ -171,7 +176,7 @@ export default function TopBar({ role }: TopBarProps) {
               lands on `/month` and the month screen resolves the current month. */}
           <Link
             data-testid="shell-period-today"
-            to={nav.todayTo}
+            to={withTeamParam(nav.todayTo, search)}
             className={PILL_OUTLINE}
           >
             Today
@@ -203,7 +208,7 @@ export default function TopBar({ role }: TopBarProps) {
                 <Link
                   key={segment.kind}
                   data-testid={`${nav.kind}-${segment.kind}`}
-                  to={segment.to}
+                  to={withTeamParam(segment.to, search)}
                   aria-current={on ? "page" : undefined}
                   className={segmentClass(on)}
                 >
@@ -285,13 +290,18 @@ export default function TopBar({ role }: TopBarProps) {
           Events
         </Link>
 
-        <Link
-          data-testid="home-new-entry-link"
-          to="/entries/new"
-          className="rounded-pill bg-primary px-4 py-2 text-xs font-bold text-white transition-opacity hover:opacity-90 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
-        >
-          + Book
-        </Link>
+        {/* CAL-12 AC-9. Absent while another team is viewed: an entry booked from here lands on the
+            CALLER's team and would vanish from the screen that created it (INV-07). An affordance,
+            not a control — `createEntry` cannot reach another team whatever screen calls it. */}
+        {isReadOnly(viewed) ? null : (
+          <Link
+            data-testid="home-new-entry-link"
+            to="/entries/new"
+            className="rounded-pill bg-primary px-4 py-2 text-xs font-bold text-white transition-opacity hover:opacity-90 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
+          >
+            + Book
+          </Link>
+        )}
       </div>
     </header>
   );
