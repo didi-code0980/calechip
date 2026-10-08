@@ -19,9 +19,9 @@ consulted: []
 gate: PASS
 blocking_reason: ""
 next_state: TRIAGE
-verdict: ""
-verdict_reason: ""
-ticket_id: ""
+verdict: "PROMOTE"
+verdict_reason: "Worth building and not covered: events exist only on /events. ADR-045 decision 2 forbade drawing them on the grids; the operator agreed in words (Q1 \"A đồng ý\") to amend that point alone, so ADR-049 is written ACCEPTED by the operator in this run and nothing is left waiting."
+ticket_id: "EVT-03"
 awaiting_adrs: []
 operator_request: "Event hiện trên calendar view, click vào ra trang chi tiết"
 ---
@@ -30,6 +30,8 @@ operator_request: "Event hiện trên calendar view, click vào ra trang chi ti�
 
 **No verdict is written here.** This file is capture, not judgement. The verdict and any registry row
 that follows one are written by `/triage`.
+
+*`/triage` wrote its verdict below on 2026-10-08; the sentence above is left as `/idea` wrote it.*
 
 ## Problem
 
@@ -131,3 +133,29 @@ PLAN's to overrule:
    viewed team's.
 4. **A new colour token is owed** in `.ai/standards/ui-design-system.md`; its exact value is
    `tech-lead-design`'s, held to the contrast constraint above.
+
+# Triage verdict — PROMOTE, as `EVT-03`
+
+`product` at /triage, 2026-10-08.
+
+**Not REJECT.** Nothing shipped draws an event anywhere but `/events` and `/events/:id`; the problem
+stands as stated.
+
+**NEEDS-ADR was the verdict on the registry as found, and it was closed in the same run.** ADR-045
+decision 2 says an event *"is not drawn on the month, week or year grids"*, so the idea reversed part
+of an accepted ADR. The test for that is whether the operator decided it in words: § *Evidence* Q1
+quotes them choosing branch A, *"A đồng ý"*, against a question that named the clause and its source.
+That quote is the signature, so
+[ADR-049](../../registry/decisions/ADR-049-events-are-drawn-on-the-week-and-month-grids.md) is
+written `ACCEPTED by the operator`, amends decision 2 only, and `awaiting_adrs` stays empty.
+
+**Group `EVT`, not `CAL`.** ADR-028 step 2 sorts by area: the deliverable is where events surface,
+and nothing about entries, absence or the count changes.
+
+**One ticket, not split.** Two views, one read, one layer; the admin read of Q4-A is the only part
+that could grow, and PLAN sizes it. Split at PLAN if it does not fit M — MD-017's caveat applies.
+
+**What this verdict wrote:** ADR-049; a Status note on ADR-045 (text unchanged); the `EVT-03` row in
+`.ai/registry/features.md`, `PLANNED`; `.ai/board/tickets/EVT-03/ticket.yaml` at `BACKLOG`; row 1 of
+`## BACKLOG`. DoR items 1, 3, 4 and 6 are filled; 2 and 5 are PLAN's. `glossary_owed: []` — Event,
+Attendee, Invitation and Capacity already have rows.

@@ -12,6 +12,8 @@ governed_by: [RULE-01, RULE-09]
 `.ai/board/ideas/2026-09-29-a-gathering-has-nowhere-to-be-announced-or-joined.md` § *Evidence*.
 Drafted by `product` at `/triage` of that file.
 
+**Decision 2 amended 2026-10-08 by [ADR-049](ADR-049-events-are-drawn-on-the-week-and-month-grids.md)**, `ACCEPTED by the operator`: events are drawn on the week and month grids as their own layer, and still never counted. Decision 2's text below is left as written.
+
 **Recorded, not authored.** The operator was shown both refusals by number and text and offered three
 options — remove #4 and #5, a narrow amendment opening only a separate event concept, or keep the
 charter. The question and the answer, verbatim from Q1:

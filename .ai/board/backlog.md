@@ -46,6 +46,9 @@ Under the current gate placement a ticket sits here until it has been planned â€
 
 | # | Ticket | Title | State | Blocked on |
 |---|--------|-------|-------|------------|
+| 1 | EVT-03 | Events are drawn on the week and month grids, and a click opens the event | BACKLOG | â€” |
+
+**Row 1 was appended by `product` at /triage on 2026-10-08**, from `.ai/board/ideas/2026-10-08-an-event-is-invisible-from-the-calendar-it-happens-on.md`. It is row 1 because the table was empty, not because anybody placed it. The paragraphs below were written while the table held other rows and are left standing.
 
 **Both `EVT` rows have now left this table.** `EVT-01` was row 2 until `/advance` on 2026-09-29
 moved it to `## READY`, and it has since shipped; `EVT-02` became row 2 and left the same way later
