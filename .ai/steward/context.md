@@ -2664,3 +2664,30 @@ nêu, và ghi một dòng vào model-debt.md cho phần idea đã mất. KHÔNG 
   Verified on no ref. Same cause as MD-031; ADR-048 does not cover it.
 - **Open for the operator:** push at the checkpoint (needs `git push origin feat/*` allowed); MD-042's
   fix shape.
+
+### 2026-10-08 — six solo features registered; ten existing rows carry what solo changed in them
+
+Operator instruction, verbatim: *"tạo feature ID cho các tính năng mới và đưa vào backlog, Các thay
+đổi tính năng cũ thì ghi vào mô tả của feature đã có"*. Run from the orchestrator's session, after
+`/next-ticket` found the board empty and a sweep of `SOLO` markers found work with no row.
+
+- **Registry write, feature rows only (no ADR owed):** `CAL-13` busy day, `ADM-08` per-type approval
+  (ADR-034 still `Proposed` — said in the row), `TEA-09` sign-up then admit (ADR-033), `TEA-10`
+  profile, `TEA-11` many teams (ADR-039), `TEA-12` manager (ADR-035). All `DONE`: every cited file is
+  on `origin/main`. Applied state of the migrations unknown — MD-034.
+- **`TEA-09` was not a free number.** `src/lib/data/supabase.ts:1286`, `src/lib/fixtures.ts:154` and
+  `tests/roster-excludes-signups.test.ts:1` already cited it, from a 2026-09-29 solo fix to the sign-up
+  roster; the row was written to be what those citations mean. D1 had not flagged them — it reads
+  documents, not source.
+- **Reclassified from the list given to the operator one turn earlier:** the overlap-dates refusal,
+  the member email column and the avatar images were reported as new features and are recorded
+  instead as changes to `CAL-01`, `TEA-06` and `TEA-10`, and the team Settings screen folds into
+  `TEA-11` and `ADM-01`. Nine became six.
+- **Amended `Notes` (appended, nothing rewritten):** `CAL-01`, `CAL-05`, `ADM-01`, `ADM-02`, `ADM-04`,
+  `ADM-05`, `UIE-09`, `UIE-10`, `TEA-02` (successor), `TEA-06`. **`TEA-06` `IN_PROGRESS` → `DONE`:**
+  its own stated reason (uncommitted, unmerged) no longer held.
+- **"Đưa vào backlog" was not done literally.** A row in `## BACKLOG` means *awaiting PLAN*, and
+  `/next-ticket` would have dispatched `/plan` to rebuild code already on `main`. `backlog.md` gained a
+  `## SHIPPED OUTSIDE THE LOOP` section instead, marked as not a queue. Said once to the operator; if
+  they repeat the instruction, the rows go in the queue.
+- **Not done, and still MD-035's:** `/solo` still prints its row instead of writing it.
