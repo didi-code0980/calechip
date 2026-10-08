@@ -1334,7 +1334,7 @@ các tính năng mới và đưa vào backlog"*. The four solo rows registered e
 | 17 | EVT-01 | A member announces an event to their own team, to named people, or to every team, and those it is for can read it | 2026-09-29 | [#105](https://github.com/didi-code0980/calechip/pull/105), merged — corrected from `PENDING_PR` at EVT-02's ship |
 | 18 | EVT-02 | A member joins an event they can read, within its capacity, approval mode and deadline, and everyone who can read it sees who is coming | 2026-09-29 | [#106](https://github.com/didi-code0980/calechip/pull/106), merged — corrected from `PENDING_PR` at CAL-12's ship |
 | 19 | CAL-12 | An admin chooses which team the three calendar screens and the sidebar roster show, read-only | 2026-10-01 | [#108](https://github.com/didi-code0980/calechip/pull/108), merged — corrected from `PENDING_PR` at EVT-03's ship |
-| 20 | EVT-03 | Events are drawn on the week and month grids, and a click opens the event | 2026-10-08 | PENDING_PR |
+| 20 | EVT-03 | Events are drawn on the week and month grids, and a click opens the event | 2026-10-08 | [#113](https://github.com/didi-code0980/calechip/pull/113) |
 
 **The window displaced `ADM-06` at EVT-03's ship** — *ADM-06, Reject several entries at once, with one reason for the batch, shipped 2026-09-06,* [#60](https://github.com/didi-code0980/calechip/pull/60).
 
