@@ -1,6 +1,6 @@
 ---
 doc_version: 1
-last_updated: 2026-09-03
+last_updated: 2026-10-08
 governed_by: [RULE-06, RULE-10]
 ---
 
@@ -1267,6 +1267,33 @@ Tickets that cannot proceed until a human decides something. Name the decision, 
 
 | # | Ticket | Blocked on | Since | Who decides |
 |---|--------|------------|-------|-------------|
+
+## SHIPPED OUTSIDE THE LOOP
+
+Features built by `/solo` — no ticket, no plan, no gate — and registered in `.ai/registry/features.md`
+afterwards. **Not a queue.** These rows are already on `main`; `/next-ticket` reads `## READY` and
+`## BACKLOG` only, and a row here must never be moved into either, or the loop would plan and build
+again what already exists. To put one of them through the gates after the fact, `/triage` a new idea
+against its ID.
+
+Rows 1–6 were added by the steward on 2026-10-08, on the operator's instruction *"tạo feature ID cho
+các tính năng mới và đưa vào backlog"*. The four solo rows registered earlier — `TEA-06`, `TEA-08`,
+`ADM-07`, `UIE-11` — are listed below them for completeness; nothing about them changed here except
+`TEA-06`'s status. Changes solo made to features that already had a row are recorded in that row's
+`Notes`, not here.
+
+| # | Feature | Title | Built by `/solo` | Registered |
+|---|---------|-------|------------------|------------|
+| 1 | CAL-13 | A member marks a date busy; the team sees how many people did, and who | 2026-09-11 | 2026-10-08 |
+| 2 | ADM-08 | A team chooses, per entry type, whether a new entry waits for an admin | 2026-09-11 | 2026-10-08 |
+| 3 | TEA-09 | A person signs up, waits, and an admin admits them onto a team or rejects them | 2026-09-10 | 2026-10-08 |
+| 4 | TEA-10 | A member edits their own display name, avatar and password from a profile screen | 2026-09-10 | 2026-10-08 |
+| 5 | TEA-11 | An admin creates, renames and deletes an empty team, admits a sign-up onto any team, and moves a member between teams | 2026-09-11 | 2026-10-08 |
+| 6 | TEA-12 | A third role, manager, decides entries and nothing else | 2026-09-12 | 2026-10-08 |
+| 7 | TEA-06 | The member tab shows team and last sign-in, and carries view, edit and delete per row | 2026-09-10 | 2026-09-12 |
+| 8 | TEA-08 | An admin sets a rank on any team | 2026-09-26 | 2026-09-26 |
+| 9 | ADM-07 | A member reports an issue, with optional screenshots, from a floating button; an admin reads the reports and sees how many are not done | 2026-09-26 | 2026-09-28 |
+| 10 | UIE-11 | Every password box carries a reveal control | 2026-09-28 | 2026-09-28 |
 
 ## ARCHIVE (last 20)
 
