@@ -1354,6 +1354,26 @@ export interface DataSeam {
     memberId: string,
     status: "attending" | "rejected" | "removed",
   ): Promise<Result<EventAttendance>>;
+
+  // -------------------------------------------------------------------------
+  // EVT-03 — events on the week and month grids. 01-plan.md § 4.3. ADR-049.
+  //
+  // Two reads, none changed, no migration. Both are filters over rows existing policies already
+  // return the caller; neither widens what anybody can read (ADR-049 revert condition 2).
+  // -------------------------------------------------------------------------
+
+  /** EVT-03 AC-6..AC-8, AC-11. The CALLER's own attendance rows across every event, any status.
+   *  Filtered by `member_id = caller` explicitly, because the policy returns an admin every row.
+   *  Empty for a caller with no member row. Ordered `eventId` asc. Bounded by DATASTORE_MAX_ROWS and
+   *  throws at the bound, as `listEventAttendance` does. */
+  listOwnEventAttendance(): Promise<EventAttendance[]>;
+
+  /** EVT-03 AC-9, AC-10. Of the events `listEvents()` returns the caller, those relevant to team
+   *  `teamId` (`eventsRelevantToTeam`, § 4.2), with "on the team" read from `listMembersForTeam(teamId)`
+   *  restricted to `removedAt === null && status === "approved"`. A non-admin's `listMembersForTeam`
+   *  is empty, so for them it is never wider than `listEvents()`. Same order as `listEvents()`.
+   *  THROWS on any failure of its reads, and at the DATASTORE_MAX_ROWS bound. */
+  listEventsForTeam(teamId: string): Promise<CalEvent[]>;
 }
 
 export type { DataSeam as Seam };

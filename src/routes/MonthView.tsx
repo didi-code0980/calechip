@@ -110,7 +110,10 @@ import BusySpinner from "@/components/BusySpinner";
 // range expanded into the days the picker opens filled.
 import { createEntriesForDates } from "@/lib/create-entries";
 import { datesInRange } from "@/lib/date-selection";
-import type { BusyCounts, BusyDay, DateRange, DayStatus, Entry, Failure, Holiday, Member, Team } from "@/lib/domain/types";
+import type { BusyCounts, BusyDay, CalEvent, DateRange, DayStatus, Entry, EventAttendance, Failure, Holiday, Member, Team } from "@/lib/domain/types";
+// EVT-03. The event layer — pure, and importing nothing from absence, day-status or busy.
+import { eventsByDate, eventsOverlapping, MONTH_EVENT_LIMIT, takingPartIds } from "@/lib/event-layer";
+import EventChip from "@/components/EventChip";
 // UIE-02 § 4.5. `MONTH_NAMES`, `mondayIndex`, `shiftMonth`, `monthLabel` and the month shape test
 // were declared BELOW, in this file; the shell's top bar needs all of them, and `mondayIndex` was
 // DUPLICATED here and in WeekView.tsx character for character. Moving each definition into one pure
@@ -191,6 +194,10 @@ type View =
       entries: Entry[];
       holidays: Holiday[];
       busyDays: BusyDay[];
+      // EVT-03 § 4.6. Empty until the second read lands; `eventsFailed` is AC-19's notice.
+      events: CalEvent[];
+      ownAttendance: EventAttendance[];
+      eventsFailed: boolean;
     };
 
 /** The drag in progress: where it started and where the pointer is now. Order-free — a drag upwards
@@ -290,7 +297,36 @@ export default function MonthView() {
         return;
       }
 
-      setView({ phase: "ready", me, team, roster, entries, holidays, busyDays });
+      setView({
+        phase: "ready",
+        me,
+        team,
+        roster,
+        entries,
+        holidays,
+        busyDays,
+        events: [],
+        ownAttendance: [],
+        eventsFailed: false,
+      });
+
+      // EVT-03 § 4.6, AC-19. THE EVENT LAYER IS READ AFTER THE GRID IS STORED, AND ITS FAILURE NEVER
+      // REACHES THE `unavailable` PHASE: the reads above are inputs to the absence count and a partial
+      // one would make a count wrong, but no event feeds any count (ADR-049 decision 6), so a missing
+      // layer says nothing false about absence — provided the screen says it is missing.
+      try {
+        const [events, ownAttendance] = await Promise.all([
+          reads.events(),
+          seam.listOwnEventAttendance(),
+        ]);
+        if (stale()) return;
+        setView((current) =>
+          current.phase === "ready" ? { ...current, events, ownAttendance } : current,
+        );
+      } catch {
+        if (stale()) return;
+        setView((current) => (current.phase === "ready" ? { ...current, eventsFailed: true } : current));
+      }
     } catch {
       if (stale()) return;
       // All four reads throw on a transport failure and on a possibly-truncated answer. AC-11 is
@@ -366,6 +402,26 @@ export default function MonthView() {
         ? busyDatesOf(view.busyDays, range, view.me.id)
         : new Set<string>(),
     [view, range],
+  );
+
+  // EVT-03 § 4.6. THE EVENT LAYER, IN ITS OWN MEMOS AND NOWHERE ELSE. Neither is passed to
+  // `absenceCountsFor`, `absentEntriesFor`, `dayStatusesFor`, `isOverloaded` or the overload warning —
+  // an event is a layer of its own and never an entry (ADR-049 decision 6; INV-04, INV-07).
+  const eventDays = useMemo(
+    () =>
+      view.phase === "ready" && range
+        ? eventsByDate(eventsOverlapping(view.events, range), range)
+        : new Map<string, CalEvent[]>(),
+    [view, range],
+  );
+
+  // AC-6..AC-8, AC-11: the READER's participation — on another team's view too.
+  const takingPart = useMemo(
+    () =>
+      view.phase === "ready"
+        ? takingPartIds(view.events, view.me.id, view.ownAttendance)
+        : new Set<string>(),
+    [view],
   );
 
   // The date mid-write. One at a time rather than a boolean, so marking three days in a row does not
@@ -544,6 +600,12 @@ export default function MonthView() {
           threshold line to the left edge, which is a visible change on a ticket whose AC-10 says the
           content below the header is unchanged. */}
       <header className="flex items-center gap-4">
+        {/* EVT-03 AC-19. Beside the threshold line, and only when the event read failed. */}
+        {view.eventsFailed ? (
+          <p data-testid="month-events-unavailable" role="status" className="text-xs text-ink-3">
+            Events could not be loaded.
+          </p>
+        ) : null}
         {/* AC-14. The threshold is READ and shown, and there is no control that changes it — for
             either role. It is displayed rather than hidden because an overloaded day is otherwise a
             colour with no explanation, and the two numbers behind it are the whole of INV-04. */}
@@ -629,6 +691,10 @@ export default function MonthView() {
               const busyCount = inMonth ? (busyCounts.get(date) ?? 0) : 0;
               const busyHere = inMonth ? (busyPeople.get(date) ?? []) : [];
               const iAmBusy = inMonth && myBusy.has(date);
+              // EVT-03 AC-2, AC-17. In-month cells only; at most MONTH_EVENT_LIMIT chips, then `+N more`.
+              const cellEvents = inMonth ? (eventDays.get(date) ?? []) : [];
+              const shownEvents = cellEvents.slice(0, MONTH_EVENT_LIMIT);
+              const hiddenEvents = cellEvents.slice(MONTH_EVENT_LIMIT);
 
               return (
                 <div
@@ -725,6 +791,34 @@ export default function MonthView() {
                       </span>
                     ) : null}
                   </div>
+
+                  {/* EVT-03 § 2b. Directly under the date row, above the holiday name. AC-17: the cell
+                      keeps its avatars, count, holiday name and busy badge — the cap is what pays for
+                      that, and a hidden event is still on the week view, which draws every one. */}
+                  {cellEvents.length > 0 ? (
+                    <div className="flex min-w-0 flex-col gap-0.5">
+                      {shownEvents.map((event) => (
+                        <EventChip
+                          key={event.id}
+                          event={event}
+                          takingPart={takingPart.has(event.id)}
+                          surface="month"
+                          date={date}
+                        />
+                      ))}
+                      {hiddenEvents.length > 0 ? (
+                        <span
+                          data-testid="month-cell-events-more"
+                          data-date={date}
+                          data-hidden-count={hiddenEvents.length}
+                          title={hiddenEvents.map((event) => event.name).join(", ")}
+                          className="text-[10px] text-ink-3"
+                        >
+                          {`+${hiddenEvents.length} more`}
+                        </span>
+                      ) : null}
+                    </div>
+                  ) : null}
 
                   {/* UIE-06 AC-10. **THE BADGE LEFT THE HOLIDAY'S ROW AND TOOK A LINE OF ITS OWN,
                       RIGHT-ALIGNED.** The image puts it in the cell's top-right; 01-plan.md § 5.1 says

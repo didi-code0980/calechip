@@ -29,6 +29,8 @@ import type {
 import { mayDecide, mayDecideEntriesOf } from "@/lib/roles";
 // EVT-02, 01-plan.md section 4.2. `public.event_registration_open`, reproduced.
 import { eventToday, registrationOpen } from "@/lib/event-registration";
+// EVT-03. The admin's other-team narrowing (Q4-A) — one rule, shared with supabase.ts.
+import { eventsRelevantToTeam } from "@/lib/event-layer";
 import type {
   MemberDecision,
   BulkRejectionOutcome,
@@ -2991,5 +2993,47 @@ export const seam: DataSeam = {
     row.status = status;
     row.updatedAt = new Date().toISOString();
     return { ok: true, value: { ...row } };
+  },
+
+  // -------------------------------------------------------------------------
+  // EVT-03 — events on the week and month grids. 01-plan.md § 4.3. ADR-049.
+  // -------------------------------------------------------------------------
+
+  // `event_attendance_select_visible`'s own-row clause, with `member_id = caller` explicit — the
+  // policy hands an admin every row, and AC-11 marks only the admin's own. `eventId` ascending.
+  async listOwnEventAttendance(): Promise<EventAttendance[]> {
+    const uid = currentMemberId;
+    if (memberTeamId(uid) === null) return [];
+    return eventAttendance
+      .filter((a) => {
+        if (a.memberId !== uid) return false;
+        const event = events.find((e) => e.id === a.eventId);
+        return event !== undefined && mayReadEvent(event, uid);
+      })
+      .sort((a, b) => a.eventId.localeCompare(b.eventId))
+      .map((a) => ({ ...a }));
+  },
+
+  // The same rows `listEvents` returns, narrowed to team `teamId`. Invitees are read only for events
+  // the caller may manage — `event_invitee_select_manage`, as the real embed is filtered — and the
+  // roster comes from `listMembersForTeam`, empty for a non-admin (AC-12). Through `seam.`, never
+  // `this.`, so a destructured seam still works.
+  async listEventsForTeam(teamId: string): Promise<CalEvent[]> {
+    const [visible, roster] = await Promise.all([
+      seam.listEvents(),
+      seam.listMembersForTeam(teamId),
+    ]);
+    const inviteesByEvent = new Map<string, string[]>();
+    for (const event of visible) {
+      if (!mayManageEvent(event, currentMemberId)) continue;
+      inviteesByEvent.set(
+        event.id,
+        eventInvitees.filter((i) => i.eventId === event.id).map((i) => i.memberId),
+      );
+    }
+    const teamMemberIds = new Set(
+      roster.filter((m) => m.removedAt === null && m.status === "approved").map((m) => m.id),
+    );
+    return eventsRelevantToTeam(visible, teamId, inviteesByEvent, teamMemberIds);
   },
 };

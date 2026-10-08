@@ -11,6 +11,8 @@ import {
 import type { PostgrestError } from "@supabase/supabase-js";
 // SOLO, 2026-09-11. Names the dates an overlap refusal is about — `overlapFailure` below.
 import { clashingDates, overlapMessage, type OverlapCandidate } from "./overlap";
+// EVT-03. The admin's other-team narrowing (Q4-A) — one rule, shared with mock.ts.
+import { eventsRelevantToTeam } from "@/lib/event-layer";
 import type {
   AddHolidayInput,
   ChangePasswordInput,
@@ -3226,5 +3228,70 @@ export const seam: DataSeam = {
       };
     }
     return { ok: true, value: toAttendance(row) };
+  },
+
+  // -------------------------------------------------------------------------
+  // EVT-03 — events on the week and month grids. 01-plan.md § 4.3. ADR-049. No migration: both reads
+  // are filters over rows existing policies already return the caller (§ 6).
+  // -------------------------------------------------------------------------
+
+  // `member_id = caller` is explicit because `event_attendance_select_visible` returns an admin every
+  // row, and AC-11 marks the ADMIN's own participation, not anybody's. No user, no rows.
+  async listOwnEventAttendance(): Promise<EventAttendance[]> {
+    const { data: auth, error: authError } = await client().auth.getUser();
+    if (authError || !auth.user) return [];
+
+    const { data, error } = await client()
+      .from("event_attendance")
+      .select(ATTENDANCE_COLUMNS)
+      .eq("member_id", auth.user.id)
+      .order("event_id", { ascending: true })
+      .limit(DATASTORE_MAX_ROWS)
+      .returns<AttendanceRow[]>();
+
+    if (error) throw new Error(`listOwnEventAttendance failed: ${error.message}`);
+    const rows = data ?? [];
+    if (rows.length >= DATASTORE_MAX_ROWS) {
+      throw new Error(
+        `listOwnEventAttendance returned ${rows.length} rows at the ${DATASTORE_MAX_ROWS} limit: ` +
+          `the list may be truncated and must not be shown as complete`,
+      );
+    }
+    return rows.map(toAttendance);
+  },
+
+  // The same `select` `listEvents` issues, plus the invitee embed. `event_invitee_select_manage`
+  // returns invitees only to the creator and admins — exactly the set this filter can use — and a
+  // non-admin's `list_members_for_team` is empty, so for them nothing named is ever added (AC-12).
+  // The roster goes through `seam.` rather than `this.` for `readCurrentMember`'s reason: a method
+  // reaching for a sibling through `this` breaks when the object is destructured.
+  async listEventsForTeam(teamId: string): Promise<CalEvent[]> {
+    const [eventsRead, members] = await Promise.all([
+      client()
+        .from("event")
+        .select(`${EVENT_COLUMNS}, event_invitee(member_id)`)
+        .order("start_date", { ascending: true })
+        .order("id", { ascending: true })
+        .limit(DATASTORE_MAX_ROWS)
+        .returns<(EventRow & { event_invitee: { member_id: string }[] | null })[]>(),
+      seam.listMembersForTeam(teamId),
+    ]);
+
+    if (eventsRead.error) throw new Error(`listEventsForTeam failed: ${eventsRead.error.message}`);
+    const rows = eventsRead.data ?? [];
+    if (rows.length >= DATASTORE_MAX_ROWS) {
+      throw new Error(
+        `listEventsForTeam returned ${rows.length} rows at the ${DATASTORE_MAX_ROWS} limit: the ` +
+          `list may be truncated and must not be shown as complete`,
+      );
+    }
+
+    const inviteesByEvent = new Map<string, string[]>(
+      rows.map((row) => [row.id, (row.event_invitee ?? []).map((i) => i.member_id)]),
+    );
+    const teamMemberIds = new Set(
+      members.filter((m) => m.removedAt === null && m.status === "approved").map((m) => m.id),
+    );
+    return eventsRelevantToTeam(rows.map(toEvent), teamId, inviteesByEvent, teamMemberIds);
   },
 };

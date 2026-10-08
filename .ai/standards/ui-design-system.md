@@ -17,6 +17,7 @@ TODO(project): two or three sentences. The overall feel, and the one thing that 
 
 TODO(project): accent, neutrals, surfaces, and the semantic colours for success, warning and danger.
 Give hex values, not names.
+- Event (EVT-03, ADR-049): --color-event #ff7f50 coral, ink #6b230a. Never used for an entry, a busy day or an overload.
 
 ## Type
 
