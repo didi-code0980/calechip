@@ -205,6 +205,11 @@
      that briefly borrowed it now carries its own amber (`src/lib/roles.ts`). */
   --color-busy: #ffb3a7; /* coral red */
   --color-busy-ink: #9f1d1d;
+  /* EVT-03, ADR-049 decision 7. An event — a gathering, not an absence and not a busy day.
+     Coral at the operator's word (*"sử dụng màu coral"*). Deeper and more saturated than
+     `--color-busy` (#ffb3a7) and separated from it by shape too: a full-width bar, never a pill. */
+  --color-event: #ff7f50; /* coral */
+  --color-event-ink: #6b230a;
 }
 
 /* -------------------------------------------------------------------------------------------

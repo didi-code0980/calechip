@@ -22,6 +22,9 @@ planned, sized, and safe to build** — the next stage for a row here is IN_PROG
 
 | # | Ticket | Title | Size | Depends on |
 |---|--------|-------|------|------------|
+| 1 | EVT-03 | Events are drawn on the week and month grids, and a click opens the event | M | — |
+
+**`EVT-03` moved here from `## BACKLOG` at /advance on 2026-10-08**, from `01-plan.md` gate PASS with all six Definition of Ready items passing. `EVT-04` to `EVT-07` each moved up one row in `## BACKLOG`; bookkeeping, not a reordering. The paragraph below was written while this table was empty and is left standing.
 
 **Empty — `CAL-12` left this section for `## ARCHIVE` at its own ship on 2026-10-01**, and nothing is
 behind it. `## BACKLOG` is empty too, so **the board holds no open ticket at all**: `/triage` is what
@@ -46,11 +49,10 @@ Under the current gate placement a ticket sits here until it has been planned �
 
 | # | Ticket | Title | State | Blocked on |
 |---|--------|-------|-------|------------|
-| 1 | EVT-03 | Events are drawn on the week and month grids, and a click opens the event | BACKLOG | — |
-| 2 | EVT-04 | A person is notified in the app when an event concerns them | BACKLOG | — |
-| 3 | EVT-05 | A person is emailed when an event for their team is created, when they are invited, and when their request is decided | BACKLOG | `EVT-04`; and the operator — no email provider, key holder or sending domain (idea Q6) |
-| 4 | EVT-06 | A creator opens an event to guests, and anyone with its link reads it and who is coming | BACKLOG | — |
-| 5 | EVT-07 | A guest registers for an opened event with a name and an email, and manages it from a link shown once | BACKLOG | `EVT-06` |
+| 1 | EVT-04 | A person is notified in the app when an event concerns them | BACKLOG | — |
+| 2 | EVT-05 | A person is emailed when an event for their team is created, when they are invited, and when their request is decided | BACKLOG | `EVT-04`; and the operator — no email provider, key holder or sending domain (idea Q6) |
+| 3 | EVT-06 | A creator opens an event to guests, and anyone with its link reads it and who is coming | BACKLOG | — |
+| 4 | EVT-07 | A guest registers for an opened event with a name and an email, and manages it from a link shown once | BACKLOG | `EVT-06` |
 
 **Rows 2 and 3 were appended by `product` at /triage on 2026-10-08**, from `.ai/board/ideas/2026-10-08-a-person-learns-about-an-event-only-by-going-to-look.md`. Split at triage on the operator's Q7. They sit below `EVT-03` because it was already here, not because anybody placed them.
 

@@ -15,7 +15,15 @@
 // included, because `absenceCountsFor` needs them; the sidebar's removed-member filter is display
 // only and lives in `useRoster`.
 import type { DataSeam } from "@/lib/data";
-import type { BusyDay, DateRange, Entry, Member, MemberRole, Team } from "@/lib/domain/types";
+import type {
+  BusyDay,
+  CalEvent,
+  DateRange,
+  Entry,
+  Member,
+  MemberRole,
+  Team,
+} from "@/lib/domain/types";
 
 /** The one query-parameter name. */
 export const TEAM_PARAM = "team";
@@ -91,19 +99,22 @@ export function withTeamParam(to: string, search: string): string {
   return `${to}${to.includes("?") ? "&" : "?"}${TEAM_PARAM}=${encodeURIComponent(team)}`;
 }
 
-/** The four reads every calendar screen and the roster make, for the viewed team. */
+/** The five reads every calendar screen and the roster make, for the viewed team. */
 export interface TeamReads {
   team(): Promise<Team | null>;
   roster(): Promise<Member[]>; // removed members INCLUDED (INV-04)
   entriesOverlapping(range: DateRange): Promise<Entry[]>;
   busyDaysOverlapping(range: DateRange): Promise<BusyDay[]>;
+  /** EVT-03. own -> seam.listEvents(); other -> seam.listEventsForTeam(team.id). */
+  events(): Promise<CalEvent[]>;
 }
 
 /**
  * own   -> seam.getTeam(), seam.listMembers(), seam.listTeamEntriesOverlapping(range),
- *          seam.listTeamBusyDaysOverlapping(range)  — byte-for-byte today's calls.
+ *          seam.listTeamBusyDaysOverlapping(range), seam.listEvents()  — byte-for-byte today's calls.
  * other -> Promise.resolve(viewed.team), seam.listMembersForTeam(viewed.team.id),
- *          seam.listTeamEntriesOverlappingForTeam(viewed.team.id, range), Promise.resolve([]).
+ *          seam.listTeamEntriesOverlappingForTeam(viewed.team.id, range), Promise.resolve([]),
+ *          seam.listEventsForTeam(viewed.team.id) (EVT-03).
  * An `other` TeamReads NEVER calls an own-team read, so a failure cannot fall back to team A (AC-12).
  */
 export function teamReadsFor(
@@ -116,6 +127,7 @@ export function teamReadsFor(
       roster: () => seam.listMembers(),
       entriesOverlapping: (range) => seam.listTeamEntriesOverlapping(range),
       busyDaysOverlapping: (range) => seam.listTeamBusyDaysOverlapping(range),
+      events: () => seam.listEvents(),
     };
   }
   const { team } = viewed;
@@ -125,5 +137,7 @@ export function teamReadsFor(
     entriesOverlapping: (range) => seam.listTeamEntriesOverlappingForTeam(team.id, range),
     // Out-of-scope 13: another team's busy days have no read, and the strip is not drawn (AC-9).
     busyDaysOverlapping: () => Promise.resolve([]),
+    // EVT-03 AC-9. Never `seam.listEvents()`: an other-team view draws team B's relevant events.
+    events: () => seam.listEventsForTeam(team.id),
   };
 }

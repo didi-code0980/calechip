@@ -160,7 +160,10 @@ import { dayStatusesFor, holidayReadRange } from "@/lib/data/day-status";
 // as the two above. **IT IS NOT INV-04 AND THE TWO NUMBERS ARE NEVER ADDED** — `busy.ts`'s header
 // carries that at length. A busy person is at work; the strip below draws the two facts separately.
 import { busyCountsFor, busyDatesOf, busyMembersFor, withOwnBusyMark } from "@/lib/data/busy";
-import type { AbsenceCounts, AbsenceDetail, BusyCounts, BusyDay, DateRange, DayStatus, Entry, Holiday, Member } from "@/lib/domain/types";
+import type { AbsenceCounts, AbsenceDetail, BusyCounts, BusyDay, CalEvent, DateRange, DayStatus, Entry, EventAttendance, Holiday, Member } from "@/lib/domain/types";
+// EVT-03. The event layer — pure, and importing nothing from absence, day-status or busy.
+import { eventsByDate, eventsOverlapping, takingPartIds } from "@/lib/event-layer";
+import EventChip from "@/components/EventChip";
 // SOLO, 2026-09-12. `TYPE_CODES` REPLACES `TYPE_LABELS` IN THIS IMPORT, which is the whole fix for
 // `Uncaught ReferenceError: TYPE_CODES is not defined` at :912. The row below was changed to render
 // the short code and the import was never widened, so the module compiled — Vite does not typecheck
@@ -244,6 +247,10 @@ type View =
       entries: Entry[];
       holidays: Holiday[];
       busyDays: BusyDay[];
+      // EVT-03 § 4.6. Empty until the second read lands; `eventsFailed` is AC-19's notice.
+      events: CalEvent[];
+      ownAttendance: EventAttendance[];
+      eventsFailed: boolean;
     };
 
 interface WeekViewProps {
@@ -358,7 +365,35 @@ export default function WeekView({ landing = false }: WeekViewProps) {
       ]);
       if (stale()) return;
 
-      setView({ phase: "ready", me, roster, entries, holidays, busyDays });
+      setView({
+        phase: "ready",
+        me,
+        roster,
+        entries,
+        holidays,
+        busyDays,
+        events: [],
+        ownAttendance: [],
+        eventsFailed: false,
+      });
+
+      // EVT-03 § 4.6, AC-19. THE EVENT LAYER IS READ AFTER THE GRID IS STORED, AND ITS FAILURE NEVER
+      // REACHES THE `unavailable` PHASE: the reads above are inputs to the absence count and a partial
+      // one would make a count wrong, but no event feeds any count (ADR-049 decision 6), so a missing
+      // layer says nothing false about absence — provided the screen says it is missing.
+      try {
+        const [events, ownAttendance] = await Promise.all([
+          reads.events(),
+          seam.listOwnEventAttendance(),
+        ]);
+        if (stale()) return;
+        setView((current) =>
+          current.phase === "ready" ? { ...current, events, ownAttendance } : current,
+        );
+      } catch {
+        if (stale()) return;
+        setView((current) => (current.phase === "ready" ? { ...current, eventsFailed: true } : current));
+      }
     } catch {
       if (stale()) return;
       // AC-15. All three reads throw on a transport failure and on a possibly-truncated answer
@@ -436,6 +471,26 @@ export default function WeekView({ landing = false }: WeekViewProps) {
         ? busyDatesOf(view.busyDays, range, view.me.id)
         : new Set<string>(),
     [view, range],
+  );
+
+  // EVT-03 § 4.6. THE EVENT LAYER, IN ITS OWN MEMOS AND NOWHERE ELSE. Neither is passed to
+  // `absenceCountsFor`, `absentEntriesFor`, `dayStatusesFor`, `isOverloaded` or the overload warning —
+  // an event is a layer of its own and never an entry (ADR-049 decision 6; INV-04, INV-07).
+  const eventDays = useMemo(
+    () =>
+      view.phase === "ready" && range
+        ? eventsByDate(eventsOverlapping(view.events, range), range)
+        : new Map<string, CalEvent[]>(),
+    [view, range],
+  );
+
+  // AC-6..AC-8, AC-11: the READER's participation — on another team's view too.
+  const takingPart = useMemo(
+    () =>
+      view.phase === "ready"
+        ? takingPartIds(view.events, view.me.id, view.ownAttendance)
+        : new Set<string>(),
+    [view],
   );
 
   // The date whose control is mid-write. **ONE AT A TIME AND NOT A BOOLEAN**: a boolean would
@@ -638,6 +693,13 @@ export default function WeekView({ landing = false }: WeekViewProps) {
           week this wrapper is SHORTER than the grid it holds, which is intended and costs nothing:
           nothing here sets `overflow`, and the only thing positioned against it is the mascot, which
           is drawn on empty weeks only, where the two heights are the same. */}
+      {/* EVT-03 AC-19. One line above the grid, and only when the event read failed. */}
+      {view.eventsFailed ? (
+        <p data-testid="week-events-unavailable" role="status" className="text-xs text-ink-3">
+          Events could not be loaded.
+        </p>
+      ) : null}
+
       <div className="relative xl:h-full">
         <div className="flex flex-col gap-3 xl:grid xl:min-h-full xl:grid-cols-7 xl:gap-2">
           {dates.map((date) => {
@@ -661,6 +723,8 @@ export default function WeekView({ landing = false }: WeekViewProps) {
             const busyCount = busyCounts.get(date) ?? 0;
             const busyHere = busyPeople.get(date) ?? [];
             const iAmBusy = myBusy.has(date);
+            // EVT-03 AC-18. Every event of the day, in AC-17's order — the week column has the room.
+            const dayEvents = eventDays.get(date) ?? [];
 
             return (
               <section
@@ -793,6 +857,22 @@ export default function WeekView({ landing = false }: WeekViewProps) {
                     </span>
                   ) : null}
                 </h2>
+
+                {/* EVT-03 § 2b. Under the label, above the entries — and AC-16: `week-day-empty`
+                    below still says "Everybody is in." on a day whose only content is an event. */}
+                {dayEvents.length > 0 ? (
+                  <div className="flex flex-col gap-1">
+                    {dayEvents.map((event) => (
+                      <EventChip
+                        key={event.id}
+                        event={event}
+                        takingPart={takingPart.has(event.id)}
+                        surface="week"
+                        date={date}
+                      />
+                    ))}
+                  </div>
+                ) : null}
 
                 {people.length === 0 ? (
                   <p data-testid="week-day-empty" className="mt-2 text-sm opacity-60">
