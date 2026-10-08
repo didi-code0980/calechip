@@ -24,6 +24,8 @@ planned, sized, and safe to build** — the next stage for a row here is IN_PROG
 |---|--------|-------|------|------------|
 | 1 | EVT-03 | Events are drawn on the week and month grids, and a click opens the event | M | — |
 
+**`EVT-03` is at `REVIEW` in `ticket.yaml`, `gates.review` passed** — recorded at /advance on 2026-10-08 from `04-review.md` verdict PASS. The row stays here until `/ship` moves it to `## ARCHIVE`.
+
 **`EVT-03` moved here from `## BACKLOG` at /advance on 2026-10-08**, from `01-plan.md` gate PASS with all six Definition of Ready items passing. `EVT-04` to `EVT-07` each moved up one row in `## BACKLOG`; bookkeeping, not a reordering. The paragraph below was written while this table was empty and is left standing.
 
 **Empty — `CAL-12` left this section for `## ARCHIVE` at its own ship on 2026-10-01**, and nothing is
