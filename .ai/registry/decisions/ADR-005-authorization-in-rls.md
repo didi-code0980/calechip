@@ -10,6 +10,8 @@ governed_by: [RULE-01, RULE-02, RULE-09]
 
 `ACCEPTED by the operator` — 2026-08-31.
 
+**Amended 2026-10-08 by [ADR-051](ADR-051-a-server-side-component-sends-event-email-and-authorizes-nothing.md)**, `ACCEPTED by the operator`: one server-side component may exist, only to send event email, and it authorizes nothing. *"No server-side API is written"* below still holds for every read and write of product data. Text below unchanged.
+
 Recorded, not authored. The operator's words, verbatim, in answer to a question that offered a
 server-side seam as the alternative: *"sử dụng Auth của supabase hoàn toàn, Không cần Viết authen API
 luôn."*

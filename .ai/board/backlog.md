@@ -47,6 +47,10 @@ Under the current gate placement a ticket sits here until it has been planned �
 | # | Ticket | Title | State | Blocked on |
 |---|--------|-------|-------|------------|
 | 1 | EVT-03 | Events are drawn on the week and month grids, and a click opens the event | BACKLOG | — |
+| 2 | EVT-04 | A person is notified in the app when an event concerns them | BACKLOG | — |
+| 3 | EVT-05 | A person is emailed when an event for their team is created, when they are invited, and when their request is decided | BACKLOG | `EVT-04`; and the operator — no email provider, key holder or sending domain (idea Q6) |
+
+**Rows 2 and 3 were appended by `product` at /triage on 2026-10-08**, from `.ai/board/ideas/2026-10-08-a-person-learns-about-an-event-only-by-going-to-look.md`. Split at triage on the operator's Q7. They sit below `EVT-03` because it was already here, not because anybody placed them.
 
 **Row 1 was appended by `product` at /triage on 2026-10-08**, from `.ai/board/ideas/2026-10-08-an-event-is-invisible-from-the-calendar-it-happens-on.md`. It is row 1 because the table was empty, not because anybody placed it. The paragraphs below were written while the table held other rows and are left standing.
 

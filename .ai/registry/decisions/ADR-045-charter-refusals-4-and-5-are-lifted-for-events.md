@@ -14,6 +14,8 @@ Drafted by `product` at `/triage` of that file.
 
 **Decision 2 amended 2026-10-08 by [ADR-049](ADR-049-events-are-drawn-on-the-week-and-month-grids.md)**, `ACCEPTED by the operator`: events are drawn on the week and month grids as their own layer, and still never counted. Decision 2's text below is left as written.
 
+**Decision 6 amended 2026-10-08 by [ADR-051](ADR-051-a-server-side-component-sends-event-email-and-authorizes-nothing.md)**, `ACCEPTED by the operator`: event email is sent by a server-side component that authorizes nothing. Decision 6's text below is left as written.
+
 **Recorded, not authored.** The operator was shown both refusals by number and text and offered three
 options — remove #4 and #5, a narrow amendment opening only a separate event concept, or keep the
 charter. The question and the answer, verbatim from Q1:

@@ -20,9 +20,9 @@ consulted: []
 gate: PASS
 blocking_reason: ""
 next_state: TRIAGE
-verdict: ""
-verdict_reason: ""
-ticket_id: ""
+verdict: "PROMOTE"
+verdict_reason: "Worth building and not covered: no event change reaches anyone who does not go to look. In-app sits inside ADR-005 (ADR-050, ACCEPTED by product); email reverses ADR-005 and ADR-045 decision 6, which the operator agreed to in words (Q5 \"a\"), so ADR-051 is ACCEPTED by the operator. Two rows on Q7; EVT-05 is blocked at PLAN on Q6."
+ticket_id: "EVT-04, EVT-05"
 awaiting_adrs: []
 operator_request: "thông báo trong app và email cho event"
 ---
@@ -31,6 +31,8 @@ operator_request: "thông báo trong app và email cho event"
 
 **No verdict is written here.** This file is capture, not judgement. The verdict and any registry row
 that follows one are written by `/triage`.
+
+*`/triage` wrote its verdict below on 2026-10-08; the sentence above is left as `/idea` wrote it.*
 
 ## Problem
 
@@ -142,3 +144,35 @@ Assumptions this file made rather than asked, each cheap to reverse and each PLA
    event they just made.
 5. **A deleted event's notifications stay readable** and say it was cancelled; they no longer link.
 6. **The email opt-out switch lives on `/profile`** (`TEA-10`'s screen) and defaults to on.
+
+# Triage verdict — PROMOTE, as `EVT-04` then `EVT-05`
+
+`product` at /triage, 2026-10-08.
+
+**Not REJECT.** `EVT-02`'s plan states the gap in its own words — *"A requester learns the decision
+by opening the event"* — and nothing shipped since closes it.
+
+**Two ADRs, signed differently, because they sit on different sides of the envelope.**
+
+- **[ADR-050](../../registry/decisions/ADR-050-in-app-notifications-for-events-are-written-by-the-database.md),
+  `ACCEPTED by product`.** In-app needs a table and triggers — a schema change, so RULE-09 wants an
+  ADR before the ticket exists — but it adds no server and widens no read: recipients are bounded by
+  ADR-045 decision 3. That is deciding inside what is decided.
+- **[ADR-051](../../registry/decisions/ADR-051-a-server-side-component-sends-event-email-and-authorizes-nothing.md),
+  `ACCEPTED by the operator`.** Email reverses ADR-005's *"No server-side API is written"* and ADR-045
+  decision 6. That is changing the envelope, and § *Evidence* Q5 is the operator choosing it in words
+  against a question that named the clause. Status notes were added to ADR-005 and ADR-045; their
+  text is unchanged.
+
+**Two rows, on the operator's Q7.** `EVT-04` is in-app; `EVT-05` is email and `depends_on: [EVT-04]`.
+Split at triage, not PLAN, for MD-017's reason.
+
+**`EVT-05` is promoted although it cannot be planned yet.** Q6 is *"chưa có"*: no provider, key
+holder or sending domain. That is not a reason to withhold the ID — the decision to build email is
+made and recorded — but PLAN cannot name the sender or its secret, so the row and the backlog both
+say it is blocked on the operator. This file's § *Open questions* 1 is that decision.
+
+**What this verdict wrote:** ADR-050; ADR-051; Status notes on ADR-005 and ADR-045; the `EVT-04` and
+`EVT-05` rows in `.ai/registry/features.md`, `PLANNED`; both ticket shells at `BACKLOG`; rows 2 and 3
+of `## BACKLOG`. DoR items 1, 3, 4 and 6 are filled; 2 and 5 are PLAN's. `glossary_owed:
+[Notification]` on `EVT-04`.
