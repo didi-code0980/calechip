@@ -5,9 +5,9 @@ id: EVT-03
 title: "Events are drawn on the week and month grids, and a click opens the event"
 feature_ids: [EVT-03]
 group: EVT
-state: REVIEW
+state: DONE
 owner: ""
-branch: ""
+branch: "feat/EVT-03"
 size_estimate: "M"    # S|M - set by tech-lead-design at PLAN; gates DoR
 size: "M"             # S|M|L|XL - set by tech-lead-design at PLAN; decides splitting (12 paths)
 depends_on: []        # EVT-01, EVT-02 and CAL-12 are all DONE and merged; nothing to wait on
