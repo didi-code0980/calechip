@@ -18,9 +18,9 @@ consulted: []
 gate: PASS
 blocking_reason: ""
 next_state: TRIAGE
-verdict: ""
-verdict_reason: ""
-ticket_id: ""
+verdict: "PROMOTE"
+verdict_reason: "Worth building and not covered: no event can be read or joined without an account. It overrides ADR-045 decision 3 and gives the anon role its first read and write, which the operator chose in words (Q1 \"A\", F2 \"A Đúng vậy\"), so ADR-052 is ACCEPTED by the operator. Split into the read half and the write half."
+ticket_id: "EVT-06, EVT-07"
 awaiting_adrs: []
 operator_request: "trang event công khai, khách đăng ký bằng tên và email"
 ---
@@ -29,6 +29,8 @@ operator_request: "trang event công khai, khách đăng ký bằng tên và ema
 
 **No verdict is written here.** This file is capture, not judgement. The verdict and any registry row
 that follows one are written by `/triage`.
+
+*`/triage` wrote its verdict below on 2026-10-08; the sentence above is left as `/idea` wrote it.*
 
 ## Problem
 
@@ -145,3 +147,32 @@ PLAN's to overrule:
 5. **The public page is English**, matching the UI, and follows `CLAUDE.md` § *Visual direction*.
 6. **When `EVT-04` exists, the creator is notified in the app of a guest's request**, as for a member's
    (its type (e)).
+
+# Triage verdict — PROMOTE, as `EVT-06` then `EVT-07`
+
+`product` at /triage, 2026-10-08.
+
+**Not REJECT.** Nothing in the product admits a person without an account to any event.
+
+**Changing the envelope, signed by the operator.** The idea overrides ADR-045 decision 3 and gives the
+anon role its first read and its first write. § *Evidence* Q1 and F2 are the operator choosing both in
+words, F2 against a question that quoted the 2026-09-29 Q25 it overrides. So
+[ADR-052](../../registry/decisions/ADR-052-an-event-can-be-opened-to-guests-without-an-account.md) is
+`ACCEPTED by the operator`, with both quotes in its Status, and a note was added to ADR-045. ADR-005
+stands — Q7-A keeps the server out.
+
+**Two rows, split here and not at PLAN (MD-017).** `EVT-06` is the anonymous **read**: opening an event,
+its link, the public page with attendee names. `EVT-07` is the anonymous **write**: registration, the
+manage link, guest email visibility. They are different exposures with different revert conditions,
+and a reviewer should judge each alone. `EVT-07` `depends_on: [EVT-06]`.
+
+**Neither depends on `EVT-04` or `EVT-05`.** Q6-C, emailing the manage link, is out of scope here and a
+later idea on top of `EVT-05`.
+
+**Stated for the record, because it is the largest exposure the product has decided:** on an opened
+named-people event, member names reach anyone with the link while the creator's own team cannot read
+the event inside the product; and guest data is never deleted.
+
+**What this verdict wrote:** ADR-052; a Status note on ADR-045; the `EVT-06` and `EVT-07` rows,
+`PLANNED`; both ticket shells at `BACKLOG`; rows 4 and 5 of `## BACKLOG`. `glossary_owed`:
+`[Guest link]` on `EVT-06`, `[Guest]` on `EVT-07`.

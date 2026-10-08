@@ -16,6 +16,8 @@ Drafted by `product` at `/triage` of that file.
 
 **Decision 6 amended 2026-10-08 by [ADR-051](ADR-051-a-server-side-component-sends-event-email-and-authorizes-nothing.md)**, `ACCEPTED by the operator`: event email is sent by a server-side component that authorizes nothing. Decision 6's text below is left as written.
 
+**Decision 3 overridden for an event opened to guests, 2026-10-08, by [ADR-052](ADR-052-an-event-can-be-opened-to-guests-without-an-account.md)**, `ACCEPTED by the operator`: anyone holding its unguessable link reads it and its attendee names, whatever its scope. Every other event is unchanged. Decision 3's text below is left as written.
+
 **Recorded, not authored.** The operator was shown both refusals by number and text and offered three
 options — remove #4 and #5, a narrow amendment opening only a separate event concept, or keep the
 charter. The question and the answer, verbatim from Q1:
