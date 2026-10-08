@@ -36,7 +36,11 @@
 //
 // `shell-topbar`, `shell-period-today` and `home-new-entry-link` keep their names: nothing on a
 // screen was ever called those, so there was nothing to adopt (UIE-03 AC-14).
+//
+// EVT-04 § 4.5. This bar still makes no seam call; `<NotificationBell />` is a child that does, as
+// `ReportIssueButton` does beside the shell.
 import { Link, useLocation } from "react-router-dom";
+import NotificationBell from "./NotificationBell";
 import type { MemberRole } from "@/lib/domain/types";
 import { mayAdminister, mayDecide } from "@/lib/roles";
 import { isAdminAddress } from "./AdminTabs";
@@ -289,6 +293,10 @@ export default function TopBar({ role }: TopBarProps) {
         >
           Events
         </Link>
+
+        {/* EVT-04 AC-13. Between `Events` and `+ Book`, outside every condition — every shell screen,
+            every role. */}
+        <NotificationBell />
 
         {/* CAL-12 AC-9. Absent while another team is viewed: an entry booked from here lands on the
             CALLER's team and would vanish from the screen that created it (INV-07). An affordance,

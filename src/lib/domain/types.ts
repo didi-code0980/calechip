@@ -1026,3 +1026,44 @@ export interface EventAttendance {
   createdAt: string;
   updatedAt: string;
 }
+
+// ---------------------------------------------------------------------------
+// EVT-04 — notifications. 01-plan.md section 4.1. ADR-050.
+// ---------------------------------------------------------------------------
+
+/** EVT-04. The nine kinds, the database enum's values verbatim. (a) `event_created`; (b)
+ *  `event_invited`; (c) `attendance_approved`, `attendance_rejected`, `attendance_removed`;
+ *  (d) `event_updated`, `event_cancelled`; (e) `attendance_requested`, `attendance_withdrawn`. */
+export type NotificationKind =
+  | "event_created"
+  | "event_invited"
+  | "event_updated"
+  | "event_cancelled"
+  | "attendance_requested"
+  | "attendance_withdrawn"
+  | "attendance_approved"
+  | "attendance_rejected"
+  | "attendance_removed";
+
+/** EVT-04. Glossary *Notification*. One row of `public.notification`. Named `EventNotification`, not
+ *  `Notification`, because `Notification` is the DOM global — `CalEvent`'s reason. */
+export interface EventNotification {
+  id: string;
+  /** Always the caller — the policy returns nothing else. Carried so the row is the table's shape. */
+  recipientId: string;
+  kind: NotificationKind;
+  /** Null once the event is deleted (`event_cancelled` is written with null from the start). */
+  eventId: string | null;
+  /** The event's name when the notification was written. Survives the event's deletion. */
+  eventName: string;
+  /** Who caused it. Resolved to a name through `listMemberDirectory()`, or *Former member*. */
+  actorId: string;
+  createdAt: string;
+  /** Null while unread. */
+  readAt: string | null;
+}
+
+/** EVT-04, AC-16. The panel's window: the newest this many, never more. NOT a truncation of a
+ *  derivation — nothing is computed from the list — so it is a window, not a bound that throws. Must
+ *  not exceed DATASTORE_MAX_ROWS. */
+export const NOTIFICATION_LIMIT = 50;

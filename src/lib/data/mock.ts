@@ -56,7 +56,12 @@ import type {
   Failure,
   // EVT-02, 01-plan.md section 4.1.
   EventAttendance,
+  // EVT-04, 01-plan.md section 4.1.
+  EventNotification,
+  NotificationKind,
 } from "../domain/types";
+// EVT-04. The panel's window — AC-16. A runtime import.
+import { NOTIFICATION_LIMIT } from "../domain/types";
 // TEA-03, and CAL-04 for the third. RUNTIME imports, not type ones - 02-design.md section 1.1.
 // ADM-04 adds PENDING_PAGE_SIZE, which is a WINDOW and not a ceiling - see its own comment there.
 // CAL-09 adds TEAM_ENTRY_PAGE_SIZE and TEAM_ENTRY_MAX_PAGES, which are a window and a bound on work
@@ -576,6 +581,8 @@ export function __resetEvents(): void {
   eventInvitees.length = 0;
   // EVT-02. The attendance table goes with the events, as the cascade would take it.
   eventAttendance.length = 0;
+  // EVT-04. A notification is about an event, so it goes with them (01-plan.md § 5).
+  notifications.length = 0;
 }
 
 // The id an event gets, in the shape the other generators use: an `ec` prefix, which no other
@@ -728,11 +735,79 @@ const writeEventInvitees = (
     if (row && row.eventId === eventId && !ids.includes(row.memberId)) eventInvitees.splice(i, 1);
   }
   const now = new Date().toISOString();
+  const added: string[] = [];
   for (const memberId of ids) {
-    if (!isEventInvitee(eventId, memberId)) eventInvitees.push({ eventId, memberId, createdAt: now });
+    if (!isEventInvitee(eventId, memberId)) {
+      eventInvitees.push({ eventId, memberId, createdAt: now });
+      added.push(memberId);
+    }
+  }
+  // EVT-04 AC-2, AC-3. `notify_event_invited`, after insert on `event_invitee`: one per row INSERTED,
+  // so a person already named receives nothing on a second save.
+  const event = events.find((e) => e.id === eventId);
+  if (event) {
+    for (const memberId of added) notify([memberId], "event_invited", event);
   }
   return null;
 };
+
+// ---------------------------------------------------------------------------
+// EVT-04 — notifications. 01-plan.md sections 3, 4.3 and 5. ADR-050.
+//
+// **THESE REPRODUCE `20261008120000_evt04_notification.sql`'S TRIGGERS AND POLICIES**, the standing
+// contract above. `notify` is the migration's `notify`; each trigger point calls it AFTER the write
+// it reacts to, except `event_cancelled`, called BEFORE the event and its attendances are removed.
+// Reads and marks are the caller's own rows and have NO ADMIN CLAUSE (ADR-050 decision 4).
+// ---------------------------------------------------------------------------
+
+/** `public.notification`, reproduced. Starts EMPTY, as `events` does. */
+const notifications: EventNotification[] = [];
+
+// Increasing and zero-padded, so `id` desc breaks a `createdAt` tie in write order — the real seam's
+// second `order`.
+let nextNotificationId = 0;
+const newNotificationId = (): string =>
+  `nf000000-0000-4000-8000-${String(++nextNotificationId).padStart(12, "0")}`;
+
+// Every approved member — `member_team_id(m.id) is not null` — once each (the fixtures carry two rows
+// under one id; the table cannot).
+const approvedMemberIds = (): string[] => [
+  ...new Set(members.filter((m) => memberTeamId(m.id) !== null).map((m) => m.id)),
+];
+
+// Pending or attending — `is_event_participant` — on one event.
+const eventParticipantIds = (eventId: string): string[] =>
+  eventAttendance
+    .filter((a) => a.eventId === eventId && (a.status === "pending" || a.status === "attending"))
+    .map((a) => a.memberId);
+
+/** `public.notify`. Nothing without a signed-in actor (AC-9); one row per DISTINCT recipient (AC-10);
+ *  never the actor (AC-9); only a reader of the event, read NOW (AC-8) — `may_read_event`, which is
+ *  `mayReadEvent` here: the mock has one copy of the predicate for the policy and the triggers. */
+function notify(recipients: string[], kind: NotificationKind, event: CalEvent): void {
+  const actor = currentMemberId;
+  if (actor === null) return;
+  const now = new Date().toISOString();
+  for (const recipientId of new Set(recipients)) {
+    if (recipientId === actor || !mayReadEvent(event, recipientId)) continue;
+    notifications.push({
+      id: newNotificationId(),
+      recipientId,
+      kind,
+      // The one subtle line: checked against the event, written null for a cancellation.
+      eventId: kind === "event_cancelled" ? null : event.id,
+      eventName: event.name,
+      actorId: actor,
+      createdAt: now,
+      readAt: null,
+    });
+  }
+}
+
+// `notification_select_own` / `notification_update_own`: the caller's row, and the caller still has
+// a team. No admin clause.
+const ownsNotification = (n: EventNotification, uid: string | null): boolean =>
+  uid !== null && n.recipientId === uid && memberTeamId(uid) !== null;
 
 // The id a row added through the product gets, in the shape `newEntryId` and `newHolidayId` already
 // use — a `dd` prefix, matching the fixture row so a reader can tell at a glance which table an id
@@ -2839,6 +2914,16 @@ export const seam: DataSeam = {
       return refusedInvitee;
     }
 
+    // EVT-04 AC-1. `notify_event_created`: own team is the creator's team, every team is everyone,
+    // named people is nobody.
+    if (row.scope !== "named") {
+      notify(
+        approvedMemberIds().filter((id) => row.scope === "public" || memberTeamId(id) === row.teamId),
+        "event_created",
+        row,
+      );
+    }
+
     return { ok: true, value: { ...row } };
   },
 
@@ -2875,6 +2960,8 @@ export const seam: DataSeam = {
     row.registrationDeadline = input.registrationDeadline ?? null;
     row.updatedAt = new Date().toISOString();
 
+    // EVT-04. A refused invitee is refused before `writeEventInvitees` inserts — and so before it
+    // notifies anyone — so the rollback below has no notification to undo.
     const refusedInvitee = writeEventInvitees(row.id, input);
     if (refusedInvitee) {
       Object.assign(row, before);
@@ -2882,6 +2969,22 @@ export const seam: DataSeam = {
       eventInvitees.push(...listBefore);
       return refusedInvitee;
     }
+
+    // EVT-04 AC-5. `notify_event_updated`'s `when` clause: the nine fields, and no others.
+    const changed = (
+      [
+        "name",
+        "description",
+        "location",
+        "startDate",
+        "endDate",
+        "scope",
+        "capacity",
+        "requiresApproval",
+        "registrationDeadline",
+      ] as const
+    ).some((field) => before[field] !== row[field]);
+    if (changed) notify(eventParticipantIds(row.id), "event_updated", row);
 
     return { ok: true, value: { ...row } };
   },
@@ -2892,6 +2995,9 @@ export const seam: DataSeam = {
     if (!row || !mayManageEvent(row, currentMemberId)) {
       return eventFailure("event_not_permitted", EVENT_DELETE_REFUSED);
     }
+    // EVT-04 AC-6. `notify_event_cancelled`, BEFORE delete: the participants are still there and the
+    // event still reads. The cascade below sends no `attendance_withdrawn` (AC-7).
+    notify(eventParticipantIds(row.id), "event_cancelled", row);
     events.splice(events.indexOf(row), 1);
     for (let i = eventInvitees.length - 1; i >= 0; i--) {
       if (eventInvitees[i]?.eventId === eventId) eventInvitees.splice(i, 1);
@@ -2943,6 +3049,8 @@ export const seam: DataSeam = {
     const now = new Date().toISOString();
     const row: EventAttendance = { eventId, memberId: uid, status, createdAt: now, updatedAt: now };
     eventAttendance.push(row);
+    // EVT-04 AC-7. `notify_attendance_inserted`, when the guard made it `pending`.
+    if (status === "pending") notify([event.creatorId], "attendance_requested", event);
     return { ok: true, value: { ...row } };
   },
 
@@ -2964,6 +3072,9 @@ export const seam: DataSeam = {
       return eventFailure("event_registration_closed", EVENT_REGISTRATION_CLOSED);
     }
     eventAttendance.splice(eventAttendance.indexOf(row), 1);
+    // EVT-04 AC-7. `notify_attendance_deleted`: the row was the actor's own, pending or attending,
+    // and the event still exists.
+    notify([event.creatorId], "attendance_withdrawn", event);
     return { ok: true, value: undefined };
   },
 
@@ -2992,6 +3103,16 @@ export const seam: DataSeam = {
     }
     row.status = status;
     row.updatedAt = new Date().toISOString();
+    // EVT-04 AC-4, AC-8. `notify_attendance_changed`, read check AFTER the change.
+    notify(
+      [memberId],
+      status === "attending"
+        ? "attendance_approved"
+        : status === "rejected"
+          ? "attendance_rejected"
+          : "attendance_removed",
+      event,
+    );
     return { ok: true, value: { ...row } };
   },
 
@@ -3035,5 +3156,46 @@ export const seam: DataSeam = {
       roster.filter((m) => m.removedAt === null && m.status === "approved").map((m) => m.id),
     );
     return eventsRelevantToTeam(visible, teamId, inviteesByEvent, teamMemberIds);
+  },
+
+  // -------------------------------------------------------------------------
+  // EVT-04 — notifications. The four functions of 01-plan.md § 4.2. No seam function writes a row.
+  // -------------------------------------------------------------------------
+
+  // `notification_select_own`. `createdAt` desc, then `id` desc, the newest NOTIFICATION_LIMIT.
+  async listNotifications(): Promise<EventNotification[]> {
+    return notifications
+      .filter((n) => ownsNotification(n, currentMemberId))
+      .sort((a, b) => b.createdAt.localeCompare(a.createdAt) || b.id.localeCompare(a.id))
+      .slice(0, NOTIFICATION_LIMIT)
+      .map((n) => ({ ...n }));
+  },
+
+  async countUnreadNotifications(): Promise<number> {
+    return notifications.filter((n) => ownsNotification(n, currentMemberId) && n.readAt === null)
+      .length;
+  },
+
+  // `mark_notifications_read([id])` under `notification_update_own`: someone else's row matches
+  // nothing, and that is ok — the same answer as an already-read one.
+  async markNotificationRead(notificationId: string): Promise<Result<void>> {
+    const row = notifications.find((n) => n.id === notificationId);
+    if (row && ownsNotification(row, currentMemberId) && row.readAt === null) {
+      row.readAt = new Date().toISOString();
+    }
+    return { ok: true, value: undefined };
+  },
+
+  // `mark_notifications_read(null)`: every unread row of the caller's, beyond the window.
+  async markAllNotificationsRead(): Promise<Result<number>> {
+    const now = new Date().toISOString();
+    let marked = 0;
+    for (const n of notifications) {
+      if (ownsNotification(n, currentMemberId) && n.readAt === null) {
+        n.readAt = now;
+        marked++;
+      }
+    }
+    return { ok: true, value: marked };
   },
 };

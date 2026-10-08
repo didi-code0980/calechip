@@ -110,6 +110,29 @@ glossary's word and the permission table's word.
 overrides, and the weekend rule. Thursday a holiday, Friday working, Saturday a mandated `làm bù`
 working day: Friday is **not** a bridge day, and a two-input computation reports one.
 
+### `notification`
+
+**EVT-04, decided by
+[ADR-050](../registry/decisions/ADR-050-in-app-notifications-for-events-are-written-by-the-database.md).**
+One row per recipient per occurrence of something that happened to an event they can read. Written by
+the database and by nothing else — seven `security definer` triggers on `event`, `event_invitee` and
+`event_attendance`, through one definer function `public.notify` that no session may execute.
+Migration: `supabase/migrations/20261008120000_evt04_notification.sql`.
+
+| Field | Type | Notes |
+|---|---|---|
+| `id` | uuid, pk | `gen_random_uuid()` |
+| `recipient_id` | uuid, not null, fk `member(id)` | Restrict, as every reference to `member` is — a member row is never deleted (ADR-013). |
+| `kind` | `notification_kind`, not null | Enum: `event_created`, `event_invited`, `event_updated`, `event_cancelled`, `attendance_requested`, `attendance_withdrawn`, `attendance_approved`, `attendance_rejected`, `attendance_removed`. |
+| `event_id` | uuid, null, fk `event(id)` **on delete set null** | **The first `set null` in the schema, and chosen** (EVT-04 01-plan.md § 6): a notification must not cascade away with its event (ADR-050 § *Consequences*). `event_cancelled` is written null from the start. |
+| `event_name` | text, not null | The event's name when the row was written — the snapshot that keeps a nulled row readable. |
+| `actor_id` | uuid, not null, fk `member(id)` | Who caused it — `auth.uid()` at the write. Restrict. A write with no signed-in person writes no row. |
+| `created_at` | timestamptz, not null, default `now()` | |
+| `read_at` | timestamptz, null | Null while unread. The only column a session may update, through `mark_notifications_read` so it is the database's clock. |
+
+Index `notification_recipient_created` on `(recipient_id, created_at desc)` serves the only two reads.
+**Nothing prunes** (ADR-050 decision 6 forbids a scheduler); the panel reads the 50 newest.
+
 ## What is deliberately not stored
 
 Two of the most-used numbers in the product are computed on read and have no column.

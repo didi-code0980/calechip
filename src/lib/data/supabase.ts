@@ -40,6 +40,9 @@ import type {
   // EVT-02, 01-plan.md section 4.1.
   AttendanceStatus,
   EventAttendance,
+  // EVT-04, 01-plan.md section 4.1.
+  EventNotification,
+  NotificationKind,
   MemberDecision,
   MemberStatus,
   BulkRejectionOutcome,
@@ -79,6 +82,8 @@ import {
   ISSUE_IMAGE_MAX_COUNT,
   ISSUE_IMAGE_TYPES,
   ISSUE_REPORT_LIMIT,
+  // EVT-04. The panel's window — AC-16.
+  NOTIFICATION_LIMIT,
   OWN_ENTRY_LIMIT,
   PENDING_PAGE_SIZE,
   ROSTER_LIMIT,
@@ -319,6 +324,53 @@ function toAttendanceFailure(error: PostgrestError, refusal: string): Failure {
     default:
       return { code: "unknown", message: "Something went wrong. Please try again." };
   }
+}
+
+// ---------------------------------------------------------------------------
+// EVT-04 — notifications. The row, its mapper and the sentences.
+// 01-plan.md sections 4.2 and 4.3; `supabase/migrations/20261008120000_evt04_notification.sql`.
+// ---------------------------------------------------------------------------
+
+interface NotificationRow {
+  id: string;
+  recipient_id: string;
+  kind: NotificationKind;
+  event_id: string | null;
+  event_name: string;
+  actor_id: string;
+  created_at: string;
+  read_at: string | null;
+}
+
+// The eight columns, named explicitly — the shape this file uses everywhere.
+const NOTIFICATION_COLUMNS =
+  "id, recipient_id, kind, event_id, event_name, actor_id, created_at, read_at";
+
+function toNotification(row: NotificationRow): EventNotification {
+  return {
+    id: row.id,
+    recipientId: row.recipient_id,
+    kind: row.kind,
+    eventId: row.event_id,
+    eventName: row.event_name,
+    actorId: row.actor_id,
+    createdAt: row.created_at,
+    readAt: row.read_at,
+  };
+}
+
+// Repeated verbatim in src/lib/data/mock.ts. A mark can fail only on the network or unexpectedly —
+// a row that is not the caller's is filtered by the policy and is not a failure (§ 4.1).
+const NOTIFICATION_MARK_NETWORK = "Could not reach the server. Please try again.";
+const NOTIFICATION_MARK_FAILED = "Notifications could not be marked as read. Please try again.";
+
+/** `status === 0` is postgrest-js's answer when the request never reached the server (verified in
+ *  node_modules/@supabase/postgrest-js/dist/index.mjs, the fetch `catch`); everything else is
+ *  `unknown`. */
+function toNotificationFailure(status: number): Failure {
+  return status === 0
+    ? { code: "network", message: NOTIFICATION_MARK_NETWORK }
+    : { code: "unknown", message: NOTIFICATION_MARK_FAILED };
 }
 
 // ---------------------------------------------------------------------------
@@ -3293,5 +3345,54 @@ export const seam: DataSeam = {
       members.filter((m) => m.removedAt === null && m.status === "approved").map((m) => m.id),
     );
     return eventsRelevantToTeam(rows.map(toEvent), teamId, inviteesByEvent, teamMemberIds);
+  },
+
+  // -------------------------------------------------------------------------
+  // EVT-04 — notifications. 01-plan.md § 5. Reads through `from("notification")` under
+  // `notification_select_own`, which returns the caller's own rows and nothing else — no admin clause
+  // (AC-11) — so neither read filters by recipient itself. Both marks are one RPC, so `read_at` is the
+  // database's clock. NOTHING HERE WRITES A ROW: the triggers do (ADR-050 decision 2).
+  // -------------------------------------------------------------------------
+
+  // A WINDOW, not a bound that throws: nothing is computed from this list, and the 51st-newest is
+  // deliberately not shown (AC-16).
+  async listNotifications(): Promise<EventNotification[]> {
+    const { data, error } = await client()
+      .from("notification")
+      .select(NOTIFICATION_COLUMNS)
+      .order("created_at", { ascending: false })
+      .order("id", { ascending: false })
+      .limit(NOTIFICATION_LIMIT)
+      .returns<NotificationRow[]>();
+
+    if (error) throw new Error(`listNotifications failed: ${error.message}`);
+    return (data ?? []).map(toNotification);
+  },
+
+  // `head: true` returns no rows and the exact count in `Content-Range` — every unread row, beyond the
+  // window too (AC-13, AC-16).
+  async countUnreadNotifications(): Promise<number> {
+    const { count, error } = await client()
+      .from("notification")
+      .select("id", { count: "exact", head: true })
+      .is("read_at", null);
+
+    if (error) throw new Error(`countUnreadNotifications failed: ${error.message}`);
+    return count ?? 0;
+  },
+
+  // Zero rows marked is ok: already read and not the caller's are the same answer (§ 4.2).
+  async markNotificationRead(notificationId: string): Promise<Result<void>> {
+    const { error, status } = await client().rpc("mark_notifications_read", {
+      p_ids: [notificationId],
+    });
+    if (error) return { ok: false, error: toNotificationFailure(status) };
+    return { ok: true, value: undefined };
+  },
+
+  async markAllNotificationsRead(): Promise<Result<number>> {
+    const { data, error, status } = await client().rpc("mark_notifications_read", { p_ids: null });
+    if (error) return { ok: false, error: toNotificationFailure(status) };
+    return { ok: true, value: typeof data === "number" ? data : 0 };
   },
 };
