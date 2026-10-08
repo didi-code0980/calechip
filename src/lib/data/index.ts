@@ -33,6 +33,8 @@ import type {
   EventScope,
   // EVT-02, 01-plan.md section 4.3.
   EventAttendance,
+  // EVT-04, 01-plan.md section 4.2.
+  EventNotification,
 } from "../domain/types";
 import { seam as mockSeam } from "./mock";
 import { seam as supabaseSeam } from "./supabase";
@@ -1374,6 +1376,31 @@ export interface DataSeam {
    *  is empty, so for them it is never wider than `listEvents()`. Same order as `listEvents()`.
    *  THROWS on any failure of its reads, and at the DATASTORE_MAX_ROWS bound. */
   listEventsForTeam(teamId: string): Promise<CalEvent[]>;
+
+  // -------------------------------------------------------------------------
+  // EVT-04 — notifications. 01-plan.md section 4.2. ADR-050.
+  //
+  // Four functions. Every row is written by a trigger in
+  // `supabase/migrations/20261008120000_evt04_notification.sql`; NO SEAM FUNCTION WRITES ONE. Reads
+  // and marks are the caller's own rows only — the policy has no admin clause (AC-11).
+  // -------------------------------------------------------------------------
+
+  /** EVT-04 AC-14, AC-16. The caller's notifications, newest first (`createdAt` desc, then `id`
+   *  desc), at most NOTIFICATION_LIMIT. Empty for a caller with no member row or no team. Throws on a
+   *  read failure, as the other reads do. */
+  listNotifications(): Promise<EventNotification[]>;
+
+  /** EVT-04 AC-13. The exact number of the caller's notifications with `readAt` null — all of them,
+   *  not only the window. 0 for a caller with no member row or no team. Throws on a read failure. */
+  countUnreadNotifications(): Promise<number>;
+
+  /** EVT-04 AC-14. Sets `readAt` on one of the caller's notifications if it is unread. Already read,
+   *  or not the caller's: ok, and nothing changes — the same answer, so it confirms nothing. */
+  markNotificationRead(notificationId: string): Promise<Result<void>>;
+
+  /** EVT-04 AC-15. Sets `readAt` on every unread notification of the caller's, beyond the window too.
+   *  Returns how many were marked. */
+  markAllNotificationsRead(): Promise<Result<number>>;
 }
 
 export type { DataSeam as Seam };

@@ -65,6 +65,12 @@ operator gave — see the note under § *Roles*. A bare `❌` there is a denial 
 | Re-decide somebody already approved onto a team | ❌ | ❌ · | ❌ **not decided — denied until it is** |
 | Read the overload threshold | ✅ | ✅ | ✅ |
 | Set the overload threshold | ❌ | ❌ · | ✅ |
+| Read their own notifications (EVT-04) | ✅ | ✅ | ✅ |
+| Read, count or mark another person's notifications | ❌ | ❌ | ❌ **ADR-050 decision 4 — no admin clause** |
+| Mark their own notifications read | ✅ | ✅ | ✅ |
+| Change any column of a notification other than `read_at` | ❌ | ❌ | ❌ |
+| Insert or delete a notification | ❌ | ❌ | ❌ **ADR-050 decision 2 — only the database's triggers write** |
+| Be notified of an event they cannot read, or of their own action | ❌ | ❌ | ❌ **ADR-050 decisions 3 and 5** |
 
 **THE TWO ROWS TO READ TWICE ARE THE TWO MARKED `decided`.** *Edit or delete another member's entry*
 is denied to a manager because granting it is what the update POLICY would do if it were widened, and
