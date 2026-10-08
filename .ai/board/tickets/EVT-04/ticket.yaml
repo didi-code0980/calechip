@@ -5,7 +5,7 @@ id: EVT-04
 title: "A person is notified in the app when an event concerns them"
 feature_ids: [EVT-04]
 group: EVT
-state: REVIEW
+state: DONE
 owner: ""
 branch: "feat/EVT-04"
 size_estimate: "M"    # S|M - set by tech-lead-design at PLAN; gates DoR
