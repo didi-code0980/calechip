@@ -1346,7 +1346,7 @@ các tính năng mới và đưa vào backlog"*. The four solo rows registered e
 | 17 | CAL-12 | An admin chooses which team the three calendar screens and the sidebar roster show, read-only | 2026-10-01 | [#108](https://github.com/didi-code0980/calechip/pull/108), merged — corrected from `PENDING_PR` at EVT-03's ship |
 | 18 | EVT-03 | Events are drawn on the week and month grids, and a click opens the event | 2026-10-08 | [#113](https://github.com/didi-code0980/calechip/pull/113) |
 | 19 | EVT-04 | A person is notified in the app when an event concerns them | 2026-10-08 | [#114](https://github.com/didi-code0980/calechip/pull/114) |
-| 20 | EVT-05 | A person is emailed when an event for their team is created, when they are invited, and when their request is decided | 2026-10-09 | PENDING_PR |
+| 20 | EVT-05 | A person is emailed when an event for their team is created, when they are invited, and when their request is decided | 2026-10-09 | [#116](https://github.com/didi-code0980/calechip/pull/116) |
 
 **The window displaced `UIE-01` at EVT-05's ship** — *UIE-01, Restyle the sign-in and sign-up screens to the product's visual direction, shipped 2026-09-07,* [#63](https://github.com/didi-code0980/calechip/pull/63).
 
