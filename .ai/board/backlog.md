@@ -24,6 +24,8 @@ planned, sized, and safe to build** — the next stage for a row here is IN_PROG
 |---|--------|-------|------|------------|
 | 1 | EVT-07 | A guest registers for an opened event with a name and an email, and manages it from a link shown once | M | — |
 
+**`EVT-07` is at `REVIEW` in `ticket.yaml`, `gates.review` passed** — recorded at /advance on 2026-10-09 from `04-review.md` verdict PASS. The row stays here until `/ship` moves it to `## ARCHIVE`.
+
 **`EVT-07` moved here from `## BACKLOG` at /advance on 2026-10-09**, from `01-plan.md` gate PASS with all six Definition of Ready items passing. `## BACKLOG` is now empty. Its *Blocked on* read `EVT-06`, which is `DONE` and merged (#117).
 
 **Empty again — `EVT-06` left this section for `## ARCHIVE` at its own ship on 2026-10-09.** `EVT-07` is the top of `## BACKLOG`.
