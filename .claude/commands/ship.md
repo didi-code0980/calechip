@@ -153,6 +153,8 @@ You push here and nowhere else. `/advance`'s checkpoint commits locally (ADR-048
 commits what remains, pushes, and opens the pull request. Two things are never yours: `main` as a target, and the merge.
 
 **Definition of Done item 2 — "diff is a subset of `allowed_paths`" — is a statement about the
-ticket branch, and since ADR-023 about `allowed_paths` plus the three ship-owned paths.** It was
+ticket branch, and since ADR-023 about `allowed_paths` plus the three ship-owned paths** — plus,
+since ADR-054, the ticket's own promoting idea file when a session committed an edit to it. That file
+passes CI but is still not in the ship set; you do not commit it. It was
 written when nothing was ever committed, so it never had to say which branch it meant. It means
 `feat/$ARGUMENTS`, and `scripts/check-allowed-paths.mjs` at step 6 is what decides it.

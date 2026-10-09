@@ -33,7 +33,9 @@ the order of its steps: escalation check first, WIP check second, ticket selecti
   not: `allowed_paths`, the ticket folder, and the three ship-owned paths (`backlog.md`,
   `metrics.md`, `features.md`) — nothing else, ever. **A ship is one branch and one pull request,
   ADR-023.** `scripts/check-allowed-paths.mjs` diffs the whole branch, so anything else on it fails CI
-  and blocks the human's merge; leave that work dirty and name it in your reply. You no longer cut
+  and blocks the human's merge; leave that work dirty and name it in your reply. *(One path passes CI
+  without being in that set: the ticket's own promoting idea file, ADR-054 — for an operator answer
+  recorded there. It does not widen what `/ship` or the checkpoint commits; MD-042 still owns that.)* You no longer cut
   `ops/<slug>` — that belongs to the session that wrote the work. `main` is never a commit or push
   target.
 - **Resume an ESCALATED ticket.** Escalation ends your involvement with that ticket until a human
