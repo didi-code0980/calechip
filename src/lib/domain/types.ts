@@ -1067,3 +1067,38 @@ export interface EventNotification {
  *  derivation — nothing is computed from the list — so it is a window, not a bound that throws. Must
  *  not exceed DATASTORE_MAX_ROWS. */
 export const NOTIFICATION_LIMIT = 50;
+
+// ---------------------------------------------------------------------------
+// EVT-06 — the guest link. 01-plan.md section 4.1. ADR-052.
+// ---------------------------------------------------------------------------
+
+/** EVT-06. Glossary *Guest link*. One row of `public.event_guest_link`. Readable only by those who
+ *  may manage the event (AC-3). `token` is 64 lowercase hex characters, chosen by the database. */
+export interface EventGuestLink {
+  eventId: string;
+  token: string;
+  /** ISO 8601. When this link was created; a reopened event has a later one (AC-5). */
+  openedAt: string;
+}
+
+/** EVT-06. What the guest page reads, and EXACTLY that — AC-12, ADR-052 revert condition 1. No id,
+ *  no creator, no scope, no deadline, no member id. Adding a field here is widening what the anon
+ *  key reads, and needs its own decision. */
+export interface GuestEvent {
+  name: string;
+  description: string | null;
+  location: string | null;
+  /** `yyyy-MM-dd`, inclusive both ends, as `CalEvent` does. */
+  startDate: string;
+  endDate: string;
+  capacity: number | null;
+  /** Attendances in state `attending`. */
+  seatsTaken: number;
+  /** One per attendee, in join order. Null for a person no longer an approved member — rendered
+   *  "Former member" (AC-10). */
+  attendeeNames: Array<string | null>;
+}
+
+/** EVT-06 AC-1. The token's shape, as the database's check states it. The guest page does not call
+ *  the datastore for a token that fails it, and shows the same not-found (AC-13). */
+export const GUEST_LINK_TOKEN_PATTERN = /^[0-9a-f]{64}$/;

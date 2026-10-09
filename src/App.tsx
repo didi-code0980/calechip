@@ -34,6 +34,8 @@ import IssueReports from "./routes/IssueReports";
 import Events from "./routes/Events";
 import EventDetail from "./routes/EventDetail";
 import EventEditor from "./routes/EventEditor";
+// EVT-06. The guest page — 01-plan.md § 4.4.
+import GuestEvent from "./routes/GuestEvent";
 import NotOnATeam from "./routes/NotOnATeam";
 import SignIn from "./routes/SignIn";
 import SignUp from "./routes/SignUp";
@@ -142,6 +144,11 @@ export default function App() {
               {/* TEA-01. Reachable in EVERY membership state: it is the only route a person who has
                   not signed up can use, and it ends on its own notice (AC-13) rather than routing. */}
               <Route path="/signup" element={<SignUp />} />
+
+              {/* EVT-06, AC-9, AC-16. Reachable in EVERY membership state and signed out, with no
+                  guard and no redirect: the token is the whole address, and a signed-in member sees
+                  exactly what a guest sees. */}
+              <Route path="/guest/:token" element={<GuestEvent />} />
 
               {/* AC-1, AC-2, AC-3, AC-5, AC-9. A caller with a session is sent to the landing
                   address instead — a sign-in screen offered to somebody already signed in is a

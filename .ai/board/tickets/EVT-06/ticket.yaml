@@ -5,7 +5,7 @@ id: EVT-06
 title: "A creator opens an event to guests, and anyone with its link reads it and who is coming"
 feature_ids: [EVT-06]
 group: EVT
-state: READY
+state: REVIEW
 owner: ""
 branch: ""
 size_estimate: "M"    # S|M - set by tech-lead-design at PLAN; gates DoR

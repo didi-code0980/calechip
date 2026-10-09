@@ -59,9 +59,14 @@ import type {
   // EVT-04, 01-plan.md section 4.1.
   EventNotification,
   NotificationKind,
+  // EVT-06, 01-plan.md section 4.1.
+  EventGuestLink,
+  GuestEvent,
 } from "../domain/types";
 // EVT-04. The panel's window — AC-16. A runtime import.
 import { NOTIFICATION_LIMIT } from "../domain/types";
+// EVT-06 AC-13. The token's shape, checked before any lookup — a runtime import.
+import { GUEST_LINK_TOKEN_PATTERN } from "../domain/types";
 // TEA-03, and CAL-04 for the third. RUNTIME imports, not type ones - 02-design.md section 1.1.
 // ADM-04 adds PENDING_PAGE_SIZE, which is a WINDOW and not a ceiling - see its own comment there.
 // CAL-09 adds TEAM_ENTRY_PAGE_SIZE and TEAM_ENTRY_MAX_PAGES, which are a window and a bound on work
@@ -586,6 +591,8 @@ export function __resetEvents(): void {
   // EVT-05. The switches and the outbox go with them (01-plan.md § 4.2).
   eventEmailSwitches.clear();
   eventEmailOutbox.length = 0;
+  // EVT-06. The guest links go with the events, as the cascade would take them.
+  eventGuestLinks.clear();
 }
 
 // The id an event gets, in the shape the other generators use: an `ec` prefix, which no other
@@ -750,6 +757,43 @@ const writeEventInvitees = (
   const event = events.find((e) => e.id === eventId);
   if (event) {
     for (const memberId of added) notify([memberId], "event_invited", event);
+  }
+  return null;
+};
+
+// ---------------------------------------------------------------------------
+// EVT-06 — the guest link. 01-plan.md sections 3, 4.2 and 4.3. ADR-052.
+//
+// **THESE REPRODUCE `20261009120000_evt06_guest_link.sql`'S POLICIES, GRANTS AND DEFINER READS**, the
+// standing contract above. The open, close and link read are `may_manage_event` — EVT-01's
+// `mayManageEvent` — and nothing else; the guest read takes a token and reads NO session.
+// ---------------------------------------------------------------------------
+
+/** `public.event_guest_link`, keyed by event id — the primary key, so one link per event (AC-6).
+ *  Starts EMPTY and is not persisted, as `events` is not. */
+const eventGuestLinks = new Map<string, { token: string; openedAt: string }>();
+
+// Repeated verbatim in src/lib/data/supabase.ts. Neither confirms that the event exists.
+const EVENT_GUEST_OPEN_REFUSED = "This event could not be opened to guests.";
+const EVENT_GUEST_CLOSE_REFUSED = "The guest link could not be closed.";
+
+/** The column default: 32 bytes from the strong source, 64 lowercase hex characters. */
+const newGuestToken = (): string => {
+  const bytes = new Uint8Array(32);
+  crypto.getRandomValues(bytes);
+  return Array.from(bytes, (b) => b.toString(16).padStart(2, "0")).join("");
+};
+
+const toGuestLink = (eventId: string, row: { token: string; openedAt: string }): EventGuestLink => ({
+  eventId,
+  token: row.token,
+  openedAt: row.openedAt,
+});
+
+/** The event a token opens, or null — `from event_guest_link l join event e … where l.token = p_token`. */
+const guestEventId = (token: string): string | null => {
+  for (const [eventId, row] of eventGuestLinks) {
+    if (row.token === token && events.some((e) => e.id === eventId)) return eventId;
   }
   return null;
 };
@@ -3072,6 +3116,8 @@ export const seam: DataSeam = {
     for (let i = eventAttendance.length - 1; i >= 0; i--) {
       if (eventAttendance[i]?.eventId === eventId) eventAttendance.splice(i, 1);
     }
+    // EVT-06, AC-7. The cascade on `event_guest_link.event_id`.
+    eventGuestLinks.delete(eventId);
     return { ok: true, value: undefined };
   },
 
@@ -3284,5 +3330,69 @@ export const seam: DataSeam = {
     }
     eventEmailSwitches.set(me.id, enabled);
     return { ok: true, value: enabled };
+  },
+
+  // -------------------------------------------------------------------------
+  // EVT-06 — the guest link. The four functions of 01-plan.md § 4.2, each reproducing the policy,
+  // grant or definer read named beside it rather than the screen.
+  // -------------------------------------------------------------------------
+
+  // `event_guest_link_select_manage`. Not open and may-not-manage are the same null (AC-3).
+  async getEventGuestLink(eventId: string): Promise<EventGuestLink | null> {
+    const event = events.find((e) => e.id === eventId);
+    const row = eventGuestLinks.get(eventId);
+    if (!event || !row || !mayManageEvent(event, currentMemberId)) return null;
+    return toGuestLink(eventId, row);
+  },
+
+  // `event_guest_link_insert_manage`, then the primary key: a second open is the 23505 the real seam
+  // reads back, so the link already in place is the answer (AC-6). A refused open writes nothing.
+  async openEventToGuests(eventId: string): Promise<Result<EventGuestLink>> {
+    const event = events.find((e) => e.id === eventId);
+    if (!event || !mayManageEvent(event, currentMemberId)) {
+      return eventFailure("event_not_permitted", EVENT_GUEST_OPEN_REFUSED);
+    }
+    const existing = eventGuestLinks.get(eventId);
+    if (existing) return { ok: true, value: toGuestLink(eventId, existing) };
+    const row = { token: newGuestToken(), openedAt: new Date().toISOString() };
+    eventGuestLinks.set(eventId, row);
+    return { ok: true, value: toGuestLink(eventId, row) };
+  },
+
+  // `event_guest_link_delete_manage`. Zero rows — not open, or not permitted — is a refusal.
+  async closeEventToGuests(eventId: string): Promise<Result<void>> {
+    const event = events.find((e) => e.id === eventId);
+    if (!event || !mayManageEvent(event, currentMemberId) || !eventGuestLinks.has(eventId)) {
+      return eventFailure("event_not_permitted", EVENT_GUEST_CLOSE_REFUSED);
+    }
+    eventGuestLinks.delete(eventId);
+    return { ok: true, value: undefined };
+  },
+
+  // `get_guest_event` and `list_guest_event_attendees`. NO SESSION IS READ: the token is the whole
+  // address. A name is the member's while they are approved and not removed, otherwise null (AC-10).
+  async getGuestEvent(token: string): Promise<GuestEvent | null> {
+    if (!GUEST_LINK_TOKEN_PATTERN.test(token)) return null;
+    const eventId = guestEventId(token);
+    const event = eventId === null ? undefined : events.find((e) => e.id === eventId);
+    if (!event) return null;
+    const attendeeNames = eventAttendance
+      .filter((a) => a.eventId === event.id && a.status === "attending")
+      .sort((a, b) => a.createdAt.localeCompare(b.createdAt) || a.memberId.localeCompare(b.memberId))
+      .map(
+        (a) =>
+          members.find((m) => m.id === a.memberId && m.status === "approved" && m.removedAt === null)
+            ?.displayName ?? null,
+      );
+    return {
+      name: event.name,
+      description: event.description,
+      location: event.location,
+      startDate: event.startDate,
+      endDate: event.endDate,
+      capacity: event.capacity,
+      seatsTaken: seatsTaken(event.id),
+      attendeeNames,
+    };
   },
 };
