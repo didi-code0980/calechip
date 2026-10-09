@@ -22,9 +22,10 @@ planned, sized, and safe to build** — the next stage for a row here is IN_PROG
 
 | # | Ticket | Title | Size | Depends on |
 |---|--------|-------|------|------------|
-| 1 | EVT-07 | A guest registers for an opened event with a name and an email, and manages it from a link shown once | M | — |
 
-**`EVT-07` is at `REVIEW` in `ticket.yaml`, `gates.review` passed** — recorded at /advance on 2026-10-09 from `04-review.md` verdict PASS. The row stays here until `/ship` moves it to `## ARCHIVE`.
+**Empty again — `EVT-07` left this section for `## ARCHIVE` at its own ship on 2026-10-09.** `## BACKLOG` is empty too: the board holds no open ticket, and `/triage` is what produces the next one.
+
+**`EVT-07` was at `REVIEW` in `ticket.yaml`, `gates.review` passed** — recorded at /advance on 2026-10-09 from `04-review.md` verdict PASS. The row stays here until `/ship` moves it to `## ARCHIVE`.
 
 **`EVT-07` moved here from `## BACKLOG` at /advance on 2026-10-09**, from `01-plan.md` gate PASS with all six Definition of Ready items passing. `## BACKLOG` is now empty. Its *Blocked on* read `EVT-06`, which is `DONE` and merged (#117).
 
@@ -1336,26 +1337,28 @@ các tính năng mới và đưa vào backlog"*. The four solo rows registered e
 
 | # | Ticket | Title | Shipped | PR |
 |---|--------|-------|---------|-----|
-| 1 | UIE-03 | The calendar screens give up their own chrome to the shell | 2026-09-07 | [#65](https://github.com/didi-code0980/calechip/pull/65) |
-| 2 | UIE-04 | The week view as seven day columns | 2026-09-07 | [#66](https://github.com/didi-code0980/calechip/pull/66) |
-| 3 | OPS-004 | A password-free bootstrap file that creates the first team and the first admin | 2026-09-07 | [#71](https://github.com/didi-code0980/calechip/pull/71) |
-| 4 | UIE-05 | The week column fills the viewport, and its header strip and entry chip are restacked | 2026-09-08 | [#72](https://github.com/didi-code0980/calechip/pull/72) |
-| 5 | UIE-06 | The month grid becomes one ruled full-width card with taller cells, on the product's tokens | 2026-09-08 | [#73](https://github.com/didi-code0980/calechip/pull/73) |
-| 6 | BUG-002 | Two row limits sit above the datastore cap, so four truncation assertions can never fire | 2026-09-08 | [#76](https://github.com/didi-code0980/calechip/pull/76) |
-| 7 | UIE-07 | The week view renders a per-day absence count | 2026-09-08 | [#77](https://github.com/didi-code0980/calechip/pull/77) |
-| 8 | CAL-09 | The calendar reads serve a year larger than one datastore page | 2026-09-08 | [#79](https://github.com/didi-code0980/calechip/pull/79) |
-| 9 | UIE-08 | The year grid is repainted onto the product's semantic tokens and its card treatment | 2026-09-08 | [#81](https://github.com/didi-code0980/calechip/pull/81), merged — corrected from `PENDING_PR` at CAL-10's ship |
-| 10 | CAL-10 | Year overview — twelve month cards with a year summary band | 2026-09-09 | [#84](https://github.com/didi-code0980/calechip/pull/84), merged — corrected from `PENDING_PR` at UIE-09's ship |
-| 11 | UIE-09 | An admin hub screen at `/admin`, reachable from one control in the top bar | 2026-09-09 | [#85](https://github.com/didi-code0980/calechip/pull/85), merged — corrected from `PENDING_PR` at UIE-10's ship |
-| 12 | UIE-10 | The sidebar gives up its admin links and restyles its roster; the specs route through the hub | 2026-09-09 | [#86](https://github.com/didi-code0980/calechip/pull/86), merged — corrected from `PENDING_PR` at CAL-11's ship |
-| 13 | CAL-11 | An admin reads any team's entries and roster through the seam | 2026-09-23 | [#95](https://github.com/didi-code0980/calechip/pull/95) |
-| 14 | EVT-01 | A member announces an event to their own team, to named people, or to every team, and those it is for can read it | 2026-09-29 | [#105](https://github.com/didi-code0980/calechip/pull/105), merged — corrected from `PENDING_PR` at EVT-02's ship |
-| 15 | EVT-02 | A member joins an event they can read, within its capacity, approval mode and deadline, and everyone who can read it sees who is coming | 2026-09-29 | [#106](https://github.com/didi-code0980/calechip/pull/106), merged — corrected from `PENDING_PR` at CAL-12's ship |
-| 16 | CAL-12 | An admin chooses which team the three calendar screens and the sidebar roster show, read-only | 2026-10-01 | [#108](https://github.com/didi-code0980/calechip/pull/108), merged — corrected from `PENDING_PR` at EVT-03's ship |
-| 17 | EVT-03 | Events are drawn on the week and month grids, and a click opens the event | 2026-10-08 | [#113](https://github.com/didi-code0980/calechip/pull/113) |
-| 18 | EVT-04 | A person is notified in the app when an event concerns them | 2026-10-08 | [#114](https://github.com/didi-code0980/calechip/pull/114) |
-| 19 | EVT-05 | A person is emailed when an event for their team is created, when they are invited, and when their request is decided | 2026-10-09 | [#116](https://github.com/didi-code0980/calechip/pull/116) |
-| 20 | EVT-06 | A creator opens an event to guests, and anyone with its link reads it and who is coming | 2026-10-09 | [#117](https://github.com/didi-code0980/calechip/pull/117) |
+| 1 | UIE-04 | The week view as seven day columns | 2026-09-07 | [#66](https://github.com/didi-code0980/calechip/pull/66) |
+| 2 | OPS-004 | A password-free bootstrap file that creates the first team and the first admin | 2026-09-07 | [#71](https://github.com/didi-code0980/calechip/pull/71) |
+| 3 | UIE-05 | The week column fills the viewport, and its header strip and entry chip are restacked | 2026-09-08 | [#72](https://github.com/didi-code0980/calechip/pull/72) |
+| 4 | UIE-06 | The month grid becomes one ruled full-width card with taller cells, on the product's tokens | 2026-09-08 | [#73](https://github.com/didi-code0980/calechip/pull/73) |
+| 5 | BUG-002 | Two row limits sit above the datastore cap, so four truncation assertions can never fire | 2026-09-08 | [#76](https://github.com/didi-code0980/calechip/pull/76) |
+| 6 | UIE-07 | The week view renders a per-day absence count | 2026-09-08 | [#77](https://github.com/didi-code0980/calechip/pull/77) |
+| 7 | CAL-09 | The calendar reads serve a year larger than one datastore page | 2026-09-08 | [#79](https://github.com/didi-code0980/calechip/pull/79) |
+| 8 | UIE-08 | The year grid is repainted onto the product's semantic tokens and its card treatment | 2026-09-08 | [#81](https://github.com/didi-code0980/calechip/pull/81), merged — corrected from `PENDING_PR` at CAL-10's ship |
+| 9 | CAL-10 | Year overview — twelve month cards with a year summary band | 2026-09-09 | [#84](https://github.com/didi-code0980/calechip/pull/84), merged — corrected from `PENDING_PR` at UIE-09's ship |
+| 10 | UIE-09 | An admin hub screen at `/admin`, reachable from one control in the top bar | 2026-09-09 | [#85](https://github.com/didi-code0980/calechip/pull/85), merged — corrected from `PENDING_PR` at UIE-10's ship |
+| 11 | UIE-10 | The sidebar gives up its admin links and restyles its roster; the specs route through the hub | 2026-09-09 | [#86](https://github.com/didi-code0980/calechip/pull/86), merged — corrected from `PENDING_PR` at CAL-11's ship |
+| 12 | CAL-11 | An admin reads any team's entries and roster through the seam | 2026-09-23 | [#95](https://github.com/didi-code0980/calechip/pull/95) |
+| 13 | EVT-01 | A member announces an event to their own team, to named people, or to every team, and those it is for can read it | 2026-09-29 | [#105](https://github.com/didi-code0980/calechip/pull/105), merged — corrected from `PENDING_PR` at EVT-02's ship |
+| 14 | EVT-02 | A member joins an event they can read, within its capacity, approval mode and deadline, and everyone who can read it sees who is coming | 2026-09-29 | [#106](https://github.com/didi-code0980/calechip/pull/106), merged — corrected from `PENDING_PR` at CAL-12's ship |
+| 15 | CAL-12 | An admin chooses which team the three calendar screens and the sidebar roster show, read-only | 2026-10-01 | [#108](https://github.com/didi-code0980/calechip/pull/108), merged — corrected from `PENDING_PR` at EVT-03's ship |
+| 16 | EVT-03 | Events are drawn on the week and month grids, and a click opens the event | 2026-10-08 | [#113](https://github.com/didi-code0980/calechip/pull/113) |
+| 17 | EVT-04 | A person is notified in the app when an event concerns them | 2026-10-08 | [#114](https://github.com/didi-code0980/calechip/pull/114) |
+| 18 | EVT-05 | A person is emailed when an event for their team is created, when they are invited, and when their request is decided | 2026-10-09 | [#116](https://github.com/didi-code0980/calechip/pull/116) |
+| 19 | EVT-06 | A creator opens an event to guests, and anyone with its link reads it and who is coming | 2026-10-09 | [#117](https://github.com/didi-code0980/calechip/pull/117) |
+| 20 | EVT-07 | A guest registers for an opened event with a name and an email, and manages it from a link shown once | 2026-10-09 | PENDING_PR |
+
+**The window displaced `UIE-03` at EVT-07's ship** — *UIE-03, The calendar screens give up their own chrome to the shell, shipped 2026-09-07,* [#65](https://github.com/didi-code0980/calechip/pull/65).
 
 **The window displaced `UIE-02` at EVT-06's ship** — *UIE-02, The application shell — a persistent sidebar and top bar, shipped 2026-09-07,* [#64](https://github.com/didi-code0980/calechip/pull/64).
 

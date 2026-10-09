@@ -5,9 +5,9 @@ id: EVT-07
 title: "A guest registers for an opened event with a name and an email, and manages it from a link shown once"
 feature_ids: [EVT-07]
 group: EVT
-state: REVIEW
+state: DONE
 owner: ""
-branch: ""
+branch: "feat/EVT-07"
 size_estimate: "M"   # S|M - set by tech-lead-design at PLAN; gates DoR
 size: "M"            # S|M|L|XL - set by tech-lead-design at PLAN; twelve allowed_paths
 depends_on: [EVT-06]
