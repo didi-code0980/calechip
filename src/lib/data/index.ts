@@ -1401,6 +1401,24 @@ export interface DataSeam {
   /** EVT-04 AC-15. Sets `readAt` on every unread notification of the caller's, beyond the window too.
    *  Returns how many were marked. */
   markAllNotificationsRead(): Promise<Result<number>>;
+
+  // -------------------------------------------------------------------------
+  // EVT-05 — the event email switch. 01-plan.md section 4.2. ADR-051, ADR-053.
+  //
+  // Two functions. NOTHING IN THE SEAM SENDS, QUEUES OR NAMES AN EMAIL: the database hands email-kind
+  // notifications to the sender from a trigger (`supabase/migrations/20261009090000_evt05_event_email.sql`),
+  // and ADR-051 decision 3 forbids the browser calling it.
+  // -------------------------------------------------------------------------
+
+  /** EVT-05 AC-14. Whether the caller receives event email. Null when nobody is signed in or the
+   *  caller has no member row — a normal answer, as `getCurrentMember` gives. Throws on a read
+   *  failure, as the other reads do. */
+  getEventEmailEnabled(): Promise<boolean | null>;
+
+  /** EVT-05 AC-14, AC-15. Sets the caller's own switch and returns the saved value. No member id
+   *  parameter, and there must never be one. No row written (no member row, or removed): fails with
+   *  `unknown` and the sentence "Your email setting could not be saved." */
+  setEventEmailEnabled(enabled: boolean): Promise<Result<boolean>>;
 }
 
 export type { DataSeam as Seam };

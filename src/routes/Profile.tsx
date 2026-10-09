@@ -34,6 +34,11 @@
 // **EVERY WRITE GOES THROUGH THE SEAM (RULE-02) AND NEITHER TAKES A MEMBER ID.** `updateOwnProfile`
 // and `changePassword` resolve the caller from the session inside the implementation, so there is no
 // argument on this screen that could aim either write at somebody else.
+//
+// **EVT-05 — THE EMAIL CARD.** Its layout is `.ai/board/tickets/EVT-05/01-plan.md` § 2b, the Tech
+// Lead's own, and its contract § 4.6: one switch, `profile-event-email`, saved by the one save button
+// for reason 1 above — a toggle that saved on press would be the only control on the page that does.
+// `setEventEmailEnabled` takes no member id either; the screen never sends or names an email.
 import { useCallback, useEffect, useState, type FormEvent } from "react";
 // SOLO, 2026-09-12. **RESTORED, for the `Calendar` control below.** It was deleted on 2026-09-10
 // as an orphan after another session removed this screen's way back; the operator asked for one
@@ -197,15 +202,24 @@ export default function Profile() {
   >(null);
   const [saving, setSaving] = useState(false);
 
+  // EVT-05. The switch as LOADED (null until the read answers, or when it answers null — the toggle
+  // is disabled then) and as the form holds it. A difference between the two is a change (AC-14).
+  const [savedEventEmail, setSavedEventEmail] = useState<boolean | null>(null);
+  const [eventEmail, setEventEmail] = useState(true);
+
   // The two facts the shell does not hold. IN PARALLEL, because neither depends on the other and
   // running them in sequence made the team pill wait on an address it has nothing to do with.
   // `catch` per call, so one failing still yields the other.
   const load = useCallback(async (): Promise<void> => {
-    const [session, team] = await Promise.all([
+    const [session, team, emailEnabled] = await Promise.all([
       seam.getSession().catch(() => null),
       seam.getTeam().catch(() => null),
+      // EVT-05. Its own `catch`: a failed read disables the toggle and takes nothing else away.
+      seam.getEventEmailEnabled().catch(() => null),
     ]);
     setExtras({ email: session ? session.user.email : null, team });
+    setSavedEventEmail(emailEnabled);
+    if (emailEnabled !== null) setEventEmail(emailEnabled);
   }, []);
 
   useEffect(() => {
@@ -250,7 +264,9 @@ export default function Profile() {
     }
 
     const profileChanged = trimmed !== me.displayName || avatar !== me.avatar;
-    if (!profileChanged && !wantsPassword) {
+    // EVT-05 AC-14. Changing only the switch is a change, so it is never answered *Nothing to save*.
+    const emailChanged = savedEventEmail !== null && eventEmail !== savedEventEmail;
+    if (!profileChanged && !emailChanged && !wantsPassword) {
       setErrors(NO_ERRORS);
       setOutcome({ kind: "ok", message: "Nothing to save." });
       return;
@@ -295,6 +311,23 @@ export default function Profile() {
         refreshMembership();
       }
 
+      // EVT-05. After the profile, before the password — the same reasoning about what a
+      // half-failure leaves behind: a password change is the write that must not outrun the rest.
+      if (emailChanged) {
+        const savedEmail = await seam.setEventEmailEnabled(eventEmail);
+        if (!savedEmail.ok) {
+          setOutcome({
+            kind: "error",
+            message: profileChanged
+              ? "Your profile was saved, but your email setting was not."
+              : savedEmail.error.message,
+          });
+          return;
+        }
+        setSavedEventEmail(savedEmail.value);
+        setEventEmail(savedEmail.value);
+      }
+
       if (wantsPassword) {
         const changed = await seam.changePassword({
           currentPassword,
@@ -311,7 +344,7 @@ export default function Profile() {
           }
           // Said plainly rather than left for the member to work out from the fields. A screen that
           // reported only the failure would leave them believing the name was not saved either.
-          if (profileChanged) {
+          if (profileChanged || emailChanged) {
             setOutcome({
               kind: "error",
               message:
@@ -331,7 +364,7 @@ export default function Profile() {
       setOutcome({
         kind: "ok",
         message: wantsPassword
-          ? profileChanged
+          ? profileChanged || emailChanged
             ? "Profile and password saved."
             : "Password changed."
           : "Profile saved.",
@@ -546,6 +579,45 @@ export default function Profile() {
             {errors.displayName}
           </p>
         ) : null}
+      </div>
+
+      {/* EVT-05. The email card — 01-plan.md § 2b. One row: the words on the left, the toggle on the
+          right. `type="button"`: inside this `<form>` a bare button would submit the page. */}
+      <div className={CARD}>
+        <h2 className="text-base font-semibold text-ink">Email</h2>
+        <div className="mt-4 flex items-center justify-between gap-4">
+          <div className="min-w-0">
+            <p className="text-sm font-semibold text-ink">Event email</p>
+            <p className="mt-0.5 text-sm text-ink-2">
+              Emails when an event is announced for your team, when you are invited, and when your
+              request is decided.
+            </p>
+          </div>
+          <button
+            type="button"
+            data-testid="profile-event-email"
+            data-enabled={eventEmail ? "true" : "false"}
+            role="switch"
+            aria-checked={eventEmail}
+            aria-label="Event email"
+            disabled={savedEventEmail === null}
+            onClick={() => setEventEmail((on) => !on)}
+            className={
+              "relative inline-flex h-6 w-11 shrink-0 items-center rounded-pill transition-colors " +
+              "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink " +
+              "disabled:opacity-40 " +
+              (eventEmail ? "bg-primary" : "bg-track")
+            }
+          >
+            <span
+              aria-hidden
+              className={
+                "inline-block h-5 w-5 rounded-pill bg-white shadow-soft transition-transform " +
+                (eventEmail ? "translate-x-[22px]" : "translate-x-0.5")
+              }
+            />
+          </button>
+        </div>
       </div>
 
       {/* 4. The password. */}
