@@ -82,6 +82,8 @@ only authorization mechanism". A: agree. B: no — in-app only, email dropped.*
 
 **Q6 — email provider, who holds the key, and the sending domain.** **Answer: "chưa có".**
 
+*Answered later the same day, 2026-10-08, recorded by `orchestrator` from the operator's words:* **Gmail, over SMTP with an App Password** (*"chọn cách B"*, chosen over the Gmail API with OAuth). **No sending domain** — mail goes from a Gmail address, so no SPF/DKIM records are owed. Credentials go in a gitignored env file (*"setup trong file .env"*): `supabase/functions/.env`, pushed with `supabase secrets set`. **Still open for PLAN:** which Gmail account, and who holds it. Supabase blocks outgoing ports 25 and 587 from hosted Edge Functions, so the sender uses 465 — TODO(verify) with one real send. *Then, 2026-10-09, from the operator:* the sending account is **`didi00889900@gmail.com`**, App Password supplied and written to the gitignored env file only, From header **`CaleChip <calechip.app@gmail.com>`**. Option B confirmed. **Who holds the account is not stated** and is PLAN's to carry as an open question if it matters. Gmail replaces a From address that is not a verified *Send mail as* alias of the authenticating account, so the From above holds only if `calechip.app@gmail.com` is added as an alias of `didi00889900@gmail.com`; otherwise mail goes out from the account address. TODO(verify). *Superseded the same morning by the operator:* From is **`CaleChip <didi00889900@gmail.com>`**, the account address itself, so no alias is needed and the TODO above is closed.
+
 **Q7 — two tickets, in-app first, email second and depending on it.** **Answer: "đúng tách 2
 ticket".**
 
