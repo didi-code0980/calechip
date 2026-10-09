@@ -12,12 +12,17 @@
 // EVT-02. Beneath EVT-01's fields, `EventAttendancePanel` — seats, deadline, the join panel, the
 // requests and who is coming (01-plan.md § 2 AC-27, § 2b). EVT-01's order above it is unchanged.
 //
+// EVT-06. Last in the card, `EventGuestPanel` — open, copy and close the guest link (01-plan.md § 2b,
+// § 4.4). **AN AFFORDANCE**, drawn for the creator and admins: `event_guest_link_select_manage`,
+// `_insert_manage` and `_delete_manage` are the controls, and `getEventGuestLink` answers null to
+// anybody else whatever this page draws. A non-manager's load makes no guest-link call (AC-18).
+//
 // The delete confirmation is a dialog; the picker on the form is deliberately not, so the route
 // family never stacks one dialog on another (§ 2b).
 import { useCallback, useEffect, useState, type JSX } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { seam } from "@/lib/data";
-import type { CalEvent, DirectoryMember, Member } from "@/lib/domain/types";
+import type { CalEvent, DirectoryMember, EventGuestLink, Member } from "@/lib/domain/types";
 import Avatar from "@/components/Avatar";
 import Loader from "@/components/Loader";
 import Modal from "@/components/Modal";
@@ -33,6 +38,8 @@ type LoadState =
       me: Member | null;
       directory: DirectoryMember[];
       invitees: string[];
+      // EVT-06. Null when not open — and always null for a non-manager, who never asks.
+      guestLink: EventGuestLink | null;
     };
 
 const ACTION_BUTTON =
@@ -43,6 +50,11 @@ const ACTION_BUTTON =
  *  `role === "admin"` and never through `mayDecide`: a manager gains nothing here (Q9, Q24). */
 export function mayEditEvent(event: CalEvent, me: Member | null): boolean {
   return me !== null && (me.id === event.creatorId || me.role === "admin");
+}
+
+/** EVT-06 AC-1. The guest page's full address. */
+export function guestLinkUrl(origin: string, token: string): string {
+  return `${origin}/guest/${token}`;
 }
 
 export default function EventDetail(): JSX.Element {
@@ -65,7 +77,14 @@ export default function EventDetail(): JSX.Element {
         seam.listMemberDirectory(),
         seam.listEventInvitees(id),
       ]);
-      setState(event ? { phase: "ready", event, me, directory, invitees } : { phase: "missing" });
+      if (!event) {
+        setState({ phase: "missing" });
+        return;
+      }
+      // EVT-06, AC-18. Asked only by someone who may manage the event, so nobody else's load
+      // changes by a single call.
+      const guestLink = mayEditEvent(event, me) ? await seam.getEventGuestLink(id) : null;
+      setState({ phase: "ready", event, me, directory, invitees, guestLink });
     } catch {
       setState({ phase: "missing" });
     }
@@ -99,7 +118,7 @@ export default function EventDetail(): JSX.Element {
     );
   }
 
-  const { event, me, directory, invitees } = state;
+  const { event, me, directory, invitees, guestLink } = state;
   const canEdit = mayEditEvent(event, me);
 
   async function onConfirmDelete(): Promise<void> {
@@ -214,6 +233,17 @@ export default function EventDetail(): JSX.Element {
           invitees={invitees}
           canManage={canEdit}
         />
+
+        {/* EVT-06, AC-2, AC-3. Managers only, last in the card. */}
+        {canEdit ? (
+          <EventGuestPanel
+            event={event}
+            link={guestLink}
+            onChange={(next) =>
+              setState((current) => (current.phase === "ready" ? { ...current, guestLink: next } : current))
+            }
+          />
+        ) : null}
       </article>
 
       {confirming ? (
@@ -252,5 +282,170 @@ export default function EventDetail(): JSX.Element {
         </Modal>
       ) : null}
     </section>
+  );
+}
+
+type CopyState = "idle" | "copied" | "refused";
+
+/** EVT-06 § 2b. Open, copy and close the guest link. `onChange` reports the link the datastore now
+ *  holds, so the page never draws one the datastore did not return. */
+function EventGuestPanel({
+  event,
+  link,
+  onChange,
+}: {
+  event: CalEvent;
+  link: EventGuestLink | null;
+  onChange: (link: EventGuestLink | null) => void;
+}): JSX.Element {
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [copy, setCopy] = useState<CopyState>("idle");
+  const [confirming, setConfirming] = useState(false);
+  const address = link ? guestLinkUrl(window.location.origin, link.token) : "";
+
+  async function onOpen(): Promise<void> {
+    setBusy(true);
+    setError(null);
+    setCopy("idle");
+    const result = await seam.openEventToGuests(event.id);
+    setBusy(false);
+    if (!result.ok) {
+      setError(result.error.message);
+      return;
+    }
+    onChange(result.value);
+  }
+
+  async function onClose(): Promise<void> {
+    setBusy(true);
+    setError(null);
+    const result = await seam.closeEventToGuests(event.id);
+    setBusy(false);
+    if (!result.ok) {
+      setError(result.error.message);
+      return;
+    }
+    setConfirming(false);
+    setCopy("idle");
+    onChange(null);
+  }
+
+  // AC-8. Where the browser refuses the clipboard, the address stays on screen to copy by hand.
+  async function onCopy(): Promise<void> {
+    try {
+      await navigator.clipboard.writeText(address);
+      setCopy("copied");
+    } catch {
+      setCopy("refused");
+    }
+  }
+
+  return (
+    <div data-testid="event-guest-panel" className="flex flex-col gap-2 border-t border-line pt-4">
+      <h2 className="text-xs font-bold uppercase tracking-wide text-ink-3">Guest link</h2>
+      <p className="text-sm text-ink-2">
+        Anyone with the link can see this event and who is coming, without signing in.
+      </p>
+
+      {link ? (
+        <>
+          <div className="flex gap-2">
+            <input
+              data-testid="event-guest-link"
+              type="text"
+              readOnly
+              value={address}
+              aria-label="Guest link"
+              onFocus={(e) => e.currentTarget.select()}
+              className="min-w-0 flex-1 rounded-pill bg-field px-3 py-1.5 text-xs text-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
+            />
+            <button
+              data-testid="event-guest-copy-button"
+              type="button"
+              onClick={() => void onCopy()}
+              className={ACTION_BUTTON}
+            >
+              Copy
+            </button>
+          </div>
+          <p data-testid="event-guest-copied" role="status" aria-live="polite" className="text-xs text-ink-2">
+            {copy === "copied"
+              ? "Copied"
+              : copy === "refused"
+                ? "Copying is blocked here. Select the address and copy it yourself."
+                : ""}
+          </p>
+        </>
+      ) : null}
+
+      {error !== null && !confirming ? (
+        <p data-testid="event-guest-error" role="alert" className="text-sm text-danger">
+          {error}
+        </p>
+      ) : null}
+
+      <div>
+        {link ? (
+          <button
+            data-testid="event-guest-close-button"
+            type="button"
+            disabled={busy}
+            onClick={() => {
+              setError(null);
+              setConfirming(true);
+            }}
+            className="text-xs font-semibold text-danger underline-offset-2 hover:underline disabled:opacity-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
+          >
+            Close the link
+          </button>
+        ) : (
+          <button
+            data-testid="event-guest-open-button"
+            type="button"
+            disabled={busy}
+            onClick={() => void onOpen()}
+            className={`${ACTION_BUTTON} disabled:opacity-50`}
+          >
+            {busy ? "Opening…" : "Open to guests"}
+          </button>
+        )}
+      </div>
+
+      {confirming ? (
+        <Modal testIdPrefix="event-guest-close" label="Close the guest link" onClose={() => setConfirming(false)}>
+          <div className="flex flex-col gap-4 pr-8">
+            <h2 className="text-lg font-extrabold text-ink">Close the guest link?</h2>
+            <p className="text-sm text-ink-2">
+              The link will stop working for everyone who has it. Opening it again makes a new link.
+            </p>
+            {error !== null ? (
+              <p data-testid="event-guest-error" role="alert" className="text-sm text-danger">
+                {error}
+              </p>
+            ) : null}
+            <div className="flex justify-end gap-2">
+              <button
+                data-testid="event-guest-close-cancel"
+                type="button"
+                onClick={() => setConfirming(false)}
+                className={ACTION_BUTTON}
+              >
+                Cancel
+              </button>
+              <button
+                data-testid="event-guest-close-confirm"
+                type="button"
+                disabled={busy}
+                onClick={() => void onClose()}
+                className="rounded-pill bg-danger px-4 py-1.5 text-xs font-bold text-white transition-opacity hover:opacity-90 disabled:opacity-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
+              >
+                {busy ? "Closing…" : "Close the link"}
+              </button>
+            </div>
+          </div>
+        </Modal>
+      ) : null}
+    </div>
   );
 }

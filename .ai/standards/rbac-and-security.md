@@ -77,6 +77,23 @@ operator gave — see the note under § *Roles*. A bare `❌` there is a denial 
 | Change their event email switch once removed | ❌ | ❌ | ❌ |
 | Cause an email to someone | only through a write that writes them an email-kind notification | same | same |
 | Call the event email sender (`send-event-email`) | ❌ | ❌ | ❌ **ADR-051 decision 3 — only the database's `email_notification` trigger, with the shared secret** |
+| Open an event they created to guests (EVT-06) | ✅ | ✅ | ✅ |
+| Open someone else's event to guests | ❌ | ❌ **as a manager, nothing — `may_manage_event` is `is_admin`, never `may_decide`** | ✅ **ADR-052 decision 1** |
+| Close an event's guest link | own event only | own event only | ✅ any |
+| Read an event's guest link (the token) | own event only | own event only | ✅ any **— 01-plan.md AC-3: never to a reader who may not manage it** |
+| Choose a guest link's token, or the time it was opened | ❌ | ❌ | ❌ **column grant `insert (event_id)` only; no `update` grant** |
+| Open, close or read a guest link once removed or no longer approved | ❌ | ❌ | ❌ |
+| Read an open event's public fields and attendee names, with its token | ✅ | ✅ | ✅ **— and signed out; see below** |
+| Read anything through a token that is not an open event's | ❌ | ❌ | ❌ |
+| List open events, or learn whether an event exists, through the guest reads | ❌ | ❌ | ❌ **ADR-052 § Consequences — both reads take only a token** |
+
+**Signed out — the `anon` role's first rows (EVT-06, ADR-052).** A caller holding only the public
+anon key, no session, may call exactly two functions — `get_guest_event(text)` and
+`list_guest_event_attendees(text)`, `security definer`, each returning a fixed column list and zero
+rows for any token but an open event's. Nothing else: no table (`event`, `event_attendance`,
+`event_invitee`, `event_guest_link`, `member`, `entry`, `notification`), no other function, and no
+open or close. No `anon` policy exists on any table, and none on `public.member` (INV-04).
+`supabase/migrations/20261009120000_evt06_guest_link.sql` § 4 holds the grants.
 
 **THE TWO ROWS TO READ TWICE ARE THE TWO MARKED `decided`.** *Edit or delete another member's entry*
 is denied to a manager because granting it is what the update POLICY would do if it were widened, and

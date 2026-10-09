@@ -43,6 +43,9 @@ import type {
   // EVT-04, 01-plan.md section 4.1.
   EventNotification,
   NotificationKind,
+  // EVT-06, 01-plan.md section 4.1.
+  EventGuestLink,
+  GuestEvent,
   MemberDecision,
   MemberStatus,
   BulkRejectionOutcome,
@@ -82,6 +85,8 @@ import {
   ISSUE_IMAGE_MAX_COUNT,
   ISSUE_IMAGE_TYPES,
   ISSUE_REPORT_LIMIT,
+  // EVT-06 AC-13. The token's shape, checked before any round trip.
+  GUEST_LINK_TOKEN_PATTERN,
   // EVT-04. The panel's window — AC-16.
   NOTIFICATION_LIMIT,
   OWN_ENTRY_LIMIT,
@@ -321,6 +326,59 @@ function toAttendanceFailure(error: PostgrestError, refusal: string): Failure {
     case "22P02": // a malformed id is an event that does not exist — the same answer (AC-21)
     case "23503": // no such event: the foreign key, answered the same as a policy refusal
       return { code: "attendance_not_permitted", message: refusal };
+    default:
+      return { code: "unknown", message: "Something went wrong. Please try again." };
+  }
+}
+
+// ---------------------------------------------------------------------------
+// EVT-06 — the guest link. The rows, their mappers and the sentences.
+// 01-plan.md sections 4.2 and 4.3; `supabase/migrations/20261009120000_evt06_guest_link.sql`.
+// ---------------------------------------------------------------------------
+
+interface GuestLinkRow {
+  event_id: string;
+  token: string;
+  opened_at: string;
+}
+
+const GUEST_LINK_COLUMNS: string = "event_id, token, opened_at";
+
+function toGuestLink(row: GuestLinkRow): EventGuestLink {
+  return { eventId: row.event_id, token: row.token, openedAt: row.opened_at };
+}
+
+/** `public.get_guest_event`'s seven columns. There is no eighth to read. */
+interface GuestEventRow {
+  name: string;
+  description: string | null;
+  location: string | null;
+  start_date: string;
+  end_date: string;
+  capacity: number | null;
+  seats_taken: number;
+}
+
+// Named explicitly, and typed `string` as EVENT_COLUMNS is, so the client does not re-derive a row
+// type from the literal. `list_guest_event_attendees` has one column and no second to select.
+const GUEST_EVENT_COLUMNS: string =
+  "name, description, location, start_date, end_date, capacity, seats_taken";
+const GUEST_ATTENDEE_COLUMNS: string = "display_name";
+
+// Repeated verbatim in src/lib/data/mock.ts. Neither confirms that the event exists.
+const EVENT_GUEST_OPEN_REFUSED = "This event could not be opened to guests.";
+const EVENT_GUEST_CLOSE_REFUSED = "The guest link could not be closed.";
+
+/** The SQLSTATEs the link's three writes answer with. A refusal by policy (42501), no session
+ *  (PGRST301), an id that is not a uuid (22P02) and an event that is not there (23503) are ONE
+ *  answer, so none of them says whether the event exists. */
+function toGuestLinkFailure(error: PostgrestError, refusal: string): Failure {
+  switch (error.code) {
+    case "42501":
+    case "PGRST301":
+    case "22P02":
+    case "23503":
+      return { code: "event_not_permitted", message: refusal };
     default:
       return { code: "unknown", message: "Something went wrong. Please try again." };
   }
@@ -3437,5 +3495,105 @@ export const seam: DataSeam = {
       return { ok: false, error: { code: "unknown", message: EVENT_EMAIL_SAVE_FAILED } };
     }
     return { ok: true, value: data };
+  },
+
+  // -------------------------------------------------------------------------
+  // EVT-06 — the guest link. 01-plan.md § 4.2. Open, close and the link read are table calls on
+  // `event_guest_link` under its three policies; the guest read is the two definer functions, THE
+  // ONLY OBJECTS THE ANON KEY MAY CALL. Nothing here reads or writes `event` or `member`.
+  // -------------------------------------------------------------------------
+
+  // `event_guest_link_select_manage` filters; not open and may-not-manage are the same null (AC-3).
+  // Signed out, the table has no `anon` grant and answers 42501 — also null (AC-14).
+  async getEventGuestLink(eventId: string): Promise<EventGuestLink | null> {
+    const { data, error } = await client()
+      .from("event_guest_link")
+      .select(GUEST_LINK_COLUMNS)
+      .eq("event_id", eventId)
+      .maybeSingle<GuestLinkRow>();
+
+    if (error) {
+      if (error.code === "22P02" || error.code === "42501" || error.code === "PGRST301") return null;
+      throw new Error(`getEventGuestLink failed: ${error.message}`);
+    }
+    return data ? toGuestLink(data) : null;
+  },
+
+  // ONLY `event_id` IS SENT — the insert grant names no other column, so the token and the time are
+  // the database's. A 23505 is the primary key: already open, so the link in place is the answer
+  // (AC-6) — and if the read-back finds nothing, the caller may not see it, which is a refusal.
+  async openEventToGuests(eventId: string): Promise<Result<EventGuestLink>> {
+    const { data, error } = await client()
+      .from("event_guest_link")
+      .insert({ event_id: eventId })
+      .select(GUEST_LINK_COLUMNS)
+      .single<GuestLinkRow>();
+
+    if (error) {
+      if (error.code === "23505") {
+        const existing = await this.getEventGuestLink(eventId);
+        if (existing) return { ok: true, value: existing };
+        return { ok: false, error: { code: "event_not_permitted", message: EVENT_GUEST_OPEN_REFUSED } };
+      }
+      return { ok: false, error: toGuestLinkFailure(error, EVENT_GUEST_OPEN_REFUSED) };
+    }
+    return { ok: true, value: toGuestLink(data) };
+  },
+
+  // ZERO ROWS BACK IS A REFUSAL — `deleteEvent`'s shape: a DELETE that the policy filters answers 200
+  // with an empty body.
+  async closeEventToGuests(eventId: string): Promise<Result<void>> {
+    const { data, error } = await client()
+      .from("event_guest_link")
+      .delete()
+      .eq("event_id", eventId)
+      .select("event_id")
+      .returns<{ event_id: string }[]>();
+
+    if (error) return { ok: false, error: toGuestLinkFailure(error, EVENT_GUEST_CLOSE_REFUSED) };
+    if (!(data ?? [])[0]) {
+      return { ok: false, error: { code: "event_not_permitted", message: EVENT_GUEST_CLOSE_REFUSED } };
+    }
+    return { ok: true, value: undefined };
+  },
+
+  // Two definer reads, merged. A malformed token makes no round trip (AC-13). `seatsTaken` is the
+  // first read's count, never the length of the second; the second is bounded and throws at the
+  // bound, `listEventAttendance`'s reason.
+  async getGuestEvent(token: string): Promise<GuestEvent | null> {
+    if (!GUEST_LINK_TOKEN_PATTERN.test(token)) return null;
+
+    const { data: events, error: eventError } = await client()
+      .rpc("get_guest_event", { p_token: token })
+      .select(GUEST_EVENT_COLUMNS)
+      .returns<GuestEventRow[]>();
+    if (eventError) throw new Error(`getGuestEvent failed: ${eventError.message}`);
+    const row = (events ?? [])[0];
+    if (!row) return null;
+
+    const { data: attendees, error: attendeeError } = await client()
+      .rpc("list_guest_event_attendees", { p_token: token })
+      .select(GUEST_ATTENDEE_COLUMNS)
+      .limit(DATASTORE_MAX_ROWS)
+      .returns<{ display_name: string | null }[]>();
+    if (attendeeError) throw new Error(`getGuestEvent failed: ${attendeeError.message}`);
+    const names = attendees ?? [];
+    if (names.length >= DATASTORE_MAX_ROWS) {
+      throw new Error(
+        `getGuestEvent returned ${names.length} attendees at the ${DATASTORE_MAX_ROWS} limit: the ` +
+          `list may be truncated and must not be shown as complete`,
+      );
+    }
+
+    return {
+      name: row.name,
+      description: row.description,
+      location: row.location,
+      startDate: row.start_date,
+      endDate: row.end_date,
+      capacity: row.capacity,
+      seatsTaken: row.seats_taken,
+      attendeeNames: names.map((a) => a.display_name),
+    };
   },
 };

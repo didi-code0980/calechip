@@ -35,6 +35,9 @@ import type {
   EventAttendance,
   // EVT-04, 01-plan.md section 4.2.
   EventNotification,
+  // EVT-06, 01-plan.md section 4.2.
+  EventGuestLink,
+  GuestEvent,
 } from "../domain/types";
 import { seam as mockSeam } from "./mock";
 import { seam as supabaseSeam } from "./supabase";
@@ -1419,6 +1422,36 @@ export interface DataSeam {
    *  parameter, and there must never be one. No row written (no member row, or removed): fails with
    *  `unknown` and the sentence "Your email setting could not be saved." */
   setEventEmailEnabled(enabled: boolean): Promise<Result<boolean>>;
+
+  // -------------------------------------------------------------------------
+  // EVT-06 — the guest link. 01-plan.md section 4.2. ADR-052.
+  //
+  // Four functions, none changing an existing one. Open, close and the link read are a table and
+  // three policies in `supabase/migrations/20261009120000_evt06_guest_link.sql`; the guest read is
+  // two `security definer` functions, THE ONLY OBJECTS THE ANON ROLE MAY CALL. `listMembers()` and
+  // every policy on `public.member` are untouched (INV-04).
+  // -------------------------------------------------------------------------
+
+  /** EVT-06 AC-1, AC-3. The event's guest link, or null when it is not open OR the caller may not
+   *  manage it — deliberately the same answer. Throws on a read failure. */
+  getEventGuestLink(eventId: string): Promise<EventGuestLink | null>;
+
+  /** EVT-06 AC-1, AC-2, AC-3, AC-5, AC-6. Inserts the row; the database chooses the token. A 23505
+   *  (already open) is NOT an error: the existing link is read back and returned (AC-6). 42501, or
+   *  a 23505 whose read-back finds nothing, is `event_not_permitted`. */
+  openEventToGuests(eventId: string): Promise<Result<EventGuestLink>>;
+
+  /** EVT-06 AC-3, AC-4. Deletes the row and reads back what it removed; zero rows is
+   *  `event_not_permitted`, not success — `deleteEvent`'s shape. */
+  closeEventToGuests(eventId: string): Promise<Result<void>>;
+
+  /** EVT-06 AC-9..AC-14, AC-16, AC-17. Works with no session. Null for a token failing
+   *  GUEST_LINK_TOKEN_PATTERN (no round trip), and for one that is not an open event's. Two calls —
+   *  `get_guest_event` then `list_guest_event_attendees` — merged; `seatsTaken` comes from the
+   *  first, never from the length of the second. The attendee read is bounded by
+   *  DATASTORE_MAX_ROWS and throws at the bound, as `listEventAttendance` does. Throws on any other
+   *  read failure. */
+  getGuestEvent(token: string): Promise<GuestEvent | null>;
 }
 
 export type { DataSeam as Seam };
