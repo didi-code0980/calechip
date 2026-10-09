@@ -22,6 +22,9 @@ planned, sized, and safe to build** — the next stage for a row here is IN_PROG
 
 | # | Ticket | Title | Size | Depends on |
 |---|--------|-------|------|------------|
+| 1 | EVT-05 | A person is emailed when an event for their team is created, when they are invited, and when their request is decided | M | — |
+
+**`EVT-05` moved here from `## BACKLOG` at /advance on 2026-10-09**, from `01-plan.md` gate PASS with all six Definition of Ready items passing. It was planned ahead of `EVT-06`, row 1 there, once Q6 was answered; `EVT-07` moved up one row.
 
 **Empty again — `EVT-04` left this section for `## ARCHIVE` at its own ship on 2026-10-08.** `EVT-05` is the top of `## BACKLOG`, still blocked on the operator.
 
@@ -58,9 +61,10 @@ Under the current gate placement a ticket sits here until it has been planned �
 
 | # | Ticket | Title | State | Blocked on |
 |---|--------|-------|-------|------------|
-| 1 | EVT-05 | A person is emailed when an event for their team is created, when they are invited, and when their request is decided | BACKLOG | `EVT-04`; and the operator — no email provider, key holder or sending domain (idea Q6) |
-| 2 | EVT-06 | A creator opens an event to guests, and anyone with its link reads it and who is coming | BACKLOG | — |
-| 3 | EVT-07 | A guest registers for an opened event with a name and an email, and manages it from a link shown once | BACKLOG | `EVT-06` |
+| 1 | EVT-06 | A creator opens an event to guests, and anyone with its link reads it and who is coming | BACKLOG | — |
+| 2 | EVT-07 | A guest registers for an opened event with a name and an email, and manages it from a link shown once | BACKLOG | `EVT-06` |
+
+**Reordered by the operator on 2026-10-08** (*"thôi chuyển qua làm EVT-06 trước"*): `EVT-06` above `EVT-05`, which waits on the Gmail decision (Q6 — cách A or B, the account, and who holds it). `EVT-05`'s *Blocked on* drops `EVT-04`, which is `DONE` and merged.
 
 **Rows 2 and 3 were appended by `product` at /triage on 2026-10-08**, from `.ai/board/ideas/2026-10-08-a-person-learns-about-an-event-only-by-going-to-look.md`. Split at triage on the operator's Q7. They sit below `EVT-03` because it was already here, not because anybody placed them.
 
