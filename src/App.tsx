@@ -36,6 +36,8 @@ import EventDetail from "./routes/EventDetail";
 import EventEditor from "./routes/EventEditor";
 // EVT-06. The guest page — 01-plan.md § 4.4.
 import GuestEvent from "./routes/GuestEvent";
+// EVT-07. The manage page — 01-plan.md § 4.4. A named export of the guest page's file.
+import { GuestRegistration } from "./routes/GuestEvent";
 import NotOnATeam from "./routes/NotOnATeam";
 import SignIn from "./routes/SignIn";
 import SignUp from "./routes/SignUp";
@@ -149,6 +151,10 @@ export default function App() {
                   guard and no redirect: the token is the whole address, and a signed-in member sees
                   exactly what a guest sees. */}
               <Route path="/guest/:token" element={<GuestEvent />} />
+
+              {/* EVT-07, AC-11, AC-13. The manage page: the same bare card, no guard, any state —
+                  the manage token is the whole address. */}
+              <Route path="/guest/registration/:token" element={<GuestRegistration />} />
 
               {/* AC-1, AC-2, AC-3, AC-5, AC-9. A caller with a session is sent to the landing
                   address instead — a sign-in screen offered to somebody already signed in is a

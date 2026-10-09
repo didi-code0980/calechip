@@ -69,6 +69,12 @@ import type {
   Result,
   Session,
   Team,
+  // EVT-07, 01-plan.md section 4.1.
+  EventGuest,
+  GuestRegistrationReceipt,
+  GuestRegistrationTerms,
+  GuestRegistrationView,
+  GuestStatus,
 } from "../domain/types";
 // TEA-03, CAL-01 for the second constant, CAL-04 for the fourth. RUNTIME imports, not type ones:
 // each is needed as a value at the call. They come from ../domain/types and not from ./index, which
@@ -87,6 +93,10 @@ import {
   ISSUE_REPORT_LIMIT,
   // EVT-06 AC-13. The token's shape, checked before any round trip.
   GUEST_LINK_TOKEN_PATTERN,
+  // EVT-07 AC-4. The ceilings and the shape, checked before the round trip.
+  GUEST_EMAIL_MAX,
+  GUEST_EMAIL_PATTERN,
+  GUEST_NAME_MAX,
   // EVT-04. The panel's window — AC-16.
   NOTIFICATION_LIMIT,
   OWN_ENTRY_LIMIT,
@@ -379,6 +389,107 @@ function toGuestLinkFailure(error: PostgrestError, refusal: string): Failure {
     case "22P02":
     case "23503":
       return { code: "event_not_permitted", message: refusal };
+    default:
+      return { code: "unknown", message: "Something went wrong. Please try again." };
+  }
+}
+
+// ---------------------------------------------------------------------------
+// EVT-07 — guest registration. The rows, their mappers, the sentences and the SQLSTATEs.
+// 01-plan.md sections 4.2 and 4.3; `supabase/migrations/20261009150000_evt07_guest_registration.sql`.
+// ---------------------------------------------------------------------------
+
+/** The six columns of `event_guest` in the select grant. `email` and `manage_token_hash` are not
+ *  granted, so `select("*")` is refused — never use it here. */
+interface GuestRow {
+  id: string;
+  event_id: string;
+  name: string;
+  status: GuestStatus;
+  created_at: string;
+  updated_at: string;
+}
+
+const GUEST_COLUMNS: string = "id, event_id, name, status, created_at, updated_at";
+
+// Typed `string`, GUEST_EVENT_COLUMNS' reason: the client must not re-derive a row type from the
+// literal. Each is its function's full return list.
+const GUEST_TERMS_COLUMNS: string = "requires_approval, registration_open";
+const GUEST_RECEIPT_COLUMNS: string = "manage_token, status";
+const GUEST_REGISTRATION_COLUMNS: string =
+  "event_name, start_date, end_date, location, guest_name, status, registration_open, event_deleted";
+const GUEST_EMAIL_COLUMNS: string = "guest_id, email";
+
+function toEventGuest(row: GuestRow, email: string | null): EventGuest {
+  return {
+    id: row.id,
+    eventId: row.event_id,
+    name: row.name,
+    email,
+    status: row.status,
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
+  };
+}
+
+/** `public.get_guest_registration`'s eight columns. */
+interface GuestRegistrationRow {
+  event_name: string;
+  start_date: string | null;
+  end_date: string | null;
+  location: string | null;
+  guest_name: string;
+  status: GuestStatus;
+  registration_open: boolean;
+  event_deleted: boolean;
+}
+
+// Repeated verbatim in src/lib/data/mock.ts. Neither "does not work" sentence says why.
+const GUEST_NAME_INVALID = "Please give your name, in 100 characters or fewer.";
+const GUEST_EMAIL_INVALID = "Please give a valid email address, in 254 characters or fewer.";
+const GUEST_ALREADY_REGISTERED = "That email is already registered for this event.";
+const GUEST_LINK_NOT_FOUND = "This link does not work.";
+const GUEST_REGISTRATION_NOT_FOUND = "This link does not work.";
+const GUEST_DECIDE_REFUSED = "This guest's place could not be changed.";
+
+/** § 4.1's checks, made before the round trip in both implementations — AFFORDANCES; the table's
+ *  `event_guest_name_shape` and `event_guest_email_shape` are the controls. Lengths in code points,
+ *  as `char_length` counts. Repeated in mock.ts. */
+function guestInputFailure(name: string, email: string): Failure | null {
+  if (name === "" || [...name].length > GUEST_NAME_MAX) {
+    return { code: "invalid_guest_name", message: GUEST_NAME_INVALID };
+  }
+  if ([...email].length > GUEST_EMAIL_MAX || !GUEST_EMAIL_PATTERN.test(email)) {
+    return { code: "invalid_guest_email", message: GUEST_EMAIL_INVALID };
+  }
+  return null;
+}
+
+/**
+ * The SQLSTATEs `event_guest_guard` and the guest functions answer with. MATCHED ON THE SQLSTATE,
+ * NEVER ON THE MESSAGE. `EV004`–`EV007` are the custom codes the migration header documents.
+ */
+function toGuestFailure(error: PostgrestError, refusal: string): Failure {
+  switch (error.code) {
+    case "EV001":
+      return { code: "event_full", message: EVENT_FULL };
+    case "EV002":
+      return { code: "event_registration_closed", message: EVENT_REGISTRATION_CLOSED };
+    case "EV004":
+      return { code: "guest_link_not_found", message: GUEST_LINK_NOT_FOUND };
+    case "EV005":
+      return { code: "guest_registration_not_found", message: GUEST_REGISTRATION_NOT_FOUND };
+    case "EV006":
+      return { code: "invalid_guest_name", message: GUEST_NAME_INVALID };
+    case "EV007":
+      return { code: "invalid_guest_email", message: GUEST_EMAIL_INVALID };
+    case "23505":
+      return { code: "guest_already_registered", message: GUEST_ALREADY_REGISTERED };
+    case "22023":
+      return { code: "invalid_attendance_change", message: ATTENDANCE_CHANGE_INVALID };
+    case "42501":
+    case "PGRST301": // JWT missing or expired: the request reaches the policy as nobody
+      return { code: "attendance_not_permitted", message: refusal };
     default:
       return { code: "unknown", message: "Something went wrong. Please try again." };
   }
@@ -3595,5 +3706,150 @@ export const seam: DataSeam = {
       seatsTaken: row.seats_taken,
       attendeeNames: names.map((a) => a.display_name),
     };
+  },
+
+  // -------------------------------------------------------------------------
+  // EVT-07 — guest registration. 01-plan.md § 4.2. Four definer functions taking a token, the anon
+  // key's only writes; members read `event_guest` under its select policy, and emails through
+  // `list_event_guest_emails`. THE CAP IS `event_guest_guard`'S, UNDER THE EVENT ROW'S LOCK — nothing
+  // here counts seats before writing. Nothing else in this file changed for EVT-07.
+  // -------------------------------------------------------------------------
+
+  // `get_guest_event_terms`. A malformed token makes no round trip; zero rows is null.
+  async getGuestRegistrationTerms(token: string): Promise<GuestRegistrationTerms | null> {
+    if (!GUEST_LINK_TOKEN_PATTERN.test(token)) return null;
+    const { data, error } = await client()
+      .rpc("get_guest_event_terms", { p_token: token })
+      .select(GUEST_TERMS_COLUMNS)
+      .returns<{ requires_approval: boolean; registration_open: boolean }[]>();
+    if (error) throw new Error(`getGuestRegistrationTerms failed: ${error.message}`);
+    const row = (data ?? [])[0];
+    if (!row) return null;
+    return { requiresApproval: row.requires_approval, registrationOpen: row.registration_open };
+  },
+
+  // `register_guest`. Trimmed here and again in the function; the checks here are affordances. The
+  // one row back carries the plain manage token — the only read that ever does (AC-3).
+  async registerGuest(
+    token: string,
+    name: string,
+    email: string,
+  ): Promise<Result<GuestRegistrationReceipt>> {
+    if (!GUEST_LINK_TOKEN_PATTERN.test(token)) {
+      return { ok: false, error: { code: "guest_link_not_found", message: GUEST_LINK_NOT_FOUND } };
+    }
+    const trimmedName = name.trim();
+    const trimmedEmail = email.trim();
+    const invalid = guestInputFailure(trimmedName, trimmedEmail);
+    if (invalid) return { ok: false, error: invalid };
+
+    const { data, error } = await client()
+      .rpc("register_guest", { p_token: token, p_name: trimmedName, p_email: trimmedEmail })
+      .select(GUEST_RECEIPT_COLUMNS)
+      .returns<{ manage_token: string; status: GuestStatus }[]>();
+    if (error) return { ok: false, error: toGuestFailure(error, GUEST_LINK_NOT_FOUND) };
+    const row = (data ?? [])[0];
+    if (!row || (row.status !== "pending" && row.status !== "attending")) {
+      return { ok: false, error: { code: "unknown", message: "Something went wrong. Please try again." } };
+    }
+    return { ok: true, value: { manageToken: row.manage_token, status: row.status } };
+  },
+
+  // `get_guest_registration`. A malformed token makes no round trip; zero rows is null (AC-13).
+  async getGuestRegistration(manageToken: string): Promise<GuestRegistrationView | null> {
+    if (!GUEST_LINK_TOKEN_PATTERN.test(manageToken)) return null;
+    const { data, error } = await client()
+      .rpc("get_guest_registration", { p_manage_token: manageToken })
+      .select(GUEST_REGISTRATION_COLUMNS)
+      .returns<GuestRegistrationRow[]>();
+    if (error) throw new Error(`getGuestRegistration failed: ${error.message}`);
+    const row = (data ?? [])[0];
+    if (!row) return null;
+    return {
+      eventName: row.event_name,
+      startDate: row.start_date,
+      endDate: row.end_date,
+      location: row.location,
+      guestName: row.guest_name,
+      status: row.status,
+      registrationOpen: row.registration_open,
+      eventDeleted: row.event_deleted,
+    };
+  },
+
+  // `cancel_guest_registration`. A malformed token makes no round trip and gets EV005's answer.
+  async cancelGuestRegistration(manageToken: string): Promise<Result<void>> {
+    if (!GUEST_LINK_TOKEN_PATTERN.test(manageToken)) {
+      return {
+        ok: false,
+        error: { code: "guest_registration_not_found", message: GUEST_REGISTRATION_NOT_FOUND },
+      };
+    }
+    const { error } = await client().rpc("cancel_guest_registration", {
+      p_manage_token: manageToken,
+    });
+    if (error) return { ok: false, error: toGuestFailure(error, GUEST_REGISTRATION_NOT_FOUND) };
+    return { ok: true, value: undefined };
+  },
+
+  // `event_guest_select_visible` does the row filtering; the column list is the grant's — NEVER
+  // `select("*")`. Then `list_event_guest_emails`, which answers the creator and admins only, merged
+  // by id. Bounded and throws at the bound, `listEventAttendance`'s reason.
+  async listEventGuests(eventId: string): Promise<EventGuest[]> {
+    const { data, error } = await client()
+      .from("event_guest")
+      .select(GUEST_COLUMNS)
+      .eq("event_id", eventId)
+      .order("created_at", { ascending: true })
+      .order("id", { ascending: true })
+      .limit(DATASTORE_MAX_ROWS)
+      .returns<GuestRow[]>();
+    if (error) {
+      if (error.code === "22P02" || error.code === "42501" || error.code === "PGRST301") return [];
+      throw new Error(`listEventGuests failed: ${error.message}`);
+    }
+    const rows = data ?? [];
+    if (rows.length >= DATASTORE_MAX_ROWS) {
+      throw new Error(
+        `listEventGuests returned ${rows.length} rows at the ${DATASTORE_MAX_ROWS} limit: the ` +
+          `list may be truncated and must not be shown as complete`,
+      );
+    }
+    if (rows.length === 0) return [];
+
+    const { data: emails, error: emailError } = await client()
+      .rpc("list_event_guest_emails", { p_event_id: eventId })
+      .select(GUEST_EMAIL_COLUMNS)
+      .limit(DATASTORE_MAX_ROWS)
+      .returns<{ guest_id: string; email: string }[]>();
+    if (emailError) throw new Error(`listEventGuests failed: ${emailError.message}`);
+    const byId = new Map((emails ?? []).map((e) => [e.guest_id, e.email]));
+    return rows.map((row) => toEventGuest(row, byId.get(row.id) ?? null));
+  },
+
+  // ONLY `status` IS SENT — the one column in the update grant. `event_guest_update_manage` decides
+  // who and refuses `cancelled`; `event_guest_guard` decides which transitions, and the cap. The row
+  // read back carries no email; the panel reloads through `listEventGuests`.
+  async decideGuest(
+    guestId: string,
+    status: "attending" | "rejected" | "removed",
+  ): Promise<Result<EventGuest>> {
+    const { data, error } = await client()
+      .from("event_guest")
+      .update({ status })
+      .eq("id", guestId)
+      .select(GUEST_COLUMNS)
+      .returns<GuestRow[]>();
+    if (error) {
+      if (error.code === "22P02") {
+        return { ok: false, error: { code: "attendance_not_permitted", message: GUEST_DECIDE_REFUSED } };
+      }
+      return { ok: false, error: toGuestFailure(error, GUEST_DECIDE_REFUSED) };
+    }
+    const row = (data ?? [])[0];
+    if (!row) {
+      return { ok: false, error: { code: "attendance_not_permitted", message: GUEST_DECIDE_REFUSED } };
+    }
+    return { ok: true, value: toEventGuest(row, null) };
   },
 };
