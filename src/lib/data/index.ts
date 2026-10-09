@@ -38,6 +38,11 @@ import type {
   // EVT-06, 01-plan.md section 4.2.
   EventGuestLink,
   GuestEvent,
+  // EVT-07, 01-plan.md section 4.2.
+  EventGuest,
+  GuestRegistrationReceipt,
+  GuestRegistrationTerms,
+  GuestRegistrationView,
 } from "../domain/types";
 import { seam as mockSeam } from "./mock";
 import { seam as supabaseSeam } from "./supabase";
@@ -1452,6 +1457,42 @@ export interface DataSeam {
    *  DATASTORE_MAX_ROWS and throws at the bound, as `listEventAttendance` does. Throws on any other
    *  read failure. */
   getGuestEvent(token: string): Promise<GuestEvent | null>;
+
+  // -------------------------------------------------------------------------
+  // EVT-07 — guest registration. 01-plan.md section 4.2. ADR-052.
+  //
+  // Six functions. Four work with no session and take only a token: they are the anon role's only
+  // writes. Members read guests through `event_guest`'s select policy; emails through a definer
+  // function that answers the creator and admins only. The cap is `event_guest_guard`'s, under the
+  // event row's lock — nothing here counts seats to decide a write.
+  // -------------------------------------------------------------------------
+
+  /** EVT-07 AC-22. Null for a token failing GUEST_LINK_TOKEN_PATTERN (no round trip) and for one that
+   *  is not an open event's. Throws on a read failure. */
+  getGuestRegistrationTerms(token: string): Promise<GuestRegistrationTerms | null>;
+
+  /** EVT-07 AC-1..AC-10. Works with no session. Trims both values. A token failing the pattern is
+   *  `guest_link_not_found` with no round trip; name and email failing § 4.1's checks are refused
+   *  before the round trip with the same codes the database would give. */
+  registerGuest(token: string, name: string, email: string): Promise<Result<GuestRegistrationReceipt>>;
+
+  /** EVT-07 AC-11, AC-13, AC-20. Works with no session. Null for a malformed or unknown manage token.
+   *  Throws on a read failure. */
+  getGuestRegistration(manageToken: string): Promise<GuestRegistrationView | null>;
+
+  /** EVT-07 AC-12, AC-13. Works with no session. A malformed token is `guest_registration_not_found`
+   *  with no round trip. */
+  cancelGuestRegistration(manageToken: string): Promise<Result<void>>;
+
+  /** EVT-07 AC-14, AC-15, AC-16. The guests of one event the caller may read: attending guests to any
+   *  reader; every guest to its creator and admins. `email` filled only for the creator and admins.
+   *  Empty for an event the caller cannot read, and signed out. Ordered `createdAt`, then `id`.
+   *  Bounded by DATASTORE_MAX_ROWS and throws at the bound. */
+  listEventGuests(eventId: string): Promise<EventGuest[]>;
+
+  /** EVT-07 AC-16, AC-17, AC-18. `attending` approves a pending guest, `rejected` rejects one,
+   *  `removed` removes an attending one. Zero rows updated is `attendance_not_permitted`. */
+  decideGuest(guestId: string, status: "attending" | "rejected" | "removed"): Promise<Result<EventGuest>>;
 }
 
 export type { DataSeam as Seam };

@@ -13,10 +13,23 @@
 // person the directory no longer lists is a *Former member* (AC-21, AC-26).
 //
 // Remove and leave each confirm in the existing `Modal`, never stacked on another dialog (§ 2b).
+//
+// EVT-07 — 01-plan.md § 2 AC-14..AC-17; § 2b; § 4.4. Guests sit in the same Requests and Going lists,
+// merged with members by join order, and count in the seats line. A guest's name is what they gave;
+// their email is drawn only when `listEventGuests` filled it, which it does for the creator and
+// admins alone (AC-15). Approve, reject and remove go through `decideGuest`; `event_guest_guard` and
+// `event_guest_update_manage` are the controls.
 import { useCallback, useEffect, useState, type JSX } from "react";
 import { format, parseISO } from "date-fns";
 import { seam } from "@/lib/data";
-import type { AttendanceStatus, CalEvent, DirectoryMember, EventAttendance, Member } from "@/lib/domain/types";
+import type {
+  AttendanceStatus,
+  CalEvent,
+  DirectoryMember,
+  EventAttendance,
+  EventGuest,
+  Member,
+} from "@/lib/domain/types";
 import { eventToday, registrationOpen } from "@/lib/event-registration";
 import Avatar from "@/components/Avatar";
 import Modal from "@/components/Modal";
@@ -65,6 +78,47 @@ function inAudience(event: CalEvent, me: Member | null, invitees: readonly strin
   }
 }
 
+/** EVT-07. One row of a merged list — a member's attendance or a guest — in join order. */
+type Seat = { kind: "member"; row: EventAttendance } | { kind: "guest"; row: EventGuest };
+
+const seatKey = (s: Seat): string => (s.kind === "member" ? s.row.memberId : s.row.id);
+
+/** `created_at`, then the row's id — `list_guest_event_attendees`' order. */
+function byJoinOrder(a: Seat, b: Seat): number {
+  return a.row.createdAt.localeCompare(b.row.createdAt) || seatKey(a).localeCompare(seatKey(b));
+}
+
+/** EVT-07 § 2b. No avatar; the name as given; a small *Guest* tag; the email only when it was read. */
+function GuestPill({ guest }: { guest: EventGuest }): JSX.Element {
+  return (
+    <>
+      {guest.name}
+      <span className="text-[10px] font-semibold text-ink-3">Guest</span>
+      {guest.email !== null ? (
+        <span data-testid="event-guest-email" className="font-normal text-ink-3">
+          {guest.email}
+        </span>
+      ) : null}
+    </>
+  );
+}
+
+const REMOVE_ICON = (
+  // An SVG, not the multiplication sign — Modal.tsx records why.
+  <svg
+    viewBox="0 0 16 16"
+    width="8"
+    height="8"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2.5"
+    strokeLinecap="round"
+    aria-hidden="true"
+  >
+    <path d="M4 4l8 8M12 4l-8 8" />
+  </svg>
+);
+
 function PersonPill({
   memberId,
   directory,
@@ -89,16 +143,25 @@ export default function EventAttendancePanel({
   canManage,
 }: EventAttendancePanelProps): JSX.Element {
   const [rows, setRows] = useState<EventAttendance[] | null>(null);
+  const [guests, setGuests] = useState<EventGuest[]>([]);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [leaving, setLeaving] = useState(false);
   const [removing, setRemoving] = useState<string | null>(null);
+  const [removingGuest, setRemovingGuest] = useState<EventGuest | null>(null);
 
   const load = useCallback(async (): Promise<void> => {
     try {
-      setRows(await seam.listEventAttendance(event.id));
+      // EVT-07. Guests beside the attendance, in one load.
+      const [attendance, guestRows] = await Promise.all([
+        seam.listEventAttendance(event.id),
+        seam.listEventGuests(event.id),
+      ]);
+      setRows(attendance);
+      setGuests(guestRows);
     } catch {
       setRows([]);
+      setGuests([]);
       setError("We could not load who is coming. Please reload the page.");
     }
   }, [event.id]);
@@ -118,9 +181,14 @@ export default function EventAttendancePanel({
   }
 
   const all = rows ?? [];
-  const attendees = all.filter((a) => a.status === "attending");
-  const pending = all.filter((a) => a.status === "pending");
   const mine = me ? all.find((a) => a.memberId === me.id) ?? null : null;
+  // EVT-07 AC-14, AC-16. Members and guests together, in join order.
+  const seats = [
+    ...all.map((row): Seat => ({ kind: "member", row })),
+    ...guests.map((row): Seat => ({ kind: "guest", row })),
+  ].sort(byJoinOrder);
+  const attendees = seats.filter((s) => s.row.status === "attending");
+  const pending = seats.filter((s) => s.row.status === "pending");
   const taken = attendees.length;
   const full = event.capacity !== null && taken >= event.capacity;
   const open = registrationOpen(event, eventToday());
@@ -206,15 +274,48 @@ export default function EventAttendancePanel({
         <div data-testid="event-requests" className="flex flex-col gap-2">
           <h2 className="text-xs font-bold uppercase tracking-wide text-ink-3">Requests ({pending.length})</h2>
           <ul className="flex flex-col gap-2">
-            {pending.map((a) => (
+            {pending.map((s) =>
+              s.kind === "guest" ? (
+                <li
+                  key={s.row.id}
+                  data-testid="event-guest-request"
+                  data-guest-id={s.row.id}
+                  className="flex flex-wrap items-center gap-2 text-xs font-semibold text-ink"
+                >
+                  <span className="flex items-center gap-1.5">
+                    <GuestPill guest={s.row} />
+                  </span>
+                  <span className="ml-auto flex gap-2">
+                    <button
+                      data-testid="event-guest-request-approve"
+                      type="button"
+                      // AC-16. Disabled when full — the guard's EV001 is the control.
+                      disabled={busy || full}
+                      onClick={() => void run(() => seam.decideGuest(s.row.id, "attending"))}
+                      className={QUIET_BUTTON}
+                    >
+                      Approve
+                    </button>
+                    <button
+                      data-testid="event-guest-request-reject"
+                      type="button"
+                      disabled={busy}
+                      onClick={() => void run(() => seam.decideGuest(s.row.id, "rejected"))}
+                      className={QUIET_BUTTON}
+                    >
+                      Reject
+                    </button>
+                  </span>
+                </li>
+              ) : (
               <li
-                key={a.memberId}
+                key={s.row.memberId}
                 data-testid="event-request"
-                data-member-id={a.memberId}
+                data-member-id={s.row.memberId}
                 className="flex flex-wrap items-center gap-2 text-xs font-semibold text-ink"
               >
                 <span className="flex items-center gap-1.5">
-                  <PersonPill memberId={a.memberId} directory={directory} />
+                  <PersonPill memberId={s.row.memberId} directory={directory} />
                 </span>
                 <span className="ml-auto flex gap-2">
                   <button
@@ -222,7 +323,7 @@ export default function EventAttendancePanel({
                     type="button"
                     // AC-8. Disabled when full — the guard's EV001 is the control.
                     disabled={busy || full}
-                    onClick={() => void run(() => seam.decideAttendance(event.id, a.memberId, "attending"))}
+                    onClick={() => void run(() => seam.decideAttendance(event.id, s.row.memberId, "attending"))}
                     className={QUIET_BUTTON}
                   >
                     Approve
@@ -231,14 +332,15 @@ export default function EventAttendancePanel({
                     data-testid="event-request-reject"
                     type="button"
                     disabled={busy}
-                    onClick={() => void run(() => seam.decideAttendance(event.id, a.memberId, "rejected"))}
+                    onClick={() => void run(() => seam.decideAttendance(event.id, s.row.memberId, "rejected"))}
                     className={QUIET_BUTTON}
                   >
                     Reject
                   </button>
                 </span>
               </li>
-            ))}
+              ),
+            )}
           </ul>
         </div>
       ) : null}
@@ -252,14 +354,39 @@ export default function EventAttendancePanel({
           </p>
         ) : (
           <ul className="flex flex-wrap gap-2">
-            {attendees.map((a) => (
+            {attendees.map((s) =>
+              s.kind === "guest" ? (
+                <li
+                  key={s.row.id}
+                  data-testid="event-guest-attendee"
+                  data-guest-id={s.row.id}
+                  className="flex items-center gap-1.5 rounded-pill bg-field py-0.5 pl-2.5 pr-2.5 text-xs font-semibold text-ink"
+                >
+                  <GuestPill guest={s.row} />
+                  {canManage ? (
+                    <button
+                      data-testid="event-guest-attendee-remove"
+                      type="button"
+                      aria-label="Remove from the list"
+                      disabled={busy}
+                      onClick={() => {
+                        setError(null);
+                        setRemovingGuest(s.row);
+                      }}
+                      className="ml-0.5 flex h-4 w-4 items-center justify-center rounded-full text-ink-3 hover:bg-line hover:text-ink"
+                    >
+                      {REMOVE_ICON}
+                    </button>
+                  ) : null}
+                </li>
+              ) : (
               <li
-                key={a.memberId}
+                key={s.row.memberId}
                 data-testid="event-attendee"
-                data-member-id={a.memberId}
+                data-member-id={s.row.memberId}
                 className="flex items-center gap-1.5 rounded-pill bg-field py-0.5 pl-0.5 pr-2.5 text-xs font-semibold text-ink"
               >
-                <PersonPill memberId={a.memberId} directory={directory} />
+                <PersonPill memberId={s.row.memberId} directory={directory} />
                 {canManage ? (
                   <button
                     data-testid="event-attendee-remove"
@@ -268,27 +395,16 @@ export default function EventAttendancePanel({
                     disabled={busy}
                     onClick={() => {
                       setError(null);
-                      setRemoving(a.memberId);
+                      setRemoving(s.row.memberId);
                     }}
                     className="ml-0.5 flex h-4 w-4 items-center justify-center rounded-full text-ink-3 hover:bg-line hover:text-ink"
                   >
-                    {/* An SVG, not the multiplication sign — Modal.tsx records why. */}
-                    <svg
-                      viewBox="0 0 16 16"
-                      width="8"
-                      height="8"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth="2.5"
-                      strokeLinecap="round"
-                      aria-hidden="true"
-                    >
-                      <path d="M4 4l8 8M12 4l-8 8" />
-                    </svg>
+                    {REMOVE_ICON}
                   </button>
                 ) : null}
               </li>
-            ))}
+              ),
+            )}
           </ul>
         )}
       </div>
@@ -354,6 +470,46 @@ export default function EventAttendancePanel({
                   const memberId = removing;
                   setRemoving(null);
                   void run(() => seam.decideAttendance(event.id, memberId, "removed"));
+                }}
+                className="rounded-pill bg-danger px-4 py-1.5 text-xs font-bold text-white transition-opacity hover:opacity-90 disabled:opacity-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
+              >
+                Remove
+              </button>
+            </div>
+          </div>
+        </Modal>
+      ) : null}
+
+      {removingGuest !== null ? (
+        <Modal
+          testIdPrefix="event-guest-remove"
+          label="Remove a guest from this event"
+          onClose={() => setRemovingGuest(null)}
+        >
+          <div className="flex flex-col gap-4 pr-8">
+            {/* EVT-07 AC-17. The confirmation names the guest. */}
+            <h2 className="text-lg font-extrabold text-ink">Remove {removingGuest.name}?</h2>
+            <p className="text-sm text-ink-2">
+              They will be taken off the list for &ldquo;{event.name}&rdquo; and cannot register again with
+              this email.
+            </p>
+            <div className="flex justify-end gap-2">
+              <button
+                data-testid="event-guest-remove-cancel"
+                type="button"
+                onClick={() => setRemovingGuest(null)}
+                className={QUIET_BUTTON}
+              >
+                Cancel
+              </button>
+              <button
+                data-testid="event-guest-remove-confirm"
+                type="button"
+                disabled={busy}
+                onClick={() => {
+                  const guestId = removingGuest.id;
+                  setRemovingGuest(null);
+                  void run(() => seam.decideGuest(guestId, "removed"));
                 }}
                 className="rounded-pill bg-danger px-4 py-1.5 text-xs font-bold text-white transition-opacity hover:opacity-90 disabled:opacity-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
               >

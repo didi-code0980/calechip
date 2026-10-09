@@ -86,14 +86,33 @@ operator gave — see the note under § *Roles*. A bare `❌` there is a denial 
 | Read an open event's public fields and attendee names, with its token | ✅ | ✅ | ✅ **— and signed out; see below** |
 | Read anything through a token that is not an open event's | ❌ | ❌ | ❌ |
 | List open events, or learn whether an event exists, through the guest reads | ❌ | ❌ | ❌ **ADR-052 § Consequences — both reads take only a token** |
+| Register on an event through its open guest link (EVT-07) | ✅ | ✅ | ✅ **— and signed out; `register_guest`, the only door: no role holds an insert grant on `event_guest`** |
+| Register through any other token, or choose a registration's state, manage token or event | ❌ | ❌ | ❌ **`register_guest` takes none; `event_guest_guard` sets the state** |
+| Read one's own registration, or cancel it while registration is open, with its manage token | ✅ | ✅ | ✅ **— and signed out; `get_guest_registration`, `cancel_guest_registration`** |
+| Read attending guests' names and states, of an event they can read | ✅ | ✅ | ✅ **`event_guest_select_visible`; never signed out except through the guest page** |
+| Read pending, rejected, removed or cancelled guests | own event only | own event only | ✅ any |
+| Read guests' emails | own event only | own event only **— as a manager, nothing more** | ✅ any **`list_event_guest_emails` — `may_manage_event`, never `may_decide` (ADR-052 decision 7)** |
+| Read a manage token, or its hash | ❌ | ❌ | ❌ **column grant; only the SHA-256 is stored, and `register_guest` returns the token once** |
+| Approve, reject or remove a guest | own event only | own event only | ✅ any **`event_guest_update_manage`; column grant `update (status)`** |
+| Set a guest's state to cancelled, or change their name, email or event | ❌ | ❌ | ❌ **the update policy's `with check`; only the manage link cancels** |
+| Delete a guest registration | ❌ | ❌ | ❌ **ADR-052 decision 8 — no delete grant; deleting the event sets `event_id` null** |
 
-**Signed out — the `anon` role's first rows (EVT-06, ADR-052).** A caller holding only the public
-anon key, no session, may call exactly two functions — `get_guest_event(text)` and
-`list_guest_event_attendees(text)`, `security definer`, each returning a fixed column list and zero
-rows for any token but an open event's. Nothing else: no table (`event`, `event_attendance`,
-`event_invitee`, `event_guest_link`, `member`, `entry`, `notification`), no other function, and no
-open or close. No `anon` policy exists on any table, and none on `public.member` (INV-04).
-`supabase/migrations/20261009120000_evt06_guest_link.sql` § 4 holds the grants.
+**Signed out — the `anon` role (EVT-06, EVT-07, ADR-052).** A caller holding only the public anon
+key, no session, may call exactly six functions, all `security definer`, each taking a token and
+returning a fixed column list: `get_guest_event(text)` and `list_guest_event_attendees(text)`
+(EVT-06), and `get_guest_event_terms(text)`, `register_guest(text, text, text)`,
+`get_guest_registration(text)` and `cancel_guest_registration(text)` (EVT-07). The last two of those
+are the anon role's only writes. None returns a guest's email, a manage token other than the one
+`register_guest` just created, a guest's id, or any field of an event beyond EVT-06 AC-12's and the
+two of EVT-07 AC-22. Nothing else: no table (`event`, `event_attendance`, `event_invitee`,
+`event_guest_link`, `event_guest`, `member`, `entry`, `notification`), no other function —
+`list_event_guest_emails` included — and no open or close. No `anon` policy exists on any table, and
+none on `public.member` (INV-04). `supabase/migrations/20261009120000_evt06_guest_link.sql` § 4 and
+`supabase/migrations/20261009150000_evt07_guest_registration.sql` § 7 hold the grants.
+
+*Amended 2026-10-09 by EVT-07 (01-plan.md AC-21). Read: "may call exactly two functions —
+`get_guest_event(text)` and `list_guest_event_attendees(text)` … `supabase/migrations/20261009120000_evt06_guest_link.sql`
+§ 4 holds the grants." — false the moment EVT-07's migration is applied.*
 
 **THE TWO ROWS TO READ TWICE ARE THE TWO MARKED `decided`.** *Edit or delete another member's entry*
 is denied to a manager because granting it is what the update POLICY would do if it were widened, and

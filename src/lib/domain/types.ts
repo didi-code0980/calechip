@@ -264,6 +264,17 @@ export type FailureCode =
   // EVT-02. A policy refused, or the write touched zero rows — AC-11, AC-20. 42501. Never
   // confirms that the event exists.
   | "attendance_not_permitted"
+  // EVT-07. Name blank after trimming, or over GUEST_NAME_MAX — AC-4. `register_guest` (EV006).
+  | "invalid_guest_name"
+  // EVT-07. Email over GUEST_EMAIL_MAX or not GUEST_EMAIL_PATTERN — AC-4. `register_guest` (EV007).
+  | "invalid_guest_email"
+  // EVT-07. That email already has a registration on this event, in any state — AC-5, AC-9. 23505.
+  | "guest_already_registered"
+  // EVT-07. The guest link is not an open event's — AC-8. `register_guest` (EV004). One sentence for
+  // every cause.
+  | "guest_link_not_found"
+  // EVT-07. The manage token matches no registration — AC-13. `cancel_guest_registration` (EV005).
+  | "guest_registration_not_found"
   | "unknown";
 
 export interface Failure {
@@ -1102,3 +1113,59 @@ export interface GuestEvent {
 /** EVT-06 AC-1. The token's shape, as the database's check states it. The guest page does not call
  *  the datastore for a token that fails it, and shows the same not-found (AC-13). */
 export const GUEST_LINK_TOKEN_PATTERN = /^[0-9a-f]{64}$/;
+
+// ---------------------------------------------------------------------------
+// EVT-07 — guest registration. 01-plan.md section 4.1. ADR-052.
+// ---------------------------------------------------------------------------
+
+/** EVT-07. The five states of one guest's registration — `EVT-02`'s four and `cancelled`, which only
+ *  the guest's manage link writes. The database enum `public.guest_status`, verbatim. A cancelled
+ *  row is kept (Q8). */
+export type GuestStatus = "pending" | "attending" | "rejected" | "removed" | "cancelled";
+
+/** EVT-07. Glossary *Guest*. One row of `public.event_guest`, as a member reads it. `email` is null
+ *  to everyone but the event's creator and admins (AC-15) — never omitted, always present. */
+export interface EventGuest {
+  id: string;
+  eventId: string;
+  name: string;
+  email: string | null;
+  status: GuestStatus;
+  createdAt: string;
+  updatedAt: string;
+}
+
+/** EVT-07 AC-22. The two facts the guest page needs to offer the right form. Not part of
+ *  `GuestEvent` on purpose — `EVT-06` AC-12. */
+export interface GuestRegistrationTerms {
+  requiresApproval: boolean;
+  /** `EVT-02`'s *registration is open*, by the database's clock. */
+  registrationOpen: boolean;
+}
+
+/** EVT-07 AC-1, AC-2, AC-3. What a successful registration returns — the ONLY place a manage token
+ *  ever leaves the database. */
+export interface GuestRegistrationReceipt {
+  manageToken: string;
+  status: "pending" | "attending";
+}
+
+/** EVT-07 AC-11, AC-20. What the manage page reads. No email, no id, no other person. */
+export interface GuestRegistrationView {
+  /** The live name, or the name as it was when the event was deleted. */
+  eventName: string;
+  /** Null once the event is deleted (AC-20). */
+  startDate: string | null;
+  endDate: string | null;
+  location: string | null;
+  guestName: string;
+  status: GuestStatus;
+  /** False once the event is deleted. */
+  registrationOpen: boolean;
+  eventDeleted: boolean;
+}
+
+/** EVT-07 AC-4. The ceilings and the shape, as the database's checks state them. */
+export const GUEST_NAME_MAX = 100;
+export const GUEST_EMAIL_MAX = 254;
+export const GUEST_EMAIL_PATTERN = /^[^@\s]+@[^@\s]+\.[^@\s]+$/;

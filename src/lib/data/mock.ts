@@ -62,11 +62,19 @@ import type {
   // EVT-06, 01-plan.md section 4.1.
   EventGuestLink,
   GuestEvent,
+  // EVT-07, 01-plan.md section 4.1.
+  EventGuest,
+  GuestRegistrationReceipt,
+  GuestRegistrationTerms,
+  GuestRegistrationView,
+  GuestStatus,
 } from "../domain/types";
 // EVT-04. The panel's window — AC-16. A runtime import.
 import { NOTIFICATION_LIMIT } from "../domain/types";
 // EVT-06 AC-13. The token's shape, checked before any lookup — a runtime import.
 import { GUEST_LINK_TOKEN_PATTERN } from "../domain/types";
+// EVT-07 AC-4. The ceilings and the shape, checked as the table's checks state them — runtime imports.
+import { GUEST_EMAIL_MAX, GUEST_EMAIL_PATTERN, GUEST_NAME_MAX } from "../domain/types";
 // TEA-03, and CAL-04 for the third. RUNTIME imports, not type ones - 02-design.md section 1.1.
 // ADM-04 adds PENDING_PAGE_SIZE, which is a WINDOW and not a ceiling - see its own comment there.
 // CAL-09 adds TEAM_ENTRY_PAGE_SIZE and TEAM_ENTRY_MAX_PAGES, which are a window and a bound on work
@@ -593,6 +601,9 @@ export function __resetEvents(): void {
   eventEmailOutbox.length = 0;
   // EVT-06. The guest links go with the events, as the cascade would take them.
   eventGuestLinks.clear();
+  // EVT-07. The guest registrations are emptied here only because a test needs a clean slate; no
+  // seam function deletes one (AC-20).
+  eventGuests.length = 0;
 }
 
 // The id an event gets, in the shape the other generators use: an `ec` prefix, which no other
@@ -719,10 +730,14 @@ const isEventAudience = (event: CalEvent, uid: string | null): boolean => {
 };
 
 // Seats taken — every `attending` row, whoever holds it (AC-26: a removed member's seat stays).
+// EVT-07 AC-10, AC-14: attending GUESTS too, as all three guards count them. `except` is a member id
+// or a guest id — the two never collide, guest ids carrying their own prefix.
 const seatsTaken = (eventId: string, except: string | null = null): number =>
   eventAttendance.filter(
     (a) => a.eventId === eventId && a.status === "attending" && a.memberId !== except,
-  ).length;
+  ).length +
+  eventGuests.filter((g) => g.eventId === eventId && g.status === "attending" && g.id !== except)
+    .length;
 
 // `event_attendance_guard`'s transition table, and nothing else.
 const ALLOWED_TRANSITIONS: Record<string, readonly string[]> = {
@@ -796,6 +811,81 @@ const guestEventId = (token: string): string | null => {
     if (row.token === token && events.some((e) => e.id === eventId)) return eventId;
   }
   return null;
+};
+
+// ---------------------------------------------------------------------------
+// EVT-07 — guest registration. 01-plan.md sections 3, 4.2 and 4.3. ADR-052.
+//
+// **THESE REPRODUCE `20261009150000_evt07_guest_registration.sql`'S GUARD, POLICIES, GRANTS AND
+// DEFINER FUNCTIONS.** The four token functions read NO session. CHECK AND WRITE RUN WITH NO `await`
+// BETWEEN THEM — the one `await` in each, the SHA-256, comes first — so `Promise.all` proves the
+// DECISION, never the LOCK (EVT-02 § 3).
+// ---------------------------------------------------------------------------
+
+/** `public.event_guest`, reproduced. Never spliced by a seam function — guest data is kept (Q8).
+ *  `eventId` is null once the event is deleted (AC-20). The manage token is NOT stored; its hash is. */
+const eventGuests: {
+  id: string;
+  eventId: string | null;
+  eventName: string;
+  name: string;
+  email: string;
+  manageTokenHash: string;
+  status: GuestStatus;
+  createdAt: string;
+  updatedAt: string;
+}[] = [];
+
+// An `eg` prefix, which no other table's ids in this file or the fixtures use.
+let nextGuestId = 0;
+const newGuestId = (): string =>
+  `eg000000-0000-4000-8000-${String(++nextGuestId).padStart(12, "0")}`;
+
+// Repeated verbatim in src/lib/data/supabase.ts. Neither "does not work" sentence says why.
+const GUEST_NAME_INVALID = "Please give your name, in 100 characters or fewer.";
+const GUEST_EMAIL_INVALID = "Please give a valid email address, in 254 characters or fewer.";
+const GUEST_ALREADY_REGISTERED = "That email is already registered for this event.";
+const GUEST_LINK_NOT_FOUND = "This link does not work.";
+const GUEST_REGISTRATION_NOT_FOUND = "This link does not work.";
+const GUEST_DECIDE_REFUSED = "This guest's place could not be changed.";
+
+/** § 4.1's checks, made before the round trip in both implementations — AFFORDANCES; the table's
+ *  `event_guest_name_shape` and `event_guest_email_shape` are the controls. Lengths in code points,
+ *  as `char_length` counts. Repeated in supabase.ts. */
+const guestInputFailure = (name: string, email: string): { ok: false; error: Failure } | null => {
+  if (name === "" || [...name].length > GUEST_NAME_MAX) {
+    return eventFailure("invalid_guest_name", GUEST_NAME_INVALID);
+  }
+  if ([...email].length > GUEST_EMAIL_MAX || !GUEST_EMAIL_PATTERN.test(email)) {
+    return eventFailure("invalid_guest_email", GUEST_EMAIL_INVALID);
+  }
+  return null;
+};
+
+/** `encode(sha256(convert_to(<token>, 'UTF8')), 'hex')`. */
+const sha256Hex = async (value: string): Promise<string> => {
+  const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(value));
+  return Array.from(new Uint8Array(digest), (b) => b.toString(16).padStart(2, "0")).join("");
+};
+
+type GuestRow = (typeof eventGuests)[number];
+
+/** A member's view of one row: `email` only to whoever may manage the event (AC-15). Only called
+ *  for a row whose event still exists, so `eventId` is a string. */
+const toEventGuest = (row: GuestRow, eventId: string, withEmail: boolean): EventGuest => ({
+  id: row.id,
+  eventId,
+  name: row.name,
+  email: withEmail ? row.email : null,
+  status: row.status,
+  createdAt: row.createdAt,
+  updatedAt: row.updatedAt,
+});
+
+// `event_guest_guard`'s update transitions — the creator's three and the manage link's two.
+const GUEST_TRANSITIONS: Record<string, readonly GuestStatus[]> = {
+  pending: ["attending", "rejected", "cancelled"],
+  attending: ["removed", "cancelled"],
 };
 
 // ---------------------------------------------------------------------------
@@ -3118,6 +3208,10 @@ export const seam: DataSeam = {
     }
     // EVT-06, AC-7. The cascade on `event_guest_link.event_id`.
     eventGuestLinks.delete(eventId);
+    // EVT-07, AC-20. `event_guest.event_id … on delete set null`: the rows are KEPT.
+    for (const guest of eventGuests) {
+      if (guest.eventId === eventId) guest.eventId = null;
+    }
     return { ok: true, value: undefined };
   },
 
@@ -3376,14 +3470,25 @@ export const seam: DataSeam = {
     const eventId = guestEventId(token);
     const event = eventId === null ? undefined : events.find((e) => e.id === eventId);
     if (!event) return null;
-    const attendeeNames = eventAttendance
-      .filter((a) => a.eventId === event.id && a.status === "attending")
-      .sort((a, b) => a.createdAt.localeCompare(b.createdAt) || a.memberId.localeCompare(b.memberId))
-      .map(
-        (a) =>
-          members.find((m) => m.id === a.memberId && m.status === "approved" && m.removedAt === null)
-            ?.displayName ?? null,
-      );
+    // EVT-07 AC-14 (F3-A). Attending guests' names join the members', unmarked, by `created_at`
+    // then the row's id — `list_guest_event_attendees`' `union all`.
+    const attendeeNames = [
+      ...eventAttendance
+        .filter((a) => a.eventId === event.id && a.status === "attending")
+        .map((a) => ({
+          createdAt: a.createdAt,
+          rowId: a.memberId,
+          name:
+            members.find(
+              (m) => m.id === a.memberId && m.status === "approved" && m.removedAt === null,
+            )?.displayName ?? null,
+        })),
+      ...eventGuests
+        .filter((g) => g.eventId === event.id && g.status === "attending")
+        .map((g) => ({ createdAt: g.createdAt, rowId: g.id, name: g.name as string | null })),
+    ]
+      .sort((a, b) => a.createdAt.localeCompare(b.createdAt) || a.rowId.localeCompare(b.rowId))
+      .map((row) => row.name);
     return {
       name: event.name,
       description: event.description,
@@ -3394,5 +3499,164 @@ export const seam: DataSeam = {
       seatsTaken: seatsTaken(event.id),
       attendeeNames,
     };
+  },
+
+  // -------------------------------------------------------------------------
+  // EVT-07 — guest registration. The six functions of 01-plan.md § 4.2, each reproducing the guard,
+  // policy or definer function named beside it rather than the screen.
+  // -------------------------------------------------------------------------
+
+  // `get_guest_event_terms`. NO SESSION IS READ.
+  async getGuestRegistrationTerms(token: string): Promise<GuestRegistrationTerms | null> {
+    if (!GUEST_LINK_TOKEN_PATTERN.test(token)) return null;
+    const eventId = guestEventId(token);
+    const event = eventId === null ? undefined : events.find((e) => e.id === eventId);
+    if (!event) return null;
+    return {
+      requiresApproval: event.requiresApproval,
+      registrationOpen: registrationOpen(event, eventToday()),
+    };
+  },
+
+  // `register_guest`, then `event_guest_guard` on insert, in the order they raise: the link's shape
+  // (EV004, the seam's pre-check), the name (EV006), the email (EV007), the link (EV004), the
+  // duplicate (23505), registration (EV002), the cap (EV001). The state is the guard's. NO SESSION
+  // IS READ.
+  async registerGuest(
+    token: string,
+    name: string,
+    email: string,
+  ): Promise<Result<GuestRegistrationReceipt>> {
+    if (!GUEST_LINK_TOKEN_PATTERN.test(token)) {
+      return eventFailure("guest_link_not_found", GUEST_LINK_NOT_FOUND);
+    }
+    const trimmedName = name.trim();
+    const trimmedEmail = email.trim();
+    const invalid = guestInputFailure(trimmedName, trimmedEmail);
+    if (invalid) return invalid;
+
+    const manageToken = newGuestToken();
+    const manageTokenHash = await sha256Hex(manageToken);
+
+    // From here to the push: no `await`.
+    const eventId = guestEventId(token);
+    const event = eventId === null ? undefined : events.find((e) => e.id === eventId);
+    if (!event) return eventFailure("guest_link_not_found", GUEST_LINK_NOT_FOUND);
+    const lower = trimmedEmail.toLowerCase();
+    if (eventGuests.some((g) => g.eventId === event.id && g.email.toLowerCase() === lower)) {
+      return eventFailure("guest_already_registered", GUEST_ALREADY_REGISTERED);
+    }
+    if (!registrationOpen(event, eventToday())) {
+      return eventFailure("event_registration_closed", EVENT_REGISTRATION_CLOSED);
+    }
+    const status = event.requiresApproval ? "pending" : "attending";
+    if (status === "attending" && event.capacity !== null && seatsTaken(event.id) >= event.capacity) {
+      return eventFailure("event_full", EVENT_FULL);
+    }
+    const now = new Date().toISOString();
+    eventGuests.push({
+      id: newGuestId(),
+      eventId: event.id,
+      eventName: event.name,
+      name: trimmedName,
+      email: trimmedEmail,
+      manageTokenHash,
+      status,
+      createdAt: now,
+      updatedAt: now,
+    });
+    return { ok: true, value: { manageToken, status } };
+  },
+
+  // `get_guest_registration`, by the hash. The live event when it exists; otherwise the stored name,
+  // closed, deleted (AC-20). NO SESSION IS READ.
+  async getGuestRegistration(manageToken: string): Promise<GuestRegistrationView | null> {
+    if (!GUEST_LINK_TOKEN_PATTERN.test(manageToken)) return null;
+    const hash = await sha256Hex(manageToken);
+    const row = eventGuests.find((g) => g.manageTokenHash === hash);
+    if (!row) return null;
+    const event = row.eventId === null ? undefined : events.find((e) => e.id === row.eventId);
+    return {
+      eventName: event?.name ?? row.eventName,
+      startDate: event?.startDate ?? null,
+      endDate: event?.endDate ?? null,
+      location: event?.location ?? null,
+      guestName: row.name,
+      status: row.status,
+      registrationOpen: event ? registrationOpen(event, eventToday()) : false,
+      eventDeleted: !event,
+    };
+  },
+
+  // `cancel_guest_registration`, then `event_guest_guard` on update: no row (EV005), a deleted event
+  // (EV002), an illegal transition (22023), registration closed (EV002). NO SESSION IS READ.
+  async cancelGuestRegistration(manageToken: string): Promise<Result<void>> {
+    if (!GUEST_LINK_TOKEN_PATTERN.test(manageToken)) {
+      return eventFailure("guest_registration_not_found", GUEST_REGISTRATION_NOT_FOUND);
+    }
+    const hash = await sha256Hex(manageToken);
+    const row = eventGuests.find((g) => g.manageTokenHash === hash);
+    if (!row) return eventFailure("guest_registration_not_found", GUEST_REGISTRATION_NOT_FOUND);
+    const event = row.eventId === null ? undefined : events.find((e) => e.id === row.eventId);
+    if (!event) return eventFailure("event_registration_closed", EVENT_REGISTRATION_CLOSED);
+    if (!(GUEST_TRANSITIONS[row.status] ?? []).includes("cancelled")) {
+      return eventFailure("invalid_attendance_change", ATTENDANCE_CHANGE_INVALID);
+    }
+    if (!registrationOpen(event, eventToday())) {
+      return eventFailure("event_registration_closed", EVENT_REGISTRATION_CLOSED);
+    }
+    row.status = "cancelled";
+    row.updatedAt = new Date().toISOString();
+    return { ok: true, value: undefined };
+  },
+
+  // `event_guest_select_visible` and the column grant, then `list_event_guest_emails`: the caller
+  // must have a team and read the event; attending guests to anyone, every guest to whoever manages
+  // it; the email to whoever manages it and to nobody else (AC-14, AC-15).
+  async listEventGuests(eventId: string): Promise<EventGuest[]> {
+    const uid = currentMemberId;
+    const event = events.find((e) => e.id === eventId);
+    if (!event || memberTeamId(uid) === null || !mayReadEvent(event, uid)) return [];
+    const manages = mayManageEvent(event, uid);
+    return eventGuests
+      .filter((g) => g.eventId === eventId && (g.status === "attending" || manages))
+      .sort((a, b) => a.createdAt.localeCompare(b.createdAt) || a.id.localeCompare(b.id))
+      .map((g) => toEventGuest(g, eventId, manages));
+  },
+
+  // `event_guest_update_manage`'s `using` (the creator or an admin, never a manager as such), then
+  // `event_guest_guard` on update — a legal transition (22023), registration for a cancel (EV002),
+  // the cap on `attending` (EV001) — then the policy's `with check`, which refuses `cancelled` to
+  // everyone (AC-18). The row read back carries no email: `email` is not in the select grant.
+  async decideGuest(
+    guestId: string,
+    status: "attending" | "rejected" | "removed",
+  ): Promise<Result<EventGuest>> {
+    const row = eventGuests.find((g) => g.id === guestId);
+    const event = row?.eventId ? events.find((e) => e.id === row.eventId) : undefined;
+    if (!row || !event || !mayManageEvent(event, currentMemberId)) {
+      return eventFailure("attendance_not_permitted", GUEST_DECIDE_REFUSED);
+    }
+    // Widened on purpose: a caller outside TypeScript can send `cancelled`, and the database answers.
+    const next = status as GuestStatus;
+    if (!(GUEST_TRANSITIONS[row.status] ?? []).includes(next)) {
+      return eventFailure("invalid_attendance_change", ATTENDANCE_CHANGE_INVALID);
+    }
+    if (next === "cancelled") {
+      if (!registrationOpen(event, eventToday())) {
+        return eventFailure("event_registration_closed", EVENT_REGISTRATION_CLOSED);
+      }
+      return eventFailure("attendance_not_permitted", GUEST_DECIDE_REFUSED);
+    }
+    if (
+      next === "attending" &&
+      event.capacity !== null &&
+      seatsTaken(event.id, row.id) >= event.capacity
+    ) {
+      return eventFailure("event_full", EVENT_FULL);
+    }
+    row.status = next;
+    row.updatedAt = new Date().toISOString();
+    return { ok: true, value: toEventGuest(row, event.id, false) };
   },
 };
