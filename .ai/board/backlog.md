@@ -24,6 +24,8 @@ planned, sized, and safe to build** — the next stage for a row here is IN_PROG
 |---|--------|-------|------|------------|
 | 1 | EVT-05 | A person is emailed when an event for their team is created, when they are invited, and when their request is decided | M | — |
 
+**`EVT-05` is at `REVIEW` in `ticket.yaml`, `gates.review` passed** — recorded at /advance on 2026-10-09 from `04-review.md` verdict PASS. The row stays here until `/ship` moves it to `## ARCHIVE`.
+
 **`EVT-05` moved here from `## BACKLOG` at /advance on 2026-10-09**, from `01-plan.md` gate PASS with all six Definition of Ready items passing. It was planned ahead of `EVT-06`, row 1 there, once Q6 was answered; `EVT-07` moved up one row.
 
 **Empty again — `EVT-04` left this section for `## ARCHIVE` at its own ship on 2026-10-08.** `EVT-05` is the top of `## BACKLOG`, still blocked on the operator.
