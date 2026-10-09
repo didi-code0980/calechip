@@ -141,7 +141,7 @@ function ownIdea(f) {
   if (!IDEA_FILE.test(f)) return false;
   const abs = path.join(ROOT, f);
   if (!fs.existsSync(abs)) return false;
-  let fm = {};
+  let fm;
   try { fm = readFrontMatter(abs) ?? {}; } catch { fm = {}; }
   return isOwnIdea({ path: f, fm }, ticketId, ticketText);
 }
