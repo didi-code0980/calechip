@@ -1351,7 +1351,7 @@ các tính năng mới và đưa vào backlog"*. The four solo rows registered e
 | 17 | EVT-03 | Events are drawn on the week and month grids, and a click opens the event | 2026-10-08 | [#113](https://github.com/didi-code0980/calechip/pull/113) |
 | 18 | EVT-04 | A person is notified in the app when an event concerns them | 2026-10-08 | [#114](https://github.com/didi-code0980/calechip/pull/114) |
 | 19 | EVT-05 | A person is emailed when an event for their team is created, when they are invited, and when their request is decided | 2026-10-09 | [#116](https://github.com/didi-code0980/calechip/pull/116) |
-| 20 | EVT-06 | A creator opens an event to guests, and anyone with its link reads it and who is coming | 2026-10-09 | PENDING_PR |
+| 20 | EVT-06 | A creator opens an event to guests, and anyone with its link reads it and who is coming | 2026-10-09 | [#117](https://github.com/didi-code0980/calechip/pull/117) |
 
 **The window displaced `UIE-02` at EVT-06's ship** — *UIE-02, The application shell — a persistent sidebar and top bar, shipped 2026-09-07,* [#64](https://github.com/didi-code0980/calechip/pull/64).
 
