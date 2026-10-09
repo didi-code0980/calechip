@@ -24,6 +24,8 @@ planned, sized, and safe to build** — the next stage for a row here is IN_PROG
 |---|--------|-------|------|------------|
 | 1 | EVT-06 | A creator opens an event to guests, and anyone with its link reads it and who is coming | M | — |
 
+**`EVT-06` is at `REVIEW` in `ticket.yaml`, `gates.review` passed** — recorded at /advance on 2026-10-09 from `04-review.md` verdict PASS. The row stays here until `/ship` moves it to `## ARCHIVE`.
+
 **`EVT-06` moved here from `## BACKLOG` at /advance on 2026-10-09**, from `01-plan.md` gate PASS with all six Definition of Ready items passing. `EVT-07` moved up one row in `## BACKLOG`; bookkeeping, not a reordering.
 
 **Empty again — `EVT-05` left this section for `## ARCHIVE` at its own ship on 2026-10-09.** `EVT-06` is the top of `## BACKLOG`.
