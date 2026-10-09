@@ -5,9 +5,9 @@ id: EVT-05
 title: "A person is emailed when an event for their team is created, when they are invited, and when their request is decided"
 feature_ids: [EVT-05]
 group: EVT
-state: REVIEW
+state: DONE
 owner: ""
-branch: ""
+branch: "feat/EVT-05"
 size_estimate: "M"    # S|M - set by tech-lead-design at PLAN; gates DoR
 size: "M"             # S|M|L|XL - set by tech-lead-design at PLAN; twelve paths, 01-plan.md § 7
 depends_on: [EVT-04]  # DONE and merged
