@@ -23,6 +23,7 @@ import {
   MAX_INTAKE_QUESTIONS, ON_SPLIT, ON_OPEN_QUESTIONS_AFTER_PLAN, IDEAS_DIR,
   matchIdeaFile, awaitedAdrs, adrStatus, adrsSettled, needsAdrDecision, DECISIONS_DIR,
   parsePorcelainZ, planCarry, wipBlockers, IN_FLIGHT_STATES, SHIP_OWNED, inAllowedPaths,
+  ideaTicketIds, isOwnIdea,
 } from "../lib/entry.mjs";
 import { readFrontMatter, parseSimpleYaml } from "../lib/ticket-yaml.mjs";
 import { INTAKE_SCHEMA, intakePrompt, triagePrompt, triageFromFilePrompt, retriagePrompt } from "../lib/prompts.mjs";
@@ -672,4 +673,27 @@ test("the near-miss guard does not swallow a real ticket, or real free text", ()
   // And the explicit flag always overrides, which is the documented escape from a false positive.
   assert.equal(resolveInput(null, { forced: { kind: "idea-text", value: "pto-2026" } }, deps).kind,
     "intake");
+});
+
+test("ADR-054: isOwnIdea reads a split ticket_id from the real idea file, and planCarry agrees", () => {
+  // The real file: EVT-04 and EVT-05 were both promoted from it, and its front-matter says so in one
+  // string. Before ADR-054 that string was compared whole, matched neither ticket, and the idea was
+  // stray for both whenever it was dirty. Read through the same reader `carryContext` uses.
+  const IDEA = ".ai/board/ideas/2026-10-08-a-person-learns-about-an-event-only-by-going-to-look.md";
+  const fm = readFrontMatter(path.join(ROOT, IDEA));
+  assert.deepEqual(ideaTicketIds(fm), ["EVT-04", "EVT-05"]);
+  for (const id of ["EVT-04", "EVT-05"]) assert.ok(isOwnIdea({ path: IDEA, fm }, id, ""), id);
+  assert.ok(!isOwnIdea({ path: IDEA, fm }, "EVT-0", ""), "a prefix of an ID is not the ID");
+  assert.ok(!isOwnIdea({ path: IDEA, fm }, "EVT-06", ""));
+  assert.ok(isOwnIdea({ path: IDEA, fm: {} }, "EVT-06", `# from ${IDEA}`), "cited by ticket.yaml");
+
+  assert.deepEqual(ideaTicketIds({ ticket_id: ["A-01", "A-02"] }), ["A-01", "A-02"]);
+  assert.deepEqual(ideaTicketIds({ ticket_id: "" }), []);
+  assert.deepEqual(ideaTicketIds({}), []);
+
+  const ctx = { id: "EVT-05", allowedPaths: [], ticketText: "", ideas: [{ path: IDEA, fm }],
+                siblings: [], inAllowedPaths };
+  const { carried, stray } = planCarry([IDEA], ctx);
+  assert.deepEqual(stray, []);
+  assert.equal(carried[0]?.why, "the idea that promoted it");
 });

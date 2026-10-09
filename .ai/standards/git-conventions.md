@@ -1,6 +1,6 @@
 ---
-doc_version: 4
-last_updated: 2026-10-01
+doc_version: 5
+last_updated: 2026-10-09
 governed_by: [RULE-03, RULE-09, RULE-10]
 ---
 
@@ -160,6 +160,15 @@ the ticket branch. It is three names and not a category: `.ai/board/` is not exe
 the exemption was CI's alone, and a reviewer reading this section correctly concluded so — CAL-11's
 review cites these lines for exactly that, then failed R1 on the `backlog.md` write that `/triage`
 and `/advance` make on every ticket. Two readers of one diff now reach one verdict.
+
+**Since ADR-054 both readers also exempt the ticket's own promoting idea file — committed on the
+ticket branch, not shipped by it.** "Own" is `isOwnIdea` in `scripts/lib/entry.mjs`, the predicate
+`planCarry` uses: the idea's `ticket_id` names the ticket (a split PROMOTE's `"A-01, A-02"` names
+both), or the ticket's `ticket.yaml` cites the idea's path. It is not a category — every other idea
+file is a violation, and so is deleting the ticket's own. **The ship set above is unchanged:** `/ship`
+and `/handoff` still do not commit the idea file, so a session that records an operator answer in it
+commits that edit itself (MD-042, MD-043). The exemption makes such a commit pass; it does not make
+it happen.
 
 *Before ADR-023 those three went to a second `ops/` branch and a second pull request. The cost was
 demonstrated rather than argued: PR #27 and PR #28 had to be merged together, or the board claimed a

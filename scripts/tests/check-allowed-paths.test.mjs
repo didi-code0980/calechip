@@ -20,9 +20,9 @@ const SCRIPT = path.resolve(
   "check-allowed-paths.mjs"
 );
 
-const TICKET = (allowed) =>
+const TICKET = (allowed, id = "TST-01", extra = []) =>
   [
-    "id: TST-01",
+    `id: ${id}`,
     'title: ""',
     "feature_ids: []",
     "state: REVIEW",
@@ -30,6 +30,7 @@ const TICKET = (allowed) =>
     `allowed_paths: ${allowed}`,
     "schema_delta: none",
     "rework_count: 0",
+    ...extra,
     "",
   ].join("\n");
 
@@ -49,10 +50,15 @@ function writeFile(root, rel, contents) {
 
 // A repository whose main already carries the ticket shell, with origin/main pointing at it, then a
 // feat/TST-01 branch carrying `files`. Returns the repo root.
-function makeRepo(allowedPaths, files) {
+//
+// opts (ADR-054): { id — the ticket, default TST-01; ticketExtra — lines appended to its ticket.yaml;
+//                   base — files committed on main first; remove — paths deleted on the branch }
+function makeRepo(allowedPaths, files, opts = {}) {
+  const id = opts.id ?? "TST-01";
   const root = fs.mkdtempSync(path.join(os.tmpdir(), "cap-"));
   git(root, ["init", "--quiet", "-b", "main"]);
-  writeFile(root, ".ai/board/tickets/TST-01/ticket.yaml", TICKET(allowedPaths));
+  writeFile(root, `.ai/board/tickets/${id}/ticket.yaml`, TICKET(allowedPaths, id, opts.ticketExtra ?? []));
+  for (const [rel, contents] of Object.entries(opts.base ?? {})) writeFile(root, rel, contents);
   writeFile(root, ".ai/board/backlog.md", "backlog\n");
   writeFile(root, ".ai/board/metrics.md", "metrics\n");
   writeFile(root, ".ai/registry/features.md", "features\n");
@@ -61,8 +67,9 @@ function makeRepo(allowedPaths, files) {
   git(root, ["add", "-A"]);
   git(root, ["commit", "--quiet", "-m", "base"]);
   git(root, ["update-ref", "refs/remotes/origin/main", "HEAD"]);
-  git(root, ["switch", "--quiet", "-c", "feat/TST-01"]);
+  git(root, ["switch", "--quiet", "-c", `feat/${id}`]);
   for (const [rel, contents] of Object.entries(files)) writeFile(root, rel, contents);
+  for (const rel of opts.remove ?? []) fs.rmSync(path.join(root, rel));
   git(root, ["add", "-A"]);
   git(root, ["commit", "--quiet", "-m", "ship"]);
   return root;
@@ -165,4 +172,54 @@ test("a non-feat branch is not checked at all", () => {
   const root = makeRepo("[]", { "src/app/orders/page.tsx": "after\n" });
   git(root, ["switch", "--quiet", "-c", "ops/model-change"]);
   assert.match(run(root).stdout, /is not feat\/\*/);
+});
+
+// ADR-054 — the ticket's own promoting idea file, decided by `isOwnIdea` in scripts/lib/entry.mjs,
+// the predicate `planCarry` already uses. **The fixture is the real file that produced the finding**
+// (testing-standards.md, fixtures rule): the idea EVT-04 and EVT-05 were both promoted from, whose
+// `ticket_id` is the two-ticket string "EVT-04, EVT-05". A fixture written to agree with the check
+// would have used one ID, and would have missed that the old whole-string comparison matched neither.
+const REAL_IDEA = ".ai/board/ideas/2026-10-08-a-person-learns-about-an-event-only-by-going-to-look.md";
+const REAL_IDEA_TEXT = fs.readFileSync(
+  path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..", "..", REAL_IDEA), "utf8");
+const APPENDED = REAL_IDEA_TEXT + "\n**Q6, answered by the operator.** recorded here\n";
+
+test("ADR-054: the ticket's own promoting idea file passes — the second ID of a split ticket_id", () => {
+  const root = makeRepo('["src/app/orders/**"]', { [REAL_IDEA]: APPENDED },
+    { id: "EVT-05", base: { [REAL_IDEA]: REAL_IDEA_TEXT } });
+  const out = run(root).stdout;
+  assert.match(out, /allowed-paths: PASS/);
+  assert.match(out, /exempt .*2026-10-08-a-person-learns.*ADR-054/);
+});
+
+test("ADR-054: the same idea file is a violation on a ticket it did not promote", () => {
+  const root = makeRepo('["src/app/orders/**"]', { [REAL_IDEA]: APPENDED },
+    { id: "EVT-06", base: { [REAL_IDEA]: REAL_IDEA_TEXT } });
+  const r = runExpectingFail(root);
+  assert.equal(r?.code, 1);
+  assert.match(r.stderr, /2026-10-08-a-person-learns/);
+});
+
+test("ADR-054: an idea file whose path the ticket.yaml cites passes, with ticket_id empty", () => {
+  const idea = ".ai/board/ideas/2026-01-01-cited.md";
+  const root = makeRepo('["src/app/orders/**"]', { [idea]: '---\nticket_id: ""\n---\n# cited\n' },
+    { ticketExtra: [`# promoted from ${idea}`] });
+  assert.match(run(root).stdout, /allowed-paths: PASS/);
+});
+
+test("ADR-054: another idea file is still a violation — one file, not the directory", () => {
+  const root = makeRepo('["src/app/orders/**"]', {
+    ".ai/board/ideas/2026-01-02-other.md": '---\nticket_id: "TST-02"\n---\n# other\n',
+  });
+  const r = runExpectingFail(root);
+  assert.equal(r?.code, 1);
+  assert.match(r.stderr, /2026-01-02-other\.md/);
+});
+
+test("ADR-054: deleting the ticket's own idea file is still a violation", () => {
+  const root = makeRepo('["src/app/orders/**"]', {},
+    { id: "EVT-05", base: { [REAL_IDEA]: REAL_IDEA_TEXT }, remove: [REAL_IDEA] });
+  const r = runExpectingFail(root);
+  assert.equal(r?.code, 1);
+  assert.match(r.stderr, /2026-10-08-a-person-learns/);
 });

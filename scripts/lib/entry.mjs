@@ -482,6 +482,34 @@ const cites = (text, needle) => Boolean(needle) && String(text ?? "").includes(n
 const citesAdr = (text, id) => new RegExp(`\\b${id}\\b`).test(String(text ?? ""));
 
 /**
+ * The ticket IDs an idea file's front-matter `ticket_id` names.
+ *
+ * `.ai/templates/idea.md` describes one ID, and a PROMOTE that splits into two rows writes both in
+ * one string — `ticket_id: "EVT-04, EVT-05"` and `"EVT-06, EVT-07"` are on disk. Compared whole,
+ * that string matched neither ticket, so the second ticket of a split never recognised the idea that
+ * promoted it. A list value is accepted too.
+ */
+export function ideaTicketIds(fm) {
+  return [].concat(fm?.ticket_id ?? [])
+    .flatMap((v) => String(v).split(","))
+    .map((s) => s.trim().replace(/^["']|["']$/g, "").trim())
+    .filter(Boolean);
+}
+
+/**
+ * **The one definition of "the idea that promoted this ticket"**: its front-matter `ticket_id`
+ * names the ticket, or the ticket's `ticket.yaml` cites the idea's path. `idea` is `{ path, fm }`.
+ *
+ * Two readers, one predicate. `planCarry` uses it to carry the idea file while it is uncommitted;
+ * `scripts/check-allowed-paths.mjs` uses it to exempt the idea file once it is committed on the
+ * ticket branch (ADR-054). A second, hand-written copy would be a second answer to "is this the
+ * ticket's own idea" — the defect ADR-043 exists to close.
+ */
+export function isOwnIdea(idea, id, ticketText) {
+  return ideaTicketIds(idea?.fm).includes(id) || cites(ticketText, idea?.path);
+}
+
+/**
  * Sort the dirty tree, before `/plan` cuts `feat/<id>`, into what may ride onto the new branch and
  * what stops it. **The rule is: this ticket's own triage output, and nothing else.** `/plan` step 0
  * states the same rule in prose; this is the runner's copy, and the two must agree.
@@ -492,8 +520,9 @@ const citesAdr = (text, id) => new RegExp(`\\b${id}\\b`).test(String(text ?? "")
  *
  *   - `.ai/board/tickets/<id>/**` and `allowed_paths` — this ticket's own ship set
  *   - the three ship-owned paths — they ride on the ticket branch by ADR-023 and `/ship` commits them
- *   - an idea file whose front-matter `ticket_id` is this ticket, or whose path this ticket's
- *     `ticket.yaml` cites — the file that promoted it
+ *   - an idea file whose front-matter `ticket_id` names this ticket, or whose path this ticket's
+ *     `ticket.yaml` cites — the file that promoted it (`isOwnIdea`, which the committed half of R1
+ *     shares since ADR-054)
  *   - an ADR whose ID this ticket's `ticket.yaml`, or that idea's `verdict_reason` / `awaiting_adrs`,
  *     cites — the decisions the verdict waited on
  *   - a sibling ticket folder promoted by the same idea (its `ticket.yaml` cites the idea's path),
@@ -578,8 +607,7 @@ export function splitStrayByLanded(stray, isLanded) {
 
 export function planCarry(dirty, ctx) {
   const own = `.ai/board/tickets/${ctx.id}/`;
-  const provenance = (ctx.ideas ?? []).filter((i) =>
-    String(i.fm?.ticket_id ?? "").replace(/^["']|["']$/g, "") === ctx.id || cites(ctx.ticketText, i.path));
+  const provenance = (ctx.ideas ?? []).filter((i) => isOwnIdea(i, ctx.id, ctx.ticketText));
   const adrText = [ctx.ticketText, ...provenance.map((i) =>
     `${i.fm?.verdict_reason ?? ""} ${[].concat(i.fm?.awaiting_adrs ?? []).join(" ")}`)].join("\n");
 
