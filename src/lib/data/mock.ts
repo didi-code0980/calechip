@@ -583,6 +583,9 @@ export function __resetEvents(): void {
   eventAttendance.length = 0;
   // EVT-04. A notification is about an event, so it goes with them (01-plan.md § 5).
   notifications.length = 0;
+  // EVT-05. The switches and the outbox go with them (01-plan.md § 4.2).
+  eventEmailSwitches.clear();
+  eventEmailOutbox.length = 0;
 }
 
 // The id an event gets, in the shape the other generators use: an `ec` prefix, which no other
@@ -801,8 +804,71 @@ function notify(recipients: string[], kind: NotificationKind, event: CalEvent): 
       createdAt: now,
       readAt: null,
     });
+    // EVT-05. `email_notification()`, after insert on `public.notification`.
+    emailNotification(notifications[notifications.length - 1]!, event);
   }
 }
+
+// ---------------------------------------------------------------------------
+// EVT-05 — event email. 01-plan.md §§ 4.2 and 4.3. ADR-051, ADR-053.
+//
+// **THIS REPRODUCES `20261009090000_evt05_event_email.sql`'S SWITCH AND TRIGGER.** The outbox holds
+// what the trigger would have handed the sender; nothing here sends. An email exists only beside a
+// notification `notify` just wrote, so every EVT-04 recipient rule — a reader of the event, never the
+// actor, a signed-in person only, once per row — is inherited, not repeated (AC-5).
+//
+// **`to` IS `Member.email` HERE AND `auth.users.email` IN THE DATABASE.** The mock has no auth table;
+// `Member.email` is the copy `20260912120000_solo_member_email.sql` keeps of it.
+// ---------------------------------------------------------------------------
+
+/** The five kinds of ADR-051 decision 4 — the trigger's `when` clause. */
+const EMAIL_KINDS: ReadonlySet<NotificationKind> = new Set<NotificationKind>([
+  "event_created",
+  "event_invited",
+  "attendance_approved",
+  "attendance_rejected",
+  "attendance_removed",
+]);
+
+/** `member.event_email_enabled`, reproduced. ABSENT MEANS `true` — the column's default (AC-7). */
+const eventEmailSwitches = new Map<string, boolean>();
+
+const eventEmailOn = (memberId: string): boolean => eventEmailSwitches.get(memberId) ?? true;
+
+export interface MockEventEmail {
+  notificationId: string;
+  kind: "event_created" | "event_invited" | "attendance_approved" | "attendance_rejected" | "attendance_removed";
+  to: string;
+  eventId: string;
+}
+
+const eventEmailOutbox: MockEventEmail[] = [];
+
+/** `public.email_notification()`: an email kind; for `event_created`, an own-team event (Q3); the
+ *  recipient's switch on; an address to send to. Nothing else is checked, because `notify` already
+ *  decided who receives the notification. */
+function emailNotification(n: EventNotification, event: CalEvent): void {
+  if (!EMAIL_KINDS.has(n.kind)) return;
+  if (n.kind === "event_created" && event.scope !== "team") return;
+  if (!eventEmailOn(n.recipientId)) return;
+  const to = members.find((m) => m.id === n.recipientId)?.email ?? null;
+  if (to === null || to === "") return;
+  eventEmailOutbox.push({
+    notificationId: n.id,
+    kind: n.kind as MockEventEmail["kind"],
+    to,
+    eventId: event.id,
+  });
+}
+
+/** EVT-05. The emails the database would have handed the sender since the last `__resetEvents()`.
+ *  Test-only, a named export beside `seam` — NOT a seam member, so seam parity is untouched. */
+export function __sentEventEmails(): MockEventEmail[] {
+  return eventEmailOutbox.map((e) => ({ ...e }));
+}
+
+// Repeated verbatim in src/lib/data/supabase.ts.
+const EVENT_EMAIL_SAVE_FAILED = "Your email setting could not be saved.";
 
 // `notification_select_own` / `notification_update_own`: the caller's row, and the caller still has
 // a team. No admin clause.
@@ -3197,5 +3263,26 @@ export const seam: DataSeam = {
       }
     }
     return { ok: true, value: marked };
+  },
+
+  // -------------------------------------------------------------------------
+  // EVT-05 — the event email switch. 01-plan.md § 4.2. Nothing here sends or names an email.
+  // -------------------------------------------------------------------------
+
+  // `member_select_own`. No caller, or no member row: null.
+  async getEventEmailEnabled(): Promise<boolean | null> {
+    const me = members.find((m) => m.id === currentMemberId) ?? null;
+    if (!me) return null;
+    return eventEmailOn(me.id);
+  },
+
+  // `set_event_email`: the caller's own row, and only while it is not removed. No member id.
+  async setEventEmailEnabled(enabled: boolean): Promise<Result<boolean>> {
+    const me = members.find((m) => m.id === currentMemberId) ?? null;
+    if (!me || me.removedAt !== null) {
+      return { ok: false, error: { code: "unknown", message: EVENT_EMAIL_SAVE_FAILED } };
+    }
+    eventEmailSwitches.set(me.id, enabled);
+    return { ok: true, value: enabled };
   },
 };

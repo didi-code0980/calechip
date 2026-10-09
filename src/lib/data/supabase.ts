@@ -364,6 +364,10 @@ function toNotification(row: NotificationRow): EventNotification {
 const NOTIFICATION_MARK_NETWORK = "Could not reach the server. Please try again.";
 const NOTIFICATION_MARK_FAILED = "Notifications could not be marked as read. Please try again.";
 
+// EVT-05 § 4.2. Repeated verbatim in src/lib/data/mock.ts. No row written — no member row, or a
+// removed member — is the one refusal; a transport failure is `network` with the sentence above.
+const EVENT_EMAIL_SAVE_FAILED = "Your email setting could not be saved.";
+
 /** `status === 0` is postgrest-js's answer when the request never reached the server (verified in
  *  node_modules/@supabase/postgrest-js/dist/index.mjs, the fetch `catch`); everything else is
  *  `unknown`. */
@@ -3394,5 +3398,44 @@ export const seam: DataSeam = {
     const { data, error, status } = await client().rpc("mark_notifications_read", { p_ids: null });
     if (error) return { ok: false, error: toNotificationFailure(status) };
     return { ok: true, value: typeof data === "number" ? data : 0 };
+  },
+
+  // -------------------------------------------------------------------------
+  // EVT-05 — the event email switch. 01-plan.md § 4.2. NOTHING HERE SENDS OR NAMES AN EMAIL: the
+  // trigger `email_notification()` hands email-kind notifications to the sender (ADR-051 decision 3).
+  // -------------------------------------------------------------------------
+
+  // `member_select_own` returns the caller's row. No user, or no row: null, a normal answer.
+  async getEventEmailEnabled(): Promise<boolean | null> {
+    const { data: auth, error: authError } = await client().auth.getUser();
+    if (authError || !auth.user) return null;
+
+    const { data, error } = await client()
+      .from("member")
+      .select("event_email_enabled")
+      .eq("id", auth.user.id)
+      .maybeSingle<{ event_email_enabled: boolean }>();
+
+    if (error) throw new Error(`getEventEmailEnabled failed: ${error.message}`);
+    return data ? data.event_email_enabled : null;
+  },
+
+  // `set_event_email` writes `auth.uid()`'s row and no other, and only while it is not removed; a
+  // null answer is no row written. There is no member-id argument to pass, and there must never be.
+  async setEventEmailEnabled(enabled: boolean): Promise<Result<boolean>> {
+    const { data, error, status } = await client().rpc("set_event_email", { p_enabled: enabled });
+    if (error) {
+      return {
+        ok: false,
+        error:
+          status === 0
+            ? { code: "network", message: NOTIFICATION_MARK_NETWORK }
+            : { code: "unknown", message: EVENT_EMAIL_SAVE_FAILED },
+      };
+    }
+    if (typeof data !== "boolean") {
+      return { ok: false, error: { code: "unknown", message: EVENT_EMAIL_SAVE_FAILED } };
+    }
+    return { ok: true, value: data };
   },
 };

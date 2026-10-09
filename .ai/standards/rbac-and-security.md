@@ -71,6 +71,12 @@ operator gave — see the note under § *Roles*. A bare `❌` there is a denial 
 | Change any column of a notification other than `read_at` | ❌ | ❌ | ❌ |
 | Insert or delete a notification | ❌ | ❌ | ❌ **ADR-050 decision 2 — only the database's triggers write** |
 | Be notified of an event they cannot read, or of their own action | ❌ | ❌ | ❌ **ADR-050 decisions 3 and 5** |
+| Turn their own event email on or off (EVT-05) | ✅ | ✅ | ✅ |
+| Change another person's event email switch | ❌ | ❌ | ❌ **by name — `set_event_email` takes no member id; no column grant exists** |
+| Write `member.event_email_enabled` with a plain update, own row included | ❌ | ❌ | ❌ **no `update` grant on the column — only `set_event_email` writes it** |
+| Change their event email switch once removed | ❌ | ❌ | ❌ |
+| Cause an email to someone | only through a write that writes them an email-kind notification | same | same |
+| Call the event email sender (`send-event-email`) | ❌ | ❌ | ❌ **ADR-051 decision 3 — only the database's `email_notification` trigger, with the shared secret** |
 
 **THE TWO ROWS TO READ TWICE ARE THE TWO MARKED `decided`.** *Edit or delete another member's entry*
 is denied to a manager because granting it is what the update POLICY would do if it were widened, and
