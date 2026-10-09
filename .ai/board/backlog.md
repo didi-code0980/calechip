@@ -22,6 +22,9 @@ planned, sized, and safe to build** — the next stage for a row here is IN_PROG
 
 | # | Ticket | Title | Size | Depends on |
 |---|--------|-------|------|------------|
+| 1 | EVT-07 | A guest registers for an opened event with a name and an email, and manages it from a link shown once | M | — |
+
+**`EVT-07` moved here from `## BACKLOG` at /advance on 2026-10-09**, from `01-plan.md` gate PASS with all six Definition of Ready items passing. `## BACKLOG` is now empty. Its *Blocked on* read `EVT-06`, which is `DONE` and merged (#117).
 
 **Empty again — `EVT-06` left this section for `## ARCHIVE` at its own ship on 2026-10-09.** `EVT-07` is the top of `## BACKLOG`.
 
@@ -70,7 +73,6 @@ Under the current gate placement a ticket sits here until it has been planned �
 
 | # | Ticket | Title | State | Blocked on |
 |---|--------|-------|-------|------------|
-| 1 | EVT-07 | A guest registers for an opened event with a name and an email, and manages it from a link shown once | BACKLOG | `EVT-06` |
 
 **Reordered by the operator on 2026-10-08** (*"thôi chuyển qua làm EVT-06 trước"*): `EVT-06` above `EVT-05`, which waits on the Gmail decision (Q6 — cách A or B, the account, and who holds it). `EVT-05`'s *Blocked on* drops `EVT-04`, which is `DONE` and merged.
 
