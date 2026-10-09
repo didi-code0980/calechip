@@ -5,9 +5,9 @@ id: EVT-06
 title: "A creator opens an event to guests, and anyone with its link reads it and who is coming"
 feature_ids: [EVT-06]
 group: EVT
-state: REVIEW
+state: DONE
 owner: ""
-branch: ""
+branch: "feat/EVT-06"
 size_estimate: "M"    # S|M - set by tech-lead-design at PLAN; gates DoR
 size: "M"             # S|M|L|XL - set by tech-lead-design at PLAN; twelve paths, 01-plan.md § 7. Agrees
 depends_on: []        # EVT-01 and EVT-02 are DONE and merged
