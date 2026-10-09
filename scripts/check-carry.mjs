@@ -5,7 +5,8 @@
 // kinds of change.
 //
 //   - **Committed changes** go to `origin/main...HEAD` and are judged against `allowed_paths`, with
-//     the ticket folder and the ship-owned set exempt (ADR-023 for CI, ADR-041 for R1). That half is
+//     the ticket folder and the ship-owned set exempt (ADR-023 for CI, ADR-041 for R1), and the
+//     ticket's own promoting idea file by the same `isOwnIdea` this half's `planCarry` uses (ADR-054). That half is
 //     `scripts/check-allowed-paths.mjs`, which runs in CI where it cannot be misreported.
 //   - **Uncommitted changes** — modified and untracked. Until ADR-048 that was the whole ticket for
 //     its whole life; since then it is what the stage since the last `/advance` checkpoint left.

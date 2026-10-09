@@ -8,11 +8,18 @@
 //
 // Since ADR-023 it also exempts the ship-owned set below, so that a ship is one pull request.
 //
-// Run: node scripts/check-allowed-paths.mjs
+// Since ADR-054 it also exempts **the ticket's own promoting idea file** — and only that one, decided
+// by `isOwnIdea` in `scripts/lib/entry.mjs`, the same predicate `planCarry` uses to carry the file
+// while it is uncommitted. Not a category: every other `.ai/board/ideas/` file is still a violation.
+//
+// Run: node scripts/check-allowed-paths.mjs   (any argument is ignored; the ticket is the branch's)
 
 import { execFileSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
+
+import { isOwnIdea } from "./lib/entry.mjs";
+import { readFrontMatter } from "./lib/ticket-yaml.mjs";
 
 const ROOT = process.cwd();
 const BASE = process.env.GITHUB_BASE_REF || "main";
@@ -107,7 +114,8 @@ if (!fs.existsSync(ticketFile)) {
   process.exit(1);
 }
 
-const allowed = readYamlList(fs.readFileSync(ticketFile, "utf8"), "allowed_paths");
+const ticketText = fs.readFileSync(ticketFile, "utf8");
+const allowed = readYamlList(ticketText, "allowed_paths");
 if (allowed === null) {
   console.error(`allowed-paths: FAIL — ${ticketDir}/ticket.yaml has no allowed_paths key`);
   process.exit(1);
@@ -126,19 +134,35 @@ try {
   process.exit(1);
 }
 
+// ADR-054. The file must still exist: its front-matter is half of the test, and a branch that deletes
+// the idea which promoted it is not recording anything — that stays a violation.
+const IDEA_FILE = /^\.ai\/board\/ideas\/[^/]+\.md$/;
+function ownIdea(f) {
+  if (!IDEA_FILE.test(f)) return false;
+  const abs = path.join(ROOT, f);
+  if (!fs.existsSync(abs)) return false;
+  let fm = {};
+  try { fm = readFrontMatter(abs) ?? {}; } catch { fm = {}; }
+  return isOwnIdea({ path: f, fm }, ticketId, ticketText);
+}
+
 const matchers = allowed.map(globToRegExp);
+const exemptIdeas = [];
 const violations = changed.filter((f) => {
   if (f === ticketDir || f.startsWith(`${ticketDir}/`)) return false;
   if (SHIP_OWNED.includes(f)) return false;
-  return !matchers.some((re) => re.test(f));
+  if (matchers.some((re) => re.test(f))) return false;
+  if (ownIdea(f)) { exemptIdeas.push(f); return false; }
+  return true;
 });
 
 console.log(`allowed-paths: ticket ${ticketId}, ${changed.length} changed file(s)`);
 console.log(`allowed_paths: ${allowed.length ? allowed.join(", ") : "(empty)"}`);
+for (const f of exemptIdeas) console.log(`  exempt  ${f}  <- the idea that promoted ${ticketId} (ADR-054)`);
 
 if (violations.length) {
   console.error("allowed-paths: FAIL — files outside allowed_paths (RULE-03):");
-  console.error(`  (exempt: the ticket folder, and the ship-owned set ${SHIP_OWNED.join(", ")})`);
+  console.error(`  (exempt: the ticket folder, the ship-owned set ${SHIP_OWNED.join(", ")}, and the ticket's own promoting idea file)`);
   for (const v of violations) console.error(`  - ${v}`);
   if (allowed.length === 0) {
     console.error("  allowed_paths is empty, which means DESIGN has not enumerated it yet.");

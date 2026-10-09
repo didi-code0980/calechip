@@ -1,6 +1,6 @@
 ---
-doc_version: 11
-last_updated: 2026-10-01
+doc_version: 12
+last_updated: 2026-10-09
 governed_by: [RULE-01, RULE-03, RULE-04, RULE-05, RULE-06, RULE-07, RULE-08, RULE-09, RULE-10, RULE-11, RULE-12, RULE-13, RULE-14, RULE-15, RULE-16, RULE-17]
 ---
 
@@ -133,7 +133,7 @@ ADR-019 records this as the cost it is, not as a safeguard.
 
 | # | Check |
 |---|---|
-| R1 | **Committed:** `git diff --name-only origin/main...HEAD`, minus the ticket folder and the three ship-owned paths, is a subset of `allowed_paths` (RULE-03, ADR-041). **Uncommitted:** `node scripts/check-carry.mjs <ID>` exits 0 (ADR-043) |
+| R1 | **Committed:** `git diff --name-only origin/main...HEAD`, minus the ticket folder, the three ship-owned paths and the ticket's own promoting idea file, is a subset of `allowed_paths` — `node scripts/check-allowed-paths.mjs` exits 0 (RULE-03, ADR-041, ADR-054). **Uncommitted:** `node scripts/check-carry.mjs <ID>` exits 0 (ADR-043) |
 | R2 | typecheck exit 0 — whole-program |
 | R3 | lint exit 0 **on the changed lintable files** (ADR-041) |
 | R4 | Nothing outside the data-access seam reaches the datastore directly (RULE-02) |
@@ -155,7 +155,11 @@ never prohibited.
   since then at most the stage since the last `/advance` checkpoint. One rule applied to both is what failed CAL-11 twice.
   - **Committed** — `git diff --name-only origin/main...HEAD` must be a subset of `allowed_paths`,
     exempting `SHIP_OWNED` plus the ticket folder: `.ai/board/backlog.md`, `.ai/board/metrics.md`,
-    `.ai/registry/features.md`, `.ai/board/tickets/<ID>/**`. That is the set
+    `.ai/registry/features.md`, `.ai/board/tickets/<ID>/**` — **and, since ADR-054, the ticket's own
+    promoting idea file**, decided by `isOwnIdea` in `scripts/lib/entry.mjs`, the predicate
+    `planCarry` uses for the uncommitted half. Do not decide "own" by hand: run
+    `node scripts/check-allowed-paths.mjs`, which prints the file as `exempt` when it is. Every other
+    idea file, and deleting the ticket's own, is still a violation. Apart from that file, this is the set
     `scripts/check-allowed-paths.mjs` has exempted since ADR-023, so CI and R1 now agree. `/triage`
     and `/advance` write `backlog.md` on every ticket, so without this R1 fails every ticket.
   - **Uncommitted** — `node scripts/check-carry.mjs <ID>`, a CLI over the same `planCarry` the

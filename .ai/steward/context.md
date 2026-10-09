@@ -2691,3 +2691,37 @@ Operator instruction, verbatim: *"tạo feature ID cho các tính năng mới v�
   `## SHIPPED OUTSIDE THE LOOP` section instead, marked as not a queue. Said once to the operator; if
   they repeat the instruction, the rows go in the queue.
 - **Not done, and still MD-035's:** `/solo` still prints its row instead of writing it.
+
+### 2026-10-09 — ADR-054: R1's committed half exempts the ticket's own promoting idea file
+
+Operator decision **"2"** of 2026-10-09, relayed to `/thuki` by the orchestrator's session (not
+quoted from a file): keep `6af1204` — the orchestrator's record of the Q6 answer in
+`.ai/board/ideas/2026-10-08-a-person-learns-about-an-event-only-by-going-to-look.md` — on
+`feat/EVT-05`, and make R1's committed check accept a ticket's own source idea file. EVT-05 was at
+REVIEW, not yet reviewed; this is a defect blocking the loop, which the standing instructions permit.
+
+- **One definition, extracted:** `isOwnIdea` and `ideaTicketIds` in `scripts/lib/entry.mjs`.
+  `planCarry` and `scripts/check-allowed-paths.mjs` both call `isOwnIdea`; the check gained no
+  hand-written predicate. Deletion of the own idea, and every other idea file, stay violations.
+- **The shared definition was itself wrong, found by this case:** `ticket_id: "EVT-04, EVT-05"` was
+  compared whole and matched neither ticket — so reusing it unchanged would have left EVT-05 failing.
+  Now read as a list. The runner's `readVerdict` has the same misreading and was **not** fixed:
+  MD-044.
+- **Ship set not changed** (ADR-054 decision 5). Making `/ship` and `/handoff` commit the idea file
+  is MD-042 option (a), which the operator has not chosen; recorded as MD-043, now a small edit.
+- **Registry writes:** `.ai/registry/decisions/ADR-054-r1-exempts-the-tickets-own-promoting-idea-file.md`
+  (new, `ACCEPTED by the operator` for the choice, the mechanism marked as the steward's);
+  `.ai/registry/rules.md` RULE-03 row — diff printed before the write: the exempt set gained
+  *"and the ticket's own promoting idea file as `isOwnIdea` in `scripts/lib/entry.mjs` decides it —
+  the predicate `planCarry` uses (ADR-054)"*; doc_version 4 → 5.
+- **Prose aligned:** `.ai/01-operating-model.md` (R1 row and § *Review checklist*),
+  `.ai/templates/review-report.md`, `.ai/standards/git-conventions.md`, `.claude/commands/ship.md`
+  (DoD item 2), `.claude/agents/orchestrator.md`, `scripts/check-carry.mjs` header.
+  `.claude/commands/review.md` states no exemption and was not touched.
+- **Tests:** five in `scripts/tests/check-allowed-paths.test.mjs`, the positive one built from the
+  real idea file; one in `scripts/tests/entry.test.mjs`. Suite 356/356; `check-docs` 0 errors;
+  `check-allowed-paths` on `feat/EVT-05` PASS.
+- **Not committed — left dirty for the operator to land on `ops/<slug>`.** Until it is landed and the
+  tree restored, `check-carry EVT-05` reports these paths stray (MD-038), so `/review EVT-05` must
+  wait for that. `TODO(verify):` `check-allowed-paths.mjs` now imports `entry.mjs`, which needs
+  Node ≥ 20.11 for `import.meta.dirname`; the CI workflow pins no Node version.

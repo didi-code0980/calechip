@@ -1,6 +1,6 @@
 ---
-doc_version: 5
-last_updated: 2026-09-23
+doc_version: 6
+last_updated: 2026-10-09
 governed_by: [RULE-02, RULE-03, RULE-04, RULE-07, RULE-08, RULE-12, RULE-13, RULE-16]
 ---
 
@@ -40,7 +40,7 @@ increments_rework: false   # RULE-08: true only for a Developer-caused failure
 
 | # | Check | Verdict | Citation |
 |---|---|---|---|
-| R1 | **Committed:** `git diff --name-only origin/main...HEAD` minus the ticket folder and the three ship-owned paths is a subset of `allowed_paths` (ADR-041). **Uncommitted:** `node scripts/check-carry.mjs <ID>` exits 0 (ADR-043) | PASS / FAIL | `file:line` + the command's output |
+| R1 | **Committed:** `git diff --name-only origin/main...HEAD` minus the ticket folder, the three ship-owned paths and the ticket's own promoting idea file is a subset of `allowed_paths` — `node scripts/check-allowed-paths.mjs` exits 0 (ADR-041, ADR-054). **Uncommitted:** `node scripts/check-carry.mjs <ID>` exits 0 (ADR-043) | PASS / FAIL | `file:line` + the command's output |
 | R2 | typecheck exit 0 — whole-program | PASS / FAIL | command output |
 | R3 | lint exit 0 on the changed lintable files (ADR-041) | PASS / FAIL | command output |
 | R4 | Nothing outside the data-access seam reaches the datastore directly (RULE-02) | PASS / FAIL | `file:line` |
@@ -111,8 +111,11 @@ Fill all five, every time, including on a PASS. Their correct combinations are e
 § *Review checklist* states both.
 
 - **R1 has two subjects** — ADR-043. *Committed:* the `origin/main...HEAD` diff minus the ticket
-  folder and minus `SHIP_OWNED` (`.ai/board/backlog.md`, `.ai/board/metrics.md`,
-  `.ai/registry/features.md`) is a strict subset of `allowed_paths`. `/triage` and `/advance` write
+  folder, minus `SHIP_OWNED` (`.ai/board/backlog.md`, `.ai/board/metrics.md`,
+  `.ai/registry/features.md`) and minus the ticket's own promoting idea file (ADR-054) is a strict
+  subset of `allowed_paths`. **Run `node scripts/check-allowed-paths.mjs` and quote it** — whether an
+  idea file is the ticket's own is `isOwnIdea`, the predicate `planCarry` uses, and the script prints
+  it as `exempt`; any other idea file is a violation. `/triage` and `/advance` write
   `backlog.md` on every ticket, so a reviewer that fails R1 on it is failing the Developer for a
   write another stage made. *Uncommitted:* **run `node scripts/check-carry.mjs <ID>` and quote it.**
   A path is a violation only when it comes back **stray**; **carried** paths go in the citation
