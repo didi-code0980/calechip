@@ -5,7 +5,7 @@ id: EVT-09
 title: "A creator enters email addresses to invite while creating a public event"
 feature_ids: [EVT-09]
 group: EVT
-state: REVIEW
+state: DONE
 owner: ""
 branch: ""
 size_estimate: S      # S|M - set by tech-lead-design at PLAN; gates DoR
