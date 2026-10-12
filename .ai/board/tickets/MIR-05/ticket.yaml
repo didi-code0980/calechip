@@ -1,0 +1,48 @@
+# Copied from .ai/templates/ticket.yaml by `claude` on 2026-10-12, recording item P1-1 of
+# .ai/board/plans/calechip-multi-tenancy-plan.md. Not produced by /triage: no idea file promotes it.
+# ticket.yaml is authoritative; backlog.md is a view (see .ai/01-operating-model.md).
+# state enum: TRIAGE BACKLOG PLAN READY IN_PROGRESS REVIEW REWORK ESCALATED DONE
+id: MIR-05
+title: "pgTAP runs locally and in CI against a real Postgres with every migration applied"
+feature_ids: []       # a MIR item implements no registry feature; the features it affects are in expected_impact
+group: ""             # MIR is a plan family, not a registry group — features.md: extending the prefixes needs an ADR
+state: BACKLOG
+owner: ""
+branch: ""
+size_estimate: ""     # S|M - set by tech-lead-design at PLAN; gates DoR
+size: ""              # S|M|L|XL - set by tech-lead-design at PLAN; decides splitting
+depends_on: [MIR-01, MIR-02, MIR-03, MIR-04]   # "Blocked by" — the MIR IDs that must be DONE first
+invariants_touched: []
+allowed_paths: []
+glossary_owed: []
+schema_delta: none
+requires_adr: false
+rework_count: 0
+chat_budget:
+  developer->tech-lead-design: { used: 0, max: 6 }
+tracker: { provider: "", external_id: "", sync_enabled: false }
+gates:
+  plan:   { passed: false, at: null }
+  review: { passed: false, at: null }
+
+# --- MIR extra fields ---------------------------------------------------------------------------
+# Not in .ai/templates/ticket.yaml. Added for the multi-tenancy plan; nothing in scripts/ reads them.
+# Plan status lives only in .ai/board/plans/multi-tenancy-status.md. `state` above is the loop's.
+mir_phase: 1
+mir_plan_item: "P1-1"             # .ai/board/plans/calechip-multi-tenancy-plan.md:107-110
+verification_required: false   # phase 0 and phase 3 — a passing mock test is not verification
+expected_impact: []   # none
+# [predicted] at plan time. Corrected at ship in .ai/board/plans/feature-change-log.md.
+mir_detail: |
+  Short names (tea04, cal11, …) are migrations, per the File legend in
+  .ai/board/audits/multi-tenancy-audit-2026-10-12.md:38-77. "A:n" is a line of that audit;
+  "plan:n" a line of .ai/board/plans/calechip-multi-tenancy-plan.md.
+
+  Plan P1-1 (plan:107-110):
+  - Add `supabase/tests/` and wire pgTAP into local Supabase
+  - Add a CI job that starts a real Postgres, applies all migrations, and runs the SQL tests
+  - CI fails on any SQL test failure
+
+  Audit references (A:879-911):
+  - No pgTAP and no `supabase/tests/`; CI (`.github/workflows/verify.yml:39,51`) runs only vitest and Playwright
+  - Playwright is pinned to the mock: `VITE_DATA_SEAM: "mock"`, enforced by `tests/e2e/seam.setup.ts:17,32`
