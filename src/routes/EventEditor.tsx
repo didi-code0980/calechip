@@ -21,14 +21,24 @@
 // **THE PICKER IS INLINE, NOT A DIALOG** (§ 2b): a scrollable checklist grouped under team names,
 // with a text filter, drawn only while `Named people` is chosen. It omits the caller — an
 // affordance; `list_member_directory()` returns them and the policy would accept them.
+//
+// EVT-09. On the create form only, while *Every team* is chosen, an email field in the picker's slot
+// (01-plan.md § 2b, § 4.2). **IT ADDS A SURFACE, NOT A BEHAVIOUR**: the addresses go through
+// `inviteToEvent`, EVT-08's seam function, unchanged — after `createEvent` succeeds and never before,
+// and not at all when one address is malformed (AC-4) or the scope is not public (AC-2).
 import { useCallback, useEffect, useMemo, useState, type FormEvent, type JSX } from "react";
 import { Link, useLocation, useNavigate, useParams } from "react-router-dom";
 import { format } from "date-fns";
-import { seam } from "@/lib/data";
-import type { DirectoryMember, EventScope, Member } from "@/lib/domain/types";
+import { seam, type DataSeam, type SaveEventInput } from "@/lib/data";
+import type { DirectoryMember, EventScope, Failure, Member } from "@/lib/domain/types";
 import Avatar from "@/components/Avatar";
 import Loader from "@/components/Loader";
-import { mayEditEvent } from "./EventDetail";
+import {
+  invalidInvitationEmails,
+  mayEditEvent,
+  parseInvitationInput,
+  type InviteHandoff,
+} from "./EventDetail";
 
 interface FormValues {
   name: string;
@@ -43,6 +53,8 @@ interface FormValues {
   requiresApproval: boolean;
   /** `""` means registration runs to the end date. */
   registrationDeadline: string;
+  /** EVT-09. The create form's invite field, as typed; sent only while the scope is public. */
+  inviteText: string;
 }
 
 type LoadState =
@@ -60,6 +72,46 @@ const FIELD =
   "w-full rounded-xl bg-field px-3 py-2 text-sm text-ink placeholder:text-ink-3 " +
   "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink";
 const LABEL = "text-xs font-bold text-ink-3";
+
+// EVT-08's `invalid_invitation_email` sentence, verbatim (EVT-09 AC-4).
+const INVITE_INVALID = "Each address must look like name@example.com, in 254 characters or fewer.";
+// A thrown invitation call carries no sentence of its own; the seam's generic one.
+const INVITE_THREW = "Something went wrong. Please try again.";
+
+/** EVT-09 AC-2..AC-6. Validates the addresses, creates the event, then invites. Never invites
+ *  before the event exists and never creates when an address is malformed.
+ *  - `scope !== "public"` or no address after parsing → `createEvent` only; `handoff: null`.
+ *  - any malformed address → `{ ok: false, malformed }`, and neither call is made.
+ *  - `createEvent` refused → `{ ok: false, error }`, and `inviteToEvent` is not called.
+ *  - created, invite refused or thrown → `{ ok: true, id, handoff: { kind: "failed", … } }`.
+ *  - created and invited → `{ ok: true, id, handoff: { kind: "invited", outcomes } }`. */
+export async function createEventWithInvitations(
+  data: Pick<DataSeam, "createEvent" | "inviteToEvent">,
+  input: SaveEventInput,
+  inviteText: string,
+): Promise<
+  | { ok: true; id: string; handoff: InviteHandoff | null }
+  | { ok: false; error: Failure }
+  | { ok: false; malformed: string[] }
+> {
+  const emails = input.scope === "public" ? parseInvitationInput(inviteText) : [];
+  const malformed = invalidInvitationEmails(emails);
+  if (malformed.length > 0) return { ok: false, malformed };
+
+  const created = await data.createEvent(input);
+  if (!created.ok) return { ok: false, error: created.error };
+  const id = created.value.id;
+  if (emails.length === 0) return { ok: true, id, handoff: null };
+
+  try {
+    const sent = await data.inviteToEvent(id, emails);
+    return sent.ok
+      ? { ok: true, id, handoff: { kind: "invited", outcomes: sent.value } }
+      : { ok: true, id, handoff: { kind: "failed", message: sent.error.message, emails } };
+  } catch {
+    return { ok: true, id, handoff: { kind: "failed", message: INVITE_THREW, emails } };
+  }
+}
 
 const fold = (value: string): string =>
   value.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
@@ -92,6 +144,7 @@ export default function EventEditor(): JSX.Element {
             capacity: "",
             requiresApproval: false,
             registrationDeadline: "",
+            inviteText: "",
           },
         });
         return;
@@ -121,6 +174,8 @@ export default function EventEditor(): JSX.Element {
           capacity: event.capacity === null ? "" : String(event.capacity),
           requiresApproval: event.requiresApproval,
           registrationDeadline: event.registrationDeadline ?? "",
+          // EVT-09 AC-1. The edit form draws no invite field; the detail page's panel invites.
+          inviteText: "",
         },
       });
     } catch {
@@ -171,7 +226,9 @@ export default function EventEditor(): JSX.Element {
       directory={state.directory}
       initial={state.initial}
       onCancel={goBack}
-      onSaved={(savedId) => navigate(`/events/${savedId}`)}
+      onSaved={(savedId, handoff) =>
+        navigate(`/events/${savedId}`, handoff ? { state: handoff } : undefined)
+      }
     />
   );
 }
@@ -183,7 +240,7 @@ interface EventFormProps {
   directory: DirectoryMember[];
   initial: FormValues;
   onCancel(): void;
-  onSaved(eventId: string): void;
+  onSaved(eventId: string, handoff?: InviteHandoff | null): void;
 }
 
 function EventForm({
@@ -198,6 +255,8 @@ function EventForm({
   const [values, setValues] = useState<FormValues>(initial);
   const [filter, setFilter] = useState("");
   const [error, setError] = useState<string | null>(null);
+  // EVT-09 AC-4. The addresses that failed the check; non-null draws `event-form-invite-error`.
+  const [inviteMalformed, setInviteMalformed] = useState<string[] | null>(null);
   const [saving, setSaving] = useState(false);
 
   const set = <K extends keyof FormValues>(key: K, value: FormValues[K]): void =>
@@ -228,6 +287,7 @@ function EventForm({
   async function onSubmit(e: FormEvent<HTMLFormElement>): Promise<void> {
     e.preventDefault();
     setError(null);
+    setInviteMalformed(null);
 
     if (values.startDate === "" || values.endDate === "") {
       setError("Please choose a start date and an end date.");
@@ -235,7 +295,7 @@ function EventForm({
     }
 
     setSaving(true);
-    const input = {
+    const input: SaveEventInput = {
       name: values.name,
       description: values.description,
       location: values.location,
@@ -249,19 +309,32 @@ function EventForm({
       requiresApproval: values.requiresApproval,
       registrationDeadline: values.registrationDeadline === "" ? null : values.registrationDeadline,
     };
-    const result =
-      editing && eventId !== null
-        ? await seam.updateEvent(eventId, input)
-        : await seam.createEvent(input);
-    setSaving(false);
-
-    if (!result.ok) {
-      setError(result.error.message);
+    if (editing && eventId !== null) {
+      const result = await seam.updateEvent(eventId, input);
+      setSaving(false);
+      if (!result.ok) {
+        setError(result.error.message);
+        return;
+      }
+      // AC-1, AC-23. The creator lands on the detail page.
+      onSaved(result.value.id);
       return;
     }
-    // AC-1, AC-23. The creator lands on the detail page.
-    onSaved(result.value.id);
+
+    // EVT-09 AC-7. `saving` holds across both calls; the button stays disabled until they answer.
+    const result = await createEventWithInvitations(seam, input, values.inviteText);
+    if (!result.ok) {
+      setSaving(false);
+      if ("malformed" in result) setInviteMalformed(result.malformed);
+      else setError(result.error.message);
+      return;
+    }
+    // AC-1, AC-23; EVT-09 AC-3, AC-6. The creator lands on the detail page, which is never left for
+    // the form again once the event exists — a second press could create a second event.
+    onSaved(result.id, result.handoff);
   }
+
+  const inviteHasAddress = parseInvitationInput(values.inviteText).length > 0;
 
   return (
     <section className="mx-auto flex max-w-xl flex-col gap-4">
@@ -433,6 +506,37 @@ function EventForm({
                 ))
               )}
             </div>
+          </div>
+        ) : null}
+
+        {/* EVT-09 AC-1, § 2b. The create form only, public scope only — in the picker's slot. */}
+        {!editing && values.scope === "public" ? (
+          <div data-testid="event-form-invite" className="flex flex-col gap-1.5">
+            <label className="flex flex-col gap-1.5">
+              <span className={LABEL}>Invite by email (optional)</span>
+              <span className="text-[11px] text-ink-3">
+                {inviteHasAddress
+                  ? "Each address gets one invitation with the guest link. Creating opens this event to guests."
+                  : "People outside CaleChip get the guest link by email."}
+              </span>
+              <textarea
+                data-testid="event-form-invite-input"
+                rows={3}
+                value={values.inviteText}
+                onChange={(e) => set("inviteText", e.target.value)}
+                placeholder="name@example.com, another@example.com"
+                aria-label="Email addresses"
+                className={FIELD}
+              />
+            </label>
+            {inviteMalformed !== null ? (
+              <div data-testid="event-form-invite-error" role="alert" className="text-sm text-danger">
+                <p>{INVITE_INVALID}</p>
+                {inviteMalformed.length > 0 ? (
+                  <p className="break-all font-semibold">{inviteMalformed.join(", ")}</p>
+                ) : null}
+              </div>
+            ) : null}
           </div>
         ) : null}
 
