@@ -10,6 +10,8 @@ governed_by: [RULE-01, RULE-09]
 
 `ACCEPTED by tech-lead-design` — 2026-10-09, at `/plan` of `EVT-05`.
 
+**Decisions 2 and 3 amended in letter 2026-10-12 by [ADR-055](ADR-055-an-entered-address-is-mailed-an-invitation-to-a-public-event.md)**, `ACCEPTED by the operator` for its ADR-051 half and by `product`, inside the envelope, for this one: a second `after insert` trigger, on the table of invited addresses, posts to the same function, and an invitation row is addressed to an entered address rather than to someone who can read the event. The function still authorizes nothing, reads nothing and holds no database credential, and the database still decides every recipient. The text below is left as written.
+
 **Inside the envelope, so accepted by the agent (RULE-09, ADR-008).** It supersedes and reverses
 nothing. [ADR-051](ADR-051-a-server-side-component-sends-event-email-and-authorizes-nothing.md)
 decision 1 leaves the mechanism to `tech-lead-design` at `/plan` of `EVT-05`; this ADR is that
