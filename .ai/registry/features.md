@@ -1,6 +1,6 @@
 ---
-doc_version: 4
-last_updated: 2026-10-08
+doc_version: 5
+last_updated: 2026-10-12
 governed_by: [RULE-01, RULE-17]
 ---
 
@@ -63,7 +63,7 @@ operating model, the standards, the commands and the templates — cites `EXA-01
 `.ai/templates/` and this file. A project that claimed `EXA` as a real group would be policing the
 kit's own prose. D1 drops it from the line below if it appears, and says so.
 
-<!-- id-prefixes: CAL ADM TEA UIE EVT -->
+<!-- id-prefixes: CAL ADM TEA UIE EVT TSK -->
 
 | Prefix | Expansion |
 |--------|-----------|
@@ -72,6 +72,7 @@ kit's own prose. D1 drops it from the line below if it appears, and says so.
 | TEA | Team — members, roles, invitations and sign-in |
 | UIE | UI enhancement — the appearance and interaction of a surface that already exists |
 | EVT | Events — announcing a gathering, who it is for, and who is coming |
+| TSK | Tasks — a member's own private, dated list |
 
 Three groups, chosen by the operator on 2026-08-31 from options of three, four and six.
 
@@ -98,6 +99,16 @@ entry, so not `CAL`, and its *invitation* is not `TEA`'s, which means joining th
 ADR-028's step 2 reads *"`CAL`, `ADM`, `TEA` or `EVT`, by area"* from that date. The prefix line, the
 table row above and the `## EVT — Events` section below landed in the same change as the first `EVT`
 row, as ADR-046 requires.
+
+**A sixth group, `TSK`, was added on 2026-10-12 by
+[ADR-058](decisions/ADR-058-tsk-is-a-sixth-feature-group.md), so the count is now six.** The
+paragraphs above are left as written. `TSK` exists because
+[ADR-057](decisions/ADR-057-a-task-is-readable-and-writable-by-its-owner-only.md) admitted a product
+area none of the five groups describes: a member's own dated task list, readable by its owner only
+and by no admin. A task is not an entry, so not `CAL`, and it is private by definition, so not `EVT`.
+ADR-028's step 2 reads *"`CAL`, `ADM`, `TEA`, `EVT` or `TSK`, by area"* from that date. The prefix
+line, the table row above and the `## TSK — Tasks` section below landed in the same change as the
+first `TSK` rows, as ADR-058 requires.
 
 ## CAL — Calendar
 
@@ -204,6 +215,22 @@ year grids (ADR-045 point 2). Email about events, when it arrives, is `EVT` too 
 | EVT-09 | A creator enters email addresses to invite while creating a public event | EVT | PLANNED | | From `.ai/board/ideas/2026-10-12-a-person-outside-the-product-learns-of-a-public-event-only-by-a-forwarded-link.md`, same verdict and ADR as `EVT-08`, and `depends_on: [EVT-08]`. **SCOPE:** the create-event form gains the same email field `EVT-08` puts on the detail page, shown only when the scope is public (Q2-A, Q3-B *"Lúc tạo"*); every rule of `EVT-08` applies unchanged — it adds a surface, not a behaviour. `Invariants touched` is PLAN's. |
 | EVT-10 | A creator formats an event's description, and every surface that shows it renders it sanitised | EVT | PLANNED | | From `.ai/board/ideas/2026-10-12-an-event-description-cannot-carry-formatting-or-a-picture.md`. **Written by `product` at /triage on 2026-10-12** (ADR-007). **FORMATTING; `EVT-11` IS PICTURES AND DEPENDS ON THIS ONE**, split at triage rather than at PLAN (MD-017). Decided by [ADR-056](decisions/ADR-056-an-event-description-is-sanitised-html-from-one-editor.md), `ACCEPTED by the operator` from Q5-A, Q1-B, Q2-B, Q6-A and Q4-A verbatim. It adds two runtime dependencies and supersedes nothing. **SCOPE, each clause the operator's answer in the idea's § Evidence:** the description stores HTML as text, written by one HTML-writing editor on create and edit (the request, Q5-A); bold, italic, underline, strikethrough, H2/H3, lists, links, blockquote, text colour and alignment (Q3); one shared render component sanitises against an allow-list on every surface that shows the description, which includes `EventDetail` and the anon-readable `GuestEvent` (ADR-052); the client also sanitises before saving, as **defence in depth only**, because ADR-005 lets the API be called directly (Q1-B); a data migration HTML-escapes existing descriptions into `<p>`/`<br>` (Q4-A), and **it must not fire `notify_event_updated` or move `updated_at`**; event email unchanged (Q7-A). Package names are PLAN's. `schema_delta` is a data migration, with no RPC or grant change. `glossary_owed: [Sanitised description]`. `Invariants touched` is PLAN's. |
 | EVT-11 | A creator puts pictures in an event's description, downscaled and capped in size | EVT | PLANNED | | From `.ai/board/ideas/2026-10-12-an-event-description-cannot-carry-formatting-or-a-picture.md`, same verdict and ADR as `EVT-10`, and `depends_on: [EVT-10]`. **SCOPE, each clause the operator's:** pictures embedded as base64 `data:` URLs inside the HTML, with no bucket and no URL (Q2-B); downscaled in the browser before embedding, with the description's total size capped by the database (Q6-A). `img` with `data:` sources only joins `EVT-10`'s allow-list; a `CHECK` on `octet_length(description)` holds the cap, and PLAN sets the number and the downscale. Lists and grids fetch the description through `EVENT_COLUMNS` and never render it, so they stop fetching it. **This reverses in practice the `/solo` issue-report decision that refused base64 for list weight** (`supabase/migrations/20260926140000_solo_issue_report_images.sql:14-16`). Q2-B accepts that cost knowingly, and this row pays it down. `schema_delta` is the `CHECK` constraint, not `none` (ADR-014). `Invariants touched` is PLAN's. |
+
+## TSK — Tasks
+
+A member's own private, dated list. Added on 2026-10-12 by
+[ADR-058](decisions/ADR-058-tsk-is-a-sixth-feature-group.md), inside the envelope
+[ADR-057](decisions/ADR-057-a-task-is-readable-and-writable-by-its-owner-only.md) opened. A task is
+read and written by its owner only, and by no admin or manager. It has two states, done and not
+done, and carries a date and no time. A task is **not** an entry: it is in no absence count and
+creates no entry. Handover and recurring tasks, deferred by the operator, are `TSK` when they arrive.
+
+| ID | Title | Group | Status | Invariants touched | Notes |
+|----|-------|-------|--------|--------------------|-------|
+| TSK-01 | A member keeps a private list of tasks for each day, and only they can read or change it | TSK | PLANNED | | From `.ai/board/ideas/2026-10-12-a-member-has-nowhere-to-plan-their-own-day-and-an-absence-hides-what-was-due.md`. **Written by `product` at /triage on 2026-10-12** (ADR-007). **THE FOUNDATION; `TSK-02`, `TSK-03` AND `TSK-04` EACH DEPEND ON THIS ONE**, split at triage rather than at PLAN (MD-017). Decided by [ADR-057](decisions/ADR-057-a-task-is-readable-and-writable-by-its-owner-only.md), `ACCEPTED by the operator` from answer 1, F1 and F2 verbatim, and [ADR-058](decisions/ADR-058-tsk-is-a-sixth-feature-group.md), `ACCEPTED by product`. **SCOPE, each clause the operator's answer in the idea's § Evidence:** owner-only read and write, admins and managers denied (answer 1, F2-A); a dated list (answer 2); a task carries a title and a short plain-text note (Q8-B), two states and no time (F1); created today or later, while past tasks stay viewable, tickable and movable (Q13-A); its own page (answer 7). The page opens on today, with day navigation, an overdue section, create, edit, delete, tick, untick and re-date, and a sidebar link. A seam read by date range. `schema_delta`: a new `task` table and its owner-only policies, not `none` (ADR-014). **PLAN decides:** whether the database rejects an insert dated before today, and which clock decides "today". **Owed with this row:** the charter paragraph and the `rbac-and-security.md` and `data-model.md` rows (ADR-057 § *Affected documents*). `glossary_owed: [Task, Overdue]`. `Invariants touched` is PLAN's. |
+| TSK-02 | Each time the app opens, a member is shown their overdue tasks and can tick them or move them all to today | TSK | PLANNED | | From the same idea file and verdict as `TSK-01`, and `depends_on: [TSK-01]`. **SCOPE, each clause the operator's:** a prompt every time the app opens while any of the member's own tasks is overdue (answer 2, Q9-B); it offers ticking each done or moving all of them to today (answer 2). Overdue means the date has passed and the task is not done (F1). It lists only the viewer's own tasks (ADR-057). `schema_delta` none. `Invariants touched` is PLAN's. |
+| TSK-03 | A member declaring PTO is warned about their own tasks on those days, without being stopped | TSK | PLANNED | | From the same idea file and verdict as `TSK-01`, and `depends_on: [TSK-01]`. **SCOPE, each clause the operator's:** a warning in the entry form beside the CAL-07 overload warning when a PTO entry covers days holding the member's own tasks, and a PTO flag on the task page (answer 4); warning only, saving is never blocked (Q11-A, charter refusal 6); PTO only, not WFH (Q12-A). **It shows only when the entry is the viewer's own.** An admin editing another member's entry (CAL-03) cannot read that member's tasks (ADR-057), so it shows nothing there by construction. Tasks never move automatically (Q11-A). `schema_delta` none. `Invariants touched` is PLAN's. |
+| TSK-04 | The week view shows, in each day's header, how many of the viewer's own tasks are done out of the total | TSK | PLANNED | | From the same idea file and verdict as `TSK-01`, and `depends_on: [TSK-01]`. **SCOPE, each clause the operator's:** an icon and done/total, e.g. 5/10, on days that hold tasks (answer 7), in the week view only and not the month or year view (Q10). It counts the viewer's own tasks, never anyone else's, and never on another team's calendar viewed through ADR-040 (ADR-057 decision 4). It must not cost a row, since density wins on the grid (`CLAUDE.md` § *Visual direction*). It is not an absence count and never feeds `absenceCountsFor`. `schema_delta` none. `Invariants touched` is PLAN's. |
 
 ## Unissued IDs
 
