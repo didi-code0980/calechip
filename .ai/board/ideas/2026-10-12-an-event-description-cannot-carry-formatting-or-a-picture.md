@@ -14,13 +14,20 @@ inputs_read:
   - src/routes/EventEditor.tsx
   - src/routes/EventDetail.tsx
   - src/routes/GuestEvent.tsx
-consulted: []
+  - .claude/commands/triage.md
+  - .ai/registry/decisions/ADR-000-template.md
+  - .ai/registry/decisions/ADR-055-an-entered-address-is-mailed-an-invitation-to-a-public-event.md
+  - .ai/registry/glossary.md
+  - .ai/standards/tech-stack.md
+  - .ai/templates/ticket.yaml
+  - .ai/board/backlog.md
+consulted: [tech-lead-design]
 gate: PASS
 blocking_reason: ""
 next_state: TRIAGE
-verdict: ""
-verdict_reason: ""
-ticket_id: ""
+verdict: "PROMOTE"
+verdict_reason: "Worth building and not covered: no event description can carry formatting or a picture, and nothing on the board proposes it. It adds two runtime dependencies (an HTML editor and a sanitiser), so ADR-056 is owed; every decision in it is an operator answer quoted verbatim (Q5-A, Q1-B, Q2-B, Q6-A, Q4-A), so it is ACCEPTED by the operator and supersedes nothing. Split here (MD-017): formatting first, pictures second."
+ticket_id: "EVT-10, EVT-11"
 awaiting_adrs: []
 operator_request: "tôi muốn thêm 1 số function cho tính năng evt. Lúc tạo event, phần description sẽ là dạng 1 bài post (blog). cho phép user viết bằng Text editor có thể in đậm, in nghiêng,... và chèn ảnh nhưng lúc lưu sẽ lưu thành dạng text thuần (mã HTML)"
 ---
@@ -142,3 +149,47 @@ PLAN's to overrule:
    `mailto` hrefs pass the sanitiser.
 4. **The editor's look follows `CLAUDE.md` § *Visual direction*.** The toolbar layout is
    `tech-lead-design`'s under the visual carve-out.
+
+# Triage verdict — PROMOTE, as `EVT-10` then `EVT-11`
+
+`product` at /triage, 2026-10-12T09:55:54Z. `tech-lead-design` was consulted for the technical half
+and wrote nothing.
+
+**Not REJECT.** No event description can carry a heading, bold, a list, a link or a picture today, and
+no feature row or open ticket proposes it. `EVT-09` touches the same form and adds a different field.
+
+**An ADR is owed, and the operator already signed its decisions.** The work adds two runtime
+dependencies, an HTML-writing editor and a sanitiser, and `.ai/standards/tech-stack.md`
+§ *Changing anything on this page* requires an ADR for that.
+[ADR-056](../../registry/decisions/ADR-056-an-event-description-is-sanitised-html-from-one-editor.md)
+records Q5-A, Q1-B, Q2-B, Q6-A and Q4-A, each quoted verbatim from § *Evidence*, so it is
+`ACCEPTED by the operator`. It fixes the shape: one editor, one sanitiser, one allow-list. It leaves the
+package names to `/plan` of `EVT-10`. It supersedes nothing. ADR-005 stands, because sanitising is not
+authorization. ADR-052 is unaffected.
+
+**One precedent is reversed in practice, knowingly.** The `/solo` issue-report images refused base64
+in the row because of list weight (`supabase/migrations/20260926140000_solo_issue_report_images.sql:14-16`).
+Q2-B accepts that cost here, with the weight stated in the question. `EVT-11` pays it down: lists and
+grids stop reading a description they never render.
+
+**Two rows, split here and not at PLAN (MD-017).** As one ticket it is about 14–15 files.
+
+- **`EVT-10` is formatting.** It covers the HTML-writing editor and one shared sanitised render
+  component, used by `EventDetail` and `GuestEvent`. The client also sanitises before saving, as
+  defence in depth only. A data migration HTML-escapes existing plain-text descriptions into `<p>` /
+  `<br>`. That migration must not fire `notify_event_updated` or move `updated_at`.
+  `schema_delta`: a data migration, with no RPC or grant change. `depends_on: []`.
+- **`EVT-11` is pictures.** It covers image insertion and the browser downscale. It adds `img` with
+  `data:` sources only to the allow-list. It adds a `CHECK` on `octet_length(description)`, and the
+  number is PLAN's. It makes list reads lighter. `schema_delta`: that `CHECK` constraint.
+  `depends_on: [EVT-10]`.
+
+`EVT-09` touches the same form, but neither row depends on it. One ticket is in flight at a time
+(ADR-006), so whichever is planned second reads the form as it then stands.
+
+**What this verdict wrote:** ADR-056, the `EVT-10` and `EVT-11` rows at `PLANNED`, both ticket shells
+at `BACKLOG`, and rows 3 and 4 of `## BACKLOG`. `glossary_owed` is `[Sanitised description]` on
+`EVT-10` and `[]` on `EVT-11`. The tech-stack rows for the two packages are owed. They are standards
+plane, so a human or the steward writes them.
+
+The four assumptions in § *Open questions* above are still PLAN's to overrule.
