@@ -22,10 +22,14 @@
 // `invite_to_event` and `event_email_invitation_select_manage` are the controls. A non-manager's load
 // makes no invitation call (AC-3). Nothing on it says which addresses belong to members (AC-7).
 //
+// EVT-09. The create form may hand this page an `InviteHandoff` through the router's location state
+// (01-plan.md § 4.1): the panel then opens holding the send's result, or the error and the addresses
+// to resend (AC-3, AC-6). Read once and cleared from history, so a reload shows neither (AC-8).
+//
 // The delete confirmation is a dialog; the picker on the form is deliberately not, so the route
 // family never stacks one dialog on another (§ 2b).
 import { useCallback, useEffect, useState, type JSX } from "react";
-import { Link, useNavigate, useParams } from "react-router-dom";
+import { Link, useLocation, useNavigate, useParams } from "react-router-dom";
 import { seam } from "@/lib/data";
 import { format, parseISO } from "date-fns";
 import type {
@@ -79,6 +83,37 @@ export function invalidInvitationEmails(emails: string[]): string[] {
   return emails.filter((e) => [...e].length > GUEST_EMAIL_MAX || !GUEST_EMAIL_PATTERN.test(e));
 }
 
+/** EVT-09 § 4. What the create form hands the event page through the router's location state,
+ *  after inviting at creation. `invited`: `inviteToEvent`'s outcomes, unchanged. `failed`: the event
+ *  exists, the invitation call did not succeed (AC-6). */
+export type InviteHandoff =
+  | { kind: "invited"; outcomes: EmailInvitationOutcome[] }
+  | { kind: "failed"; message: string; emails: string[] };
+
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+  typeof value === "object" && value !== null && !Array.isArray(value);
+
+const isStringArray = (value: unknown): value is string[] =>
+  Array.isArray(value) && value.every((v) => typeof v === "string");
+
+const isOutcome = (value: unknown): value is EmailInvitationOutcome =>
+  isRecord(value) &&
+  typeof value.email === "string" &&
+  (value.outcome === "sent" || value.outcome === "ignored");
+
+/** EVT-09 AC-3, AC-6, AC-8. `location.state` read as an InviteHandoff, or null unless it is exactly
+ *  one of the two shapes. History state is untyped input; anything else is null. */
+export function readInviteHandoff(state: unknown): InviteHandoff | null {
+  if (!isRecord(state)) return null;
+  if (state.kind === "invited" && Array.isArray(state.outcomes) && state.outcomes.every(isOutcome)) {
+    return { kind: "invited", outcomes: state.outcomes.map((o) => ({ email: o.email, outcome: o.outcome })) };
+  }
+  if (state.kind === "failed" && typeof state.message === "string" && isStringArray(state.emails)) {
+    return { kind: "failed", message: state.message, emails: [...state.emails] };
+  }
+  return null;
+}
+
 /** EVT-06 AC-1. The guest page's full address. */
 export function guestLinkUrl(origin: string, token: string): string {
   return `${origin}/guest/${token}`;
@@ -87,6 +122,15 @@ export function guestLinkUrl(origin: string, token: string): string {
 export default function EventDetail(): JSX.Element {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const location = useLocation();
+  // EVT-09 AC-8. Read once, then dropped from history: the browser keeps `history.state` across a
+  // reload, and a reloaded page must not show a send it did not make.
+  const [handoff] = useState<InviteHandoff | null>(() => readInviteHandoff(location.state));
+  useEffect(() => {
+    if (location.state !== null && location.state !== undefined) {
+      navigate(location.pathname, { replace: true, state: null });
+    }
+  }, [location.pathname, location.state, navigate]);
   const [state, setState] = useState<LoadState>({ phase: "loading" });
   const [confirming, setConfirming] = useState(false);
   const [deleting, setDeleting] = useState(false);
@@ -299,6 +343,7 @@ export default function EventDetail(): JSX.Element {
             invitations={invitations}
             directory={directory}
             onInvited={onInvited}
+            handoff={handoff}
           />
         ) : null}
       </article>
@@ -511,6 +556,9 @@ function EventGuestPanel({
 // datastore's refusal read the same.
 const INVITE_INVALID = "Each address must look like name@example.com, in 254 characters or fewer.";
 
+// EVT-09 AC-6. Prefixed to the refusal's own sentence when the event exists and the send did not.
+const INVITE_NOT_SENT = "The event was created, but the invitations were not sent.";
+
 const PRIMARY_BUTTON =
   "rounded-pill bg-primary px-4 py-2 text-xs font-bold text-white transition-opacity hover:opacity-90 " +
   "disabled:opacity-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink";
@@ -523,17 +571,24 @@ function EventInvitePanel({
   invitations,
   directory,
   onInvited,
+  handoff,
 }: {
   event: CalEvent;
   invitations: EventEmailInvitation[];
   directory: DirectoryMember[];
   onInvited: () => Promise<void>;
+  /** EVT-09 § 4.1. Seeds the starting state when the create form invited; null is EVT-08's. */
+  handoff: InviteHandoff | null;
 }): JSX.Element {
-  const [text, setText] = useState("");
+  const [text, setText] = useState(() => (handoff?.kind === "failed" ? handoff.emails.join(", ") : ""));
   const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(() =>
+    handoff?.kind === "failed" ? `${INVITE_NOT_SENT} ${handoff.message}` : null,
+  );
   const [malformed, setMalformed] = useState<string[]>([]);
-  const [result, setResult] = useState<EmailInvitationOutcome[] | null>(null);
+  const [result, setResult] = useState<EmailInvitationOutcome[] | null>(() =>
+    handoff?.kind === "invited" ? handoff.outcomes : null,
+  );
   const isPublic = event.scope === "public";
 
   async function onSend(): Promise<void> {

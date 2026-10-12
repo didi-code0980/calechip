@@ -5,14 +5,18 @@ id: EVT-09
 title: "A creator enters email addresses to invite while creating a public event"
 feature_ids: [EVT-09]
 group: EVT
-state: BACKLOG
+state: DONE
 owner: ""
 branch: ""
-size_estimate: ""     # S|M - set by tech-lead-design at PLAN; gates DoR
-size: ""              # S|M|L|XL - set by tech-lead-design at PLAN; decides splitting
+size_estimate: S      # S|M - set by tech-lead-design at PLAN; gates DoR
+size: S               # S|M|L|XL - set by tech-lead-design at PLAN; decides splitting
 depends_on: [EVT-08]
-invariants_touched: []
-allowed_paths: []
+invariants_touched: []   # considered at PLAN: none — 01-plan.md § 2
+allowed_paths:
+  - "src/routes/EventEditor.tsx"
+  - "src/routes/EventDetail.tsx"
+  - "tests/event-create-invitation.test.ts"
+  - "tests/e2e/evt-09-create-invitation.spec.ts"
 glossary_owed: []     # considered; "Email invitation" is owed by EVT-08
 schema_delta: none    # the form calls EVT-08's function; PLAN may contradict this
 requires_adr: true    # ADR-055, ACCEPTED by the operator 2026-10-12
@@ -21,5 +25,5 @@ chat_budget:
   developer->tech-lead-design: { used: 0, max: 6 }
 tracker: { provider: "", external_id: "", sync_enabled: false }
 gates:
-  plan:   { passed: false, at: null }
-  review: { passed: false, at: null }
+  plan:   { passed: true, at: "2026-10-12T22:29:03+07:00" }
+  review: { passed: true, at: "2026-10-12T22:59:04+07:00" }
