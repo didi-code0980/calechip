@@ -25,6 +25,7 @@ import type { NotificationKind } from "@/lib/domain/types";
 import { notificationSentence } from "@/components/NotificationBell";
 import {
   formatEventDates,
+  formatEventWeekdays,
   parseEventEmailRequest,
   renderEventEmail,
   type EventEmailKind,
@@ -414,11 +415,11 @@ describe("what the email says (AC-8 to AC-11)", () => {
       expect(body).toContain(`${APP}/events/ec000000-0000-4000-8000-000000000001`);
       expect(body).toContain(`${APP}/profile`);
     }
-    expect(out.html).toContain(">Open the event</a>");
+    expect(out.html).toContain(">View event &#8250;</a>");
     expect(out.html).toContain(
       'You got this email because you are on CaleChip. Event email can be turned off on your <a href="https://calechip.example/profile"',
     );
-    expect(out.text).toContain("Open the event: https://calechip.example/events/");
+    expect(out.text).toContain("View event: https://calechip.example/events/");
     expect(out.text).toContain("Turn event email off: https://calechip.example/profile");
   });
 
@@ -428,11 +429,12 @@ describe("what the email says (AC-8 to AC-11)", () => {
     expect(out.text.split("\n")).not.toContain("Rooftop");
   });
 
-  it("§ 2b: table layout with inline styles, no style block, no image, never Quicksand", () => {
+  it("§ 2b: table layout with inline styles, no style block, one image — the logo — never Quicksand", () => {
     const { html } = renderEventEmail(request(), APP);
     expect(html).toContain('role="presentation"');
     expect(html).not.toMatch(/<style/i);
-    expect(html).not.toMatch(/<img/i);
+    expect(html.match(/<img/gi)).toHaveLength(1);
+    expect(html).toContain('<img src="https://calechip.example/logo.png" width="32" height="32" alt="CaleChip"');
     expect(html).not.toMatch(/quicksand/i);
     expect(html).toContain("'Nunito', 'Baloo 2'");
   });
@@ -472,6 +474,45 @@ describe("what the email says (AC-8 to AC-11)", () => {
     expect(out.html).toContain("Hi &lt;b&gt;x&lt;/b&gt;,");
     expect(out.subject).toBe(`<script>alert("x")</script> announced Tom & Jerry's <b>x</b>`);
     expect(out.text).toContain("<i>here</i>");
+  });
+
+  it("SOLO 2026-10-09: each kind has its own badge, intro and button; the subject and headline are unchanged", () => {
+    const expected: Record<EventEmailKind, [string, string, string]> = {
+      event_created: ["New event", "There's a new event on the team calendar.", "View event"],
+      event_invited: ["Invitation", "Save the date — we'd love to have you there.", "View & join"],
+      attendance_approved: ["Approved ★", "You're on the list. See you there!", "View event"],
+      attendance_rejected: ["Declined", "The organiser couldn't fit you in this time.", "View event"],
+      attendance_removed: ["Removed", "You're no longer on the list for this event.", "View event"],
+    };
+    for (const kind of EMAIL_KINDS) {
+      const [badge, intro, button] = expected[kind];
+      const out = renderEventEmail(request({ kind }), APP);
+      expect(out.html).toContain(`&#9993; ${badge}</td>`);
+      expect(out.html).toContain(intro.replace(/'/g, "&#39;").replace(/&(?!#)/g, "&amp;"));
+      expect(out.html).toContain(`>${button.replace(/&/g, "&amp;")} &#8250;</a>`);
+      expect(out.text).toContain(intro);
+      expect(out.text).toContain(`${button}: ${APP}/events/`);
+    }
+  });
+
+  it("SOLO 2026-10-09: the header, the weekday line, and a footer of MMLabs, CaleChip and an unlinked Contact", () => {
+    const out = renderEventEmail(request(), APP);
+    expect(out.html).toContain(">CaleChip</div>");
+    expect(out.html).toContain(">TEAM CALENDAR</div>");
+    expect(out.html).toContain(">Monday</div>");
+    expect(out.text).toContain("12 Oct 2026 (Monday)");
+    expect(out.html).toContain('<a href="https://mmlabs.online"');
+    expect(out.html).toContain(`<a href="${APP}" style="color:#9A93B8;text-decoration:none;">CaleChip</a>`);
+    expect(out.html).toContain('<span style="color:#9A93B8;">Contact</span>');
+    expect(out.html).not.toMatch(/<a [^>]*>Contact<\/a>/);
+    expect(out.html).not.toMatch(/&#127880;|&#127882;/); // no balloon, no confetti
+  });
+
+  it("SOLO 2026-10-09: weekdays for one day, a range, and nothing for a date that does not parse", () => {
+    expect(formatEventWeekdays("2026-10-12", "2026-10-12")).toBe("Monday");
+    expect(formatEventWeekdays("2026-10-12", "2026-10-14")).toBe("Mon – Wed");
+    expect(formatEventWeekdays("2026-12-30", "2027-01-02")).toBe("Wed – Sat");
+    expect(formatEventWeekdays("2026-02-30", "2026-03-01")).toBe("");
   });
 
   it("AC-11: one day, a range within a month, across months, across years", () => {
