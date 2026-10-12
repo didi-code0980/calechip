@@ -1,6 +1,9 @@
 // EVT-05 — `send-event-email`, the product's only server-side code. 01-plan.md § 4.5. ADR-051,
 // ADR-053.
 //
+// EVT-08 — a second request shape, the email invitation's, posted by `email_invitation()` with the
+// same secret (01-plan.md § 4.4, ADR-055 decision 7). Tried after EVT-05's; nothing else changed.
+//
 // **IT AUTHORIZES NOTHING AND READS NOTHING** (ADR-051 decision 2, ADR-053 decision 2). It holds no
 // database credential. Who is mailed was decided by `email_notification()` in
 // `supabase/migrations/20261009090000_evt05_event_email.sql` before this function was called; the
@@ -21,7 +24,13 @@
 //
 // Runs under Deno, not Node and not Vite: no file under `src/` imports this, and none may (AC-13).
 import nodemailer from "npm:nodemailer@10";
-import { parseEventEmailRequest, renderEventEmail } from "./template.ts";
+import {
+  parseEventEmailRequest,
+  parseInvitationEmailRequest,
+  renderEventEmail,
+  renderInvitationEmail,
+  type RenderedEmail,
+} from "./template.ts";
 
 const REQUIRED_ENV = [
   "SMTP_HOST",
@@ -33,7 +42,9 @@ const REQUIRED_ENV = [
   "EMAIL_HOOK_SECRET",
 ] as const;
 
-type Answer = { sent: boolean; notificationId?: string; error?: string };
+// EVT-08 § 4.4. An EVT-05 request is answered with its `notificationId`, an invitation with its
+// `invitationId` instead.
+type Answer = { sent: boolean; notificationId?: string; invitationId?: string; error?: string };
 
 const json = (status: number, body: Answer): Response =>
   new Response(JSON.stringify(body), {
@@ -88,13 +99,36 @@ Deno.serve(async (request: Request): Promise<Response> => {
   } catch {
     return json(400, { sent: false, error: "bad request" });
   }
-  const parsed = parseEventEmailRequest(body);
-  if (parsed === null) {
+  // EVT-08 § 4.4. EVT-05's shape first, then the invitation's; neither is a 400. `parsed` is whichever
+  // it was: its `to` is the request's own address and the only recipient. `logName` and `ids` are what
+  // the failure log names and the answer carries — never the address, the token or the body.
+  const appUrl = env.APP_URL.replace(/\/+$/, "");
+  const event = parseEventEmailRequest(body);
+  const invitation = event === null ? parseInvitationEmailRequest(body) : null;
+  let parsed: {
+    to: string;
+    rendered: RenderedEmail;
+    logName: string;
+    ids: Pick<Answer, "notificationId" | "invitationId">;
+  };
+  if (event !== null) {
+    parsed = {
+      to: event.to,
+      rendered: renderEventEmail(event, appUrl),
+      logName: `notification ${event.notificationId} (${event.kind})`,
+      ids: { notificationId: event.notificationId },
+    };
+  } else if (invitation !== null) {
+    parsed = {
+      to: invitation.to,
+      rendered: renderInvitationEmail(invitation, appUrl),
+      logName: `invitation ${invitation.invitationId} (${invitation.kind})`,
+      ids: { invitationId: invitation.invitationId },
+    };
+  } else {
     return json(400, { sent: false, error: "bad request" });
   }
-
-  const appUrl = env.APP_URL.replace(/\/+$/, "");
-  const rendered = renderEventEmail(parsed, appUrl);
+  const { rendered, logName, ids } = parsed;
 
   try {
     const transport = nodemailer.createTransport({
@@ -119,10 +153,10 @@ Deno.serve(async (request: Request): Promise<Response> => {
       "<address>",
     );
     console.error(
-      `send-event-email: send failed for notification ${parsed.notificationId} (${parsed.kind}): ${message}`,
+      `send-event-email: send failed for ${logName}: ${message}`,
     );
-    return json(502, { sent: false, notificationId: parsed.notificationId, error: "send failed" });
+    return json(502, { sent: false, ...ids, error: "send failed" });
   }
 
-  return json(200, { sent: true, notificationId: parsed.notificationId });
+  return json(200, { sent: true, ...ids });
 });

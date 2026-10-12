@@ -254,16 +254,52 @@ const FOOTER_LINK = "Profile";
  *  HTML-escaped in `html` (`& < > " '`) and left as written in `subject` and `text`. */
 export function renderEventEmail(request: EventEmailRequest, appUrl: string): RenderedEmail {
   const { kind, recipientName, actorName, event } = request;
-  const { subject, headline, badge, intro, button } = wordsFor(kind, actorName, event.name);
+  const profileUrl = `${appUrl}/profile`;
+  return renderLayout(
+    {
+      ...wordsFor(kind, actorName, event.name),
+      greeting: GREETING(recipientName),
+      event,
+      buttonUrl: `${appUrl}/events/${encodeURIComponent(event.id)}`,
+      tint: PANEL_TINT[kind],
+      footerHtml:
+        `${escapeHtml(FOOTER_LEAD)}<a href="${escapeHtml(profileUrl)}" style="color:${PRIMARY};text-decoration:underline;">` +
+        `${FOOTER_LINK}</a>.`,
+      footerText: [`${FOOTER_LEAD}${FOOTER_LINK}.`, `Turn event email off: ${profileUrl}`],
+    },
+    appUrl,
+  );
+}
+
+/** EVT-08. Everything that differs between one mail and another; the layout around it is one. The
+ *  words are as written — `renderLayout` escapes them — except `footerHtml`, which is markup the
+ *  caller has already escaped. */
+interface Layout {
+  subject: string;
+  headline: string;
+  badge: string;
+  intro: string;
+  button: string;
+  greeting: string;
+  event: EventEmailRequest["event"];
+  buttonUrl: string;
+  tint: string;
+  footerHtml: string;
+  footerText: string[];
+}
+
+/** SOLO 2026-10-09's layout, shared by EVT-05's and EVT-08's mails since EVT-08 (01-plan.md § 2b:
+ *  "keep EVT-05's template unchanged in layout"). Its output for an EVT-05 request is what
+ *  `renderEventEmail` rendered before the extraction, byte for byte. */
+function renderLayout(layout: Layout, appUrl: string): RenderedEmail {
+  const { subject, headline, badge, intro, button, greeting, event, buttonUrl, tint } = layout;
   const dates = formatEventDates(event.startDate, event.endDate);
   const weekdays = formatEventWeekdays(event.startDate, event.endDate);
   const location = event.location !== null && event.location.trim() !== "" ? event.location : null;
-  const eventUrl = `${appUrl}/events/${encodeURIComponent(event.id)}`;
-  const profileUrl = `${appUrl}/profile`;
   const logoUrl = `${appUrl}/logo.png`;
 
   const textLines = [
-    GREETING(recipientName),
+    greeting,
     "",
     headline,
     intro,
@@ -272,10 +308,9 @@ export function renderEventEmail(request: EventEmailRequest, appUrl: string): Re
     weekdays !== "" ? `${dates} (${weekdays})` : dates,
     ...(location !== null ? [location] : []),
     "",
-    `${button}: ${eventUrl}`,
+    `${button}: ${buttonUrl}`,
     "",
-    `${FOOTER_LEAD}${FOOTER_LINK}.`,
-    `Turn event email off: ${profileUrl}`,
+    ...layout.footerText,
     "",
     `MMLabs: ${MMLABS_URL}`,
     `${PRODUCT_NAME}: ${appUrl}`,
@@ -353,13 +388,13 @@ export function renderEventEmail(request: EventEmailRequest, appUrl: string): Re
     `<tr><td style="padding:24px 32px 0 32px;">` +
     `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">` +
     `<tr>${td(`font-size:24px;font-weight:800;line-height:1.3;color:${INK};padding:0 0 18px 0;`, e(headline))}</tr>` +
-    `<tr>${td(`font-size:15px;font-weight:700;color:${INK};padding:0 0 8px 0;`, e(GREETING(recipientName)))}</tr>` +
+    `<tr>${td(`font-size:15px;font-weight:700;color:${INK};padding:0 0 8px 0;`, e(greeting))}</tr>` +
     `<tr>${td(`font-size:15px;line-height:1.6;color:${GREY};padding:0 0 24px 0;`, e(intro))}</tr>` +
     `</table>` +
     `</td></tr>` +
     // Detail panel
     `<tr><td style="padding:0 32px;">` +
-    `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color:${PANEL_TINT[kind]};border:1px solid ${PILL_BORDER};border-radius:20px;">` +
+    `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color:${tint};border:1px solid ${PILL_BORDER};border-radius:20px;">` +
     `<tr><td style="padding:18px 22px 8px 22px;">` +
     `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">` +
     `<tr>${td(`font-size:12px;font-weight:800;letter-spacing:0.08em;color:${MUTED};padding:0 0 4px 0;`, "EVENT DETAILS")}</tr>` +
@@ -374,13 +409,13 @@ export function renderEventEmail(request: EventEmailRequest, appUrl: string): Re
     `<tr><td style="padding:28px 32px 0 32px;">` +
     `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"><tr>` +
     `<td align="center" style="background-color:${BUTTON_BG};border-radius:16px;">` +
-    `<a href="${e(eventUrl)}" style="display:block;padding:15px 24px;font-family:${FONT};font-size:16px;font-weight:800;color:#FFFFFF;text-decoration:none;text-align:center;">${e(button)} &#8250;</a>` +
+    `<a href="${e(buttonUrl)}" style="display:block;padding:15px 24px;font-family:${FONT};font-size:16px;font-weight:800;color:#FFFFFF;text-decoration:none;text-align:center;">${e(button)} &#8250;</a>` +
     `</td>` +
     `</tr></table>` +
     `</td></tr>` +
     // Opt-out sentence
     `<tr><td style="padding:24px 32px 28px 32px;font-family:${FONT};font-size:12px;line-height:1.5;color:${GREY};text-align:center;">` +
-    `${e(FOOTER_LEAD)}<a href="${e(profileUrl)}" style="color:${PRIMARY};text-decoration:underline;">${FOOTER_LINK}</a>.` +
+    layout.footerHtml +
     `</td></tr>` +
     // Footer strip
     `<tr><td align="center" style="background-color:${PAGE};border-top:1px solid ${BORDER};border-radius:0 0 28px 28px;padding:20px 32px;font-family:${FONT};font-size:12px;font-weight:800;letter-spacing:0.08em;text-transform:uppercase;">` +
@@ -396,4 +431,112 @@ export function renderEventEmail(request: EventEmailRequest, appUrl: string): Re
     `</body></html>`;
 
   return { subject, html, text };
+}
+
+// ---------------------------------------------------------------------------
+// EVT-08 — the email invitation's two mails. 01-plan.md §§ 2b and 4.4. ADR-055.
+//
+// **THE DATABASE HAS ALREADY DECIDED WHICH ONE, AND WHETHER** — `email_invitation()` in
+// `supabase/migrations/20261012100000_evt08_event_email_invitation.sql`. This renders the request it
+// is handed and decides nothing. The member version is EVT-05's `event_invited` mail in every word;
+// the guest version carries the event's guest link and no profile link, because an outsider has none.
+// ---------------------------------------------------------------------------
+
+/** EVT-08. The two invitation kinds (ADR-055 decision 4). Disjoint from EventEmailKind. */
+export type InvitationEmailKind = "invitation_guest" | "invitation_member";
+
+/** EVT-08 § 4.3. The body `email_invitation()` posts. */
+export interface InvitationEmailRequest {
+  invitationId: string;
+  kind: InvitationEmailKind;
+  to: string;
+  inviterName: string;
+  /** Non-empty for `invitation_member`, null for `invitation_guest`. */
+  recipientName: string | null;
+  event: EventEmailRequest["event"];
+  /** 64 lowercase hex for `invitation_guest`, null for `invitation_member`. */
+  guestToken: string | null;
+}
+
+const GUEST_TOKEN = /^[0-9a-f]{64}$/;
+
+/** EVT-08 AC-8, AC-9. The request, or null unless it is exactly that shape, with the kind-dependent
+ *  nullability above and `parseEventEmailRequest`'s rules for every shared field. */
+export function parseInvitationEmailRequest(input: unknown): InvitationEmailRequest | null {
+  if (!isRecord(input)) return null;
+  const { invitationId, kind, to, inviterName, recipientName, event, guestToken } = input;
+  if (!nonEmpty(invitationId) || !nonEmpty(to) || !nonEmpty(inviterName)) return null;
+  if (kind === "invitation_guest") {
+    if (recipientName !== null) return null;
+    if (typeof guestToken !== "string" || !GUEST_TOKEN.test(guestToken)) return null;
+  } else if (kind === "invitation_member") {
+    if (!nonEmpty(recipientName)) return null;
+    if (guestToken !== null) return null;
+  } else {
+    return null;
+  }
+  if (!isRecord(event)) return null;
+
+  const { id, name, startDate, endDate, location } = event;
+  if (!nonEmpty(id) || !nonEmpty(name)) return null;
+  if (typeof startDate !== "string" || typeof endDate !== "string") return null;
+  if (!parseIsoDate(startDate) || !parseIsoDate(endDate)) return null;
+  if (endDate < startDate) return null;
+  if (location !== null && typeof location !== "string") return null;
+
+  return {
+    invitationId,
+    kind,
+    to,
+    inviterName,
+    recipientName: kind === "invitation_member" ? (recipientName as string) : null,
+    event: { id, name, startDate, endDate, location },
+    guestToken: kind === "invitation_guest" ? (guestToken as string) : null,
+  };
+}
+
+// § 2b, the outsider's words. The greeting names nobody: the database holds no name for the address.
+const GUEST_GREETING = "Hi there,";
+const GUEST_INTRO =
+  "You're invited — no account needed. Open the event to see the details and who's coming, and register there.";
+const GUEST_BUTTON = "View & register";
+const GUEST_FOOTER = (inviter: string): string =>
+  `You got this email because ${inviter} invited you to an event on CaleChip.`;
+
+/** EVT-08 AC-8, AC-9, § 2b. `invitation_member` renders exactly what `renderEventEmail` renders for
+ *  `event_invited` with `actorName = inviterName`. `invitation_guest` renders § 2b's outsider words,
+ *  its button to `${appUrl}/guest/${guestToken}`, and no profile link. Same escaping rules. */
+export function renderInvitationEmail(request: InvitationEmailRequest, appUrl: string): RenderedEmail {
+  const { inviterName, event } = request;
+  if (request.kind === "invitation_member") {
+    return renderEventEmail(
+      {
+        notificationId: request.invitationId,
+        kind: "event_invited",
+        to: request.to,
+        recipientName: request.recipientName ?? "",
+        actorName: inviterName,
+        event,
+      },
+      appUrl,
+    );
+  }
+  const invited = wordsFor("event_invited", inviterName, event.name);
+  const footer = GUEST_FOOTER(inviterName);
+  return renderLayout(
+    {
+      subject: invited.subject,
+      headline: invited.headline,
+      badge: invited.badge,
+      intro: GUEST_INTRO,
+      button: GUEST_BUTTON,
+      greeting: GUEST_GREETING,
+      event,
+      buttonUrl: `${appUrl}/guest/${encodeURIComponent(request.guestToken ?? "")}`,
+      tint: PANEL_TINT.event_invited,
+      footerHtml: escapeHtml(footer),
+      footerText: [footer],
+    },
+    appUrl,
+  );
 }

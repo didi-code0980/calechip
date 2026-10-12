@@ -275,6 +275,11 @@ export type FailureCode =
   | "guest_link_not_found"
   // EVT-07. The manage token matches no registration — AC-13. `cancel_guest_registration` (EV005).
   | "guest_registration_not_found"
+  // EVT-08. Nothing entered, or an address over GUEST_EMAIL_MAX or not GUEST_EMAIL_PATTERN — AC-10.
+  // `invite_to_event` (EV008). The whole submission is refused.
+  | "invalid_invitation_email"
+  // EVT-08. The event is not public-scope — AC-4. `invite_to_event` (EV009).
+  | "invitation_not_public"
   | "unknown";
 
 export interface Failure {
@@ -1169,3 +1174,26 @@ export interface GuestRegistrationView {
 export const GUEST_NAME_MAX = 100;
 export const GUEST_EMAIL_MAX = 254;
 export const GUEST_EMAIL_PATTERN = /^[^@\s]+@[^@\s]+\.[^@\s]+$/;
+
+// ---------------------------------------------------------------------------
+// EVT-08 — email invitations to a public event. 01-plan.md section 4.1. ADR-055.
+// ---------------------------------------------------------------------------
+
+/** EVT-08. Glossary *Email invitation*. One row of `public.event_email_invitation`, as the event's
+ *  creator or an admin reads it. Deliberately nothing about whether the address is a member's, or
+ *  which mail it received (AC-7). */
+export interface EventEmailInvitation {
+  id: string;
+  eventId: string;
+  email: string;
+  /** The inviter's member id. */
+  invitedBy: string;
+  createdAt: string;
+}
+
+/** EVT-08 AC-1, AC-6, AC-7. One distinct address of a submission, in the order first entered.
+ *  `sent`: invited by this call. `ignored`: already invited for this event. Nothing else. */
+export interface EmailInvitationOutcome {
+  email: string;
+  outcome: "sent" | "ignored";
+}

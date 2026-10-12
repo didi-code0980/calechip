@@ -75,6 +75,9 @@ import type {
   GuestRegistrationTerms,
   GuestRegistrationView,
   GuestStatus,
+  // EVT-08, 01-plan.md section 4.1.
+  EmailInvitationOutcome,
+  EventEmailInvitation,
 } from "../domain/types";
 // TEA-03, CAL-01 for the second constant, CAL-04 for the fourth. RUNTIME imports, not type ones:
 // each is needed as a value at the call. They come from ../domain/types and not from ./index, which
@@ -490,6 +493,69 @@ function toGuestFailure(error: PostgrestError, refusal: string): Failure {
     case "42501":
     case "PGRST301": // JWT missing or expired: the request reaches the policy as nobody
       return { code: "attendance_not_permitted", message: refusal };
+    default:
+      return { code: "unknown", message: "Something went wrong. Please try again." };
+  }
+}
+
+// ---------------------------------------------------------------------------
+// EVT-08 — email invitations. The row, its mapper, the sentences and the SQLSTATEs.
+// 01-plan.md sections 4.2 and 4.3; `supabase/migrations/20261012100000_evt08_event_email_invitation.sql`.
+// ---------------------------------------------------------------------------
+
+/** The five columns of `event_email_invitation` in the select grant — there is no sixth. */
+interface EmailInvitationRow {
+  id: string;
+  event_id: string;
+  email: string;
+  invited_by: string;
+  created_at: string;
+}
+
+const EMAIL_INVITATION_COLUMNS: string = "id, event_id, email, invited_by, created_at";
+// Typed `string`, GUEST_EVENT_COLUMNS' reason. `invite_to_event`'s full return list.
+const INVITATION_OUTCOME_COLUMNS: string = "email, outcome";
+
+function toEmailInvitation(row: EmailInvitationRow): EventEmailInvitation {
+  return {
+    id: row.id,
+    eventId: row.event_id,
+    email: row.email,
+    invitedBy: row.invited_by,
+    createdAt: row.created_at,
+  };
+}
+
+// Repeated verbatim in src/lib/data/mock.ts. Neither says whether an address belongs to a member, and
+// the refusal never confirms that the event exists.
+const INVITATION_EMAIL_INVALID =
+  "Each address must look like name@example.com, in 254 characters or fewer.";
+const INVITATION_NOT_PUBLIC = "Invitations can only be sent for public events.";
+const INVITATION_REFUSED = "Invitations could not be sent for this event.";
+
+/** § 4.1's checks, made before the round trip in both implementations — AFFORDANCES; the function's
+ *  EV008 and the table's `event_email_invitation_email_shape` are the controls. Trims, drops
+ *  empties; null when nothing is left or any address fails. Repeated in mock.ts. */
+function invitationAddresses(emails: string[]): string[] | null {
+  const trimmed = emails.map((e) => e.trim()).filter((e) => e !== "");
+  if (trimmed.length === 0) return null;
+  if (trimmed.some((e) => [...e].length > GUEST_EMAIL_MAX || !GUEST_EMAIL_PATTERN.test(e))) return null;
+  return trimmed;
+}
+
+/** `invite_to_event`'s answers. MATCHED ON THE SQLSTATE, NEVER ON THE MESSAGE. A refusal by
+ *  `may_manage_event` (42501), no session (PGRST301) and an id that is not a uuid (22P02) are ONE
+ *  answer, so none of them says whether the event exists (AC-3). */
+function toInvitationFailure(error: PostgrestError): Failure {
+  switch (error.code) {
+    case "EV008":
+      return { code: "invalid_invitation_email", message: INVITATION_EMAIL_INVALID };
+    case "EV009":
+      return { code: "invitation_not_public", message: INVITATION_NOT_PUBLIC };
+    case "42501":
+    case "PGRST301":
+    case "22P02":
+      return { code: "event_not_permitted", message: INVITATION_REFUSED };
     default:
       return { code: "unknown", message: "Something went wrong. Please try again." };
   }
@@ -3851,5 +3917,58 @@ export const seam: DataSeam = {
       return { ok: false, error: { code: "attendance_not_permitted", message: GUEST_DECIDE_REFUSED } };
     }
     return { ok: true, value: toEventGuest(row, null) };
+  },
+
+  // -------------------------------------------------------------------------
+  // EVT-08 — email invitations. 01-plan.md § 4.2. One definer function writes; the table's select
+  // policy reads. NOTHING HERE SENDS, AND NOTHING HERE SAYS WHICH ADDRESSES ARE MEMBERS' (AC-7) — the
+  // function's two columns are the address and `sent` or `ignored`.
+  // -------------------------------------------------------------------------
+
+  // `invite_to_event`. The checks here are affordances; the function repeats them (EV008), dedupes
+  // ignoring case, and opens the guest link.
+  async inviteToEvent(eventId: string, emails: string[]): Promise<Result<EmailInvitationOutcome[]>> {
+    const addresses = invitationAddresses(emails);
+    if (addresses === null) {
+      return { ok: false, error: { code: "invalid_invitation_email", message: INVITATION_EMAIL_INVALID } };
+    }
+    const { data, error } = await client()
+      .rpc("invite_to_event", { p_event_id: eventId, p_emails: addresses })
+      .select(INVITATION_OUTCOME_COLUMNS)
+      .returns<{ email: string; outcome: string }[]>();
+    if (error) return { ok: false, error: toInvitationFailure(error) };
+    const rows = data ?? [];
+    if (rows.some((r) => r.outcome !== "sent" && r.outcome !== "ignored")) {
+      return { ok: false, error: { code: "unknown", message: "Something went wrong. Please try again." } };
+    }
+    return {
+      ok: true,
+      value: rows.map((r) => ({ email: r.email, outcome: r.outcome as EmailInvitationOutcome["outcome"] })),
+    };
+  },
+
+  // `event_email_invitation_select_manage` does the filtering; the column list is the grant's — NEVER
+  // `select("*")`. Not permitted, signed out and a malformed id are the same empty list (AC-13).
+  async listEventEmailInvitations(eventId: string): Promise<EventEmailInvitation[]> {
+    const { data, error } = await client()
+      .from("event_email_invitation")
+      .select(EMAIL_INVITATION_COLUMNS)
+      .eq("event_id", eventId)
+      .order("created_at", { ascending: false })
+      .order("id")
+      .limit(DATASTORE_MAX_ROWS)
+      .returns<EmailInvitationRow[]>();
+    if (error) {
+      if (error.code === "22P02" || error.code === "42501" || error.code === "PGRST301") return [];
+      throw new Error(`listEventEmailInvitations failed: ${error.message}`);
+    }
+    const rows = data ?? [];
+    if (rows.length >= DATASTORE_MAX_ROWS) {
+      throw new Error(
+        `listEventEmailInvitations returned ${rows.length} rows at the ${DATASTORE_MAX_ROWS} limit: ` +
+          `the list may be truncated and must not be shown as complete`,
+      );
+    }
+    return rows.map(toEmailInvitation);
   },
 };

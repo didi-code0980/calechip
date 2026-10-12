@@ -17,12 +17,27 @@
 // `_insert_manage` and `_delete_manage` are the controls, and `getEventGuestLink` answers null to
 // anybody else whatever this page draws. A non-manager's load makes no guest-link call (AC-18).
 //
+// EVT-08. Under it, `EventInvitePanel` — invite addresses by email to a public event, and the list of
+// who was invited (01-plan.md § 2b, § 4.5). **AN AFFORDANCE**, drawn for the creator and admins:
+// `invite_to_event` and `event_email_invitation_select_manage` are the controls. A non-manager's load
+// makes no invitation call (AC-3). Nothing on it says which addresses belong to members (AC-7).
+//
 // The delete confirmation is a dialog; the picker on the form is deliberately not, so the route
 // family never stacks one dialog on another (§ 2b).
 import { useCallback, useEffect, useState, type JSX } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { seam } from "@/lib/data";
-import type { CalEvent, DirectoryMember, EventGuestLink, Member } from "@/lib/domain/types";
+import { format, parseISO } from "date-fns";
+import type {
+  CalEvent,
+  DirectoryMember,
+  EmailInvitationOutcome,
+  EventEmailInvitation,
+  EventGuestLink,
+  Member,
+} from "@/lib/domain/types";
+// EVT-08 AC-10. The ceiling and the shape, as the database's check states them — runtime imports.
+import { GUEST_EMAIL_MAX, GUEST_EMAIL_PATTERN } from "@/lib/domain/types";
 import Avatar from "@/components/Avatar";
 import Loader from "@/components/Loader";
 import Modal from "@/components/Modal";
@@ -40,6 +55,8 @@ type LoadState =
       invitees: string[];
       // EVT-06. Null when not open — and always null for a non-manager, who never asks.
       guestLink: EventGuestLink | null;
+      // EVT-08. Always empty for a non-manager, who never asks.
+      invitations: EventEmailInvitation[];
     };
 
 const ACTION_BUTTON =
@@ -50,6 +67,16 @@ const ACTION_BUTTON =
  *  `role === "admin"` and never through `mayDecide`: a manager gains nothing here (Q9, Q24). */
 export function mayEditEvent(event: CalEvent, me: Member | null): boolean {
   return me !== null && (me.id === event.creatorId || me.role === "admin");
+}
+
+/** EVT-08 AC-1. Splits on commas, semicolons and whitespace; drops empties. Order kept. */
+export function parseInvitationInput(text: string): string[] {
+  return text.split(/[,;\s]+/).filter((part) => part !== "");
+}
+
+/** EVT-08 AC-10. The entries failing GUEST_EMAIL_MAX or GUEST_EMAIL_PATTERN, in order. */
+export function invalidInvitationEmails(emails: string[]): string[] {
+  return emails.filter((e) => [...e].length > GUEST_EMAIL_MAX || !GUEST_EMAIL_PATTERN.test(e));
 }
 
 /** EVT-06 AC-1. The guest page's full address. */
@@ -83,8 +110,11 @@ export default function EventDetail(): JSX.Element {
       }
       // EVT-06, AC-18. Asked only by someone who may manage the event, so nobody else's load
       // changes by a single call.
-      const guestLink = mayEditEvent(event, me) ? await seam.getEventGuestLink(id) : null;
-      setState({ phase: "ready", event, me, directory, invitees, guestLink });
+      // EVT-08, AC-3. The invited list beside it, under the same condition.
+      const [guestLink, invitations] = mayEditEvent(event, me)
+        ? await Promise.all([seam.getEventGuestLink(id), seam.listEventEmailInvitations(id)])
+        : [null, []];
+      setState({ phase: "ready", event, me, directory, invitees, guestLink, invitations });
     } catch {
       setState({ phase: "missing" });
     }
@@ -118,8 +148,24 @@ export default function EventDetail(): JSX.Element {
     );
   }
 
-  const { event, me, directory, invitees, guestLink } = state;
+  const { event, me, directory, invitees, guestLink, invitations } = state;
   const canEdit = mayEditEvent(event, me);
+
+  // EVT-08, AC-5. After a send, the link the invitation opened and the list it grew, both re-read so
+  // the page never draws what the datastore did not return.
+  async function onInvited(): Promise<void> {
+    try {
+      const [link, list] = await Promise.all([
+        seam.getEventGuestLink(event.id),
+        seam.listEventEmailInvitations(event.id),
+      ]);
+      setState((current) =>
+        current.phase === "ready" ? { ...current, guestLink: link, invitations: list } : current,
+      );
+    } catch {
+      // The send succeeded; a failed re-read leaves what is on screen until the next load.
+    }
+  }
 
   async function onConfirmDelete(): Promise<void> {
     setDeleting(true);
@@ -242,6 +288,17 @@ export default function EventDetail(): JSX.Element {
             onChange={(next) =>
               setState((current) => (current.phase === "ready" ? { ...current, guestLink: next } : current))
             }
+          />
+        ) : null}
+
+        {/* EVT-08, AC-1, AC-4, AC-12. Managers only, under the guest link; on a non-public event only
+            when it already has invitations to list. */}
+        {canEdit && (event.scope === "public" || invitations.length > 0) ? (
+          <EventInvitePanel
+            event={event}
+            invitations={invitations}
+            directory={directory}
+            onInvited={onInvited}
           />
         ) : null}
       </article>
@@ -446,6 +503,170 @@ function EventGuestPanel({
           </div>
         </Modal>
       ) : null}
+    </div>
+  );
+}
+
+// Repeated from the seam's `invalid_invitation_email` sentence, so the panel's own check and the
+// datastore's refusal read the same.
+const INVITE_INVALID = "Each address must look like name@example.com, in 254 characters or fewer.";
+
+const PRIMARY_BUTTON =
+  "rounded-pill bg-primary px-4 py-2 text-xs font-bold text-white transition-opacity hover:opacity-90 " +
+  "disabled:opacity-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink";
+
+/** EVT-08 § 2b. Invite addresses by email, and the list of who was invited. `onInvited` re-reads the
+ *  guest link and the list after a send (AC-5). Every address is drawn the same way whoever owns it —
+ *  the panel is never told (AC-7). */
+function EventInvitePanel({
+  event,
+  invitations,
+  directory,
+  onInvited,
+}: {
+  event: CalEvent;
+  invitations: EventEmailInvitation[];
+  directory: DirectoryMember[];
+  onInvited: () => Promise<void>;
+}): JSX.Element {
+  const [text, setText] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [malformed, setMalformed] = useState<string[]>([]);
+  const [result, setResult] = useState<EmailInvitationOutcome[] | null>(null);
+  const isPublic = event.scope === "public";
+
+  async function onSend(): Promise<void> {
+    const emails = parseInvitationInput(text);
+    const bad = invalidInvitationEmails(emails);
+    setResult(null);
+    // AC-10. Nothing leaves the page; the field keeps what was typed.
+    if (emails.length === 0 || bad.length > 0) {
+      setError(INVITE_INVALID);
+      setMalformed(bad);
+      return;
+    }
+    setBusy(true);
+    setError(null);
+    setMalformed([]);
+    const sent = await seam.inviteToEvent(event.id, emails);
+    if (!sent.ok) {
+      setBusy(false);
+      setError(sent.error.message);
+      return;
+    }
+    setResult(sent.value);
+    setText("");
+    await onInvited();
+    setBusy(false);
+  }
+
+  const invited = result?.filter((r) => r.outcome === "sent") ?? [];
+  const already = result?.filter((r) => r.outcome === "ignored") ?? [];
+
+  return (
+    <div data-testid="event-invite-panel" className="flex flex-col gap-2 border-t border-line pt-4">
+      <h2 className="text-xs font-bold uppercase tracking-wide text-ink-3">Invite by email</h2>
+
+      {isPublic ? (
+        <>
+          <p className="text-sm text-ink-2">
+            Each address gets one invitation with the guest link. Sending opens this event to guests.
+          </p>
+          <textarea
+            data-testid="event-invite-input"
+            rows={3}
+            value={text}
+            onChange={(e) => setText(e.target.value)}
+            placeholder="name@example.com, another@example.com"
+            aria-label="Email addresses"
+            className="w-full rounded-card bg-field px-3 py-2 text-sm text-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
+          />
+          {error !== null ? (
+            <div data-testid="event-invite-error" role="alert" className="text-sm text-danger">
+              <p>{error}</p>
+              {malformed.length > 0 ? (
+                <p className="break-all font-semibold">{malformed.join(", ")}</p>
+              ) : null}
+            </div>
+          ) : null}
+          <div className="flex justify-end">
+            <button
+              data-testid="event-invite-submit"
+              type="button"
+              disabled={busy || text.trim() === ""}
+              onClick={() => void onSend()}
+              className={PRIMARY_BUTTON}
+            >
+              {busy ? "Sending…" : "Send invitations"}
+            </button>
+          </div>
+          {result !== null ? (
+            <div data-testid="event-invite-result" role="status" className="flex flex-col gap-2">
+              {invited.length > 0 ? (
+                <div className="flex flex-col gap-1">
+                  <h3 className="text-xs font-bold text-ink-2">Invited</h3>
+                  <ul data-testid="event-invite-sent" className="flex flex-wrap gap-1.5">
+                    {invited.map((r) => (
+                      <li
+                        key={r.email}
+                        data-email={r.email}
+                        className="break-all rounded-pill bg-wfh px-2.5 py-0.5 text-xs font-semibold text-ink"
+                      >
+                        {r.email}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              ) : null}
+              {already.length > 0 ? (
+                <div className="flex flex-col gap-1">
+                  <h3 className="text-xs font-bold text-ink-2">Already invited</h3>
+                  <ul data-testid="event-invite-ignored" className="flex flex-wrap gap-1.5">
+                    {already.map((r) => (
+                      <li
+                        key={r.email}
+                        data-email={r.email}
+                        className="break-all rounded-pill bg-field px-2.5 py-0.5 text-xs font-semibold text-ink"
+                      >
+                        {r.email}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              ) : null}
+            </div>
+          ) : null}
+        </>
+      ) : (
+        <p data-testid="event-invite-not-public" className="text-sm text-ink-2">
+          Invitations can only be sent for public events.
+        </p>
+      )}
+
+      <div data-testid="event-invited-list" className="flex flex-col gap-1">
+        <h3 className="text-xs font-bold text-ink-2">Invited by email ({invitations.length})</h3>
+        {invitations.length === 0 ? (
+          <p className="text-sm text-ink-3">Nobody has been invited by email yet.</p>
+        ) : (
+          <ul className="flex max-h-64 flex-col gap-1 overflow-y-auto">
+            {invitations.map((i) => (
+              <li
+                key={i.id}
+                data-testid="event-invited-row"
+                data-email={i.email}
+                className="flex flex-wrap items-baseline gap-x-2 text-sm"
+              >
+                <span className="break-all text-ink">{i.email}</span>
+                <span className="text-xs text-ink-3">
+                  {format(parseISO(i.createdAt), "d MMM yyyy")} · by{" "}
+                  {directory.find((m) => m.id === i.invitedBy)?.displayName ?? "Former member"}
+                </span>
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
     </div>
   );
 }
