@@ -12,6 +12,8 @@ governed_by: [RULE-01, RULE-09]
 `.ai/board/ideas/2026-10-08-a-person-learns-about-an-event-only-by-going-to-look.md` § *Evidence*.
 Drafted by `product` at `/triage` of that file.
 
+**Decisions 2 and 4 amended 2026-10-12 by [ADR-055](ADR-055-an-entered-address-is-mailed-an-invitation-to-a-public-event.md)**, `ACCEPTED by the operator`: the creator or an admin of a public event may enter any address, and each is mailed one invitation carrying the guest link, or an in-app link if it is a member's. Mail for a public event goes only to entered addresses. Revert condition 2 is read as excluding those addresses. The text below is left as written.
+
 **Recorded, not authored.** The operator was told that email needs something running server-side,
 shown the clause of ADR-005 it reverses, and offered two branches. The question and the answer,
 verbatim from Q5:

@@ -17,13 +17,18 @@ inputs_read:
   - supabase/migrations/20261009090000_evt05_event_email.sql
   - supabase/migrations/20261009120000_evt06_guest_link.sql
   - supabase/migrations/20261009150000_evt07_guest_registration.sql
-consulted: []
+  - .claude/commands/triage.md
+  - .ai/registry/decisions/ADR-000-template.md
+  - .ai/registry/glossary.md
+  - .ai/templates/ticket.yaml
+  - .ai/board/backlog.md
+consulted: [tech-lead-design]
 gate: PASS
 blocking_reason: ""
 next_state: TRIAGE
-verdict: ""
-verdict_reason: ""
-ticket_id: ""
+verdict: "PROMOTE"
+verdict_reason: "Worth building and not covered: no event can invite anyone by email, and a public event mails nobody. It amends ADR-051 decisions 2 and 4, which the operator confirmed in words (F1 \"A: Đúng\"), so ADR-055 is ACCEPTED by the operator; it amends ADR-053 decisions 2 and 3 in letter, inside the agent envelope. Split by surface: the detail page and the pipe, then the create form."
+ticket_id: "EVT-08, EVT-09"
 awaiting_adrs: []
 operator_request: "Khi tạo event public cho phép user nhập email cụ thể để gửi mail thông báo mời event"
 ---
@@ -32,6 +37,8 @@ operator_request: "Khi tạo event public cho phép user nhập email cụ thể
 
 **No verdict is written here.** This file is capture, not judgement. The verdict and any registry row
 that follows one are written by `/triage`.
+
+*`/triage` wrote its verdict below on 2026-10-12; the sentence above is left as `/idea` wrote it.*
 
 ## Problem
 
@@ -178,3 +185,46 @@ PLAN's to overrule:
    layout are `tech-lead-design`'s, under `CLAUDE.md` § *Visual direction*.
 5. **The member version (Q6-B) is never sent to the person who entered it.** This matches ADR-050's
    "never to the actor".
+
+# Triage verdict — PROMOTE, as `EVT-08` then `EVT-09`
+
+`product` at /triage, 2026-10-12T09:35:14Z. `tech-lead-design` was consulted for the technical half
+and wrote nothing.
+
+**Not REJECT.** Nothing in the product lets anyone invite a person to an event by email, and a public
+event mails nobody (ADR-051 decision 4). `EVT-05` and `EVT-06` are the parts this is built on, not a
+cover for it.
+
+**Changing the envelope, signed by the operator.** The idea amends ADR-051 decisions 2 and 4.
+§ *Evidence* F1 is the operator confirming exactly that, against a question that named both decisions
+by number. So
+[ADR-055](../../registry/decisions/ADR-055-an-entered-address-is-mailed-an-invitation-to-a-public-event.md)
+is `ACCEPTED by the operator`, with F1 quoted in its Status, and a Status note was added to ADR-051.
+
+**One part of ADR-055 is not the operator's, and it is named rather than folded in.** It also amends
+the letter of ADR-053 decisions 2 and 3: the trigger is no longer on `public.notification` only, and
+an invitation row is not *"already addressed to someone who can read the event"*. F1 told the operator
+*"các phần khác của ADR-051/052/053 giữ nguyên"*. ADR-053 is `ACCEPTED by tech-lead-design`, so its
+letter is inside the agent envelope (ADR-008), and what it protects is unchanged — the database calls
+the function, the function authorizes nothing, reads nothing and holds no credential. A Status note
+was added to ADR-053. The operator sees it at merge.
+
+**Two rows, split by surface here and not at PLAN (MD-017).** `EVT-08` is the event detail page and
+the whole pipe: the invited-address table, the definer function, the trigger, the new request shape
+and template in `send-event-email`, the member version, and the invited list for creator and admin.
+`depends_on: [EVT-05, EVT-06]`. `EVT-09` is the same field on the create-event form, adding a surface
+and no behaviour. `depends_on: [EVT-08]`.
+
+**Assumptions handed to PLAN, not decided here:**
+
+1. **An entered address matches a member's email case-insensitively.**
+2. **A pending or removed member's address is treated as an outsider's** — only an approved member
+   gets the member version.
+3. **No per-request cap either** — Q5-B decided no cap per event, and this reads it as no cap per
+   submission too.
+
+The five assumptions in § *Open questions* above stand as PLAN's to overrule.
+
+**What this verdict wrote:** ADR-055; Status notes on ADR-051 and ADR-053; the `EVT-08` and `EVT-09`
+rows, `PLANNED`; both ticket shells at `BACKLOG`; rows 1 and 2 of `## BACKLOG`. `glossary_owed`:
+`[Email invitation]` on `EVT-08` — distinct from the existing *Invitation* — and `[]` on `EVT-09`.

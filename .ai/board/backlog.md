@@ -76,6 +76,10 @@ Under the current gate placement a ticket sits here until it has been planned �
 
 | # | Ticket | Title | State | Blocked on |
 |---|--------|-------|-------|------------|
+| 1 | EVT-08 | The creator or an admin of a public event invites people by email from the event's page, and each address is mailed once | BACKLOG | — |
+| 2 | EVT-09 | A creator enters email addresses to invite while creating a public event | BACKLOG | EVT-08 |
+
+**Rows 1 and 2 were appended by `product` at /triage on 2026-10-12**, from `.ai/board/ideas/2026-10-12-a-person-outside-the-product-learns-of-a-public-event-only-by-a-forwarded-link.md`. Split at triage by surface: the detail page carries the whole pipe, the create form adds the field. Rows 1 and 2 because the table was empty, not because anybody placed them. `EVT-08`'s `depends_on` names `EVT-05` and `EVT-06`, both `DONE`, so its *Blocked on* is `—`. The paragraphs below were written while the table held other rows and are left standing.
 
 **Reordered by the operator on 2026-10-08** (*"thôi chuyển qua làm EVT-06 trước"*): `EVT-06` above `EVT-05`, which waits on the Gmail decision (Q6 — cách A or B, the account, and who holds it). `EVT-05`'s *Blocked on* drops `EVT-04`, which is `DONE` and merged.
 
