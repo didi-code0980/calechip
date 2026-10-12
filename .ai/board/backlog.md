@@ -22,6 +22,9 @@ planned, sized, and safe to build** — the next stage for a row here is IN_PROG
 
 | # | Ticket | Title | Size | Depends on |
 |---|--------|-------|------|------------|
+| 1 | EVT-10 | A creator formats an event's description, and every surface that shows it renders it sanitised | M | — |
+
+**`EVT-10` moved here from `## BACKLOG` at /advance on 2026-10-12**, from `01-plan.md` gate PASS with all six Definition of Ready items passing. `EVT-11` to `TSK-04` each moved up one row in `## BACKLOG`; bookkeeping, not a reordering. The paragraphs below were written while this table was empty and are left standing.
 
 **Empty again — `EVT-09` left this section for `## ARCHIVE` at its own ship on 2026-10-12.** `EVT-10` is the top of `## BACKLOG`.
 
@@ -88,12 +91,11 @@ Under the current gate placement a ticket sits here until it has been planned �
 
 | # | Ticket | Title | State | Blocked on |
 |---|--------|-------|-------|------------|
-| 1 | EVT-10 | A creator formats an event's description, and every surface that shows it renders it sanitised | BACKLOG | — |
-| 2 | EVT-11 | A creator puts pictures in an event's description, downscaled and capped in size | BACKLOG | EVT-10 |
-| 3 | TSK-01 | A member keeps a private list of tasks for each day, and only they can read or change it | BACKLOG | — |
-| 4 | TSK-02 | Each time the app opens, a member is shown their overdue tasks and can tick them or move them all to today | BACKLOG | TSK-01 |
-| 5 | TSK-03 | A member declaring PTO is warned about their own tasks on those days, without being stopped | BACKLOG | TSK-01 |
-| 6 | TSK-04 | The week view shows, in each day's header, how many of the viewer's own tasks are done out of the total | BACKLOG | TSK-01 |
+| 1 | EVT-11 | A creator puts pictures in an event's description, downscaled and capped in size | BACKLOG | EVT-10 |
+| 2 | TSK-01 | A member keeps a private list of tasks for each day, and only they can read or change it | BACKLOG | — |
+| 3 | TSK-02 | Each time the app opens, a member is shown their overdue tasks and can tick them or move them all to today | BACKLOG | TSK-01 |
+| 4 | TSK-03 | A member declaring PTO is warned about their own tasks on those days, without being stopped | BACKLOG | TSK-01 |
+| 5 | TSK-04 | The week view shows, in each day's header, how many of the viewer's own tasks are done out of the total | BACKLOG | TSK-01 |
 
 **`EVT-08` left this table at /advance on 2026-10-12 and shipped the same evening ([#124](https://github.com/didi-code0980/calechip/pull/124)); every row below it moved up one, so the `TSK` rows the paragraph below calls 5 to 8 are now 4 to 7.** Bookkeeping, not a reordering.
 
