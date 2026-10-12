@@ -78,6 +78,10 @@ Under the current gate placement a ticket sits here until it has been planned �
 |---|--------|-------|-------|------------|
 | 1 | EVT-08 | The creator or an admin of a public event invites people by email from the event's page, and each address is mailed once | BACKLOG | — |
 | 2 | EVT-09 | A creator enters email addresses to invite while creating a public event | BACKLOG | EVT-08 |
+| 3 | EVT-10 | A creator formats an event's description, and every surface that shows it renders it sanitised | BACKLOG | — |
+| 4 | EVT-11 | A creator puts pictures in an event's description, downscaled and capped in size | BACKLOG | EVT-10 |
+
+**Rows 3 and 4 were appended by `product` at /triage on 2026-10-12**, from `.ai/board/ideas/2026-10-12-an-event-description-cannot-carry-formatting-or-a-picture.md`. Split at triage: formatting, then pictures. Both rest on [ADR-056](../registry/decisions/ADR-056-an-event-description-is-sanitised-html-from-one-editor.md), `ACCEPTED by the operator`. They sit below `EVT-08` and `EVT-09` because those were already here, not because anybody placed them. `EVT-09` edits the same form, but neither row depends on it. **Owed and not either ticket's:** the `.ai/standards/tech-stack.md` rows for the editor and the sanitiser. That file is standards plane, and a human or the steward writes them once `/plan` of `EVT-10` names the packages.
 
 **Rows 1 and 2 were appended by `product` at /triage on 2026-10-12**, from `.ai/board/ideas/2026-10-12-a-person-outside-the-product-learns-of-a-public-event-only-by-a-forwarded-link.md`. Split at triage by surface: the detail page carries the whole pipe, the create form adds the field. Rows 1 and 2 because the table was empty, not because anybody placed them. `EVT-08`'s `depends_on` names `EVT-05` and `EVT-06`, both `DONE`, so its *Blocked on* is `—`. The paragraphs below were written while the table held other rows and are left standing.
 
