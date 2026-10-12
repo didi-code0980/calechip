@@ -75,8 +75,8 @@ operator gave — see the note under § *Roles*. A bare `❌` there is a denial 
 | Change another person's event email switch | ❌ | ❌ | ❌ **by name — `set_event_email` takes no member id; no column grant exists** |
 | Write `member.event_email_enabled` with a plain update, own row included | ❌ | ❌ | ❌ **no `update` grant on the column — only `set_event_email` writes it** |
 | Change their event email switch once removed | ❌ | ❌ | ❌ |
-| Cause an email to someone | only through a write that writes them an email-kind notification | same | same |
-| Call the event email sender (`send-event-email`) | ❌ | ❌ | ❌ **ADR-051 decision 3 — only the database's `email_notification` trigger, with the shared secret** |
+| Cause an email to someone | only through a write that writes them an email-kind notification, or (EVT-08) by inviting an address to an event they may manage | same | same |
+| Call the event email sender (`send-event-email`) | ❌ | ❌ | ❌ **ADR-051 decision 3 — only the database's `email_notification` and (EVT-08, ADR-055 decision 7) `email_invitation` triggers, with the shared secret** |
 | Open an event they created to guests (EVT-06) | ✅ | ✅ | ✅ |
 | Open someone else's event to guests | ❌ | ❌ **as a manager, nothing — `may_manage_event` is `is_admin`, never `may_decide`** | ✅ **ADR-052 decision 1** |
 | Close an event's guest link | own event only | own event only | ✅ any |
@@ -96,6 +96,14 @@ operator gave — see the note under § *Roles*. A bare `❌` there is a denial 
 | Approve, reject or remove a guest | own event only | own event only | ✅ any **`event_guest_update_manage`; column grant `update (status)`** |
 | Set a guest's state to cancelled, or change their name, email or event | ❌ | ❌ | ❌ **the update policy's `with check`; only the manage link cancels** |
 | Delete a guest registration | ❌ | ❌ | ❌ **ADR-052 decision 8 — no delete grant; deleting the event sets `event_id` null** |
+| Invite addresses by email to a public event (EVT-08) | own event only | own event only **— as a manager, nothing more** | ✅ any **`invite_to_event` — `may_manage_event` (42501), then `scope = 'public'` (EV009); ADR-055** |
+| Invite by email to a team-scope or named-people event | ❌ | ❌ | ❌ **`invite_to_event` → EV009** |
+| Open an event to guests by inviting by email | own event only | own event only | ✅ any **`invite_to_event`, after the same two checks — EVT-06's opener by a new path (ADR-055 decision 2)** |
+| Insert, update or delete an email invitation row directly | ❌ | ❌ | ❌ **no insert, update or delete grant on `event_email_invitation`; nothing deletes a row (Q9-A)** |
+| Choose an invitation's guest token, inviter, time, or which mail is sent | ❌ | ❌ | ❌ **`invite_to_event` takes none; the table's defaults and `email_invitation()` decide** |
+| Read an event's invited addresses | own event only | own event only | ✅ any **`event_email_invitation_select_manage` — `may_manage_event`, never `may_decide`** |
+| Learn whether an invited address is a member's | ❌ | ❌ | ❌ **ADR-055 revert condition 1 — no column, return or read carries it; only the `email_invitation()` trigger looks it up** |
+| Invite by email, or read invitations, once removed or no longer approved | ❌ | ❌ | ❌ |
 
 **Signed out — the `anon` role (EVT-06, EVT-07, ADR-052).** A caller holding only the public anon
 key, no session, may call exactly six functions, all `security definer`, each taking a token and

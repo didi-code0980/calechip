@@ -68,6 +68,9 @@ import type {
   GuestRegistrationTerms,
   GuestRegistrationView,
   GuestStatus,
+  // EVT-08, 01-plan.md section 4.1.
+  EmailInvitationOutcome,
+  EventEmailInvitation,
 } from "../domain/types";
 // EVT-04. The panel's window — AC-16. A runtime import.
 import { NOTIFICATION_LIMIT } from "../domain/types";
@@ -604,6 +607,10 @@ export function __resetEvents(): void {
   // EVT-07. The guest registrations are emptied here only because a test needs a clean slate; no
   // seam function deletes one (AC-20).
   eventGuests.length = 0;
+  // EVT-08. Emptied here only for a clean slate, as the guests are; no seam function deletes one
+  // (AC-14).
+  emailInvitations.length = 0;
+  invitationEmailOutbox.length = 0;
 }
 
 // The id an event gets, in the shape the other generators use: an `ec` prefix, which no other
@@ -805,6 +812,16 @@ const toGuestLink = (eventId: string, row: { token: string; openedAt: string }):
   openedAt: row.openedAt,
 });
 
+/** The insert, or the row already there — the primary key. EVT-08 opens through this too, so
+ *  `invite_to_event` and `openEventToGuests` open a link the same way (01-plan.md § 4.2). */
+const openGuestLink = (eventId: string): { token: string; openedAt: string } => {
+  const existing = eventGuestLinks.get(eventId);
+  if (existing) return existing;
+  const row = { token: newGuestToken(), openedAt: new Date().toISOString() };
+  eventGuestLinks.set(eventId, row);
+  return row;
+};
+
 /** The event a token opens, or null — `from event_guest_link l join event e … where l.token = p_token`. */
 const guestEventId = (token: string): string | null => {
   for (const [eventId, row] of eventGuestLinks) {
@@ -1003,6 +1020,102 @@ export function __sentEventEmails(): MockEventEmail[] {
 
 // Repeated verbatim in src/lib/data/supabase.ts.
 const EVENT_EMAIL_SAVE_FAILED = "Your email setting could not be saved.";
+
+// ---------------------------------------------------------------------------
+// EVT-08 — email invitations. 01-plan.md sections 3, 4.2 and 4.3. ADR-055.
+//
+// **THESE REPRODUCE `20261012100000_evt08_event_email_invitation.sql`'S FUNCTION, TRIGGER AND
+// POLICY.** `inviteToEvent` is `invite_to_event` then `email_invitation()` per new row, in one
+// synchronous block. The function half NEVER READS `members` — the outcome is decided from
+// `emailInvitations` alone (AC-7); only the trigger half looks an address up, and its only effect is
+// the outbox, which no seam function reads.
+// ---------------------------------------------------------------------------
+
+/** `public.event_email_invitation`, reproduced. Never spliced by a seam function (AC-14); `eventId` is
+ *  null once the event is deleted. */
+const emailInvitations: {
+  id: string;
+  eventId: string | null;
+  email: string;
+  invitedBy: string;
+  createdAt: string;
+}[] = [];
+
+// An `ei` prefix, which no other table's ids in this file or the fixtures use. Increasing and
+// zero-padded, so `id` breaks a `createdAt` tie in write order.
+let nextInvitationId = 0;
+const newInvitationId = (): string =>
+  `ei000000-0000-4000-8000-${String(++nextInvitationId).padStart(12, "0")}`;
+
+// Repeated verbatim in src/lib/data/supabase.ts.
+const INVITATION_EMAIL_INVALID =
+  "Each address must look like name@example.com, in 254 characters or fewer.";
+const INVITATION_NOT_PUBLIC = "Invitations can only be sent for public events.";
+const INVITATION_REFUSED = "Invitations could not be sent for this event.";
+
+/** § 4.1's checks, made before the round trip in both implementations — AFFORDANCES; the function's
+ *  EV008 and the table's `event_email_invitation_email_shape` are the controls. Trims, drops
+ *  empties; null when nothing is left or any address fails. Repeated in supabase.ts. */
+const invitationAddresses = (emails: string[]): string[] | null => {
+  const trimmed = emails.map((e) => e.trim()).filter((e) => e !== "");
+  if (trimmed.length === 0) return null;
+  if (trimmed.some((e) => [...e].length > GUEST_EMAIL_MAX || !GUEST_EMAIL_PATTERN.test(e))) return null;
+  return trimmed;
+};
+
+/** EVT-08. What `email_invitation()` would have handed the sender. Test-only. */
+export interface MockInvitationEmail {
+  invitationId: string;
+  kind: "invitation_guest" | "invitation_member";
+  to: string;
+  eventId: string;
+  inviterName: string;
+  /** The guest token in the request; null for the member version. */
+  guestToken: string | null;
+}
+
+const invitationEmailOutbox: MockInvitationEmail[] = [];
+
+/** `public.email_invitation()`. The member is looked up by `Member.email` — the mock's substitute for
+ *  `auth.users.email`, as EVT-05's is — approved and not removed. A member: nothing when they are the
+ *  inviter or their event email is off. Anyone else: the event's guest token. */
+function emailInvitation(row: (typeof emailInvitations)[number], event: CalEvent): void {
+  const inviterName = members.find((m) => m.id === row.invitedBy)?.displayName ?? null;
+  if (inviterName === null) return;
+  const address = row.email.toLowerCase();
+  const member =
+    members.find(
+      (m) => (m.email ?? "").toLowerCase() === address && m.status === "approved" && m.removedAt === null,
+    ) ?? null;
+  if (member !== null) {
+    if (member.id === row.invitedBy || !eventEmailOn(member.id) || !member.email) return;
+    invitationEmailOutbox.push({
+      invitationId: row.id,
+      kind: "invitation_member",
+      to: member.email,
+      eventId: event.id,
+      inviterName,
+      guestToken: null,
+    });
+    return;
+  }
+  const link = eventGuestLinks.get(event.id);
+  if (!link) return;
+  invitationEmailOutbox.push({
+    invitationId: row.id,
+    kind: "invitation_guest",
+    to: row.email,
+    eventId: event.id,
+    inviterName,
+    guestToken: link.token,
+  });
+}
+
+/** EVT-08. The invitation mails the database would have handed the sender since the last
+ *  `__resetEvents()`. Test-only, a named export beside `seam` — NOT a seam member. */
+export function __sentInvitationEmails(): MockInvitationEmail[] {
+  return invitationEmailOutbox.map((e) => ({ ...e }));
+}
 
 // `notification_select_own` / `notification_update_own`: the caller's row, and the caller still has
 // a team. No admin clause.
@@ -3212,6 +3325,11 @@ export const seam: DataSeam = {
     for (const guest of eventGuests) {
       if (guest.eventId === eventId) guest.eventId = null;
     }
+    // EVT-08, AC-14. `event_email_invitation.event_id … on delete set null`: the rows are KEPT, and
+    // nothing is handed to the sender.
+    for (const invitation of emailInvitations) {
+      if (invitation.eventId === eventId) invitation.eventId = null;
+    }
     return { ok: true, value: undefined };
   },
 
@@ -3446,11 +3564,7 @@ export const seam: DataSeam = {
     if (!event || !mayManageEvent(event, currentMemberId)) {
       return eventFailure("event_not_permitted", EVENT_GUEST_OPEN_REFUSED);
     }
-    const existing = eventGuestLinks.get(eventId);
-    if (existing) return { ok: true, value: toGuestLink(eventId, existing) };
-    const row = { token: newGuestToken(), openedAt: new Date().toISOString() };
-    eventGuestLinks.set(eventId, row);
-    return { ok: true, value: toGuestLink(eventId, row) };
+    return { ok: true, value: toGuestLink(eventId, openGuestLink(eventId)) };
   },
 
   // `event_guest_link_delete_manage`. Zero rows — not open, or not permitted — is a refusal.
@@ -3658,5 +3772,76 @@ export const seam: DataSeam = {
     row.status = next;
     row.updatedAt = new Date().toISOString();
     return { ok: true, value: toEventGuest(row, event.id, false) };
+  },
+
+  // -------------------------------------------------------------------------
+  // EVT-08 — email invitations. The two functions of 01-plan.md § 4.2, each reproducing the definer
+  // function, trigger or policy named beside it rather than the screen.
+  // -------------------------------------------------------------------------
+
+  // The seam's affordance, then `invite_to_event` in its order — may manage (one answer for missing
+  // and not permitted, AC-3), public scope (AC-4), open the link (AC-5), each distinct address
+  // inserted or found (AC-6) — then `email_invitation()` for each new row. NO `await`: check and
+  // write are one block, as the function is one statement.
+  async inviteToEvent(eventId: string, emails: string[]): Promise<Result<EmailInvitationOutcome[]>> {
+    const addresses = invitationAddresses(emails);
+    if (addresses === null) return eventFailure("invalid_invitation_email", INVITATION_EMAIL_INVALID);
+    const event = events.find((e) => e.id === eventId);
+    const uid = currentMemberId;
+    if (!event || uid === null || !mayManageEvent(event, uid)) {
+      return eventFailure("event_not_permitted", INVITATION_REFUSED);
+    }
+    if (event.scope !== "public") return eventFailure("invitation_not_public", INVITATION_NOT_PUBLIC);
+
+    openGuestLink(eventId);
+
+    const seen = new Set<string>();
+    const outcomes: EmailInvitationOutcome[] = [];
+    const inserted: (typeof emailInvitations)[number][] = [];
+    for (const email of addresses) {
+      const key = email.toLowerCase();
+      if (seen.has(key)) continue;
+      seen.add(key);
+      // The unique index on `(event_id, lower(email))`, and `on conflict do nothing`.
+      const exists = emailInvitations.some(
+        (i) => i.eventId === eventId && i.email.toLowerCase() === key,
+      );
+      if (exists) {
+        outcomes.push({ email, outcome: "ignored" });
+        continue;
+      }
+      const row = {
+        id: newInvitationId(),
+        eventId,
+        email,
+        invitedBy: uid,
+        createdAt: new Date().toISOString(),
+      };
+      emailInvitations.push(row);
+      inserted.push(row);
+      outcomes.push({ email, outcome: "sent" });
+    }
+    // `after insert … for each row`. Returns nothing to the caller.
+    for (const row of inserted) emailInvitation(row, event);
+    return { ok: true, value: outcomes };
+  },
+
+  // `event_email_invitation_select_manage`: a live event the caller may manage; newest first, then
+  // `id` ascending — the real seam's two `order`s.
+  async listEventEmailInvitations(eventId: string): Promise<EventEmailInvitation[]> {
+    const event = events.find((e) => e.id === eventId);
+    if (!event || !mayManageEvent(event, currentMemberId)) return [];
+    return emailInvitations
+      .filter((i) => i.eventId === eventId)
+      .sort((a, b) =>
+        a.createdAt !== b.createdAt ? (a.createdAt < b.createdAt ? 1 : -1) : a.id < b.id ? -1 : 1,
+      )
+      .map((i) => ({
+        id: i.id,
+        eventId,
+        email: i.email,
+        invitedBy: i.invitedBy,
+        createdAt: i.createdAt,
+      }));
   },
 };

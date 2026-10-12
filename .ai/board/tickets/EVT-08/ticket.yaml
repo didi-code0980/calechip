@@ -5,7 +5,7 @@ id: EVT-08
 title: "The creator or an admin of a public event invites people by email from the event's page, and each address is mailed once"
 feature_ids: [EVT-08]
 group: EVT
-state: READY
+state: REVIEW
 owner: ""
 branch: ""
 size_estimate: "M"   # S|M - set by tech-lead-design at PLAN; gates DoR

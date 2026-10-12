@@ -43,6 +43,9 @@ import type {
   GuestRegistrationReceipt,
   GuestRegistrationTerms,
   GuestRegistrationView,
+  // EVT-08, 01-plan.md section 4.2.
+  EmailInvitationOutcome,
+  EventEmailInvitation,
 } from "../domain/types";
 import { seam as mockSeam } from "./mock";
 import { seam as supabaseSeam } from "./supabase";
@@ -1493,6 +1496,25 @@ export interface DataSeam {
   /** EVT-07 AC-16, AC-17, AC-18. `attending` approves a pending guest, `rejected` rejects one,
    *  `removed` removes an attending one. Zero rows updated is `attendance_not_permitted`. */
   decideGuest(guestId: string, status: "attending" | "rejected" | "removed"): Promise<Result<EventGuest>>;
+
+  // -------------------------------------------------------------------------
+  // EVT-08 — email invitations. 01-plan.md section 4.2. ADR-055.
+  //
+  // Two functions. NOTHING IN THE SEAM SENDS, QUEUES OR NAMES A MAIL: `invite_to_event` writes the
+  // rows and an after-insert trigger hands each to the sender (ADR-051 decision 3, ADR-055 decision
+  // 7). Nothing here says whether an address belongs to a member, and nothing may (AC-7).
+  // -------------------------------------------------------------------------
+
+  /** EVT-08 AC-1..AC-11. Trims each address and drops empties; refuses the whole call before the
+   *  round trip with `invalid_invitation_email` when nothing is left or any address fails § 4.1's
+   *  checks. One outcome per distinct address (ignoring case), in first-entered order. Opens the
+   *  event to guests when it is not open. */
+  inviteToEvent(eventId: string, emails: string[]): Promise<Result<EmailInvitationOutcome[]>>;
+
+  /** EVT-08 AC-12, AC-13. The event's invitations, newest first (`createdAt` desc, then `id`), to its
+   *  creator and admins; empty to everyone else and signed out. Bounded by DATASTORE_MAX_ROWS and
+   *  throws at the bound. */
+  listEventEmailInvitations(eventId: string): Promise<EventEmailInvitation[]>;
 }
 
 export type { DataSeam as Seam };
