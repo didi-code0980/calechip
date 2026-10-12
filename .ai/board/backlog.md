@@ -1382,7 +1382,7 @@ các tính năng mới và đưa vào backlog"*. The four solo rows registered e
 | 17 | EVT-06 | A creator opens an event to guests, and anyone with its link reads it and who is coming | 2026-10-09 | [#117](https://github.com/didi-code0980/calechip/pull/117) |
 | 18 | EVT-07 | A guest registers for an opened event with a name and an email, and manages it from a link shown once | 2026-10-09 | [#118](https://github.com/didi-code0980/calechip/pull/118) |
 | 19 | EVT-08 | The creator or an admin of a public event invites people by email from the event's page, and each address is mailed once | 2026-10-12 | [#124](https://github.com/didi-code0980/calechip/pull/124) |
-| 20 | EVT-09 | A creator enters email addresses to invite while creating a public event | 2026-10-12 | PENDING_PR |
+| 20 | EVT-09 | A creator enters email addresses to invite while creating a public event | 2026-10-12 | [#125](https://github.com/didi-code0980/calechip/pull/125) |
 
 **The window displaced `OPS-004` at EVT-09's ship** — *OPS-004, A password-free bootstrap file that creates the first team and the first admin, shipped 2026-09-07,* [#71](https://github.com/didi-code0980/calechip/pull/71).
 
