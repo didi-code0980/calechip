@@ -8,13 +8,21 @@ inputs_read:
   - .ai/registry/features.md
   - .ai/templates/idea.md
   - .ai/board/backlog.md
-consulted: []
+  - .claude/commands/triage.md
+  - .ai/registry/decisions/ADR-000-template.md
+  - .ai/registry/decisions/ADR-040-an-admin-reads-any-teams-calendar-read-only.md
+  - .ai/registry/decisions/ADR-046-evt-is-a-fifth-feature-group.md
+  - .ai/registry/decisions/ADR-056-an-event-description-is-sanitised-html-from-one-editor.md
+  - supabase/migrations/20261008120000_evt04_notification.sql
+  - .ai/registry/glossary.md
+  - .ai/templates/ticket.yaml
+consulted: [tech-lead-design]
 gate: PASS
 blocking_reason: ""
 next_state: TRIAGE
-verdict: ""
-verdict_reason: ""
-ticket_id: ""
+verdict: "PROMOTE"
+verdict_reason: "Worth building and not covered: a member has nowhere in the product to keep their own day's work, and booking PTO is blind to it; nothing on the board proposes it. It is the first member-written data nobody else reads, an exception to the charter's transparency, so ADR-057 is owed. Answer 1, F1 and F2 are quoted verbatim, so it is ACCEPTED by the operator and supersedes nothing. ADR-058 adds the TSK group (ACCEPTED by product, ADR-046 precedent). Split here (MD-017) into four rows on one foundation."
+ticket_id: "TSK-01, TSK-02, TSK-03, TSK-04"
 awaiting_adrs: []
 operator_request: "Tôi muốn thêm tính năng cho riêng mỗi user. Về việc lên danh sách task cho ngày. Brainstorm cho idea này"
 ---
@@ -80,6 +88,12 @@ qua ngày hôm sau thì gọi là quá hạn".** The answer restates and sharpen
 privacy half, owner-only with admins included, rests on answer 1, *"riêng tuyệt đối"*. `/triage`
 should read the two together. If it judges that "admin cũng không đọc được" needs words of its own,
 that is the one question to ask.
+
+**F2: the privacy half, asked at the start of `/triage` on 2026-10-12.** Asked: *"Để ADR ghi
+'ACCEPTED by the operator' có căn cứ rõ ràng, xin xác nhận: task cá nhân chỉ chủ sở hữu đọc và ghi
+được; admin và manager cũng không đọc được (kể cả qua DB khi dùng app); charter được bổ sung một
+đoạn ghi ngoại lệ này với nguyên tắc minh bạch."* A: đúng; B: admin được đọc.
+**Answer: "A: Đúng".** This closes the gap F1 left.
 
 **Q8: what a task carries.** A: a title and done/not done; B: as A plus a short plain-text note;
 C: as B plus a priority.
@@ -164,3 +178,68 @@ overrule:
    way to see overdue tasks. Its layout is `tech-lead-design`'s under the visual carve-out.
 5. **A removed member's tasks stay**, unreadable by anyone, consistent with soft delete
    (TEA-04). Nothing reads them.
+
+# Triage verdict — PROMOTE, as `TSK-01`, `TSK-02`, `TSK-03` and `TSK-04`
+
+`product` at /triage, 2026-10-12T10:33:36Z. `tech-lead-design` was consulted for the technical half
+and wrote nothing.
+
+**Not REJECT.** No feature row or open ticket gives a member a place for their own day's work. The PTO
+form warns about the team's load (CAL-07) and says nothing about what the person booking had planned.
+Nothing on the board covers this.
+
+**An ADR is owed, and the operator signed its decisions.** A task is member-written data that no one
+else reads, admins and managers included. That is an exception to the charter's *"Reading is not a
+privilege here"*.
+[ADR-057](../../registry/decisions/ADR-057-a-task-is-readable-and-writable-by-its-owner-only.md)
+records answer 1 (*"riêng tuyệt đối"*), F1 and F2 (*"A: Đúng"*), each quoted verbatim from
+§ *Evidence*, so it is `ACCEPTED by the operator`. F2 closes the gap F1 left, so the question this file
+said `/triage` might need to ask has already been asked and answered. ADR-057 supersedes nothing.
+ADR-040's cross-team admin read is not extended to tasks. The guarantee covers every token the app
+issues. It does not cover the Supabase project owner, the dashboard or the service-role key, which
+matches F2's *"khi dùng app"*.
+
+**One correction to the technical half, measured rather than taken.** A task is not the first
+owner-only data in the product. `public.notification` is already selectable by its recipient only
+(`supabase/migrations/20261008120000_evt04_notification.sql:398-410`). A task is the first data a
+member *writes* that nobody else reads, and the charter's sentence is about exactly that, so the
+amendment is still owed. The notification policies are the precedent for the shape. ADR-057
+§ *Context* records this.
+
+**A new group.** A task is not an entry, so it is not `CAL`. It is private, so it is not `EVT`, and
+ADR-028 step 2 excludes `UIE`.
+[ADR-058](../../registry/decisions/ADR-058-tsk-is-a-sixth-feature-group.md) adds `TSK`, *Tasks — a
+member's own private, dated list*. It is `ACCEPTED by product` under ADR-008, inside the envelope
+ADR-057 opens, on ADR-046's precedent.
+
+**Four rows, split here and not at PLAN (MD-017).** Each of the last three depends only on the first.
+
+- **`TSK-01` is the foundation.** It covers the `task` table with owner-only policies, the task page
+  (create, edit, delete, tick, untick, re-date, day navigation, an overdue section), a seam read by
+  date range, and a sidebar link. `schema_delta`: the new table and its policies. `depends_on: []`.
+  `glossary_owed: [Task, Overdue]`.
+- **`TSK-02` is the overdue prompt**, on every app open (Q9-B): tick each done, or move all to today.
+  `schema_delta` none. `depends_on: [TSK-01]`.
+- **`TSK-03` is the PTO warning**, in the entry form beside the CAL-07 overload warning and as a flag on
+  the task page (answer 4, Q11-A, Q12-A). It never blocks saving. It shows only when the entry is the
+  viewer's own, so an admin editing someone else's entry (CAL-03) sees nothing. `schema_delta` none.
+  `depends_on: [TSK-01]`.
+- **`TSK-04` is the week badge**: the viewer's own done/total in each day's header, week view only
+  (Q10, answer 7). `schema_delta` none. `depends_on: [TSK-01]`.
+
+**Deferred by the operator, recorded and not issued.** Handover (direction B, answer 3) and recurring
+tasks (answer 5) are each a later idea. Neither has a row or an ID. Handover is the first that would
+let someone other than the owner see a task, so it needs a new ADR superseding ADR-057 before it can be
+promoted.
+
+**PLAN still decides two things.** First, whether the database rejects an insert dated before today
+(Q13-A says the rule; where it is held is PLAN's). Second, which clock decides "today": the browser's
+local date (assumption 2 above) or `Asia/Ho_Chi_Minh`. The five assumptions in § *Open questions* are
+still PLAN's to overrule.
+
+**What this verdict wrote:** ADR-057 and ADR-058; the `TSK` prefix, its table row, a paragraph and the
+`## TSK — Tasks` section in `features.md`, with four rows at `PLANNED`; four ticket shells at
+`BACKLOG`; and rows 5 to 8 of `## BACKLOG`. **Owed and not written here:** the charter paragraph under
+§ *Roles* and the no-time sentence beside refusal 3, plus the `task` rows in `rbac-and-security.md`
+and `data-model.md`. Those are human and standards plane, so `/thuki` lands them, or `/plan` of
+`TSK-01` puts them in `allowed_paths` with approval.
