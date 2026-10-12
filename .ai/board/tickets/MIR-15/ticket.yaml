@@ -1,0 +1,62 @@
+# Copied from .ai/templates/ticket.yaml by `claude` on 2026-10-12, recording item P3-6 of
+# .ai/board/plans/calechip-multi-tenancy-plan.md. Not produced by /triage: no idea file promotes it.
+# ticket.yaml is authoritative; backlog.md is a view (see .ai/01-operating-model.md).
+# state enum: TRIAGE BACKLOG PLAN READY IN_PROGRESS REVIEW REWORK ESCALATED DONE
+id: MIR-15
+title: "In Org public, the directory, public events and event notifications stay within the team, only system_admin sets its holidays, and a team can be moved to another org"
+feature_ids: []       # a MIR item implements no registry feature; the features it affects are in expected_impact
+group: ""             # MIR is a plan family, not a registry group — features.md: extending the prefixes needs an ADR
+state: BACKLOG
+owner: ""
+branch: ""
+size_estimate: ""     # S|M - set by tech-lead-design at PLAN; gates DoR
+size: ""              # S|M|L|XL - set by tech-lead-design at PLAN; decides splitting
+depends_on: [MIR-01, MIR-02, MIR-03, MIR-04, MIR-05, MIR-06, MIR-07, MIR-08, MIR-09, MIR-10, MIR-18]   # "Blocked by" — the MIR IDs that must be DONE first
+invariants_touched: []
+allowed_paths: []
+glossary_owed: []
+schema_delta: "TODO(plan): set at PLAN — the plan item changes the schema"
+requires_adr: false
+rework_count: 0
+chat_budget:
+  developer->tech-lead-design: { used: 0, max: 6 }
+tracker: { provider: "", external_id: "", sync_enabled: false }
+gates:
+  plan:   { passed: false, at: null }
+  review: { passed: false, at: null }
+
+# --- MIR extra fields ---------------------------------------------------------------------------
+# Not in .ai/templates/ticket.yaml. Added for the multi-tenancy plan; nothing in scripts/ reads them.
+# Plan status lives only in .ai/board/plans/multi-tenancy-status.md. `state` above is the loop's.
+mir_phase: 3
+mir_plan_item: "P3-6"             # .ai/board/plans/calechip-multi-tenancy-plan.md:206-211
+verification_required: true   # phase 0 and phase 3 — a passing mock test is not verification
+expected_impact:
+  - { feature: EVT-01, tag: SUPERSEDED, why: "in Org public an event with scope `public` no longer reaches every team, and the directory no longer spans teams. Replaced by: when `is_shared_tenant`, a `public` event and the directory stay within the team. Every existing team is backfilled into Org public by MIR-12, so this applies to all of today's data" }
+  - { feature: EVT-02, tag: CHANGED, why: "in Org public a member can no longer join another team's `public` event (`is_event_audience`, `evt02:112-125`)" }
+  - { feature: EVT-04, tag: CHANGED, why: "`notify_event_created` no longer notifies across teams in Org public (`evt04:154-174`)" }
+  - { feature: ADM-03, tag: SUPERSEDED, why: "a team's admin no longer edits the holiday calendar for Org public. Replaced by: only `system_admin` sets holidays for Org public — and every existing team lands there (MIR-12)" }
+# [predicted] at plan time. Corrected at ship in .ai/board/plans/feature-change-log.md.
+mir_detail: |
+  Short names (tea04, cal11, …) are migrations, per the File legend in
+  .ai/board/audits/multi-tenancy-audit-2026-10-12.md:38-77. "A:n" is a line of that audit;
+  "plan:n" a line of .ai/board/plans/calechip-multi-tenancy-plan.md.
+
+  Plan P3-6 (plan:206-211):
+  - Disable `list_member_directory` across teams when `is_shared_tenant`
+  - Disable `event scope = 'public'` reaching outside the team when `is_shared_tenant`
+  - Trigger `notify_event_created` (`evt04:154-174`) must not notify across teams when `is_shared_tenant`
+  - Only `system_admin` sets holidays for Org public
+  - Build "move a team to another org" in the system panel — needed the day a customer buys a licence
+
+  Blocked by MIR-10 (plan:167) and MIR-18. The plan expects more Org public special cases (plan:324).
+
+  DECIDED by the operator, 2026-10-12: the system panel comes forward. MIR-18 moves into Phase 3 and this
+  item waits for it, so "move a team to another org" is built in the panel (plan:211, plan:317).
+
+  Audit references:
+  - `list_member_directory` `evt01:154-163` (A:394)
+  - `event_select_visible` `evt02:332-346` and `is_event_audience` `evt02:112-125` include `scope = 'public'` (A:423, A:439)
+  - `notify_event_created` `evt04:154-174` (A:431)
+  - `may_read_event` `evt04:97-112` (A:432)
+  - Holiday writes `holiday_*_admin` `adm03:35-50`; global `holiday_select_all` `adm02:58-59` (A:414-420)

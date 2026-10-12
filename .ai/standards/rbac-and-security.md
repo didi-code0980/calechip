@@ -283,3 +283,38 @@ guarantee.
 7. **Two permission rows are denials by default rather than by decision** — creating an entry on
    behalf of another member, and demoting an admin. They will read as settled to anyone who does not
    notice the marking.
+
+## Open weaknesses from the multi-tenancy audit (2026-10-12)
+
+Appended 2026-10-12 from [the audit](../board/audits/multi-tenancy-audit-2026-10-12.md) and
+[the plan](../board/plans/calechip-multi-tenancy-plan.md). Each carries the MIR item that closes it,
+so this list and [the status index](../board/plans/multi-tenancy-status.md) name the same items. The
+list above is unchanged; where an entry here bears on one there, it says which. Reproduction steps
+for the phase 0 entries are in
+[multi-tenancy-audit-2026-10-12-repro.md](../board/audits/multi-tenancy-audit-2026-10-12-repro.md),
+not here.
+
+| # | Weakness | Source | Closed by |
+|---|---|---|---|
+| A1 | **A service role key once committed may still be valid.** The repository does not record a rotation. | `.gitignore:18`; audit §5 | MIR-01 |
+| A2 | **A member's own `role`, `status` and `team_id` are not protected by the `member` trigger.** The column grants to `authenticated` and the `member_update_own` policy admit the caller's own row. The comment at `profile_self_update.sql:13-17` is no longer true. | `tea04:29`, `member_approval:173`, `profile_self_update:61-64`, `profile_self_update:117-204`; audit:11-36 | MIR-02 |
+| A3 | **`set_member_role` has no team condition, can promote to admin, and records no actor.** | `cross_team_role:92-120`, `supabase.ts:1628-1634`; audit §4 | MIR-03 |
+| A4 | **`list_member_directory` returns every member of every team to any member**, and the event-invitee check requires only that the invitee has a team. | `evt01:154-163`, `evt01:215-220`, `evt01:306-311`; audit §2 | MIR-04 |
+| A5 | **No test executes SQL or a real policy.** Every isolation assertion runs against the mock, the mock is looser than SQL (`currentAdmin` skips `status === 'approved'`), and one test asserts a refusal its mock does not implement. This is known weakness 1's "only thing that catches it", absent. | `.github/workflows/verify.yml:39`, `:51`, `tests/e2e/seam.setup.ts:17`, `:32`, `mock.ts:366-369`, `tests/signup-confirmation.test.ts:195-211` / `mock.ts:1412`; audit §8 | MIR-05, MIR-06, MIR-07 |
+| A6 | **`supabase/db.sql` calls itself the whole schema and is stale** in twelve places, including the old `is_admin` / `member_team_id` bodies without `status = 'approved'`. | `db.sql:1`, `db.sql:317/329`; audit §1 | MIR-08, MIR-09 |
+| A7 | **The `security definer` team and member functions trust a client-supplied `p_team_id`, gated only by `is_admin`.** `admit_member` puts a sign-up into any team; `move_member`, `rename_team`, `delete_team` and the three cross-team reads take any team. `public.is_admin(auth.uid())` is the only bound, with no org condition. | `many_teams:53-206`, `cal11:33-65`; audit §4, §5 | MIR-13, MIR-16 |
+| A8 | **`setOverloadThreshold` and `setApprovalSettings` send no id** and update every row the policy admits. | `supabase.ts:2135-2140`, `supabase.ts:2374-2379`; audit §2 | MIR-13 |
+| A9 | **The sign-up queue is global.** Every admin sees and may decide every pending sign-up — the arrangement § *The permission table* already names as the first thing to revisit once a second team exists. | `member_approval:138-167`; audit §2, §3 | MIR-13, MIR-16 |
+| A10 | **Rejection, bulk rejection and auto-approval record no actor, and there is no audit table.** Only `approved_by` and `notification.actor_id` exist. Extends known weakness 3. | `mgr_gen_cols:107-109`, `adm06:73-86`, `approval_settings:102-129`; audit §7 | MIR-14, MIR-20 |
+| A11 | **The holiday calendar is one global table that any admin writes.** | `adm02:33`, `adm02:58-59`, `adm03:35-50`; audit §2 | MIR-10, MIR-15, MIR-16 |
+| A12 | **An admin reads and manages every event of every team, and a `public` event reaches and notifies every team.** Guest email addresses are readable by any admin through `list_event_guest_emails`. | `evt01:134-142`, `evt02:332-346`, `evt04:154-174`, `evt07:434-442`; audit §2 | MIR-13, MIR-15, MIR-16 |
+| A13 | **Issue reports and their images are readable by any admin.** | `issue:108-132`, `issue_img:148-153`; audit §2 | MIR-16 |
+| A14 | **Client role checks carry no team, and the router has no role guards.** Affordances only, per § *Where the check runs*, but they are what the interface shows. | `src/lib/roles.ts:24-49`, `src/App.tsx`; audit §3 | MIR-17 |
+| A15 | **There is no notion of acting as another identity, and "read-only" is an affordance** (`isReadOnly(viewed)`). | `supabase.ts:1034-1052`, `src/lib/viewed-team.ts:90-92`; audit (f) | MIR-20 |
+
+**One permission row changes under MIR-14.** The plan lets a manager approve their own entry,
+recorded as `self_approved = true` (plan:34). Today `mgr_gen_cols:58-61` refuses it, and § *The
+permission table* marks the manager's cell of *Approve or reject their own entry* `decided — ADR-035 §
+Decision item 3`. Known weakness 4 — the same self-approval, for an admin — then extends to managers,
+with the flag as its only record. MIR-14's pull request owes that row, weakness 4 and ADR-035 an
+amendment; nothing is amended here.

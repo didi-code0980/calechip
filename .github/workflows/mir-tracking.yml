@@ -1,0 +1,20 @@
+name: mir-tracking
+
+# Keeps the multi-tenancy status index and feature change log in step with MIR work. The logic is in
+# .github/scripts/check-mir-tracking.mjs so it runs locally too; this file only calls it.
+#
+# `edited` is listed so that a corrected PR body re-runs the check without a new push.
+
+on:
+  pull_request:
+    types: [opened, edited, synchronize, reopened]
+
+jobs:
+  mir-tracking:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - run: node .github/scripts/check-mir-tracking.mjs
