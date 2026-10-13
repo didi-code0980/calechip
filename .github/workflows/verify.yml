@@ -1,7 +1,7 @@
 name: verify
 
-# One of exactly two status checks. Branch protection points at the job name below and at
-# `allowed-paths`; every additional job name is another thing to configure, keep green and explain.
+# One of three workflows: verify, allowed-paths and mir-tracking. Which job names branch protection
+# requires is not decided here — CICD-02 writes that list into docs/ops/branch-protection.md.
 #
 # Do not enable branch protection until this has passed once. A required check that has never passed
 # blocks every pull request, including the operator's, and the only way out is to disable the
@@ -16,11 +16,11 @@ jobs:
   verify:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
-      - uses: pnpm/action-setup@v4
+      - uses: pnpm/action-setup@v6
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
           node-version: 22
           cache: pnpm

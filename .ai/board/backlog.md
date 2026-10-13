@@ -26,6 +26,8 @@ planned, sized, and safe to build** — the next stage for a row here is IN_PROG
 
 **`CICD-01` moved here from `## BACKLOG` at /advance on 2026-10-13**, from `01-plan.md` gate PASS. Definition of Ready items 1, 2, 3, 4 and 6 pass; **item 5 (`size_estimate` is S or M) is waived by the operator**, who chose "Accept L unsplit" on 2026-10-13 (`01-plan.md` Changelog). The rows below it in `## BACKLOG` keep their order.
 
+**`CICD-01` is at `REVIEW` in `ticket.yaml`** — recorded at /advance on 2026-10-13 from `03-impl-log.md` gate PASS. The row stays here until `/ship` moves it to `## ARCHIVE`.
+
 **Empty again — `EVT-11` left this section for `## ARCHIVE` at its own ship on 2026-10-13.** `TSK-01` is the top of `## BACKLOG`.
 
 **`EVT-11` was at `REVIEW` in `ticket.yaml`, `gates.review` passed** — recorded at /advance on 2026-10-13 from `04-review.md` verdict PASS, after `03-impl-log.md` gate PASS. The row stays here until `/ship` moves it to `## ARCHIVE`.

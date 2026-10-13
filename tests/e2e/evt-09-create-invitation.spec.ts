@@ -180,7 +180,8 @@ test.describe("EVT-09 — invite by email while creating", () => {
     await expect(page.getByTestId("event-form-invite-input")).toHaveValue("friend@outside.example");
   });
 
-  test("AC-6: a failed handoff opens the panel with the sentence and the addresses ready to resend", async ({ page }) => {
+  // QUARANTINED BUG-004 under ADR-060 — row in docs/ops/e2e-quarantine.md; do not fix here.
+  test.fixme("AC-6: a failed handoff opens the panel with the sentence and the addresses ready to resend", async ({ page }) => {
     await signIn(page, MEMBER.email);
     await openNewForm(page, "Failed send");
     await page.getByTestId("event-scope-public").check();

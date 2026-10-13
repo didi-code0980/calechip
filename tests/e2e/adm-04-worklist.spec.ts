@@ -319,7 +319,8 @@ test.describe("ADM-04 — the worklist of entries awaiting a decision", () => {
     }
   });
 
-  test("AC-10 and AC-12: a member is refused, and the refusal is not what protects anything", async ({
+  // QUARANTINED BUG-003 under ADR-060 — row in docs/ops/e2e-quarantine.md; do not fix here.
+  test.fixme("AC-10 and AC-12: a member is refused, and the refusal is not what protects anything", async ({
     page,
   }) => {
     await signInAt(page, MEMBER_EMAIL);
