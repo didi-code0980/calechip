@@ -24,6 +24,8 @@ planned, sized, and safe to build** — the next stage for a row here is IN_PROG
 |---|--------|-------|------|------------|
 | 1 | CICD-02 | A push to a feature branch gets lint, typecheck and unit results within about three minutes, and a pull request runs the full gate as named, required checks | M | CICD-01 (DONE, #130) |
 
+**`CICD-02` is at `REVIEW` in `ticket.yaml`** — recorded at /advance on 2026-10-13 from `03-impl-log.md` gate PASS. The row stays here until `/ship` moves it to `## ARCHIVE`.
+
 **`CICD-02` moved here from `## BACKLOG` at /advance on 2026-10-13**, from `01-plan.md` gate PASS with all six Definition of Ready items passing. `## BACKLOG` is renumbered from 1: it started at row 2 after `CICD-01` left it without a renumber. `CICD-03` to `TSK-04` each moved up; bookkeeping, not a reordering. `BUG-003` to `BUG-005` are at `BACKLOG` in `ticket.yaml` and still have no row — placing them is a human's. The paragraphs below were written while this table was empty and are left standing.
 
 **`CICD-01` moved here from `## BACKLOG` at /advance on 2026-10-13**, from `01-plan.md` gate PASS. Definition of Ready items 1, 2, 3, 4 and 6 pass; **item 5 (`size_estimate` is S or M) is waived by the operator**, who chose "Accept L unsplit" on 2026-10-13 (`01-plan.md` Changelog). The rows below it in `## BACKLOG` keep their order.

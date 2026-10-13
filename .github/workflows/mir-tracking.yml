@@ -9,6 +9,9 @@ on:
   pull_request:
     types: [opened, edited, synchronize, reopened]
 
+permissions:
+  contents: read
+
 jobs:
   mir-tracking:
     runs-on: ubuntu-latest
