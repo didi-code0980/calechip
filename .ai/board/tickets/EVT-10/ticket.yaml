@@ -5,7 +5,7 @@ id: EVT-10
 title: "A creator formats an event's description, and every surface that shows it renders it sanitised"
 feature_ids: [EVT-10]
 group: EVT
-state: REVIEW
+state: DONE
 owner: ""
 branch: ""
 size_estimate: "M"   # S|M - set by tech-lead-design at PLAN; gates DoR
