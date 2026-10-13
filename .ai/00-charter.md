@@ -110,8 +110,8 @@ teams inside organisations.
 |---|---|
 | **System admin** | The whole deployment, from a separate panel. Reads an organisation's data only by impersonating, and impersonation is read-only, time-boxed and logged. |
 | **Org admin** | One organisation. What the *Admin* row below becomes, bounded by its organisation. |
-| **Manager** | One team. Decides that team's entries and sets that team's configuration, and registers entries of their own like any member. |
-| **Member** | One organisation, one or more of its teams. Reads the calendars of the teams they belong to. |
+| **Manager** | One team. Decides that team's entries, **including their own** (recorded as self-approved; ADR-059 lifts ADR-035's ban), sets that team's configuration, and registers entries of their own like any member. |
+| **Member** | One organisation, one or more of its teams. Reads the calendars of the teams they belong to, and each entry they make counts against every one of those teams. |
 | **Guest** | No account. Reads and registers for a public event through its link, and nothing else (ADR-052). |
 
 The powers inside each scope are ADR-059's and the multi-tenancy plan's: which configuration belongs

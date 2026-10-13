@@ -2760,3 +2760,28 @@ nothing beyond it. No ticket in flight: every MIR ticket is `BACKLOG`.
 - **Deliberately left:** ideas, estimates, audits, the brief, shipped ticket artifacts and older
   ADRs (009, 015, 018, 027, 030, 033, 035, 038, 039, 045, 052) that quote the one-team wording. They are
   history, correct as of when they were written. `README.md` is the template's and describes no product.
+
+### 2026-10-13 — ADR-059 follow-up: the operator answers its three open points
+
+Relayed by the launching session (chat, not a file), verbatim: *"1. Bỏ cấm, cho phép tự duyệt đơn
+của bản thân / 2. Tính vào tất cả team người đó thuộc về / 3. Treo những tính năng này, chưa làm bây
+giờ"*. All of it lands on the same unmerged branch as ADR-059.
+
+- **Registry writes**, each diff printed before its write:
+  - ADR-059: decision 4's self-approval is confirmed and the "confirm at merge" flag is removed;
+    new decision 7 says an entry counts against every team its owner belongs to; the open questions
+    became *Deferred by the operator 2026-10-13 — not in scope of MIR; revisit before any commercial
+    launch*, quoting answer 3, with a note saying what the section held before.
+  - ADR-035: a supersession note for its decision 3 under Status; body unchanged; 2 → 3.
+  - `invariants.md`: INV-04 (*"for a team … still on that team"*) and INV-07 (*"counted against
+    every team that member belongs to"*) restated, with the old rows quoted in a revision note. The
+    earlier *"contradicted, not yet restated"* note was replaced.
+- **Also:** charter target-role cells for Manager and Member; the INV-07 title in
+  `.ai/standards/architecture.md` (2 → 3) and `.ai/standards/data-model.md` relabelled.
+- **Board checked, no edit needed:** the plan (plan:34, :202), the MIR-14 `ticket.yaml` (:39, :52)
+  and `feature-change-log.md:176` already say a manager may self-approve. MIR-14:61 is an audit
+  reference to today's code. No board file says an entry counts against one team only. The plan's
+  Deferred table already parks the other items.
+- **Left for the MIR tickets that change the behaviour:** the glossary `Manager` row (*"may not
+  decide their own"*) and `.ai/standards/rbac-and-security.md`'s manager cells. Both describe the
+  deployed product until MIR-14 ships.

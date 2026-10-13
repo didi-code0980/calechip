@@ -1,6 +1,6 @@
 ---
-doc_version: 2
-last_updated: 2026-08-31
+doc_version: 3
+last_updated: 2026-10-13
 governed_by: [RULE-01, RULE-02, RULE-09]
 ---
 
@@ -111,7 +111,7 @@ never sufficient for an invariant; with no server, application code is in the sa
 | INV-04 — one definition of the absence count | A single function inside the seam. This one is application-level by nature: it is a computation, not a state constraint, and nothing can write a wrong value because nothing writes it at all. |
 | INV-05 — tentative counts | Follows from INV-04 having one implementation. |
 | INV-06 — one portion per entry | Column shape plus an enum. |
-| INV-07 — one member, one team | Foreign keys, not null. |
+| INV-07 — one member, every team they belong to (title until 2026-10-13: *one member, one team*) | Foreign keys, not null — sufficient while a member has one team; MIR-10 redesigns it for several (ADR-059). |
 
 TODO(project): cite the migration and the constraint name for each row above once they exist. A row
 here naming no mechanism is a claim, and `.ai/registry/invariants.md` warns specifically that an

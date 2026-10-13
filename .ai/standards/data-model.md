@@ -177,7 +177,7 @@ database.
 | INV-04 — one definition of the absence count | A single function inside the seam. Application-level by nature: it is a computation rather than a state constraint, and nothing can store a wrong value because nothing stores it at all. |
 | INV-05 — tentative counts | Follows from INV-04 having one implementation; `tentative` is not consulted by it. |
 | INV-06 — one portion per entry | Column shape: a single not-null enum, so a per-day portion is unrepresentable. |
-| INV-07 — one member, one team | Not-null foreign keys, and the refusals above. |
+| INV-07 — one member, every team they belong to (title until 2026-10-13: *one member, one team*) | Not-null foreign keys, and the refusals above — sufficient while a member has one team; MIR-10 redesigns it for several (ADR-059). |
 
 TODO(project): cite the migration file and the constraint name for each row once migrations exist. A
 row here naming a mechanism that has not been written is a claim, and `.ai/registry/invariants.md`

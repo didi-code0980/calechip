@@ -1,6 +1,6 @@
 ---
-doc_version: 2
-last_updated: 2026-09-12
+doc_version: 3
+last_updated: 2026-10-13
 governed_by: [RULE-01, RULE-04, RULE-09]
 ---
 
@@ -9,6 +9,8 @@ governed_by: [RULE-01, RULE-04, RULE-09]
 ## Status
 
 `ACCEPTED by the operator` — 2026-09-12.
+
+**Decision 3 superseded 2026-10-13 by [ADR-059](ADR-059-calechip-becomes-multi-tenant-system-org-team.md)**, `ACCEPTED by the operator`: a manager may approve their own entry, recorded as `self_approved = true` — verbatim, *"Bỏ cấm, cho phép tự duyệt đơn của bản thân"*. It takes effect when MIR-14 ships. Until then the deployed product enforces decision 3 as written. Decision 3's text, and the consequence that follows from it, are left below as written.
 
 Recorded, not authored. The operator's instruction, verbatim: *"Thêm 1 role manager cho user, thêm
 quyền approve cho user với quyền manager."* — add a manager role, and give the approve permission to

@@ -17,10 +17,21 @@ MIR-10, and replied, verbatim:
 
 > **"thay đổi charter theo multi-tanent"**
 
+**Three follow-up answers, the same day**, given in chat after the first draft of this ADR listed
+them as open, relayed to the steward by the launching session (not quoted from a file), verbatim:
+
+> **"1. Bỏ cấm, cho phép tự duyệt đơn của bản thân**
+> **2. Tính vào tất cả team người đó thuộc về**
+> **3. Treo những tính năng này, chưa làm bây giờ"**
+
+Answer 1 confirms decision 4's manager self-approval and lifts ADR-035's ban. Answer 2 settles what
+was open question 7 and is decision 7. Answer 3 parks every other open question (*Deferred by the
+operator* below).
+
 The model adopted is the one in [the multi-tenancy plan](../../board/plans/calechip-multi-tenancy-plan.md)
-§ *Target model (agreed)* (plan:10-47). Nothing in *Decision* below goes beyond that section. What
-the operator did **not** decide is listed under *Out of scope of this decision*, and none of it may
-be read as settled because this ADR is accepted.
+§ *Target model (agreed)* (plan:10-47). Nothing in *Decision* below goes beyond that section
+except decision 7, which is answer 2. What the operator deferred is listed under *Out of scope of
+this decision*, and none of it may be read as settled because this ADR is accepted.
 
 ## Context
 
@@ -62,7 +73,8 @@ be read as settled because this ADR is accepted.
 4. **Approval across several teams** (plan:30-35): if any one of a person's teams requires approval,
    the entry requires approval; one manager's decision is enough and the first decision wins; one
    rejection rejects the entry; a manager may approve their own entry, recorded as
-   `self_approved = true`; a team with no manager falls back to `org_admin`.
+   `self_approved = true` (confirmed by answer 1, *"Bỏ cấm, cho phép tự duyệt đơn của bản thân"*,
+   superseding decision 3 of ADR-035); a team with no manager falls back to `org_admin`.
 5. **Configuration ownership** (plan:37-47) is split across system, org and team as the plan's table
    gives it. Teams may add their own non-working days and may not remove days set by the org.
 6. **Every cross-team read already granted is bounded by the org.** ADR-039 (*every admin manages
@@ -72,39 +84,42 @@ be read as settled because this ADR is accepted.
    the caller's org** from the moment org isolation ships. This is a reading of what the operator
    decided, not a new decision; it is stated so that no MIR ticket treats those ADRs as licence for a
    cross-org read.
+7. **An entry counts against every team its owner belongs to** — answer 2, *"Tính vào tất cả team
+   người đó thuộc về"*. A member of three teams who takes a day off adds to that day's absence count
+   in all three, for the overload warning and every other use of the count. INV-04 and INV-07 are
+   restated to say so in `.ai/registry/invariants.md`.
 
 **The charter's standing refusals are not touched.** Refusals 1 (no leave quota), 2 (never replaces
 the official leave request), 3 (no timekeeping or payroll) and 6 (a warning never blocks) are each
 about what the product does with one person's plan; none is contradicted by how many organisations
 one deployment holds. Refusals 4 and 5 stay retired under ADR-045.
 
-## Out of scope of this decision — open questions
+## Out of scope of this decision — deferred by the operator
 
-The operator did not decide any of these. Each is an `OPEN QUESTION` for whichever MIR ticket first
-needs it, and none may be filled in by an agent.
+**Deferred by the operator 2026-10-13 — not in scope of MIR; revisit before any commercial launch.**
+Answer 3, verbatim: *"Treo những tính năng này, chưa làm bây giờ"*. None of these is built, ticketed
+or designed for now. No MIR ticket may fill one in. A MIR design that finds it needs one stops with
+the item named.
 
-1. **Billing and payment.** Whether, how and by whom an org is charged. *"Has the operator decided
-   CaleChip is SaaS in the commercial sense"* is not answered by this ADR: it records tenancy, not a
-   business model. The plan's `plan` and `licence_expires_at` columns (plan:168) are schema
-   placeholders, not a pricing decision.
-2. **Licence-expiry behaviour.** The plan *proposes* read-only with a 30-day warning and no deletion
-   (plan:313), and lists it as *Deferred — decide later*.
-3. **Over-cap behaviour**, including after a downgrade. *Proposed*, deferred (plan:314). **Read this
-   one against refusal 6 when it is decided.** Refusal 6 is about overload warnings on a plan, not
-   about caps on membership, so a cap that refuses a new member does not by itself contradict it —
-   but a cap that refuses an *entry* would, and the decision should say which it is.
-4. **Member counting** against a cap — distinct users or memberships. *Proposed*, deferred (plan:315).
-5. **Self-serve org signup.** Not in the plan. The plan has org creation in the system panel only
-   (plan:41, MIR-18); whether anybody else can create an org is undecided.
-6. **Per-tenant data export and deletion.** Not in the plan. Nothing here says what an org may take
-   away or have erased, or what happens to its data when it leaves.
-7. **Which team or teams an entry is counted against** for the overload warning (INV-04, INV-07)
-   when its owner belongs to several. The plan gives `entry` a `primary_team_id` (plan:171) and asks
-   that *"which teams an entry affects"* be recorded (plan:198), but does not say which count an
-   entry joins. This is an invariant change, so it is the operator's, and MIR-10 cannot be approved
-   without it.
-8. **Team size.** The charter sized a team at five to thirty. Nothing in this decision changes that,
-   and nothing sizes an org. Caps are set per org at creation; their defaults are undecided.
+1. **Billing and payment.** Whether, how and by whom an org is charged. This ADR records tenancy,
+   not a business model, so it does not answer *"is CaleChip SaaS"* in the commercial sense. The
+   plan's `plan` and `licence_expires_at` columns (plan:168) are schema placeholders, not a pricing
+   decision.
+2. **Licence-expiry behaviour.** The plan's proposal (plan:313) stays a proposal.
+3. **Over-cap behaviour**, including after a downgrade (plan:314). **When it is taken up, read it
+   against refusal 6.** A cap that refuses a new member does not by itself contradict refusal 6; a
+   cap that refuses an *entry* would, and the decision should say which it is.
+4. **Member counting** against a cap — distinct users or memberships (plan:315). This is the cap
+   question, and it is distinct from decision 7, which is about the absence count.
+5. **Self-serve org signup.** Not in the plan. Org creation stays in the system panel (plan:41,
+   MIR-18).
+6. **Per-tenant data export and deletion.** Not in the plan.
+7. **Team and org size limits.** The charter's five to thirty per team stands as the sizing figure.
+   Nothing sizes an org, and cap defaults are undecided.
+
+*Until the follow-up answers the same day, this section listed eight open questions. The eighth —
+which team or teams an entry is counted against — is now decision 7. Self-approval was a flag for
+the operator to confirm at merge, and is now confirmed in decision 4.*
 
 ## Rationale
 
@@ -123,15 +138,13 @@ suits it.
   MIR-12 (backfill into *Org public*), MIR-16 and MIR-17 (role split). The charter's Roles section
   keeps the three-role table as *what is deployed today*, and `.ai/standards/rbac-and-security.md`
   stays the table a review is checked against until the ticket that changes it.
-- **Decision 4 reverses one cell of ADR-035.** The manager row read *"approve or reject another
-  member's entry. Not their own"*. The agreed target lets a manager approve their own entry, marked
-  `self_approved`. ADR-035 stands for the deployed product. Its manager-self-approval clause is
-  superseded when MIR-14 ships. **The operator should confirm this cell at merge.** It is in the
-  plan's section headed *agreed*, but it reverses an earlier explicit decision, and the 2026-10-13
-  answer did not mention it.
-- **INV-07 is contradicted by decision 1** and is annotated in `.ai/registry/invariants.md`, not
-  rewritten. Its ledger row describes the deployed schema, where `member.team_id` is single-valued.
-  It is restated when the operator answers open question 7, before MIR-10 is approved.
+- **Decision 4 supersedes decision 3 of ADR-035.** ADR-035 read *"A manager may not decide their
+  OWN entry"*. The operator lifted that ban (answer 1). ADR-035 carries a supersession note under its
+  Status, and its body is unchanged. The deployed product enforces the ban until MIR-14 ships.
+- **INV-04 and INV-07 are restated** to decision 7: an entry is counted against every team its owner
+  belongs to, and a team's count takes entries of members who were on that team on that date. The
+  old wording is kept as a revision note. The deployed schema, with one team per member, satisfies
+  both readings, so nothing is violated today. MIR-10 must design for the new wording.
 - **Glossary rows are owed**: `Org`, `Org public`, `Membership`, `System admin`, `Org admin`, `Guest`.
   They are written at PLAN by the MIR ticket that first uses each (ADR-047), not here.
 - **`.ai/standards/rbac-and-security.md`, `data-model.md` and `architecture.md` change with the MIR
@@ -151,6 +164,7 @@ item not yet shipped from phase 3 onward becomes `WONTDO`.
 | `.ai/00-charter.md` | *Who uses it* rewritten to the three-level scope; target roles added above the deployed three-role table; the reading principle scoped to a member's own teams; the P2 note records that multiple teams were taken up. Old wording kept beside an *Amended 2026-10-13 by ADR-059* note | 3 → 4 |
 | `CLAUDE.md` | Intro paragraph: one team and two roles replaced by the tenant model and the five roles | n/a |
 | `.ai/registry/glossary.md` | `Team` row: *"Exactly one team exists in v1"* corrected | 2 → 3 |
-| `.ai/registry/invariants.md` | INV-07 annotated as contradicted, pending open question 7. Ledger row unchanged | 3 → 4 |
+| `.ai/registry/invariants.md` | INV-04 and INV-07 restated to decision 7, old wording kept beside them | 3 → 4 |
+| `.ai/registry/decisions/ADR-035-a-third-role-manager-decides-entries-and-nothing-else.md` | Supersession note under Status for its decision 3; body unchanged | 2 → 3 |
 | `.ai/standards/rbac-and-security.md` | *"v1 has one team"* (pending-queue paragraph) corrected | 4 → 5 |
 | `.ai/standards/data-model.md` | `team` *"One row in v1"* corrected | 7 → 8 |
