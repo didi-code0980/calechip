@@ -1,6 +1,6 @@
 ---
-doc_version: 5
-last_updated: 2026-10-12
+doc_version: 6
+last_updated: 2026-10-13
 governed_by: [RULE-01, RULE-17]
 ---
 
@@ -29,7 +29,7 @@ are the count, and a number in prose is a second copy that goes stale on the nex
 **Every row written by triage cites its idea file in `Notes`.** A row with no citation was not
 promoted from anything, and that is exactly what a reviewer should stop on.
 
-Check D1 now polices every three-letter feature token in every document against the rows below, so a
+Check D1 now polices every three- or four-letter feature token in every document against the rows below, so a
 citation of an ID that does not exist fails the audit rather than reading as evidence that somebody
 planned it.
 
@@ -63,7 +63,7 @@ operating model, the standards, the commands and the templates — cites `EXA-01
 `.ai/templates/` and this file. A project that claimed `EXA` as a real group would be policing the
 kit's own prose. D1 drops it from the line below if it appears, and says so.
 
-<!-- id-prefixes: CAL ADM TEA UIE EVT TSK -->
+<!-- id-prefixes: CAL ADM TEA UIE EVT TSK CICD -->
 
 | Prefix | Expansion |
 |--------|-----------|
@@ -73,6 +73,7 @@ kit's own prose. D1 drops it from the line below if it appears, and says so.
 | UIE | UI enhancement — the appearance and interaction of a surface that already exists |
 | EVT | Events — announcing a gathering, who it is for, and who is coming |
 | TSK | Tasks — a member's own private, dated list |
+| CICD | CI/CD — checking, building, releasing and deploying the product |
 
 Three groups, chosen by the operator on 2026-08-31 from options of three, four and six.
 
@@ -109,6 +110,14 @@ and by no admin. A task is not an entry, so not `CAL`, and it is private by defi
 ADR-028's step 2 reads *"`CAL`, `ADM`, `TEA`, `EVT` or `TSK`, by area"* from that date. The prefix
 line, the table row above and the `## TSK — Tasks` section below landed in the same change as the
 first `TSK` rows, as ADR-058 requires.
+
+**A seventh group, `CICD`, was added on 2026-10-13 by
+[ADR-059](decisions/ADR-059-delivery-work-is-a-seventh-feature-group.md), so the count is now seven,
+and it is the first four-letter prefix.** The paragraphs above are left as written. The operator
+chose the name in words: *"lấy prefix là CICD"*. It is the first group that is not a capability a
+role gains in the product: it covers how merged code is checked, built, released and deployed.
+`scripts/check-docs.mjs` (D1) and its tests accept three or four letters from the same change. The
+`OPS-nnn` chore series is unaffected: no issued ID moves.
 
 ## CAL — Calendar
 
@@ -231,6 +240,22 @@ creates no entry. Handover and recurring tasks, deferred by the operator, are `T
 | TSK-02 | Each time the app opens, a member is shown their overdue tasks and can tick them or move them all to today | TSK | PLANNED | | From the same idea file and verdict as `TSK-01`, and `depends_on: [TSK-01]`. **SCOPE, each clause the operator's:** a prompt every time the app opens while any of the member's own tasks is overdue (answer 2, Q9-B); it offers ticking each done or moving all of them to today (answer 2). Overdue means the date has passed and the task is not done (F1). It lists only the viewer's own tasks (ADR-057). `schema_delta` none. `Invariants touched` is PLAN's. |
 | TSK-03 | A member declaring PTO is warned about their own tasks on those days, without being stopped | TSK | PLANNED | | From the same idea file and verdict as `TSK-01`, and `depends_on: [TSK-01]`. **SCOPE, each clause the operator's:** a warning in the entry form beside the CAL-07 overload warning when a PTO entry covers days holding the member's own tasks, and a PTO flag on the task page (answer 4); warning only, saving is never blocked (Q11-A, charter refusal 6); PTO only, not WFH (Q12-A). **It shows only when the entry is the viewer's own.** An admin editing another member's entry (CAL-03) cannot read that member's tasks (ADR-057), so it shows nothing there by construction. Tasks never move automatically (Q11-A). `schema_delta` none. `Invariants touched` is PLAN's. |
 | TSK-04 | The week view shows, in each day's header, how many of the viewer's own tasks are done out of the total | TSK | PLANNED | | From the same idea file and verdict as `TSK-01`, and `depends_on: [TSK-01]`. **SCOPE, each clause the operator's:** an icon and done/total, e.g. 5/10, on days that hold tasks (answer 7), in the week view only and not the month or year view (Q10). It counts the viewer's own tasks, never anyone else's, and never on another team's calendar viewed through ADR-040 (ADR-057 decision 4). It must not cost a row, since density wins on the grid (`CLAUDE.md` § *Visual direction*). It is not an absence count and never feeds `absenceCountsFor`. `schema_delta` none. `Invariants touched` is PLAN's. |
+
+## CICD — CI/CD
+
+Checking, building, releasing and deploying the product. Added on 2026-10-13 by
+[ADR-059](decisions/ADR-059-delivery-work-is-a-seventh-feature-group.md), `ACCEPTED by the operator`.
+No role gains a capability here; the operator is the one who merges, tags and deploys. The stack stays
+as the request fixes it: GitHub Actions, Docker Hub, Docker Compose behind a Cloudflare Tunnel.
+
+| ID | Title | Group | Status | Invariants touched | Notes |
+|----|-------|-------|--------|--------------------|-------|
+| CICD-01 | The pull-request gate is green on `main` again, with each failing end-to-end test quarantined against a ticket in a register | CICD | PLANNED | | From `.ai/board/ideas/2026-10-13-a-red-main-merges-unnoticed-and-no-release-is-built-or-deployed.md`, re-triaged PROMOTE on 2026-10-13 after ADR-059 and ADR-060. Phase 1 of the request. Quarantine under [ADR-060](decisions/ADR-060-a-failing-e2e-test-may-be-quarantined-with-a-register-and-a-ticket.md), `ACCEPTED by the operator` (*"đồng ý"*): `test.fixme` only with a ticket, a register row and an expiry of 30 days at most; flaky tests keep the existing CI retry and get a *flaky* row. The `testing-standards.md:227` exception sentence and the stale table at `:35-36` are owed by ADR-060 — standards plane. Exit criterion: `verify` green on `main`. Fixing the quarantined tests is out of scope. |
+| CICD-02 | A push to a feature branch gets lint, typecheck and unit results within about three minutes, and a pull request runs the full gate as named, required checks | CICD | PLANNED | | From `.ai/board/ideas/2026-10-13-a-red-main-merges-unnoticed-and-no-release-is-built-or-deployed.md`, re-triaged PROMOTE on 2026-10-13 after ADR-059 and ADR-060. Phase 2. `ci-fast` on push to `feat/**`; the PR workflow is the full gate with pnpm and Playwright caches, `concurrency`, and explicit least-privilege `permissions:` on every workflow. `allowed-paths` and `mir-tracking` unchanged. Ships `docs/ops/branch-protection.md`; **the operator applies branch protection himself** (RULE-09) — no workflow changes repository settings. |
+| CICD-03 | Every merge to `main` builds one image, pushes it to Docker Hub tagged by its commit, and smoke-tests it against the image's health endpoint | CICD | PLANNED | | From `.ai/board/ideas/2026-10-13-a-red-main-merges-unnoticed-and-no-release-is-built-or-deployed.md`, re-triaged PROMOTE on 2026-10-13 after ADR-059 and ADR-060. Phase 3. Buildx with the GHA cache, `mingming21400/calechip:sha-<short>`, secrets `DOCKERHUB_USERNAME` and `DOCKERHUB_TOKEN`. The health endpoint already exists: the `healthz` location in `docker/nginx.conf`, probed by the `Dockerfile` `HEALTHCHECK`. **Every `VITE_*` value is baked in at build** (`Dockerfile` header), so the build also needs the Supabase URL and anon key as Actions secrets, and one image serves one Supabase project. |
+| CICD-04 | A version tag on `main` promotes the image already built for that commit, by digest and without rebuilding, and opens a release pull request in the deployment repository | CICD | PLANNED | | From `.ai/board/ideas/2026-10-13-a-red-main-merges-unnoticed-and-no-release-is-built-or-deployed.md`, re-triaged PROMOTE on 2026-10-13 after ADR-059 and ADR-060. Phase 4. Fails if the tagged commit is not on `main` or `:sha-<short>` is absent; `docker buildx imagetools create` to `:vX.Y.Z`; PR on `release/calechip-vX.Y.Z` in the deployment repository, CaleChip path only, pinned by version **and digest**, through `DEPLOY_REPO_TOKEN` (contents + pull-requests only); a GitHub Release with generated notes. Version is a manual tag (the request's default). |
+| CICD-05 | The deployment repository deploys only CaleChip from merged config, health-checks it and restores the previous version on failure — drafted in this repository | CICD | PLANNED | | From `.ai/board/ideas/2026-10-13-a-red-main-merges-unnoticed-and-no-release-is-built-or-deployed.md`, re-triaged PROMOTE on 2026-10-13 after ADR-059 and ADR-060. Phase 5, **as drafts under `docs/ops/deployment-repo/`**: the deployment repository is not attached to this repository's sessions. Self-hosted runner on the WSL server, `concurrency: deploy-calechip`, `compose -p calechip`, health check with retries, revert-and-redeploy on failure. **No migrate step: RULE-09 keeps schema changes human**, and the container is static nginx. Blocked if the deployment repository holds real secrets (idea, open question 4). |
+| CICD-06 | The pipeline, its secrets, how to cut a release and how to roll one back are written down, and the standards that describe CI match it | CICD | PLANNED | | From `.ai/board/ideas/2026-10-13-a-red-main-merges-unnoticed-and-no-release-is-built-or-deployed.md`, re-triaged PROMOTE on 2026-10-13 after ADR-059 and ADR-060. Phase 6. `docs/ops/ci-cd.md` with the overview, every workflow and trigger, secrets, release steps, the rollback runbook and onboarding another app; dry runs of a PR, a merge, a pre-release tag and a forced health-check failure. `tech-stack.md` § *Build and deployment* and `MODEL-OVERVIEW.md` follow — standards plane. |
 
 ## Unissued IDs
 

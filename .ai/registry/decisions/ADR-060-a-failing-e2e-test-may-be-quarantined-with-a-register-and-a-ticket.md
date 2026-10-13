@@ -8,17 +8,13 @@ governed_by: [RULE-01, RULE-09]
 
 ## Status
 
-`PROPOSED` — 2026-10-13, at `/triage` of
-`.ai/board/ideas/2026-10-13-a-red-main-merges-unnoticed-and-no-release-is-built-or-deployed.md`.
+`ACCEPTED by the operator` — 2026-10-13, in words: *"-> đồng ý"* ("agreed"), in answer to the
+question below, quoted beside it in the idea file
+`.ai/board/ideas/2026-10-13-a-red-main-merges-unnoticed-and-no-release-is-built-or-deployed.md`
+§ *Re-triage verdict*. Option A, as proposed.
 
-**This needs the operator's decision.** It amends `.ai/standards/testing-standards.md`, which is
-human-only, and it narrows a refusal written there. The request asks for the quarantine in words
-(*"Quarantine each failing e2e test with `test.fixme`"*), but it does not say the standard should
-change. That is the decision this ADR asks for.
-
-**The question, answered by editing this line:** may Phase 1 quarantine the failing e2e tests with
-`test.fixme` under the conditions below? Write `ACCEPTED by the operator` or `REJECTED by the
-operator`.
+*Proposed 2026-10-13 by `product`, `PROPOSED`, with the question: may Phase 1 quarantine the failing
+e2e tests with `test.fixme` under the conditions below?*
 
 ## Context
 

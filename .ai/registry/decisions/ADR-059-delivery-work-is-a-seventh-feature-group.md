@@ -4,20 +4,22 @@ last_updated: 2026-10-13
 governed_by: [RULE-01, RULE-09]
 ---
 
-# ADR-059 — Delivery work (CI, image build, release, deploy) is filed as a seventh feature group, `DLV`
+# ADR-059 — CI/CD work (checking, building, releasing, deploying) is a seventh feature group, `CICD`
 
 ## Status
 
-`PROPOSED` — 2026-10-13, at `/triage` of
-`.ai/board/ideas/2026-10-13-a-red-main-merges-unnoticed-and-no-release-is-built-or-deployed.md`.
+`ACCEPTED by the operator` — 2026-10-13, in words: *"lấy prefix là CICD"* ("take the prefix CICD").
+Given in this triage's conversation in answer to the question below, and recorded in the idea file
+`.ai/board/ideas/2026-10-13-a-red-main-merges-unnoticed-and-no-release-is-built-or-deployed.md`
+§ *Re-triage verdict*.
 
-**This needs the operator's decision. `product` may not accept it.** The request reserves the choice
-in words: *"If there is no prefix for ops work, propose one and wait for Ming to approve it. Do not
-invent one silently."* Accepting it under ADR-008 would be exactly that silent invention.
+**The operator chose option A's shape — a new group — under a fourth name, `CICD`**, rather than
+`DLV`, `OPS` or no group. The proposal is left below as written; § *Decision as accepted* records
+what was decided and what it costs.
 
-**The question, answered by editing this line:** file the CI/CD work as **A — a new group `DLV`**
-(recommended), as **B — a new group `OPS`**, or as **C — `ops/<slug>` chore work outside the feature
-registry**? Write `ACCEPTED by the operator` with the letter, or `REJECTED by the operator`.
+*Proposed 2026-10-13 by `product`, `PROPOSED`, with the question: file the CI/CD work as A — a new
+group `DLV` (recommended), B — a new group `OPS`, or C — `ops/<slug>` chore work outside the
+feature registry?*
 
 ## Context
 
@@ -70,6 +72,18 @@ Proposed: **A**.
   phase. The idea file proposes six.
 - ADR-028's step 2 reads *"`CAL`, `ADM`, `TEA`, `EVT`, `TSK` or `DLV`, by area"*, as ADR-058
   extended it before.
+
+## Decision as accepted
+
+**`CICD`, *CI/CD — checking, building, releasing and deploying the product*.** Everything in the
+proposed decision above holds, with `CICD` wherever it says `DLV`.
+
+**It is the first four-letter prefix.** `features.md` § *Columns* already defines an ID as *"group
+prefix plus a two-digit number"* without fixing the length. Check D1 did fix it: it read only
+three-letter prefixes and would have dropped `CICD` from the line it polices, silently, and its test
+asserted three letters. Both now accept three or four letters (`scripts/check-docs.mjs`,
+`scripts/tests/check-docs.test.mjs`), in the same change as the first rows. The ticket-ID pattern in
+`scripts/run-loop.mjs` and `scripts/lib/entry.mjs` already accepted two to four letters.
 
 ## Consequences
 

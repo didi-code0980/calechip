@@ -194,7 +194,7 @@ for (const id of tableIds(invSections.get("Ledger"))) {
 const featureRows = (text) =>
   (text ?? "")
     .split(/\r?\n/)
-    .map((l) => /^\|\s*([A-Z]{3}-\d{2})\s*\|/.exec(l)?.[1])
+    .map((l) => /^\|\s*([A-Z]{3,4}-\d{2})\s*\|/.exec(l)?.[1])
     .filter(Boolean);
 
 const featSections = sections(featText);
@@ -231,7 +231,7 @@ const RESERVED_EXAMPLE_PREFIX = "EXA";
 const GROUPS = (/<!--\s*id-prefixes:\s*([^>]*?)-->/.exec(featText ?? "")?.[1] ?? "")
   .split(/[\s,]+/)
   .map((g) => g.trim().toUpperCase())
-  .filter((g) => /^[A-Z]{3}$/.test(g))
+  .filter((g) => /^[A-Z]{3,4}$/.test(g)) // three letters, or four since ADR-059 (CICD)
   .filter((g) => g !== RESERVED_EXAMPLE_PREFIX);
 
 // --- D1 / D2 / D3 ---------------------------------------------------------------------------
@@ -241,7 +241,7 @@ const GROUPS = (/<!--\s*id-prefixes:\s*([^>]*?)-->/.exec(featText ?? "")?.[1] ??
 if (new RegExp(`<!--\\s*id-prefixes:[^>]*\\b${RESERVED_EXAMPLE_PREFIX}\\b`).test(featText ?? "")) {
   unconfigured.push(
     `D1 ignored the prefix ${RESERVED_EXAMPLE_PREFIX} — it is reserved for the worked examples in`
-    + ` this kit and cannot be a real feature group. Choose another three letters.`
+    + ` this kit and cannot be a real feature group. Choose another three or four letters.`
   );
 }
 if (GROUPS.length === 0) {

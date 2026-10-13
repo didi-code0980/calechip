@@ -22,10 +22,10 @@ consulted: []
 gate: PASS
 blocking_reason: ""
 next_state: TRIAGE
-verdict: NEEDS-ADR
-verdict_reason: "No feature group fits delivery work and the request reserves the prefix to the operator (ADR-059); Phase 1's test.fixme quarantine contradicts testing-standards.md:227 (ADR-060)"
-ticket_id: ""
-awaiting_adrs: [ADR-059, ADR-060]
+verdict: PROMOTE
+verdict_reason: "Worth doing and not covered: main has been red for weeks and nothing builds or deploys a release. Both decisions it waited on are the operator's, in words: ADR-059 (prefix CICD) and ADR-060 (bounded e2e quarantine). Split into six rows, one per phase of the request."
+ticket_id: "CICD-01, CICD-02, CICD-03, CICD-04, CICD-05, CICD-06"
+awaiting_adrs: []
 operator_request: |
   # OPS feature — CI/CD pipeline for CaleChip
 
@@ -355,3 +355,39 @@ and ticket shells from the table above.
 - The health endpoint exists (`/healthz`).
 - No migrate step, under RULE-09.
 - The image is environment-specific (`VITE_*` baked in).
+
+---
+
+## Re-triage verdict — PROMOTE, as `CICD-01` to `CICD-06` — **THIS IS THE LIVE VERDICT**
+
+2026-10-13. The NEEDS-ADR above is left as the record of what was asked.
+
+**The operator's answers, verbatim:**
+
+- To ADR-059 (*"file the CI/CD work as A — `DLV`, B — `OPS`, or C — `ops/<slug>`?"*):
+  **"lấy prefix là CICD"**. This is a new group, under the operator's own name. It is the first
+  four-letter prefix, so `scripts/check-docs.mjs` D1 and its test were widened in the same change.
+- To ADR-060 (*"allow quarantine with a ticket, a register row and a 30-day expiry?"*):
+  **"-> đồng ý"**.
+
+**Rows and tickets.** One per phase of the request, as its § 5 allows (*"one ticket per phase is
+fine"*), in `features.md` § *CICD — CI/CD*:
+
+| Ticket | Phase | Depends on |
+|---|---|---|
+| CICD-01 | 1 — stabilise the gate | — |
+| CICD-02 | 2 — split CI, branch-protection checklist | CICD-01 |
+| CICD-03 | 3 — build on `main` | CICD-01 |
+| CICD-04 | 4 — release on tag | CICD-03 |
+| CICD-05 | 5 — deployment repository, as drafts | CICD-04 |
+| CICD-06 | 6 — verify and document | CICD-02, CICD-03, CICD-04, CICD-05 |
+
+**Still open, and not blocking `CICD-01`:**
+- Question 3, staging: assumed none.
+- Question 4, secrets in the deployment repository: unknown. This blocks CICD-05 if they are real.
+- Question 5, release cut and version: assumed a manual tag.
+- Question 6, the runner label: needed at CICD-05.
+
+**Owed to the standards plane**, by ADR-060, before `CICD-01` lands its first `test.fixme`: the
+exception sentence at `testing-standards.md:227`, and the corrected figures at `:35-36`. This is
+work for a human or `/thuki`, or for `CICD-01`'s own `allowed_paths` if `/plan` puts it there.
