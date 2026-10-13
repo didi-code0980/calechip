@@ -5,7 +5,7 @@ id: EVT-11
 title: "A creator puts pictures in an event's description, downscaled and capped in size"
 feature_ids: [EVT-11]
 group: EVT
-state: BACKLOG
+state: READY
 owner: ""
 branch: ""
 size_estimate: "M"   # S|M - set by tech-lead-design at PLAN; gates DoR
@@ -32,5 +32,5 @@ chat_budget:
   developer->tech-lead-design: { used: 0, max: 6 }
 tracker: { provider: "", external_id: "", sync_enabled: false }
 gates:
-  plan:   { passed: false, at: null }
+  plan:   { passed: true, at: "2026-10-13T04:43:01+00:00" }
   review: { passed: false, at: null }
