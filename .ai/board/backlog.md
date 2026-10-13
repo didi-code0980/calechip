@@ -1392,7 +1392,7 @@ các tính năng mới và đưa vào backlog"*. The four solo rows registered e
 | 17 | EVT-08 | The creator or an admin of a public event invites people by email from the event's page, and each address is mailed once | 2026-10-12 | [#124](https://github.com/didi-code0980/calechip/pull/124) |
 | 18 | EVT-09 | A creator enters email addresses to invite while creating a public event | 2026-10-12 | [#125](https://github.com/didi-code0980/calechip/pull/125) |
 | 19 | EVT-10 | A creator formats an event's description, and every surface that shows it renders it sanitised | 2026-10-13 | [#126](https://github.com/didi-code0980/calechip/pull/126) |
-| 20 | EVT-11 | A creator puts pictures in an event's description, downscaled and capped in size | 2026-10-13 | PENDING_PR |
+| 20 | EVT-11 | A creator puts pictures in an event's description, downscaled and capped in size | 2026-10-13 | [#127](https://github.com/didi-code0980/calechip/pull/127) |
 
 **The window displaced `UIE-06` at EVT-11's ship** — *UIE-06, The month grid becomes one ruled full-width card with taller cells, on the product's tokens, shipped 2026-09-08,* [#73](https://github.com/didi-code0980/calechip/pull/73).
 
