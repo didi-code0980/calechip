@@ -24,7 +24,7 @@ planned, sized, and safe to build** — the next stage for a row here is IN_PROG
 |---|--------|-------|------|------------|
 | 1 | EVT-10 | A creator formats an event's description, and every surface that shows it renders it sanitised | M | — |
 
-**`EVT-10` is at `REVIEW` in `ticket.yaml`** — recorded at /advance on 2026-10-13 from `03-impl-log.md` gate PASS. The row stays here until `/ship` moves it to `## ARCHIVE`.
+**`EVT-10` is at `REVIEW` in `ticket.yaml`, `gates.review` passed** — recorded at /advance on 2026-10-13 from `04-review.md` verdict PASS, after `03-impl-log.md` gate PASS. The row stays here until `/ship` moves it to `## ARCHIVE`.
 
 **`EVT-10` moved here from `## BACKLOG` at /advance on 2026-10-12**, from `01-plan.md` gate PASS with all six Definition of Ready items passing. `EVT-11` to `TSK-04` each moved up one row in `## BACKLOG`; bookkeeping, not a reordering. The paragraphs below were written while this table was empty and are left standing.
 
