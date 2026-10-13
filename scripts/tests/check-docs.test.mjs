@@ -231,7 +231,7 @@ test("this repository's real features.md declares well-formed prefixes", () => {
   assert.ok(prefixes.length > 0, "no prefixes declared, so D1 polices nothing");
 
   for (const p of prefixes) {
-    assert.match(p, /^[A-Z]{3}$/, `prefix ${p} is not three uppercase letters`);
+    assert.match(p, /^[A-Z]{3,4}$/, `prefix ${p} is not three or four uppercase letters (four since ADR-059)`);
     assert.notEqual(p, "EXA", "EXA is reserved for this kit's worked examples and cannot be a group");
   }
   assert.equal(new Set(prefixes).size, prefixes.length, "a prefix is declared twice");
@@ -243,7 +243,7 @@ test("every declared prefix has a group section, and every group section is decl
   const real = fs.readFileSync(path.join(REPO, ".ai/registry/features.md"), "utf8");
   const declared = /<!--\s*id-prefixes:\s*([^>]*?)-->/.exec(real)[1].trim().split(/\s+/).filter(Boolean);
 
-  const sections = [...real.matchAll(/^##\s+([A-Z]{3})\s+—/gm)].map((m) => m[1]);
+  const sections = [...real.matchAll(/^##\s+([A-Z]{3,4})\s+—/gm)].map((m) => m[1]);
 
   assert.deepEqual(
     [...sections].sort(),
