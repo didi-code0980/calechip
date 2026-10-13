@@ -1387,7 +1387,7 @@ các tính năng mới và đưa vào backlog"*. The four solo rows registered e
 | 17 | EVT-07 | A guest registers for an opened event with a name and an email, and manages it from a link shown once | 2026-10-09 | [#118](https://github.com/didi-code0980/calechip/pull/118) |
 | 18 | EVT-08 | The creator or an admin of a public event invites people by email from the event's page, and each address is mailed once | 2026-10-12 | [#124](https://github.com/didi-code0980/calechip/pull/124) |
 | 19 | EVT-09 | A creator enters email addresses to invite while creating a public event | 2026-10-12 | [#125](https://github.com/didi-code0980/calechip/pull/125) |
-| 20 | EVT-10 | A creator formats an event's description, and every surface that shows it renders it sanitised | 2026-10-13 | PENDING_PR |
+| 20 | EVT-10 | A creator formats an event's description, and every surface that shows it renders it sanitised | 2026-10-13 | [#126](https://github.com/didi-code0980/calechip/pull/126) |
 
 **The window displaced `UIE-05` at EVT-10's ship** — *UIE-05, The week column fills the viewport, and its header strip and entry chip are restacked, shipped 2026-09-08,* [#72](https://github.com/didi-code0980/calechip/pull/72).
 
