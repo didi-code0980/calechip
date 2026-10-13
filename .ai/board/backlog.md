@@ -28,6 +28,8 @@ planned, sized, and safe to build** — the next stage for a row here is IN_PROG
 
 **`CICD-01` is at `REVIEW` in `ticket.yaml`** — recorded at /advance on 2026-10-13 from `03-impl-log.md` gate PASS. The row stays here until `/ship` moves it to `## ARCHIVE`.
 
+**`CICD-01` has `gates.review` passed** — recorded at /advance on 2026-10-13 from `04-review.md` verdict PASS. `state` stays `REVIEW`; `/ship` is next.
+
 **Empty again — `EVT-11` left this section for `## ARCHIVE` at its own ship on 2026-10-13.** `TSK-01` is the top of `## BACKLOG`.
 
 **`EVT-11` was at `REVIEW` in `ticket.yaml`, `gates.review` passed** — recorded at /advance on 2026-10-13 from `04-review.md` verdict PASS, after `03-impl-log.md` gate PASS. The row stays here until `/ship` moves it to `## ARCHIVE`.
