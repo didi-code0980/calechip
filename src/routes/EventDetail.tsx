@@ -46,6 +46,7 @@ import Avatar from "@/components/Avatar";
 import Loader from "@/components/Loader";
 import Modal from "@/components/Modal";
 import EventAttendancePanel from "@/components/EventAttendancePanel";
+import { DescriptionHtml } from "@/components/DescriptionHtml";
 import { EventScopeBadge, creatorName, eventDateLabel } from "./Events";
 
 type LoadState =
@@ -284,11 +285,8 @@ export default function EventDetail(): JSX.Element {
           </p>
         ) : null}
 
-        {event.description !== null ? (
-          <p data-testid="event-description" className="whitespace-pre-wrap text-sm text-ink">
-            {event.description}
-          </p>
-        ) : null}
+        {/* EVT-10 AC-8. Sanitised against ADR-056's allow-list on the way to the DOM. */}
+        <DescriptionHtml html={event.description} testId="event-description" />
 
         {canEdit && event.scope === "named" ? (
           <div data-testid="event-invitees" className="flex flex-col gap-2 border-t border-line pt-4">

@@ -33,6 +33,8 @@ import { seam, type DataSeam, type SaveEventInput } from "@/lib/data";
 import type { DirectoryMember, EventScope, Failure, Member } from "@/lib/domain/types";
 import Avatar from "@/components/Avatar";
 import Loader from "@/components/Loader";
+import DescriptionEditor from "@/components/DescriptionEditor";
+import { sanitizeDescription } from "@/components/DescriptionHtml";
 import {
   invalidInvitationEmails,
   mayEditEvent,
@@ -297,7 +299,10 @@ function EventForm({
     setSaving(true);
     const input: SaveEventInput = {
       name: values.name,
-      description: values.description,
+      // EVT-10 AC-9, ADR-056 decision 3. DEFENCE IN DEPTH ONLY — the API can be called without this
+      // form (ADR-005), so the render's sanitise is the security layer, not this one. `""` reaches
+      // the seam's `blankToNull` and is stored as no description, as before.
+      description: sanitizeDescription(values.description),
       location: values.location,
       startDate: values.startDate,
       endDate: values.endDate,
@@ -551,16 +556,15 @@ function EventForm({
           />
         </label>
 
-        <label className="flex flex-col gap-1.5">
+        {/* EVT-10. A `div`, not a `label`: a label around the toolbar would send every press on
+            one of its buttons to the first labelable control inside it. */}
+        <div className="flex flex-col gap-1.5">
           <span className={LABEL}>Description (optional)</span>
-          <textarea
-            data-testid="event-description-input"
-            rows={4}
+          <DescriptionEditor
             value={values.description}
-            onChange={(e) => set("description", e.target.value)}
-            className={FIELD}
+            onChange={(html) => set("description", html)}
           />
-        </label>
+        </div>
 
         {error !== null ? (
           <p data-testid="event-form-error" role="alert" className="text-sm text-danger">

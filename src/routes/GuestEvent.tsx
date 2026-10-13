@@ -36,6 +36,7 @@ import type {
 import { GUEST_EMAIL_MAX, GUEST_EMAIL_PATTERN, GUEST_NAME_MAX } from "@/lib/domain/types";
 import Loader from "@/components/Loader";
 import Modal from "@/components/Modal";
+import { DescriptionHtml } from "@/components/DescriptionHtml";
 import { eventDateLabel } from "./Events";
 
 type LoadState =
@@ -203,11 +204,9 @@ function GuestEventCard({
         </p>
       ) : null}
 
-      {event.description !== null ? (
-        <p data-testid="guest-event-description" className="whitespace-pre-wrap text-sm text-ink">
-          {event.description}
-        </p>
-      ) : null}
+      {/* EVT-10 AC-8. The guest page is on the open internet: sanitised against ADR-056's
+          allow-list on the way to the DOM, whatever was stored. */}
+      <DescriptionHtml html={event.description} testId="guest-event-description" />
 
       <div>
         {/* § 2b. *Full* is the overloaded-day pink, never red. */}
