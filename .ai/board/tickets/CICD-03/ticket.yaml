@@ -5,7 +5,7 @@ id: CICD-03
 title: "Every merge to `main` builds one image, pushes it to Docker Hub tagged by its commit, and smoke-tests it against the image's health endpoint"
 feature_ids: [CICD-03]
 group: CICD
-state: REVIEW
+state: DONE
 owner: ""
 branch: ""
 size_estimate: "S"     # S|M - set by tech-lead-design at PLAN; gates DoR
