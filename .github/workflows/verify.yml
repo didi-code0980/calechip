@@ -1,7 +1,10 @@
 name: verify
 
-# One of three workflows: verify, allowed-paths and mir-tracking. Which job names branch protection
-# requires is not decided here — CICD-02 writes that list into docs/ops/branch-protection.md.
+# The pull-request gate, and the same gate on every push to main. Branch protection requires ONE job
+# from this file: `verify`, at the bottom, which passes only when every other job here passed. The
+# other job names — static, scripts, e2e (n/2) — are deliberately not required, so regrouping steps
+# or changing the shard count never touches repository settings. The required list is
+# docs/ops/branch-protection.md. CICD-02.
 #
 # Do not enable branch protection until this has passed once. A required check that has never passed
 # blocks every pull request, including the operator's, and the only way out is to disable the
@@ -12,9 +15,19 @@ on:
   push:
     branches: [main]
 
+permissions:
+  contents: read
+
+# A pull request's newer run cancels its older one. A push to main gets its own group (run_id), so no
+# merge is ever cancelled or dropped as a superseded pending run.
+concurrency:
+  group: verify-${{ github.event.pull_request.number || github.run_id }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 jobs:
-  verify:
+  static:
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v7
 
@@ -28,7 +41,8 @@ jobs:
       - run: pnpm install --frozen-lockfile
 
       # The four commands are named by role in .ai/standards/testing-standards.md, which is the only
-      # file that knows their invocations. Keep these in step with that table.
+      # file that knows their invocations. Keep these, end-to-end below, and ci-fast.yml in step with
+      # that table.
       - name: typecheck
         run: pnpm exec tsc --noEmit
 
@@ -41,11 +55,82 @@ jobs:
       - name: documentation audit
         run: node scripts/check-docs.mjs
 
+  scripts:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: pnpm/action-setup@v6
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
       - name: hook and script tests
         run: node --test .claude/hooks/tests/*.test.mjs scripts/tests/*.test.mjs
 
+  e2e:
+    name: e2e (${{ matrix.shard }}/2)
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2]
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: pnpm/action-setup@v6
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      # Keyed by the installed Playwright version, not the lockfile hash, so an unrelated dependency
+      # bump does not throw the browsers away.
+      - name: playwright version
+        id: pw
+        run: echo "version=$(pnpm exec playwright --version | awk '{print $2}')" >> "$GITHUB_OUTPUT"
+
+      - name: cache browsers
+        id: pw-cache
+        uses: actions/cache@v6
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ steps.pw.outputs.version }}
+
+      # The cache holds the browser binaries, not the OS packages they need, so a hit still installs
+      # those.
       - name: install browsers
+        if: steps.pw-cache.outputs.cache-hit != 'true'
         run: pnpm exec playwright install --with-deps chromium
 
+      - name: install browser system dependencies
+        if: steps.pw-cache.outputs.cache-hit == 'true'
+        run: pnpm exec playwright install-deps chromium
+
       - name: end-to-end
-        run: pnpm exec playwright test
+        run: pnpm exec playwright test --shard=${{ matrix.shard }}/2
+
+  verify:
+    needs: [static, scripts, e2e]
+    if: ${{ !cancelled() }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions: {}
+    steps:
+      - name: every gate job passed
+        env:
+          STATIC: ${{ needs.static.result }}
+          SCRIPTS: ${{ needs.scripts.result }}
+          E2E: ${{ needs.e2e.result }}
+        run: |
+          echo "static=$STATIC scripts=$SCRIPTS e2e=$E2E"
+          [ "$STATIC" = success ] && [ "$SCRIPTS" = success ] && [ "$E2E" = success ]

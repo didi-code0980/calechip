@@ -1,6 +1,6 @@
 ---
-doc_version: 5
-last_updated: 2026-10-09
+doc_version: 6
+last_updated: 2026-10-13
 governed_by: [RULE-03, RULE-09, RULE-10]
 ---
 
@@ -273,15 +273,19 @@ and the state it discards includes the artifacts that explain how the confusion 
 
 ## Branch protection
 
-Points at exactly two status checks: `verify` and `allowed-paths`.
+Points at exactly three status checks: `verify`, `allowed-paths` and `mir-tracking`. The settings
+and the command that applies them are in `docs/ops/branch-protection.md`, and the operator applies
+them by hand (RULE-09).
+*Until 2026-10-13 this said "exactly two status checks: `verify` and `allowed-paths`" — `mir-tracking`
+already existed. CICD-02.*
 
 **Do not enable it until the `verify` workflow has passed at least once.** A required check that has
 never passed blocks every pull request, including the operator's, and the only way out is to disable
 the protection you just configured.
 
-TODO(project): `.github/workflows/` ships empty in this kit. Both status checks have to exist before
-branch protection is switched on; `scripts/check-allowed-paths.mjs` is the whole of `allowed-paths`,
-and `verify` is the project's own typecheck, lint and test commands plus `node scripts/check-docs.mjs`.
+`verify` is the aggregate job of the parallel jobs in `.github/workflows/verify.yml`, and `ci-fast`
+is feedback on push to `feat/**`, not a gate.
+*Until 2026-10-13 this said "TODO(project): `.github/workflows/` ships empty in this kit." CICD-02.*
 
 ## CODEOWNERS
 

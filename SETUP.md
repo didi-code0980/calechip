@@ -178,9 +178,12 @@ human, as ideas are promoted.
 - **`.github/CODEOWNERS`** — replace `@OWNER`. Since ADR-004 this file is the *only* mechanism behind
   RULE-01. Until it names a real reviewer and branch protection requires their review, "the registry
   is human-only" is a sentence with nothing behind it.
-- **`.github/workflows/`** — two workflows, exactly two status check names: `verify` and
-  `allowed-paths`. Do not split into six. Details in the placeholder in that directory.
-- **Branch protection** — point it at those two names, and **not until `verify` has passed at least
+- **`.github/workflows/`** — the workflows exist. The required checks are `verify`, `allowed-paths`
+  and `mir-tracking`; the settings and the command that applies them are in
+  `docs/ops/branch-protection.md`.
+  *Until 2026-10-13 this said "two workflows, exactly two status check names: `verify` and
+  `allowed-paths`". CICD-02.*
+- **Branch protection** — point it at those three names, and **not until `verify` has passed at least
   once.** A required check that has never passed blocks every pull request including yours, and the
   only way out is to disable the protection you just configured.
 - **`.gitignore`** — add the build output and anything a generator writes.
