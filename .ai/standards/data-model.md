@@ -1,6 +1,6 @@
 ---
-doc_version: 7
-last_updated: 2026-09-12
+doc_version: 8
+last_updated: 2026-10-13
 governed_by: [RULE-01, RULE-04, RULE-09]
 ---
 
@@ -17,8 +17,11 @@ in a table, because a plausible column name in this file is indistinguishable fr
 
 ### `team`
 
-One row in v1. The table exists anyway because INV-07 counts entries against a team, and the brief's
-P2 list asks the model to leave room for more.
+One row per team. There are many since `supabase/migrations/20260911180000_solo_many_teams.sql`
+(ADR-039). The table exists because INV-07 counts entries against a team. ADR-059 places every team
+inside an org. The columns that carry that are MIR-10's design, and this file describes them when
+it lands. *Until 2026-10-13 this read "One row in v1. The table exists anyway because INV-07 counts
+entries against a team, and the brief's P2 list asks the model to leave room for more."*
 
 | Field | Type | Notes |
 |---|---|---|
@@ -174,7 +177,7 @@ database.
 | INV-04 — one definition of the absence count | A single function inside the seam. Application-level by nature: it is a computation rather than a state constraint, and nothing can store a wrong value because nothing stores it at all. |
 | INV-05 — tentative counts | Follows from INV-04 having one implementation; `tentative` is not consulted by it. |
 | INV-06 — one portion per entry | Column shape: a single not-null enum, so a per-day portion is unrepresentable. |
-| INV-07 — one member, one team | Not-null foreign keys, and the refusals above. |
+| INV-07 — one member, every team they belong to (title until 2026-10-13: *one member, one team*) | Not-null foreign keys, and the refusals above — sufficient while a member has one team; MIR-10 redesigns it for several (ADR-059). |
 
 TODO(project): cite the migration file and the constraint name for each row once migrations exist. A
 row here naming a mechanism that has not been written is a claim, and `.ai/registry/invariants.md`

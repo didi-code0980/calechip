@@ -1,6 +1,6 @@
 ---
-doc_version: 4
-last_updated: 2026-09-12
+doc_version: 5
+last_updated: 2026-10-13
 governed_by: [RULE-01, RULE-02, RULE-09]
 ---
 
@@ -172,8 +172,11 @@ admin powers over no team.
 A member must not read the pending queue: it is a list of people who have asked and not yet been
 answered, which is admin information rather than team information. The policy that exposes it is
 deliberately **not** team-scoped — a pending member has no team to scope it by — so with more than
-one team every admin sees every pending sign-up and may claim one for their own team. v1 has one
-team; ADR-033 names this as the first thing to revisit if a second is created.
+one team every admin sees every pending sign-up and may claim one for their own team. Many teams
+exist since ADR-039, which widened the claim to any team. Under ADR-059 the queue is bounded by the
+org, and MIR-16 re-points it (plan P4-1, *"Re-point the four system-scope groups: sign-up queue, …"*).
+*Until 2026-10-13 this read "v1 has one team; ADR-033 names this as the first thing to revisit if a
+second is created."*
 
 **Removing a member does not remove their entries.** They stay, and the absence count for past dates
 changes because team size is read at evaluation time — the consequence recorded in the INV-04 note in

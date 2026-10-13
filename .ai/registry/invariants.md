@@ -1,6 +1,6 @@
 ---
-doc_version: 3
-last_updated: 2026-08-31
+doc_version: 4
+last_updated: 2026-10-13
 governed_by: [RULE-01, RULE-07, RULE-09]
 ---
 
@@ -33,10 +33,10 @@ brief states or a decision the operator made in words; nothing here was inferred
 | INV-01 | Two entries belonging to the same member may not cover the same portion of the same date. `full` conflicts with everything; `am` and `pm` do not conflict with each other. |
 | INV-02 | An approved entry whose dates, type, portion or tentative flag change returns to `pending`. Editing only the note does not. |
 | INV-03 | A rejected entry always carries a non-empty rejection reason. |
-| INV-04 | The absence count for a date is the sum, over that date's `pending` and `approved` entries **whose member was still on the team on that date**, of 1 per `full` portion and 0.5 per `am` or `pm` portion, with PTO and WFH counted alike. Rejected entries are excluded. No second definition of this number exists anywhere in the system. |
+| INV-04 | The absence count for a team on a date is the sum, over that date's `pending` and `approved` entries **whose member was still on that team on that date**, of 1 per `full` portion and 0.5 per `am` or `pm` portion, with PTO and WFH counted alike. Rejected entries are excluded. No second definition of this number exists anywhere in the system. |
 | INV-05 | A tentative entry counts toward the absence count exactly as a non-tentative one does. |
 | INV-06 | An entry carries exactly one portion, and that portion applies to every date in its range. |
-| INV-07 | Every entry belongs to exactly one member, and is counted only against the team that member belongs to. |
+| INV-07 | Every entry belongs to exactly one member, and is counted against every team that member belongs to. |
 
 ## Unissued IDs
 
@@ -160,12 +160,29 @@ a single sum rather than a special case at each end of every range.
 
 If that trade is revisited, it is a schema migration and an ADR, not a story.
 
-### INV-07 — one member, one team
+### INV-07 — one member, every team they belong to
 
 Not stated in the brief; recorded here because the entire product is built on it and no other reading
 is available. It matters now rather than later because the brief defers multiple teams to P2 while
 asking the data model to leave room for them — so the team a count is taken against has to be a
 property of the data from the first migration, not a constant that gets parameterised afterwards.
+
+*Restated 2026-10-13 by
+[ADR-059](decisions/ADR-059-calechip-becomes-multi-tenant-system-org-team.md) decision 7, with
+INV-04.* The operator's answer, verbatim: *"Tính vào tất cả team người đó thuộc về"*. Under ADR-059
+a member may belong to several teams of one org, and an entry adds to the absence count of **each**
+of them. The heading read *"one member, one team"*, and the ledger rows read:
+
+> **INV-04** — The absence count for a date is the sum, over that date's `pending` and `approved`
+> entries **whose member was still on the team on that date**, …
+>
+> **INV-07** — Every entry belongs to exactly one member, and is counted only against the team that
+> member belongs to.
+
+The rest of both rows is unchanged. **Nothing is violated by the restatement today.** The deployed
+schema gives a member one team (`member.team_id`), and for that member *"every team"* and *"the
+team"* are the same set. MIR-10 must design for the new wording. That means a count per team,
+taken over that team's members as of the date, and no second definition of the number.
 
 ## Considered and rejected as an invariant
 
