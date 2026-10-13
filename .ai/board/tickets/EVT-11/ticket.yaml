@@ -5,7 +5,7 @@ id: EVT-11
 title: "A creator puts pictures in an event's description, downscaled and capped in size"
 feature_ids: [EVT-11]
 group: EVT
-state: REVIEW
+state: DONE
 owner: ""
 branch: ""
 size_estimate: "M"   # S|M - set by tech-lead-design at PLAN; gates DoR
