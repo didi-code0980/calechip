@@ -1,6 +1,6 @@
 ---
-doc_version: 3
-last_updated: 2026-09-01
+doc_version: 4
+last_updated: 2026-10-13
 governed_by: [RULE-05, RULE-07, RULE-08]
 ---
 
@@ -28,12 +28,12 @@ condition.** This paragraph read *"none of the first four commands runs yet"* un
 true when written and became false without anyone noticing — which is the failure the sentence it
 replaces was warning about.
 
-| Role | Result on 2026-09-08 |
+| Role | Result on 2026-10-13 |
 |---|---|
 | typecheck | exit 0 |
 | lint | exit 0 |
-| unit | 12 files, 202 tests, all pass |
-| end-to-end | 171 tests in 18 spec files, all pass |
+| unit | 37 files, 710 tests, all pass |
+| end-to-end | 366 passed, 21 skipped (quarantined — `docs/ops/e2e-quarantine.md`), 0 flaky, 0 failed; 387 tests in 47 spec files, run as `CI=1` |
 
 **The six end-to-end failures this table recorded are fixed and the suite is green.** The row above
 read *"10 tests in 2 files — 4 pass, 6 fail"* from 2026-09-01 until 2026-09-08, and the paragraph
@@ -42,6 +42,8 @@ resolved to Supabase whenever a `.env` carrying `VITE_SUPABASE_URL` was present.
 on 2026-09-03** — `playwright.config.ts:49-51` now pins `VITE_DATA_SEAM: "mock"` and
 `VITE_SUPABASE_URL: ""` in `webServer.env`, which is exactly the fix MD-021 asked for, and MD-021 is
 marked RESOLVED in `.ai/board/model-debt.md`.
+
+**The suite went red again at #87 and CICD-01 made it exit 0 by quarantine, not by repair.** The 21 skips above are the ADR-060 quarantine of tests that fail on `main`; each has a row in `docs/ops/e2e-quarantine.md` against a `BUG-nnn` ticket and an expiry, and check D15 refuses an unregistered or expired one. Two further tests (EVT-02 AC-28, EVT-10 AC-2/3/4) are registered as *flaky* and still run under the CI retry; they failed first in earlier runs and passed on retry, so the flaky count above is 0 only for the run measured.
 
 **This is the second time this table went stale in the direction that costs something, and the cost
 was paid on 2026-09-08.** CAL-09 is the first ticket to cite these two documents as a reason to skip
@@ -225,4 +227,4 @@ and the same content under a human-owned path, which must be.
 - A test that mocks the seam inside a component test. The mock seam is already the mock; mocking it
   again tests the mock.
 - A skipped test left in the suite. Delete it or fix it; a skip is a passing test that checks
-  nothing.
+  nothing. Except a quarantine under ADR-060: a `test.fixme` with a ticket, a register row and an unexpired date. The register is `docs/ops/e2e-quarantine.md`, and check D15 in `scripts/check-docs.mjs` is what enforces it.

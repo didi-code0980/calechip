@@ -1023,6 +1023,199 @@ if (ticketTpl) {
   }
 }
 
+// --- D15: every e2e quarantine is registered, ticketed and unexpired (ADR-060) ----------------
+//
+// ADR-060 lets a failing end-to-end test be quarantined with `test.fixme`, and only while three things
+// hold: a comment names a tracking ticket, `docs/ops/e2e-quarantine.md` has a row for the test, and
+// that row carries an expiry no more than 30 days out. `testing-standards.md` ("A skipped test left
+// in the suite") states the exception; nothing but this check makes it true. Without it the register
+// is a document a quarantine can quietly outlive, which is the permanent debt ADR-060 § Consequences
+// names. Designed in .ai/board/tickets/CICD-01/01-plan.md § 4.4.
+//
+// A test is matched to its row by spec file plus exact title, never by line number or AC label: lines
+// move with every edit above them and AC labels repeat across files (plan § 8 alternative 4).
+// `test.skip` is not policed here; ADR-060 permits `test.fixme` only.
+
+const QUARANTINE_REGISTER = "docs/ops/e2e-quarantine.md";
+const QUARANTINE_E2E_DIR = "tests/e2e";
+const QUARANTINE_MAX_DAYS = 30;
+const QUARANTINE_KINDS = new Set(["fixme", "flaky"]);
+const QUARANTINE_HEADER = ["Test", "Kind", "Suspected cause", "First failing PR", "Ticket", "Expiry"];
+
+/** @typedef {{ file: string, title: string, kind: string, cause: string, firstPr: string,
+ *              ticket: string, expiry: string, line: number }} QuarantineRow */
+/** @typedef {{ file: string, line: number, title: string | null, tickets: string[],
+ *              describe: boolean }} FixmeSite */
+/** @typedef {{ file: string, title: string, fixme: boolean }} TestDecl */
+
+/** Today's UTC date and today + n days, as YYYY-MM-DD strings. */
+function isoDayUTC(offsetDays = 0) {
+  const d = new Date();
+  const t = Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate() + offsetDays);
+  return new Date(t).toISOString().slice(0, 10);
+}
+
+/** Splits a markdown table row on unescaped `|`, trimmed, without the outer pipes. */
+function splitTableRow(line) {
+  let body = line.trim().replace(/^\|/, "");
+  if (body.endsWith("|") && !body.endsWith("\\|")) body = body.slice(0, -1);
+  const cells = [];
+  let cur = "";
+  for (let i = 0; i < body.length; i++) {
+    if (body[i] === "\\" && body[i + 1] === "|") {
+      cur += "|";
+      i++;
+    } else if (body[i] === "|") {
+      cells.push(cur.trim());
+      cur = "";
+    } else cur += body[i];
+  }
+  cells.push(cur.trim());
+  return cells;
+}
+
+/** Rows of the first table whose header cells equal QUARANTINE_HEADER. Missing file → []. */
+function parseQuarantineRegister(text) {
+  /** @type {QuarantineRow[]} */
+  const rows = [];
+  /** @type {string[]} */
+  const problems = [];
+  if (!text) return { rows, problems };
+  const lines = text.split(/\r?\n/);
+  let i = lines.findIndex((l) => {
+    if (!l.trim().startsWith("|")) return false;
+    const c = splitTableRow(l);
+    return c.length === QUARANTINE_HEADER.length && c.every((x, k) => x === QUARANTINE_HEADER[k]);
+  });
+  if (i === -1) return { rows, problems };
+  i++;
+  if (i < lines.length && /^\s*\|[\s:|-]+\|\s*$/.test(lines[i])) i++;
+  let n = 0;
+  for (; i < lines.length && lines[i].trim().startsWith("|"); i++) {
+    n++;
+    const cells = splitTableRow(lines[i]);
+    if (cells.length !== QUARANTINE_HEADER.length) {
+      problems.push(`row ${n}: has ${cells.length} cells, the header has ${QUARANTINE_HEADER.length}`);
+      continue;
+    }
+    const m = /^`([^`]+)`\s+›\s+(.+)$/.exec(cells[0]);
+    if (!m) {
+      problems.push(`row ${n}: Test cell is not \`<path>\` › <title>`);
+      continue;
+    }
+    rows.push({ file: m[1], title: m[2], kind: cells[1], cause: cells[2], firstPr: cells[3], ticket: cells[4], expiry: cells[5], line: n });
+  }
+  return { rows, problems };
+}
+
+/** The first argument when it is a string literal starting at `from`, else null. */
+function readTitleAt(line, from) {
+  const m = /^\s*(["'`])/.exec(line.slice(from));
+  if (!m) return null;
+  const q = m[1];
+  let out = "";
+  for (let i = from + m[0].length; i < line.length; i++) {
+    const c = line[i];
+    if (c === "\\") {
+      out += line[i + 1] ?? "";
+      i++;
+    } else if (c === q) return out;
+    else if (q === "`" && c === "$" && line[i + 1] === "{") return null;
+    else out += c;
+  }
+  return null; // unterminated on this line
+}
+
+const isCommentLine = (l) => /^\s*(\/\/|\*|\/\*)/.test(l);
+
+/** Every `test.fixme(` / `test.describe.fixme(` site in one file's text. */
+function findFixmeSites(file, text) {
+  /** @type {FixmeSite[]} */
+  const sites = [];
+  const lines = text.split(/\r?\n/);
+  lines.forEach((l, idx) => {
+    if (isCommentLine(l)) return;
+    const m = /\btest(\.describe)?\.fixme\s*\(/.exec(l);
+    if (!m) return;
+    const ids = /\b[A-Z]{2,5}-\d{2,3}\b/g;
+    const tickets = [...(lines[idx - 1] ?? "").matchAll(ids), ...l.matchAll(ids)].map((x) => x[0]);
+    sites.push({ file, line: idx + 1, title: readTitleAt(l, m.index + m[0].length), tickets, describe: Boolean(m[1]) });
+  });
+  return sites;
+}
+
+/** Every `test(` / `test.fixme(` declaration with a string-literal title in one file's text. */
+function findTestDecls(file, text) {
+  /** @type {TestDecl[]} */
+  const decls = [];
+  for (const l of text.split(/\r?\n/)) {
+    if (isCommentLine(l)) continue;
+    const m = /\btest(\.fixme)?\s*\(/.exec(l);
+    if (!m) continue;
+    const title = readTitleAt(l, m.index + m[0].length);
+    if (title !== null) decls.push({ file, title, fixme: Boolean(m[1]) });
+  }
+  return decls;
+}
+
+{
+  const { rows, problems } = parseQuarantineRegister(readIf(path.join(ROOT, QUARANTINE_REGISTER)));
+  const specs = walk(path.join(ROOT, QUARANTINE_E2E_DIR)).filter((f) => f.endsWith(".ts"));
+  const sites = [];
+  const decls = [];
+  for (const f of specs) {
+    const text = readIf(f) ?? "";
+    sites.push(...findFixmeSites(rel(f), text));
+    decls.push(...findTestDecls(rel(f), text));
+  }
+  const key = (f, t) => `${f}\u0000${t}`;
+  const rowByKey = new Map();
+  const declByKey = new Map(decls.map((d) => [key(d.file, d.title), d]));
+  const today = isoDayUTC(0);
+  const horizon = isoDayUTC(QUARANTINE_MAX_DAYS);
+
+  for (const p of problems) err("D15", QUARANTINE_REGISTER, p);
+
+  for (const r of rows) {
+    const label = `\`${r.file}\` › ${r.title}`;
+    if (rowByKey.has(key(r.file, r.title))) err("D15", QUARANTINE_REGISTER, `${label} is registered twice`);
+    else rowByKey.set(key(r.file, r.title), r);
+    if (!QUARANTINE_KINDS.has(r.kind)) err("D15", QUARANTINE_REGISTER, `${label}: kind must be fixme or flaky, not \`${r.kind}\``);
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(r.expiry)) err("D15", QUARANTINE_REGISTER, `${label}: expiry is not YYYY-MM-DD (\`${r.expiry}\`)`);
+    else if (r.expiry < today) err("D15", QUARANTINE_REGISTER, `${label} expired on ${r.expiry} — fix it, delete the row with a reason, or have the operator re-date it`);
+    else if (r.expiry > horizon) err("D15", QUARANTINE_REGISTER, `${label}: expiry ${r.expiry} is more than 30 days out (the latest allowed today is ${horizon})`);
+    for (const [col, v] of [["Suspected cause", r.cause], ["First failing PR", r.firstPr], ["Ticket", r.ticket]]) {
+      if (!v) err("D15", QUARANTINE_REGISTER, `${label} has an empty ${col} cell`);
+    }
+    if (r.ticket && !fs.existsSync(path.join(ROOT, ".ai/board/tickets", r.ticket, "ticket.yaml"))) {
+      err("D15", QUARANTINE_REGISTER, `${label}: ticket ${r.ticket} has no ticket.yaml under .ai/board/tickets/`);
+    }
+    const d = declByKey.get(key(r.file, r.title));
+    if (!d) err("D15", QUARANTINE_REGISTER, `${label} names a test that does not exist`);
+    else if (r.kind === "fixme" && !d.fixme) err("D15", QUARANTINE_REGISTER, `${label} is registered as fixme but runs — delete the row`);
+    else if (r.kind === "flaky" && d.fixme) err("D15", QUARANTINE_REGISTER, `${label} is registered as flaky but is quarantined — a flaky test keeps running`);
+  }
+
+  for (const s of sites) {
+    if (s.describe) {
+      err("D15", s.file, `line ${s.line}: describe-level fixme cannot be registered — quarantine tests one at a time`);
+      continue;
+    }
+    if (s.title === null) {
+      err("D15", s.file, `test.fixme at line ${s.line} has no string-literal title, so no register row can match it`);
+      continue;
+    }
+    const row = rowByKey.get(key(s.file, s.title));
+    if (!row) {
+      err("D15", s.file, `"${s.title}" (line ${s.line}) is quarantined with no row in ${QUARANTINE_REGISTER}`);
+      continue;
+    }
+    if (!s.tickets.includes(row.ticket)) {
+      err("D15", s.file, `"${s.title}" (line ${s.line}) names no ticket, or not ${row.ticket}, on its line or the line above`);
+    }
+  }
+}
+
 // --- Report ------------------------------------------------------------------------------------
 
 const byCheck = (list) => {

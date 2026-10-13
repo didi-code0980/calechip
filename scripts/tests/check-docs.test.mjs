@@ -1378,3 +1378,167 @@ test("this repository passes D14", () => {
   const res = spawnSync(process.execPath, [SCRIPT], { cwd: REPO, encoding: "utf8" });
   assert.doesNotMatch(res.stdout, /FAIL D14/);
 });
+
+// --- D15: e2e quarantine register (ADR-060) ---
+//
+// Dates are computed from the clock in UTC, never hard-coded, so these tests cannot expire. Each
+// test asserts on findings("D15") only: a minimal fixture trips unrelated checks.
+
+const utcDay = (offset = 0) => {
+  const d = new Date();
+  return new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate() + offset)).toISOString().slice(0, 10);
+};
+
+/** A register file with the given rows; each row is [test, kind, cause, pr, ticket, expiry]. */
+const registerWith = (...rows) =>
+  [
+    "# Register",
+    "",
+    "| Test | Kind | Suspected cause | First failing PR | Ticket | Expiry |",
+    "|---|---|---|---|---|---|",
+    ...rows.map((r) => `| ${r.join(" | ")} |`),
+    "",
+  ].join("\n");
+
+/** A spec file body holding the given declarations, each { title, fixme, ticket }. */
+const specWith = (...decls) =>
+  [
+    'import { test } from "@playwright/test";',
+    ...decls.flatMap((d) => [
+      ...(d.ticket ? [`// QUARANTINED ${d.ticket} under ADR-060 — row in docs/ops/e2e-quarantine.md`] : []),
+      `test${d.fixme ? ".fixme" : ""}(${JSON.stringify(d.title)}, async () => {});`,
+    ]),
+    "",
+  ].join("\n");
+
+/** A minimal ticket shell so finding 10 does not fire. */
+const ticketShell = (id) => ({ [`.ai/board/tickets/${id}/ticket.yaml`]: `id: ${id}\n` });
+
+const SPEC = "tests/e2e/probe.spec.ts";
+const TITLE = "AC-1: the probe";
+const rowOf = ({ title = TITLE, kind = "fixme", ticket = "BUG-001", expiry = utcDay(10), file = SPEC } = {}) => [
+  `\`${file}\` › ${title}`,
+  kind,
+  "a cause",
+  "#1",
+  ticket,
+  expiry,
+];
+const d15 = (files, rowsArg) =>
+  run(
+    project("", "", {
+      ...(rowsArg ? { "docs/ops/e2e-quarantine.md": registerWith(...rowsArg) } : {}),
+      ...ticketShell("BUG-001"),
+      ...files,
+    })
+  ).findings("D15");
+
+test("with no fixme and no register, D15 says nothing", () => {
+  assert.deepEqual(d15({ [SPEC]: specWith({ title: TITLE }) }), []);
+});
+
+test("an unregistered fixme fails D15", () => {
+  const f = d15({ [SPEC]: specWith({ title: TITLE, fixme: true, ticket: "BUG-001" }) }, [rowOf({ title: "another" })]);
+  assert.ok(f.some((l) => l.includes(SPEC) && l.includes(TITLE) && l.includes("is quarantined with no row in docs/ops/e2e-quarantine.md")), f.join("\n"));
+});
+
+test("a fixme with no register file at all fails D15", () => {
+  const f = d15({ [SPEC]: specWith({ title: TITLE, fixme: true, ticket: "BUG-001" }) });
+  assert.equal(f.length, 1);
+  assert.match(f[0], /is quarantined with no row/);
+});
+
+test("a registered, ticketed, unexpired fixme passes D15", () => {
+  assert.deepEqual(d15({ [SPEC]: specWith({ title: TITLE, fixme: true, ticket: "BUG-001" }) }, [rowOf()]), []);
+});
+
+test("an expired row fails D15", () => {
+  const y = utcDay(-1);
+  const f = d15({ [SPEC]: specWith({ title: TITLE, fixme: true, ticket: "BUG-001" }) }, [rowOf({ expiry: y })]);
+  assert.equal(f.length, 1);
+  assert.ok(f[0].includes(TITLE) && f[0].includes(`expired on ${y}`), f[0]);
+});
+
+test("a row expiring today passes D15", () => {
+  assert.deepEqual(d15({ [SPEC]: specWith({ title: TITLE, fixme: true, ticket: "BUG-001" }) }, [rowOf({ expiry: utcDay(0) })]), []);
+});
+
+test("a row more than 30 days out fails D15", () => {
+  const f = d15({ [SPEC]: specWith({ title: TITLE, fixme: true, ticket: "BUG-001" }) }, [rowOf({ expiry: utcDay(31) })]);
+  assert.equal(f.length, 1);
+  assert.match(f[0], /more than 30 days out/);
+});
+
+test("a row exactly 30 days out passes D15", () => {
+  assert.deepEqual(d15({ [SPEC]: specWith({ title: TITLE, fixme: true, ticket: "BUG-001" }) }, [rowOf({ expiry: utcDay(30) })]), []);
+});
+
+test("a fixme row whose test runs again fails D15", () => {
+  const f = d15({ [SPEC]: specWith({ title: TITLE }) }, [rowOf()]);
+  assert.equal(f.length, 1);
+  assert.match(f[0], /is registered as fixme but runs/);
+});
+
+test("a row naming a test that does not exist fails D15", () => {
+  const missingTitle = d15({ [SPEC]: specWith({ title: "something else" }) }, [rowOf()]);
+  assert.ok(missingTitle.some((l) => l.includes("names a test that does not exist")));
+  const missingFile = d15({}, [rowOf()]);
+  assert.ok(missingFile.some((l) => l.includes("names a test that does not exist")));
+});
+
+test("a flaky row whose test is quarantined fails D15", () => {
+  const f = d15({ [SPEC]: specWith({ title: TITLE, fixme: true, ticket: "BUG-001" }) }, [rowOf({ kind: "flaky" })]);
+  assert.ok(f.some((l) => l.includes("is registered as flaky but is quarantined")), f.join("\n"));
+});
+
+test("a flaky row whose test runs passes D15", () => {
+  assert.deepEqual(d15({ [SPEC]: specWith({ title: TITLE }) }, [rowOf({ kind: "flaky" })]), []);
+});
+
+test("a fixme whose comment names no ticket fails D15", () => {
+  const f = d15({ [SPEC]: specWith({ title: TITLE, fixme: true }) }, [rowOf()]);
+  assert.equal(f.length, 1);
+  assert.match(f[0], /names no ticket, or not BUG-001/);
+});
+
+test("a fixme whose comment names a different ticket fails D15", () => {
+  const f = d15({ [SPEC]: specWith({ title: TITLE, fixme: true, ticket: "BUG-002" }) }, [rowOf()]);
+  assert.equal(f.length, 1);
+  assert.match(f[0], /names no ticket, or not BUG-001/);
+});
+
+test("a row whose ticket has no ticket.yaml fails D15", () => {
+  const f = d15({ [SPEC]: specWith({ title: TITLE, fixme: true, ticket: "BUG-077" }) }, [rowOf({ ticket: "BUG-077" })]);
+  assert.equal(f.length, 1);
+  assert.match(f[0], /ticket BUG-077 has no ticket\.yaml/);
+});
+
+test("a fixme with no string-literal title fails D15", () => {
+  const body = 'import { test } from "@playwright/test";\ntest("x", async () => {\n  test.fixme();\n});\ntest.fixme(cond, "y", async () => {});\n';
+  const f = d15({ [SPEC]: body });
+  assert.equal(f.length, 2);
+  assert.ok(f.every((l) => l.includes("has no string-literal title")), f.join("\n"));
+  assert.ok(f[0].includes("line 3"));
+});
+
+test("a describe-level fixme fails D15", () => {
+  const body = 'import { test } from "@playwright/test";\ntest.describe.fixme("group", () => {});\n';
+  const f = d15({ [SPEC]: body });
+  assert.equal(f.length, 1);
+  assert.match(f[0], /describe-level fixme cannot be registered/);
+});
+
+test("a commented-out test.fixme is not a quarantine", () => {
+  const body = 'import { test } from "@playwright/test";\n// test.fixme("AC-1: the probe", async () => {});\n/*\n * test.fixme("AC-2: another", async () => {});\n */\n';
+  assert.deepEqual(d15({ [SPEC]: body }), []);
+});
+
+test("a kind other than fixme or flaky fails D15", () => {
+  const f = d15({ [SPEC]: specWith({ title: TITLE }) }, [rowOf({ kind: "skip" })]);
+  assert.ok(f.some((l) => l.includes("kind must be fixme or flaky")), f.join("\n"));
+});
+
+test("this repository's real register and suite pass D15", () => {
+  const res = spawnSync(process.execPath, [SCRIPT], { cwd: REPO, encoding: "utf8" });
+  assert.doesNotMatch(res.stdout, /FAIL D15/);
+});
