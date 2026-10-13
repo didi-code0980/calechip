@@ -22,6 +22,9 @@ planned, sized, and safe to build** — the next stage for a row here is IN_PROG
 
 | # | Ticket | Title | Size | Depends on |
 |---|--------|-------|------|------------|
+| 1 | CICD-02 | A push to a feature branch gets lint, typecheck and unit results within about three minutes, and a pull request runs the full gate as named, required checks | M | CICD-01 (DONE, #130) |
+
+**`CICD-02` moved here from `## BACKLOG` at /advance on 2026-10-13**, from `01-plan.md` gate PASS with all six Definition of Ready items passing. `## BACKLOG` is renumbered from 1: it started at row 2 after `CICD-01` left it without a renumber. `CICD-03` to `TSK-04` each moved up; bookkeeping, not a reordering. `BUG-003` to `BUG-005` are at `BACKLOG` in `ticket.yaml` and still have no row — placing them is a human's. The paragraphs below were written while this table was empty and are left standing.
 
 **`CICD-01` moved here from `## BACKLOG` at /advance on 2026-10-13**, from `01-plan.md` gate PASS. Definition of Ready items 1, 2, 3, 4 and 6 pass; **item 5 (`size_estimate` is S or M) is waived by the operator**, who chose "Accept L unsplit" on 2026-10-13 (`01-plan.md` Changelog). The rows below it in `## BACKLOG` keep their order.
 
@@ -106,15 +109,14 @@ Under the current gate placement a ticket sits here until it has been planned �
 
 | # | Ticket | Title | State | Blocked on |
 |---|--------|-------|-------|------------|
-| 2 | CICD-02 | A push to a feature branch gets lint, typecheck and unit results within about three minutes, and a pull request runs the full gate as named, required checks | BACKLOG | CICD-01 |
-| 3 | CICD-03 | Every merge to `main` builds one image, pushes it to Docker Hub tagged by its commit, and smoke-tests it against the image's health endpoint | BACKLOG | CICD-01 |
-| 4 | CICD-04 | A version tag on `main` promotes the image already built for that commit, by digest and without rebuilding, and opens a release pull request in the deployment repository | BACKLOG | CICD-03 |
-| 5 | CICD-05 | The deployment repository deploys only CaleChip from merged config, health-checks it and restores the previous version on failure — drafted in this repository | BACKLOG | CICD-04 |
-| 6 | CICD-06 | The pipeline, its secrets, how to cut a release and how to roll one back are written down, and the standards that describe CI match it | BACKLOG | CICD-02, CICD-03, CICD-04, CICD-05 |
-| 7 | TSK-01 | A member keeps a private list of tasks for each day, and only they can read or change it | BACKLOG | — |
-| 8 | TSK-02 | Each time the app opens, a member is shown their overdue tasks and can tick them or move them all to today | BACKLOG | TSK-01 |
-| 9 | TSK-03 | A member declaring PTO is warned about their own tasks on those days, without being stopped | BACKLOG | TSK-01 |
-| 10 | TSK-04 | The week view shows, in each day's header, how many of the viewer's own tasks are done out of the total | BACKLOG | TSK-01 |
+| 1 | CICD-03 | Every merge to `main` builds one image, pushes it to Docker Hub tagged by its commit, and smoke-tests it against the image's health endpoint | BACKLOG | CICD-01 |
+| 2 | CICD-04 | A version tag on `main` promotes the image already built for that commit, by digest and without rebuilding, and opens a release pull request in the deployment repository | BACKLOG | CICD-03 |
+| 3 | CICD-05 | The deployment repository deploys only CaleChip from merged config, health-checks it and restores the previous version on failure — drafted in this repository | BACKLOG | CICD-04 |
+| 4 | CICD-06 | The pipeline, its secrets, how to cut a release and how to roll one back are written down, and the standards that describe CI match it | BACKLOG | CICD-02, CICD-03, CICD-04, CICD-05 |
+| 5 | TSK-01 | A member keeps a private list of tasks for each day, and only they can read or change it | BACKLOG | — |
+| 6 | TSK-02 | Each time the app opens, a member is shown their overdue tasks and can tick them or move them all to today | BACKLOG | TSK-01 |
+| 7 | TSK-03 | A member declaring PTO is warned about their own tasks on those days, without being stopped | BACKLOG | TSK-01 |
+| 8 | TSK-04 | The week view shows, in each day's header, how many of the viewer's own tasks are done out of the total | BACKLOG | TSK-01 |
 
 **`EVT-08` left this table at /advance on 2026-10-12 and shipped the same evening ([#124](https://github.com/didi-code0980/calechip/pull/124)); every row below it moved up one, so the `TSK` rows the paragraph below calls 5 to 8 are now 4 to 7.** Bookkeeping, not a reordering.
 
