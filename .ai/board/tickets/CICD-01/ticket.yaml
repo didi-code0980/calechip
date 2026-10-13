@@ -5,7 +5,7 @@ id: CICD-01
 title: "The pull-request gate is green on `main` again, with each failing end-to-end test quarantined against a ticket in a register"
 feature_ids: [CICD-01]
 group: CICD
-state: REVIEW
+state: DONE
 owner: ""
 branch: "claude/epic-hawking-g9l2n8"   # SESSION-LEVEL OVERRIDE of /plan Step 0, 2026-10-13: the
                                       # cloud session must stay on this branch, so feat/CICD-01 was
