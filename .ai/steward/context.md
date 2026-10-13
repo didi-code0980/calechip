@@ -2725,3 +2725,38 @@ REVIEW, not yet reviewed; this is a defect blocking the loop, which the standing
   tree restored, `check-carry EVT-05` reports these paths stray (MD-038), so `/review EVT-05` must
   wait for that. `TODO(verify):` `check-allowed-paths.mjs` now imports `entry.mjs`, which needs
   Node ≥ 20.11 for `import.meta.dirname`; the CI workflow pins no Node version.
+
+### 2026-10-13 — ADR-059: the charter becomes multi-tenant (System → Org → Team)
+
+Operator decision, chat, 2026-10-13, relayed by the launching session. Asked *"nếu đi theo system
+như thế có gọi là system SaaS không"*, told the charter's *"One team of five to thirty people"*
+(`.ai/00-charter.md:30`) contradicts the MIR plan and needs an ADR before MIR-10, the operator
+replied verbatim **"thay đổi charter theo multi-tanent"**. Scope adopted is
+`.ai/board/plans/calechip-multi-tenancy-plan.md` § *Target model (agreed)* (plan:10-47), and
+nothing beyond it. No ticket in flight: every MIR ticket is `BACKLOG`.
+
+- **Registry writes**, each diff printed before its write:
+  `.ai/registry/decisions/ADR-059-calechip-becomes-multi-tenant-system-org-team.md` (new,
+  `ACCEPTED by the operator`); `.ai/registry/glossary.md` `Team` and `Member` rows, scope sentences
+  only, with the old text kept inline, doc_version 2 → 3; `.ai/registry/invariants.md`, an
+  annotation under INV-07 saying it is contradicted and not yet restated, ledger row unchanged,
+  doc_version 3 → 4.
+- **Charter** `.ai/00-charter.md` doc_version 3 → 4: *Who uses it* rewritten; target five-role
+  table added above the three-role table, which is now labelled *deployed today*; the reading
+  principle scoped to a member's own teams; the P2 note records that multiple teams were taken up.
+  Old wording kept beside each change. **No refusal amended.** None is contradicted by tenancy.
+- **`CLAUDE.md`** intro paragraph: one team and two roles replaced. The three reproduced rules
+  were not touched (D7).
+- **Standards:** single-team sentences of fact only, in `.ai/standards/rbac-and-security.md`
+  (pending-queue paragraph, 4 → 5) and `.ai/standards/data-model.md` (`team`, 7 → 8). This
+  partly discharges the debt `backlog.md` names as owed to `/thuki` since ADR-039/040. The
+  schema and policy content of both files is MIR work and was left alone.
+- **Recorded as open questions, not decided:** billing and payment, licence expiry, over-cap
+  behaviour, member counting, self-serve org signup, per-tenant export and deletion, team and org
+  size, and **which team or teams an entry is counted against** (INV-04/INV-07). The last one is
+  an invariant change and blocks MIR-10.
+- **Flagged for the operator at merge:** the agreed target lets a manager approve their own entry
+  (`self_approved`). That reverses ADR-035's manager row, and the 2026-10-13 answer did not mention it.
+- **Deliberately left:** ideas, estimates, audits, the brief, shipped ticket artifacts and older
+  ADRs (009, 015, 018, 027, 030, 033, 035, 038, 039, 045, 052) that quote the one-team wording. They are
+  history, correct as of when they were written. `README.md` is the template's and describes no product.

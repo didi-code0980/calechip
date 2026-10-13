@@ -1,6 +1,6 @@
 ---
-doc_version: 2
-last_updated: 2026-09-29
+doc_version: 3
+last_updated: 2026-10-13
 governed_by: [RULE-01]
 ---
 
@@ -42,8 +42,8 @@ different concepts.
 | **Overloaded day** | *ngày quá tải* — a date whose absence count exceeds the threshold. | A blocked day. It is a warning and a visual state, nothing more. |
 | **Holiday** | *ngày lễ* — a public non-working day in Vietnam, plus the swap and compensatory days the government announces each year, which an admin enters. | A day someone took off. Holidays belong to the calendar, not to any member. |
 | **Bridge day** | *ngày cầu* — a working day sandwiched between a holiday and a weekend, computed from the holiday calendar. | A holiday. It is an ordinary working day that is merely very likely to be requested. |
-| **Team** | The group whose members see one another's entries and against whose size the threshold is computed. | An organisation or department. Exactly one team exists in v1; multiple teams are deferred, not refused. |
-| **Member** | The role that creates and edits its **own** entries and reads everyone's. | A user account in general. Every person in the system is a member; some are additionally managers or admins. |
+| **Team** | The group whose members see one another's entries and against whose size the threshold is computed. | An organisation or department. Many teams exist since ADR-039; under [ADR-059](decisions/ADR-059-calechip-becomes-multi-tenant-system-org-team.md) every team sits inside one org, and a member may belong to several teams of that org. *Until 2026-10-13 this read "Exactly one team exists in v1; multiple teams are deferred, not refused."* |
+| **Member** | The role that creates and edits its **own** entries and reads the entries of everyone on the teams it belongs to. *Until 2026-10-13: "and reads everyone's" — written when there was one team (ADR-059).* | A user account in general. Every person in the system is a member; some are additionally managers or admins. |
 | **Manager** | A member who may also approve or reject **another** member's entry — and nothing else a member cannot do. Added 2026-09-12 by [ADR-035](decisions/ADR-035-a-third-role-manager-decides-entries-and-nothing-else.md). | An admin with fewer buttons. A manager maintains no calendar, changes no roster and no threshold, edits nobody's entry but their own, and may not decide their own. |
 | **Admin** | A member who can also approve and reject **including their own entries**, maintain the holiday calendar, invite people, and set the threshold. Since ADR-035 the approve half is shared with **Manager**; the rest is the admin's alone. | An owner or a billing role. Neither exists. |
 | **Event** | *sự kiện* — a gathering one member announces, over one date or a run of dates with no times, for a scope: their own team, named people, or every team. Added 2026-09-29 by [ADR-045](decisions/ADR-045-charter-refusals-4-and-5-are-lifted-for-events.md). | An entry. An event creates no entry, is not in the absence count and is not drawn on the calendar grids; attending one says nothing about whether a person is away. |

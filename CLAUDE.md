@@ -1,12 +1,18 @@
 # CaleChip
 
-A planning board on which every member of one team declares, as far ahead as they know, when they
+A planning board on which every member of a team declares, as far ahead as they know, when they
 will be on leave (PTO) or working from home (WFH) — so the team can see a crowded day while it is
-being created rather than the night before. It distinguishes exactly two roles: **members**, who
-create and edit their own entries and read everyone's, and **admins**, who additionally approve,
-reject, maintain the Vietnamese holiday calendar, invite people and set the overload threshold.
+being created rather than the night before. **It is multi-tenant** (ADR-059): one deployment holds
+many organisations, each isolated from the others and each holding teams, and a person belongs to
+exactly one organisation and to one or more of its teams. The target roles follow those levels:
+**system admin** (the deployment), **org admin** (one organisation), **manager** (one team),
+**member**, and **guest** (no account, reaches a public event only through its link). Until the role
+split ships (MIR-16, MIR-17), the running system enforces three roles: member, manager and admin.
 It is not an HR system, it holds no leave quota, and a warning here never blocks an action —
-[.ai/00-charter.md](.ai/00-charter.md) carries the four standing refusals and the reason for each.
+[.ai/00-charter.md](.ai/00-charter.md) carries the four standing refusals and the reason for each,
+and the roles.
+*Until 2026-10-13 this paragraph said "every member of one team" and "exactly two roles". Both had
+been stale since ADR-039 and ADR-035.*
 
 **This repository was stood up from `aifw-template`.** Until the `TODO(project):` markers below and
 in `.ai/` are resolved, the loop will run and produce nothing useful: `/plan` has no feature ID to

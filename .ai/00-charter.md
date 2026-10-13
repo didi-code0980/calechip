@@ -1,6 +1,6 @@
 ---
-doc_version: 3
-last_updated: 2026-09-29
+doc_version: 4
+last_updated: 2026-10-13
 governed_by: [RULE-01, RULE-09]
 ---
 
@@ -27,8 +27,26 @@ everyone independently targets the same bridge day and none of them can see the 
 The system's whole job is to make those plans visible early enough that the team can adjust. It
 coordinates; it does not administer.
 
-**Who uses it.** One team of five to thirty people. Every member reads the whole team's calendar —
-transparency is a deliberate design decision, not an oversight in the permission model.
+**Who uses it.** Organisations, each holding one or more teams, on one shared deployment. The
+organisation is the tenant boundary: its data, configuration and holidays are isolated from every
+other organisation's, and a person belongs to exactly one. Inside it a person may belong to several
+teams, and reads the whole calendar of every team they belong to — transparency within a team is a
+deliberate design decision, not an oversight in the permission model. A team is still the unit the
+product was sized for, five to thirty people. Teams whose organisation has not bought a licence sit
+together in a shared tenant, *Org public*, administered by the system admin, with every org-wide
+visibility feature turned off.
+
+*Amended 2026-10-13 by [ADR-059](registry/decisions/ADR-059-calechip-becomes-multi-tenant-system-org-team.md).*
+This paragraph read:
+
+> **Who uses it.** One team of five to thirty people. Every member reads the whole team's calendar —
+> transparency is a deliberate design decision, not an oversight in the permission model.
+
+It had been stale since ADR-039 made the product many-team on 2026-09-11. The operator decided the
+multi-tenant scope on 2026-10-13. **What the amendment does not reach:** billing, licence expiry,
+over-cap behaviour, how members are counted against a cap, self-serve org signup, and per-tenant
+export or deletion are all undecided. ADR-059 lists them as open questions, and this paragraph says
+nothing about any of them.
 
 **What "working" looks like.** Plans are entered three to four weeks ahead rather than days ahead; a
 day on which more than half the team is away is noticed while it is being created rather than
@@ -79,11 +97,31 @@ at the wrong sentence — so 4 and 5 are retired rather than reused, as RULE-05'
 
 **These are refusals, not a backlog.** The brief's P2 list — multiple teams in one workspace,
 role-based constraints, per-period thresholds, two-way HR sync, a year-end recap — is *deferred*, not
-refused. Nothing above forbids them, and the data model is expected to leave room.
+refused. Nothing above forbids them, and the data model is expected to leave room. *Multiple teams in
+one workspace* has since been taken up: ADR-039 made the product many-team, and ADR-059 placed the
+teams inside organisations.
 
 ## Roles
 
-Three, and the differences are narrow on purpose.
+**Target — five roles at three scopes**, per
+[ADR-059](registry/decisions/ADR-059-calechip-becomes-multi-tenant-system-org-team.md):
+
+| Role | Scope |
+|---|---|
+| **System admin** | The whole deployment, from a separate panel. Reads an organisation's data only by impersonating, and impersonation is read-only, time-boxed and logged. |
+| **Org admin** | One organisation. What the *Admin* row below becomes, bounded by its organisation. |
+| **Manager** | One team. Decides that team's entries and sets that team's configuration, and registers entries of their own like any member. |
+| **Member** | One organisation, one or more of its teams. Reads the calendars of the teams they belong to. |
+| **Guest** | No account. Reads and registers for a public event through its link, and nothing else (ADR-052). |
+
+The powers inside each scope are ADR-059's and the multi-tenancy plan's: which configuration belongs
+to which level, and how an entry owned by a member of several teams is approved. They reach
+`.ai/standards/rbac-and-security.md` with the MIR item that builds them. This file names scopes,
+not cells.
+
+**Deployed today — three roles, until the role split ships (MIR-16, MIR-17).** Until then the table
+below is what the running system enforces, and `.ai/standards/rbac-and-security.md` is still what a
+review is checked against. The differences are narrow on purpose.
 
 | Role | What only this role can do |
 |---|---|
@@ -107,9 +145,13 @@ what the product is — an entry is no longer only its author's statement — an
 under *Known weaknesses* in `.ai/standards/rbac-and-security.md`, because until the change feed
 arrives (brief P1) an admin's edit is indistinguishable from the member's own.
 
-**Reading is not a privilege here.** Every member sees every other member's entries in full. This is
-the mechanism the product runs on, not a permission that was left open — a plan nobody can see
-coordinates nothing.
+**Reading is not a privilege here.** Every member sees, in full, the entries of every other member of
+the teams they belong to. This is the mechanism the product runs on, not a permission that was left
+open — a plan nobody can see coordinates nothing.
+
+*Amended 2026-10-13 by ADR-059.* This read *"Every member sees every other member's entries in
+full"*, which was written when there was one team. The principle is unchanged. Only its reach is
+named: a member's own teams, and never another organisation.
 
 Rejection is the one admin action that must always carry a reason, because a rejection without one
 gives the member nothing to act on.

@@ -1,6 +1,6 @@
 ---
-doc_version: 7
-last_updated: 2026-09-12
+doc_version: 8
+last_updated: 2026-10-13
 governed_by: [RULE-01, RULE-04, RULE-09]
 ---
 
@@ -17,8 +17,11 @@ in a table, because a plausible column name in this file is indistinguishable fr
 
 ### `team`
 
-One row in v1. The table exists anyway because INV-07 counts entries against a team, and the brief's
-P2 list asks the model to leave room for more.
+One row per team. There are many since `supabase/migrations/20260911180000_solo_many_teams.sql`
+(ADR-039). The table exists because INV-07 counts entries against a team. ADR-059 places every team
+inside an org. The columns that carry that are MIR-10's design, and this file describes them when
+it lands. *Until 2026-10-13 this read "One row in v1. The table exists anyway because INV-07 counts
+entries against a team, and the brief's P2 list asks the model to leave room for more."*
 
 | Field | Type | Notes |
 |---|---|---|

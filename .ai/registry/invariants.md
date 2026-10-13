@@ -1,6 +1,6 @@
 ---
-doc_version: 3
-last_updated: 2026-08-31
+doc_version: 4
+last_updated: 2026-10-13
 governed_by: [RULE-01, RULE-07, RULE-09]
 ---
 
@@ -166,6 +166,15 @@ Not stated in the brief; recorded here because the entire product is built on it
 is available. It matters now rather than later because the brief defers multiple teams to P2 while
 asking the data model to leave room for them — so the team a count is taken against has to be a
 property of the data from the first migration, not a constant that gets parameterised afterwards.
+
+**Contradicted by the target model of
+[ADR-059](decisions/ADR-059-calechip-becomes-multi-tenant-system-org-team.md), 2026-10-13, and not
+yet restated.** Under that decision a member may belong to several teams of one org, so *"the team
+that member belongs to"* stops naming one team. The ledger row above is left unchanged, because it
+still describes the deployed schema, where `member.team_id` is single-valued. It is restated when the
+operator decides which team or teams an entry is counted against (ADR-059 open question 7, which also
+reaches INV-04's *"still on the team"*). That decision is owed before MIR-10 is approved. Until then
+no agent rewrites this row and no agent reads it as settled for a multi-team member.
 
 ## Considered and rejected as an invariant
 
