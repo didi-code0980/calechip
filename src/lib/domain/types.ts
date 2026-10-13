@@ -280,6 +280,12 @@ export type FailureCode =
   | "invalid_invitation_email"
   // EVT-08. The event is not public-scope — AC-4. `invite_to_event` (EV009).
   | "invitation_not_public"
+  // EVT-11. The description is over DESCRIPTION_MAX_BYTES as UTF-8 — AC-6.
+  // `event_description_bounded` (23514).
+  | "description_too_large"
+  // EVT-11. The picked file is not an accepted picture, too large, or would not decode — AC-4.
+  // Raised by `downscaleToDataUrl` in the browser; never by the datastore.
+  | "description_image_refused"
   | "unknown";
 
 export interface Failure {
@@ -984,6 +990,18 @@ export const ISSUE_REPORT_LIMIT = 500;
 // EVT-01 — events. 01-plan.md section 4.1. ADR-045, ADR-046.
 // ---------------------------------------------------------------------------
 
+/** EVT-11. ADR-056 decision 5 — the database's `event_description_bounded` holds it. */
+export const DESCRIPTION_MAX_BYTES = 1048576;
+/** EVT-11. Accepted picker input; the stored picture is WebP or JPEG. */
+export const DESCRIPTION_IMAGE_TYPES = ["image/png", "image/jpeg", "image/webp"] as const;
+export const DESCRIPTION_IMAGE_MAX_INPUT_BYTES = 10 * 1024 * 1024;
+export const DESCRIPTION_IMAGE_MAX_EDGE = 1200;
+
+/** UTF-8 byte length, as PostgreSQL's `octet_length` counts it. Null is 0. */
+export function descriptionBytes(html: string | null): number {
+  return html === null ? 0 : new TextEncoder().encode(html).length;
+}
+
 /** EVT-01. Glossary *Event*. `named` is the glossary's "named people"; `team` is the creator's own
  *  team and never another (Q6). The values are the database enum's, verbatim. */
 export type EventScope = "team" | "named" | "public";
@@ -997,7 +1015,8 @@ export interface CalEvent {
    *  for every scope because it never changes and is the only team an event has. */
   teamId: string;
   name: string;
-  /** Null, never "", when absent — AC-2. */
+  /** Null, never "", when absent — AC-2. Null on `listEvents` and `listEventsForTeam` reads,
+   *  which never carry it (ADR-056 decision 6). Read it through `getEvent`. */
   description: string | null;
   location: string | null;
   /** `yyyy-MM-dd`, inclusive both ends, as `Entry` does. */

@@ -19,9 +19,15 @@ import { expect, test, type Locator, type Page } from "@playwright/test";
 const PASSWORD = "password123";
 const MEMBER = { email: "thanh@example.com" };
 
-/** 01-plan.md § 2, verbatim. */
+/** EVT-11. A 1×1 PNG: an embedded picture the sanitiser keeps. */
+const VALID_PICTURE =
+  "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==";
+
+/** 01-plan.md § 2, verbatim — and, since EVT-11, one valid picture at the end. */
 const HOSTILE =
-  '<h2 style="text-align: center">Title</h2><p>ok <strong>bold</strong></p><script>window.__xss=1</script><img src=x onerror="window.__xss=2"><img src="https://example.com/a.png"><a href="javascript:window.__xss=3">js</a><p onclick="window.__xss=4" style="text-align: center; background: url(https://example.com/b.png)">c</p><span style="color: #be123c; position: fixed">red</span><iframe src="https://example.com/"></iframe><h1>big</h1><style>body{display:none}</style><a href="https://example.com/x" id="clobber" class="x" data-x="1">ok link</a>';
+  '<h2 style="text-align: center">Title</h2><p>ok <strong>bold</strong></p><script>window.__xss=1</script><img src=x onerror="window.__xss=2"><img src="https://example.com/a.png"><a href="javascript:window.__xss=3">js</a><p onclick="window.__xss=4" style="text-align: center; background: url(https://example.com/b.png)">c</p><span style="color: #be123c; position: fixed">red</span><iframe src="https://example.com/"></iframe><h1>big</h1><style>body{display:none}</style><a href="https://example.com/x" id="clobber" class="x" data-x="1">ok link</a>' +
+  // EVT-11 § 4.8. The one picture the allow-list now admits, carrying what it must not keep.
+  `<img src="${VALID_PICTURE}" alt="" onerror="window.__xss=5" style="width: 9999px" width="9999">`;
 
 declare global {
   interface Window {
@@ -140,7 +146,12 @@ async function computed(locator: Locator, property: string): Promise<string> {
 async function assertHostileNeutralised(page: Page, testId: string): Promise<void> {
   const d = page.getByTestId(testId);
   await expect(d).toBeVisible();
-  await expect(d.locator("script, img, iframe, style, h1")).toHaveCount(0);
+  await expect(d.locator("script, iframe, style, h1")).toHaveCount(0);
+  // EVT-11. No `img` but the valid `data:` picture, carrying nothing but `src` and `alt`.
+  const pictures = d.locator("img");
+  await expect(pictures).toHaveCount(1);
+  await expect(pictures).toHaveAttribute("src", VALID_PICTURE);
+  expect(await pictures.evaluate((img) => Array.from(img.attributes).map((a) => a.name).sort())).toEqual(["alt", "src"]);
   const badAttributes = await d.evaluate((root) =>
     [root, ...Array.from(root.querySelectorAll("*"))].flatMap((el) =>
       el === root
@@ -445,10 +456,13 @@ test.describe("EVT-10 — a formatted description", () => {
     const after = await stored(page, id);
     expect(after).not.toBeNull();
     for (const banned of [
-      "<script", "<img", "<iframe", "<style", "<h1", "onerror", "onclick", "javascript:",
-      "example.com/a.png", "example.com/b.png", "id=", "class=", "data-x",
+      "<script", "<iframe", "<style", "<h1", "onerror", "onclick", "javascript:",
+      "example.com/a.png", "example.com/b.png", "id=", "class=", "data-x", "9999",
     ]) {
       expect(after, banned).not.toContain(banned);
     }
+    // EVT-11. No `img` but the valid `data:` picture.
+    expect(after!.match(/<img/g)).toHaveLength(1);
+    expect(after).toContain(`<img src="${VALID_PICTURE}" alt="">`);
   });
 });

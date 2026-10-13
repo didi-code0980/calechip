@@ -12,6 +12,7 @@ import { describe, expect, it } from "vitest";
 import {
   DESCRIPTION_ATTRIBUTES,
   DESCRIPTION_HREF,
+  DESCRIPTION_IMAGE_SRC,
   DESCRIPTION_STYLES,
   DESCRIPTION_TAGS,
   LINK_REL,
@@ -46,10 +47,12 @@ function filesContaining(needle: string | RegExp): string[] {
 
 describe("EVT-10 § 4.1 — the allow-list is exactly the plan's", () => {
   it("tags", () => {
+    // EVT-11 § 4.3 added `img`, and nothing else.
     expect([...DESCRIPTION_TAGS]).toEqual([
       "p", "br", "strong", "em", "u", "s", "h2", "h3", "ul", "ol", "li", "blockquote", "a", "span",
+      "img",
     ]);
-    for (const banned of ["img", "h1", "script", "style", "iframe"]) {
+    for (const banned of ["h1", "script", "style", "iframe", "svg", "picture", "source"]) {
       expect(DESCRIPTION_TAGS as readonly string[]).not.toContain(banned);
     }
   });
@@ -62,6 +65,7 @@ describe("EVT-10 § 4.1 — the allow-list is exactly the plan's", () => {
       h3: ["style"],
       span: ["style"],
       ol: ["start"],
+      img: ["src", "alt"],
     });
   });
 
@@ -94,6 +98,45 @@ describe("EVT-10 § 4.1 — the allow-list is exactly the plan's", () => {
   it("every link's target and rel are Tiptap's own defaults", () => {
     expect(LINK_TARGET).toBe("_blank");
     expect(LINK_REL).toBe("noopener noreferrer nofollow");
+  });
+});
+
+describe("EVT-11 AC-7 — a picture's src is an embedded PNG, JPEG or WebP and nothing else", () => {
+  it("accepts base64 PNG, JPEG and WebP data: URLs", () => {
+    for (const ok of [
+      "data:image/png;base64,iVBORw0KGgo=",
+      "data:image/jpeg;base64,/9j/4AAQSkZJRg==",
+      "data:image/webp;base64,UklGRhYAAABXRUJQ",
+    ]) {
+      expect(DESCRIPTION_IMAGE_SRC.test(ok), ok).toBe(true);
+    }
+  });
+
+  it("refuses a remote, SVG, non-base64, non-image or malformed source", () => {
+    for (const bad of [
+      "https://example.com/a.png",
+      "http://example.com/a.png",
+      "//example.com/a.png",
+      "data:image/svg+xml;base64,PHN2Zz4=",
+      "data:image/png,rawbytes",
+      "data:text/html;base64,PHNjcmlwdD4=",
+      "data:image/gif;base64,R0lGODlh",
+      "DATA:IMAGE/PNG;BASE64,iVBORw0KGgo=",
+      "data:image/png;base64,iVBOR w0KGgo=",
+      'data:image/png;base64,iVBORw0KGgo=" onerror="x',
+      "data:image/png;base64,",
+      "javascript:alert(1)",
+    ]) {
+      expect(DESCRIPTION_IMAGE_SRC.test(bad), bad).toBe(false);
+    }
+  });
+
+  it("the sanitiser narrows src on img with DESCRIPTION_IMAGE_SRC, and drops an img left without one", () => {
+    const text = readFileSync(path.join(SRC, "components", "DescriptionHtml.tsx"), "utf8");
+    expect(text).toMatch(/tag === "img" && event\.attrName === "src" && !DESCRIPTION_IMAGE_SRC\.test\(event\.attrValue\)/);
+    expect(text).toContain('body.querySelectorAll("img:not([src])")');
+    // Links still refuse `data:` — the URI regexp is unchanged.
+    expect(text).toContain("ALLOWED_URI_REGEXP: DESCRIPTION_HREF");
   });
 });
 
