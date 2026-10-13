@@ -22,6 +22,9 @@ planned, sized, and safe to build** — the next stage for a row here is IN_PROG
 
 | # | Ticket | Title | Size | Depends on |
 |---|--------|-------|------|------------|
+| 1 | CICD-01 | The pull-request gate is green on `main` again, with each failing end-to-end test quarantined against a ticket in a register | L | — |
+
+**`CICD-01` moved here from `## BACKLOG` at /advance on 2026-10-13**, from `01-plan.md` gate PASS. Definition of Ready items 1, 2, 3, 4 and 6 pass; **item 5 (`size_estimate` is S or M) is waived by the operator**, who chose "Accept L unsplit" on 2026-10-13 (`01-plan.md` Changelog). The rows below it in `## BACKLOG` keep their order.
 
 **Empty again — `EVT-11` left this section for `## ARCHIVE` at its own ship on 2026-10-13.** `TSK-01` is the top of `## BACKLOG`.
 
@@ -100,7 +103,6 @@ Under the current gate placement a ticket sits here until it has been planned �
 
 | # | Ticket | Title | State | Blocked on |
 |---|--------|-------|-------|------------|
-| 1 | CICD-01 | The pull-request gate is green on `main` again, with each failing end-to-end test quarantined against a ticket in a register | BACKLOG | — |
 | 2 | CICD-02 | A push to a feature branch gets lint, typecheck and unit results within about three minutes, and a pull request runs the full gate as named, required checks | BACKLOG | CICD-01 |
 | 3 | CICD-03 | Every merge to `main` builds one image, pushes it to Docker Hub tagged by its commit, and smoke-tests it against the image's health endpoint | BACKLOG | CICD-01 |
 | 4 | CICD-04 | A version tag on `main` promotes the image already built for that commit, by digest and without rebuilding, and opens a release pull request in the deployment repository | BACKLOG | CICD-03 |
