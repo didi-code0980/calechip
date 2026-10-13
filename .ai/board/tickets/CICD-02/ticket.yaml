@@ -5,7 +5,7 @@ id: CICD-02
 title: "A push to a feature branch gets lint, typecheck and unit results within about three minutes, and a pull request runs the full gate as named, required checks"
 feature_ids: [CICD-02]
 group: CICD
-state: REVIEW
+state: DONE
 owner: ""
 branch: "feat/CICD-02"
 size_estimate: "M"     # S|M - set by tech-lead-design at PLAN; gates DoR
