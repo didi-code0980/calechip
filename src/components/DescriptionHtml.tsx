@@ -12,10 +12,11 @@ import type { JSX } from "react";
 
 /** ADR-056 decision 2. THE allow-list — the one the render and the form's save both use. A tag not
  *  here is removed and its text kept (DOMPurify's default), except `script`, `style` and the like,
- *  whose contents DOMPurify drops. EVT-11 adds `img` with `data:` sources; nothing else joins
- *  without an ADR. */
+ *  whose contents DOMPurify drops. EVT-11 added `img`, with `data:` sources only
+ *  (DESCRIPTION_IMAGE_SRC); nothing else joins without an ADR. */
 export const DESCRIPTION_TAGS = [
   "p", "br", "strong", "em", "u", "s", "h2", "h3", "ul", "ol", "li", "blockquote", "a", "span",
+  "img",
 ] as const;
 
 /** Attributes allowed, per tag. Anything not listed for a tag is removed from it. */
@@ -26,10 +27,15 @@ export const DESCRIPTION_ATTRIBUTES: Readonly<Record<string, readonly string[]>>
   h3: ["style"],
   span: ["style"],
   ol: ["start"],
+  img: ["src", "alt"],
 };
 
 /** AC-7. Checked against `href` only. */
 export const DESCRIPTION_HREF = /^(?:https?:|mailto:)/i;
+
+/** EVT-11 AC-7. The only `src` an `img` may carry: an embedded base64 PNG, JPEG or WebP. A remote
+ *  `src` would make every reader's browser fetch a URL; an SVG can carry script. */
+export const DESCRIPTION_IMAGE_SRC = /^data:image\/(?:png|jpeg|webp);base64,[A-Za-z0-9+/]+={0,2}$/;
 
 /** The `style` declarations allowed, per tag, and the value each may take. A `style` is rebuilt
  *  from these alone, in the form Tiptap writes it — `text-align: center`, `color: #be123c` — so a
@@ -89,6 +95,11 @@ function getPurifier(): DOMPurifyInstance | null {
       event.attrValue = rebuildStyle(tag, event.attrValue);
       if (event.attrValue === "") event.keepAttr = false;
     }
+    // EVT-11 AC-7. DOMPurify lets any `data:` `src` through on `img` (its DATA_URI_TAGS exception,
+    // which ignores ALLOWED_URI_REGEXP), and `https:` through by DESCRIPTION_HREF. This narrows both.
+    if (tag === "img" && event.attrName === "src" && !DESCRIPTION_IMAGE_SRC.test(event.attrValue)) {
+      event.keepAttr = false;
+    }
   });
 
   // AC-7. Setting an attribute on the node being visited is safe inside the walk; moving its
@@ -122,6 +133,8 @@ export function sanitizeDescription(html: string): string {
   for (const anchor of Array.from(body.querySelectorAll("a:not([href])"))) {
     anchor.replaceWith(...Array.from(anchor.childNodes));
   }
+  // EVT-11 AC-7. A picture whose `src` did not survive is not a picture.
+  for (const image of Array.from(body.querySelectorAll("img:not([src])"))) image.remove();
   return body.innerHTML;
 }
 
@@ -134,7 +147,9 @@ export const DESCRIPTION_RENDER_CLASS =
   "[&_h3]:mt-3 [&_h3]:mb-1 [&_h3]:text-sm [&_h3]:font-bold " +
   "[&_ul]:list-disc [&_ul]:pl-5 [&_ol]:list-decimal [&_ol]:pl-5 " +
   "[&_blockquote]:border-l-2 [&_blockquote]:border-line [&_blockquote]:pl-3 [&_blockquote]:text-ink-2 " +
-  "[&_a]:font-semibold [&_a]:text-ink [&_a]:underline";
+  "[&_a]:font-semibold [&_a]:text-ink [&_a]:underline " +
+  // EVT-11 § 2b. A picture is a block of its own, never wider than the text.
+  "[&_img]:my-2 [&_img]:block [&_img]:h-auto [&_img]:max-w-full [&_img]:rounded-xl";
 
 /** ADR-056 decision 2. THE render of a description. Draws nothing when `html` is null or sanitises
  *  to "" (EVT-01 AC-2: no description, no block). */

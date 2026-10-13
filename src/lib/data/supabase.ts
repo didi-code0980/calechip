@@ -89,6 +89,9 @@ import {
   AVATAR_CHOICES,
   // EVT-01. The bound `listEvents` asks for and refuses at — see its comment.
   DATASTORE_MAX_ROWS,
+  // EVT-11 AC-6. The cap, and the count `octet_length` makes of it.
+  DESCRIPTION_MAX_BYTES,
+  descriptionBytes,
   HOLIDAY_LIMIT,
   ISSUE_IMAGE_MAX_BYTES,
   ISSUE_IMAGE_MAX_COUNT,
@@ -120,7 +123,8 @@ interface EventRow {
   creator_id: string;
   team_id: string;
   name: string;
-  description: string | null;
+  /** EVT-11. Absent on list reads, which select EVENT_LIST_COLUMNS. */
+  description?: string | null;
   location: string | null;
   start_date: string;
   end_date: string;
@@ -138,13 +142,19 @@ const EVENT_COLUMNS =
   "id, creator_id, team_id, name, description, location, start_date, end_date, scope, " +
   "capacity, requires_approval, registration_deadline, created_at, updated_at";
 
+/** EVT-11, ADR-056 decision 6. EVENT_COLUMNS without `description`: the lists and grids never draw
+ *  it, and with pictures embedded it is the heaviest column the row has. */
+const EVENT_LIST_COLUMNS =
+  "id, creator_id, team_id, name, location, start_date, end_date, scope, " +
+  "capacity, requires_approval, registration_deadline, created_at, updated_at";
+
 function toEvent(row: EventRow): CalEvent {
   return {
     id: row.id,
     creatorId: row.creator_id,
     teamId: row.team_id,
     name: row.name,
-    description: row.description,
+    description: row.description ?? null,
     location: row.location,
     startDate: row.start_date,
     endDate: row.end_date,
@@ -189,6 +199,8 @@ const EVENT_CAPACITY_INVALID = "Seats must be a whole number of at least 1, or l
 const EVENT_DEADLINE_AFTER_END = "Registration must close on or before the event's end date.";
 const EVENT_CAPACITY_BELOW_ATTENDEES =
   "Seats cannot be fewer than the number of people already attending.";
+// EVT-11. 01-plan.md § 4.5. Repeated verbatim in mock.ts.
+const DESCRIPTION_TOO_LARGE = "The description is larger than 1 MB. Remove a picture to save.";
 
 /** The four seam-side refusals, before the round trip — AFFORDANCES; `event_name_present`,
  *  `event_dates_ordered`, `event_capacity_positive` and `event_deadline_by_end` are the controls.
@@ -203,6 +215,10 @@ function eventInputFailure(input: SaveEventInput): Failure | null {
   }
   if (input.registrationDeadline != null && input.registrationDeadline > input.endDate) {
     return { code: "invalid_event_deadline", message: EVENT_DEADLINE_AFTER_END };
+  }
+  // EVT-11 AC-6. `event_description_bounded` is the control; measured as it will be sent.
+  if (descriptionBytes(blankToNull(input.description)) > DESCRIPTION_MAX_BYTES) {
+    return { code: "description_too_large", message: DESCRIPTION_TOO_LARGE };
   }
   return null;
 }
@@ -224,7 +240,8 @@ function blankToNull(value: string | null): string | null {
  */
 function toEventFailure(error: PostgrestError, input: SaveEventInput | null, refusal: string): Failure {
   switch (error.code) {
-    // Four check constraints, told apart by the input in eventInputFailure's order (EVT-02 § 4.3).
+    // Five check constraints, told apart by the input in eventInputFailure's order (EVT-02 § 4.3,
+    // EVT-11 § 4.5).
     case "23514":
       if (input && input.name.trim() === "") {
         return { code: "empty_event_name", message: EVENT_NAME_REQUIRED };
@@ -234,6 +251,10 @@ function toEventFailure(error: PostgrestError, input: SaveEventInput | null, ref
       }
       if (input && input.capacity != null && !(Number.isInteger(input.capacity) && input.capacity >= 1)) {
         return { code: "invalid_event_capacity", message: EVENT_CAPACITY_INVALID };
+      }
+      // EVT-11. `event_description_bounded` — before the deadline branch, which takes the rest.
+      if (input && descriptionBytes(blankToNull(input.description)) > DESCRIPTION_MAX_BYTES) {
+        return { code: "description_too_large", message: DESCRIPTION_TOO_LARGE };
       }
       if (input && input.registrationDeadline != null) {
         return { code: "invalid_event_deadline", message: EVENT_DEADLINE_AFTER_END };
@@ -3280,10 +3301,11 @@ export const seam: DataSeam = {
   // because no event limit was designed and a new constant would be a name the contract never
   // declared — the throw is the shape every bounded read in this file carries: a short list would
   // hide an event from the people it is for.
+  // EVT-11 AC-8. EVENT_LIST_COLUMNS: no description on a list read.
   async listEvents(): Promise<CalEvent[]> {
     const { data, error } = await client()
       .from("event")
-      .select(EVENT_COLUMNS)
+      .select(EVENT_LIST_COLUMNS)
       .order("start_date", { ascending: true })
       .order("id", { ascending: true })
       .limit(DATASTORE_MAX_ROWS)
@@ -3551,7 +3573,7 @@ export const seam: DataSeam = {
     return rows.map(toAttendance);
   },
 
-  // The same `select` `listEvents` issues, plus the invitee embed. `event_invitee_select_manage`
+  // The same `select` `listEvents` issues (EVT-11: no description), plus the invitee embed. `event_invitee_select_manage`
   // returns invitees only to the creator and admins — exactly the set this filter can use — and a
   // non-admin's `list_members_for_team` is empty, so for them nothing named is ever added (AC-12).
   // The roster goes through `seam.` rather than `this.` for `readCurrentMember`'s reason: a method
@@ -3560,7 +3582,7 @@ export const seam: DataSeam = {
     const [eventsRead, members] = await Promise.all([
       client()
         .from("event")
-        .select(`${EVENT_COLUMNS}, event_invitee(member_id)`)
+        .select(`${EVENT_LIST_COLUMNS}, event_invitee(member_id)`)
         .order("start_date", { ascending: true })
         .order("id", { ascending: true })
         .limit(DATASTORE_MAX_ROWS)

@@ -78,6 +78,8 @@ import { NOTIFICATION_LIMIT } from "../domain/types";
 import { GUEST_LINK_TOKEN_PATTERN } from "../domain/types";
 // EVT-07 AC-4. The ceilings and the shape, checked as the table's checks state them — runtime imports.
 import { GUEST_EMAIL_MAX, GUEST_EMAIL_PATTERN, GUEST_NAME_MAX } from "../domain/types";
+// EVT-11 AC-6. The cap, counted as `octet_length` counts it — runtime imports.
+import { DESCRIPTION_MAX_BYTES, descriptionBytes } from "../domain/types";
 // TEA-03, and CAL-04 for the third. RUNTIME imports, not type ones - 02-design.md section 1.1.
 // ADM-04 adds PENDING_PAGE_SIZE, which is a WINDOW and not a ceiling - see its own comment there.
 // CAL-09 adds TEAM_ENTRY_PAGE_SIZE and TEAM_ENTRY_MAX_PAGES, which are a window and a bound on work
@@ -634,6 +636,8 @@ const EVENT_CAPACITY_INVALID = "Seats must be a whole number of at least 1, or l
 const EVENT_DEADLINE_AFTER_END = "Registration must close on or before the event's end date.";
 const EVENT_CAPACITY_BELOW_ATTENDEES =
   "Seats cannot be fewer than the number of people already attending.";
+// EVT-11. 01-plan.md § 4.6. Repeated verbatim from supabase.ts.
+const DESCRIPTION_TOO_LARGE = "The description is larger than 1 MB. Remove a picture to save.";
 
 const eventFailure = (
   code: Failure["code"],
@@ -653,6 +657,10 @@ const eventInputFailure = (input: SaveEventInput): { ok: false; error: Failure }
   }
   if (input.registrationDeadline != null && input.registrationDeadline > input.endDate) {
     return eventFailure("invalid_event_deadline", EVENT_DEADLINE_AFTER_END);
+  }
+  // EVT-11 AC-6. `event_description_bounded`.
+  if (descriptionBytes(blankToNull(input.description)) > DESCRIPTION_MAX_BYTES) {
+    return eventFailure("description_too_large", DESCRIPTION_TOO_LARGE);
   }
   return null;
 };
@@ -3140,7 +3148,8 @@ export const seam: DataSeam = {
       .filter((e) => mayReadEvent(e, currentMemberId))
       .slice()
       .sort((a, b) => a.startDate.localeCompare(b.startDate) || a.id.localeCompare(b.id))
-      .map((e) => ({ ...e }));
+      // EVT-11 AC-8. EVENT_LIST_COLUMNS: a list read never carries the description.
+      .map((e) => ({ ...e, description: null }));
   },
 
   // Null for "does not exist" and for "may not read" alike (AC-22) — a filtered select cannot tell
@@ -3463,6 +3472,7 @@ export const seam: DataSeam = {
   // the caller may manage — `event_invitee_select_manage`, as the real embed is filtered — and the
   // roster comes from `listMembersForTeam`, empty for a non-admin (AC-12). Through `seam.`, never
   // `this.`, so a destructured seam still works.
+  // EVT-11 AC-8. `description: null` arrives with `seam.listEvents`.
   async listEventsForTeam(teamId: string): Promise<CalEvent[]> {
     const [visible, roster] = await Promise.all([
       seam.listEvents(),

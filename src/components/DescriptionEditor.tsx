@@ -4,8 +4,8 @@
 //
 // **THE ONLY FILE UNDER `src/` THAT IMPORTS `@tiptap/*`** (AC-12) — `tests/description-html.test.ts`
 // scans the tree for it.
-import { useState, type JSX, type KeyboardEvent, type ReactNode } from "react";
-import { EditorContent, useEditor, useEditorState, type Editor } from "@tiptap/react";
+import { useRef, useState, type ChangeEvent, type JSX, type KeyboardEvent, type ReactNode } from "react";
+import { EditorContent, Node, useEditor, useEditorState, type Editor } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
 import { Color, TextStyle } from "@tiptap/extension-text-style";
 import { TextAlign } from "@tiptap/extension-text-align";
@@ -16,6 +16,7 @@ import {
   Bold,
   Heading2,
   Heading3,
+  ImagePlus,
   Italic,
   Link as LinkIcon,
   List,
@@ -26,6 +27,31 @@ import {
   Underline,
 } from "lucide-react";
 import { DESCRIPTION_HREF, DESCRIPTION_RENDER_CLASS } from "@/components/DescriptionHtml";
+import { downscaleToDataUrl } from "@/lib/description-image";
+import { DESCRIPTION_IMAGE_TYPES, DESCRIPTION_MAX_BYTES, descriptionBytes } from "@/lib/domain/types";
+
+// EVT-11 § 4.4. In-house rather than `@tiptap/extension-image` (01-plan.md § 8 alternative 1): a
+// block picture whose source is an embedded `data:image/…` URL and nothing else. `parseHTML` reads
+// only those back, so a remote picture pasted in never becomes a node; the render's sanitiser is
+// still the control (`DESCRIPTION_IMAGE_SRC`).
+const DescriptionImage = Node.create({
+  name: "image",
+  group: "block",
+  atom: true,
+  draggable: false,
+  addAttributes() {
+    return { src: { default: null }, alt: { default: "" } };
+  },
+  parseHTML() {
+    return [{ tag: 'img[src^="data:image/"]' }];
+  },
+  renderHTML({ HTMLAttributes }) {
+    return ["img", HTMLAttributes];
+  },
+});
+
+export const DESCRIPTION_PICTURE_TOO_LARGE =
+  "This picture would make the description larger than 1 MB. Remove a picture or choose a smaller one.";
 
 // § 2b. Six inks already in the theme, so coloured text stays legible on `--color-card`. Hex, as
 // `DESCRIPTION_STYLES.span.color` accepts and as Tiptap writes it back unchanged (AC-4).
@@ -49,6 +75,15 @@ function linkHref(typed: string): string | null {
 }
 
 type Panel = "none" | "link" | "color";
+
+function hasPicture(editor: Editor): boolean {
+  let found = false;
+  editor.state.doc.descendants((node) => {
+    if (node.type.name === "image") found = true;
+    return !found;
+  });
+  return found;
+}
 
 const BUTTON =
   "inline-flex size-7 items-center justify-center rounded-lg text-ink-2 hover:text-ink " +
@@ -103,6 +138,8 @@ export default function DescriptionEditor({
 }): JSX.Element {
   const [panel, setPanel] = useState<Panel>("none");
   const [linkText, setLinkText] = useState("");
+  const [pictureError, setPictureError] = useState<string | null>(null);
+  const pictureInput = useRef<HTMLInputElement>(null);
 
   const editor = useEditor({
     extensions: [
@@ -121,6 +158,7 @@ export default function DescriptionEditor({
       TextStyle,
       Color,
       TextAlign.configure({ types: ["heading", "paragraph"], alignments: ["left", "center", "right"] }),
+      DescriptionImage,
     ],
     content: value,
     editorProps: {
@@ -130,7 +168,9 @@ export default function DescriptionEditor({
         class: `${DESCRIPTION_RENDER_CLASS} min-h-32 px-3.5 py-2.5 outline-none`,
       },
     },
-    onUpdate: ({ editor: e }) => onChange(e.getText().trim() === "" ? "" : e.getHTML()),
+    // EVT-11. A picture is content though it has no text.
+    onUpdate: ({ editor: e }) =>
+      onChange(e.getText().trim() === "" && !hasPicture(e) ? "" : e.getHTML()),
   });
 
   // AC-1. Re-read on every transaction so each toggle's `aria-pressed` follows the caret.
@@ -181,6 +221,27 @@ export default function DescriptionEditor({
       setPanel("none");
       editor.commands.focus();
     }
+  }
+
+  // EVT-11 § 4.4. Shrink, measure against the cap, then insert — or say why not and change nothing.
+  async function onPicture(e: ChangeEvent<HTMLInputElement>): Promise<void> {
+    const input = e.currentTarget;
+    const file = input.files?.[0];
+    // Step 4: the same file can be chosen again after a refusal.
+    input.value = "";
+    if (!file) return;
+    const picture = await downscaleToDataUrl(file);
+    if (!picture.ok) {
+      setPictureError(picture.error.message);
+      return;
+    }
+    const imgHtml = `<img src="${picture.value}" alt="">`;
+    if (descriptionBytes(editor.getHTML()) + descriptionBytes(imgHtml) > DESCRIPTION_MAX_BYTES) {
+      setPictureError(DESCRIPTION_PICTURE_TOO_LARGE);
+      return;
+    }
+    editor.chain().focus().insertContent({ type: "image", attrs: { src: picture.value, alt: "" } }).run();
+    setPictureError(null);
   }
 
   // A fresh chain per press: a chain built at render holds that render's state and runs once.
@@ -241,7 +302,25 @@ export default function DescriptionEditor({
         <ToolButton testId="event-description-align-right" label="Align right" pressed={active.right} onPress={() => run().setTextAlign("right").run()}>
           <AlignRight {...icon} />
         </ToolButton>
+        <Divider />
+        <ToolButton testId="event-description-picture" label="Insert picture" onPress={() => pictureInput.current?.click()}>
+          <ImagePlus {...icon} />
+        </ToolButton>
+        <input
+          ref={pictureInput}
+          data-testid="event-description-picture-input"
+          type="file"
+          accept={DESCRIPTION_IMAGE_TYPES.join(",")}
+          hidden
+          onChange={(e) => void onPicture(e)}
+        />
       </div>
+
+      {pictureError !== null ? (
+        <p data-testid="event-description-picture-error" role="alert" className="px-3.5 pt-1.5 text-sm text-danger">
+          {pictureError}
+        </p>
+      ) : null}
 
       {panel === "link" ? (
         <div className="flex flex-wrap items-center gap-2 border-b border-line px-2 py-1.5">
