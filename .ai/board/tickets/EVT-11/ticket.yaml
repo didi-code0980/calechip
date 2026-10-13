@@ -8,11 +8,22 @@ group: EVT
 state: BACKLOG
 owner: ""
 branch: ""
-size_estimate: ""     # S|M - set by tech-lead-design at PLAN; gates DoR
-size: ""              # S|M|L|XL - set by tech-lead-design at PLAN; decides splitting
+size_estimate: "M"   # S|M - set by tech-lead-design at PLAN; gates DoR
+size: "M"            # S|M|L|XL - set by tech-lead-design at PLAN; eleven allowed_paths, agrees
 depends_on: [EVT-10]
-invariants_touched: []
-allowed_paths: []
+invariants_touched: []     # 01-plan.md § 2: an event is not an entry; INV-01..07 not engaged
+allowed_paths:
+  - "supabase/migrations/20261013090000_evt11_description_bounded.sql"
+  - "src/lib/domain/types.ts"
+  - "src/lib/description-image.ts"
+  - "src/components/DescriptionHtml.tsx"
+  - "src/components/DescriptionEditor.tsx"
+  - "src/lib/data/supabase.ts"
+  - "src/lib/data/mock.ts"
+  - "tests/description-html.test.ts"
+  - "tests/description-pictures.test.ts"
+  - "tests/e2e/evt-10-description.spec.ts"
+  - "tests/e2e/evt-11-description-pictures.spec.ts"
 glossary_owed: []     # considered; "Sanitised description" is owed by EVT-10
 schema_delta: "CHECK constraint on public.event: octet_length(description) <= N, N set at PLAN — ADR-056"
 requires_adr: true    # ADR-056, ACCEPTED by the operator 2026-10-12
