@@ -100,6 +100,7 @@ export default function TopBar({ role }: TopBarProps) {
   // already renders from — `AdminTabs.tsx` records why the pathname is what answers this here and
   // why the router cannot.
   const onAdmin = isAdminAddress(pathname);
+  const onEvents = pathname === "/events" || pathname.startsWith("/events/");
 
   // UIE-03 § 4.3. No `testId` field any more: a segment's name depends on WHERE IT GOES *and*
   // WHERE IT IS — `week-month` from a week, `month-week` from a month — so it is `<nav.kind>-<kind>`
@@ -282,13 +283,22 @@ export default function TopBar({ role }: TopBarProps) {
           </Link>
         ) : null}
 
+        {/* SOLO 2026-10-14. **Calendar, on the events screens only.** They carry no period cluster
+            and the sidebar's period links are commented out, so nothing in the shell led back to the
+            calendar from `/events*`. `/` is the week landing, as the admin face's `Calendar` uses. */}
+        {onEvents ? (
+          <Link data-testid="shell-calendar-link" to="/" className={PILL_OUTLINE}>
+            Calendar
+          </Link>
+        ) : null}
+
         {/* EVT-01 AC-19. **Events**, immediately before `+ Book`, on every shell screen for every
             role — outside the `nav !== null` condition, as `shell-admin-link` is. The same outline
             pill as `Today` and `Admin` (§ 2b), and `aria-current` on the events screens. */}
         <Link
           data-testid="nav-events-link"
           to="/events"
-          aria-current={pathname === "/events" || pathname.startsWith("/events/") ? "page" : undefined}
+          aria-current={onEvents ? "page" : undefined}
           className={PILL_OUTLINE}
         >
           Events
