@@ -11,6 +11,7 @@
 | Agent definitions | [.claude/agents/](.claude/agents/) |
 | Command definitions | [.claude/commands/](.claude/commands/) |
 | Operator preferences | [.ai/steward/context.md](.ai/steward/context.md) |
+| CI/CD pipeline, secrets, release and rollback | [docs/ops/ci-cd.md](docs/ops/ci-cd.md) |
 
 > This file sits at the repository root, which `scripts/check-docs.mjs` does not scan — its corpus is
 > `.ai/**`, `.claude/**` and `CLAUDE.md` only. **No audit check will ever report that this document

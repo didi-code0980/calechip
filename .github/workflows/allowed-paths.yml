@@ -1,6 +1,7 @@
 name: allowed-paths
 
-# One of three workflows: verify, allowed-paths and mir-tracking. It runs one script and nothing else.
+# One of the three required checks: verify, allowed-paths and mir-tracking (docs/ops/ci-cd.md). It runs
+# one script and nothing else.
 #
 # RULE-03 says an agent may not edit any file outside the active ticket's allowed_paths. Since
 # ADR-004 unwired the pre-write guard, this check and review check R1 are what remain — both after
