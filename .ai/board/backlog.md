@@ -24,6 +24,8 @@ planned, sized, and safe to build** — the next stage for a row here is IN_PROG
 |---|--------|-------|------|------------|
 | 1 | CICD-05 | The deployment repository deploys only CaleChip from merged config, health-checks it and restores the previous version on failure — drafted in this repository | M | CICD-04 |
 
+**`CICD-05` is at `REVIEW` in `ticket.yaml`, `gates.review` passed** — recorded at /advance on 2026-10-14 from the re-run `04-review.md` verdict PASS, after the operator's exception for `TopBar.tsx`. The row stays here until `/ship` moves it to `## ARCHIVE`.
+
 **`CICD-05` returned here from `## BLOCKED` on 2026-10-14** on the operator's decision (option 3, accepted exception for `TopBar.tsx`); `state: REVIEW`, `gates.review` not passed, `/review` re-runs.
 
 **Empty again — `CICD-05` left this section for `## BLOCKED` at /advance on 2026-10-14**, `ESCALATED` from `04-review.md` verdict FAIL, `route_to: human`. `CICD-06` is the top of `## BACKLOG` but depends on `CICD-05`.
