@@ -1447,7 +1447,7 @@ các tính năng mới và đưa vào backlog"*. The four solo rows registered e
 | 17 | CICD-04 | A version tag on `main` promotes the image already built for that commit, by digest and without rebuilding, and opens a release pull request in the deployment repository | 2026-10-14 | [#133](https://github.com/didi-code0980/calechip/pull/133) |
 | 18 | CICD-05 | The deployment repository deploys only CaleChip from merged config, health-checks it and restores the previous version on failure — drafted in this repository | 2026-10-14 | [#134](https://github.com/didi-code0980/calechip/pull/134) |
 | 19 | CICD-06 | The pipeline, its secrets, how to cut a release and how to roll one back are written down, and the standards that describe CI match it | 2026-10-14 | [#135](https://github.com/didi-code0980/calechip/pull/135) |
-| 20 | CICD-07 | The self-hosted runner on the WSL server has a hand-run setup runbook, and the deploy workflow selects it by the label `mmlabs-server` | 2026-10-14 | PENDING_PR |
+| 20 | CICD-07 | The self-hosted runner on the WSL server has a hand-run setup runbook, and the deploy workflow selects it by the label `mmlabs-server` | 2026-10-14 | [#138](https://github.com/didi-code0980/calechip/pull/138) |
 
 **The window displaced `UIE-10` at CICD-07's ship** — *UIE-10, The sidebar gives up its admin links and restyles its roster; the specs route through the hub, shipped 2026-09-09,* [#86](https://github.com/didi-code0980/calechip/pull/86), merged — corrected from `PENDING_PR` at CAL-11's ship.
 
