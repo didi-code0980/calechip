@@ -130,6 +130,16 @@ export default function TopBar({ role }: TopBarProps) {
       data-testid="shell-topbar"
       className="flex h-[70px] shrink-0 flex-wrap items-center gap-3 px-6"
     >
+      {/* SOLO 2026-10-14. **Calendar, on the events screens only, at the far left** — where the
+          period cluster sits on a calendar screen. The events screens carry no cluster and the
+          sidebar's period links are commented out, so nothing in the shell led back to the calendar
+          from `/events*`. `/` is the week landing, as the admin face's `Calendar` uses. */}
+      {onEvents ? (
+        <Link data-testid="shell-calendar-link" to="/" className={PILL_OUTLINE}>
+          Calendar
+        </Link>
+      ) : null}
+
       {/* AC-15. The whole left cluster and the whole switcher are ABSENT on a route that has no
           period — `/allow-list`, `/entries/new`, `/setting` and the rest. Absent, not disabled:
           a disabled previous-period control on a screen with no period asserts that a period exists
@@ -280,15 +290,6 @@ export default function TopBar({ role }: TopBarProps) {
             className={PILL_OUTLINE}
           >
             {onAdmin ? "Calendar" : "Admin"}
-          </Link>
-        ) : null}
-
-        {/* SOLO 2026-10-14. **Calendar, on the events screens only.** They carry no period cluster
-            and the sidebar's period links are commented out, so nothing in the shell led back to the
-            calendar from `/events*`. `/` is the week landing, as the admin face's `Calendar` uses. */}
-        {onEvents ? (
-          <Link data-testid="shell-calendar-link" to="/" className={PILL_OUTLINE}>
-            Calendar
           </Link>
         ) : null}
 
