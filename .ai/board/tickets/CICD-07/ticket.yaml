@@ -5,7 +5,7 @@ id: CICD-07
 title: "The self-hosted runner on the WSL server has a hand-run setup runbook, and the deploy workflow selects it by the label `mmlabs-server`"
 feature_ids: [CICD-07]
 group: CICD
-state: REVIEW
+state: DONE
 owner: ""
 branch: "feat/CICD-07"
 size_estimate: "S"   # 01-plan.md § 1
