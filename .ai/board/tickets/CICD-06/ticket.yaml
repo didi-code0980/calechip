@@ -5,7 +5,7 @@ id: CICD-06
 title: "The pipeline, its secrets, how to cut a release and how to roll one back are written down, and the standards that describe CI match it"
 feature_ids: [CICD-06]
 group: CICD
-state: REVIEW         # `developer` at /implement, 2026-10-14, on 03-impl-log.md `gate: PASS`
+state: DONE           # `orchestrator` at /ship, 2026-10-14, on 04-review.md `gate: PASS` / `verdict: PASS`
 owner: ""
 branch: ""
 size_estimate: "M"     # S|M - set by tech-lead-design at PLAN; gates DoR
