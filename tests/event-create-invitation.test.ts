@@ -1,4 +1,4 @@
-// EVT-09 — inviting by email while creating a public event. 01-plan.md § 2 AC-2..AC-6, AC-8; § 4.
+// EVT-09 — inviting by email while creating a public event; EVT-12 — any scope. 01-plan.md § 2 AC-2..AC-6, AC-8; § 4.
 //
 // `createEventWithInvitations` is the whole of the form's new behaviour, and it takes a
 // `Pick<DataSeam, …>` precisely so the order of the two calls can be asserted without a browser:
@@ -79,28 +79,35 @@ describe("EVT-09 AC-2 — no addresses is EVT-01's creation, unchanged", () => {
     expect(calls.map((c) => c.fn)).toEqual(["createEvent"]);
   });
 
-  it.each(["team", "named"] as const)(
-    "AC-2: a %s event with addresses left in the hidden field — nothing is invited",
-    async (scope) => {
-      const { data, calls } = stub();
-      const result = await createEventWithInvitations(data, input({ scope }), "friend@outside.example");
-      expect(result).toEqual({ ok: true, id: "evt-1", handoff: null });
-      expect(calls.map((c) => c.fn)).toEqual(["createEvent"]);
-    },
-  );
+});
 
-  it("AC-2: a team event with a malformed address left in the hidden field is still created", async () => {
+// EVT-09 AC-2's "a scope other than public … whatever the field held" is replaced by EVT-12 AC-2:
+// the field is drawn and sent for every scope.
+describe("EVT-12 AC-2 — the field on the create form for every scope", () => {
+  it.each(["team", "named"] as const)("a %s event with addresses is created, then invited", async (scope) => {
     const { data, calls } = stub();
-    const result = await createEventWithInvitations(data, input({ scope: "team" }), "not-an-address");
-    expect(result).toEqual({ ok: true, id: "evt-1", handoff: null });
-    expect(calls.map((c) => c.fn)).toEqual(["createEvent"]);
+    const result = await createEventWithInvitations(data, input({ scope }), "friend@outside.example");
+    expect(calls).toEqual([
+      { fn: "createEvent", input: input({ scope }) },
+      { fn: "inviteToEvent", eventId: "evt-1", emails: ["friend@outside.example"] },
+    ]);
+    expect(result).toMatchObject({ ok: true, id: "evt-1", handoff: { kind: "invited" } });
   });
 
-  it("AC-2: through the mock seam, a team event with text in the field hands nothing to the sender", async () => {
+  it("a team event with a malformed address creates nothing", async () => {
+    const { data, calls } = stub();
+    const result = await createEventWithInvitations(data, input({ scope: "team" }), "not-an-address");
+    expect(result).toEqual({ ok: false, malformed: ["not-an-address"] });
+    expect(calls).toEqual([]);
+  });
+
+  it("through the mock seam, a team event's outsider is handed to the sender with the guest link", async () => {
     __setCurrentMember(FIXTURE_MEMBER.id);
     const result = await createEventWithInvitations(mock, input({ scope: "team" }), "friend@outside.example");
     expect(result.ok).toBe(true);
-    expect(__sentInvitationEmails()).toEqual([]);
+    expect(__sentInvitationEmails()).toEqual([
+      expect.objectContaining({ kind: "invitation_guest", to: "friend@outside.example" }),
+    ]);
   });
 });
 

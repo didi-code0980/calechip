@@ -17,10 +17,11 @@
 // `_insert_manage` and `_delete_manage` are the controls, and `getEventGuestLink` answers null to
 // anybody else whatever this page draws. A non-manager's load makes no guest-link call (AC-18).
 //
-// EVT-08. Under it, `EventInvitePanel` — invite addresses by email to a public event, and the list of
-// who was invited (01-plan.md § 2b, § 4.5). **AN AFFORDANCE**, drawn for the creator and admins:
-// `invite_to_event` and `event_email_invitation_select_manage` are the controls. A non-manager's load
-// makes no invitation call (AC-3). Nothing on it says which addresses belong to members (AC-7).
+// EVT-08. Under it, `EventInvitePanel` — invite addresses by email, and the list of who was invited
+// (01-plan.md § 2b, § 4.5); on every scope since EVT-12. **AN AFFORDANCE**, drawn for the creator and
+// admins: `invite_to_event` and `event_email_invitation_select_manage` are the controls. A
+// non-manager's load makes no invitation call (AC-3). Nothing on it says which addresses belong to
+// members (AC-7) — on an Own team or Limited people event the event's people may (EVT-12 AC-10).
 //
 // EVT-09. The create form may hand this page an `InviteHandoff` through the router's location state
 // (01-plan.md § 4.1): the panel then opens holding the send's result, or the error and the addresses
@@ -38,6 +39,7 @@ import type {
   EmailInvitationOutcome,
   EventEmailInvitation,
   EventGuestLink,
+  EventScope,
   Member,
 } from "@/lib/domain/types";
 // EVT-08 AC-10. The ceiling and the shape, as the database's check states them — runtime imports.
@@ -82,6 +84,24 @@ export function parseInvitationInput(text: string): string[] {
 /** EVT-08 AC-10. The entries failing GUEST_EMAIL_MAX or GUEST_EMAIL_PATTERN, in order. */
 export function invalidInvitationEmails(emails: string[]): string[] {
   return emails.filter((e) => [...e].length > GUEST_EMAIL_MAX || !GUEST_EMAIL_PATTERN.test(e));
+}
+
+/** EVT-12 § 2b, AC-11. The invite hint for a scope; `verb` is "Sending" on the panel and "Creating"
+ *  on the create form, used only in the public sentence. */
+export function inviteHint(scope: EventScope, verb: "Sending" | "Creating"): string {
+  const guests = "Anyone else gets the guest link, which opens this event to guests.";
+  switch (scope) {
+    case "public":
+      return `Each address gets one invitation with the guest link. ${verb} opens this event to guests.`;
+    case "team":
+      return (
+        "Members of other teams are added to this event, which then becomes Limited people: this team " +
+        "as it is now, plus them. People who join the team later won't see it. " +
+        guests
+      );
+    case "named":
+      return `Members who can't see this event yet are added to its people. ${guests}`;
+  }
 }
 
 /** EVT-09 § 4. What the create form hands the event page through the router's location state,
@@ -196,16 +216,22 @@ export default function EventDetail(): JSX.Element {
   const { event, me, directory, invitees, guestLink, invitations } = state;
   const canEdit = mayEditEvent(event, me);
 
-  // EVT-08, AC-5. After a send, the link the invitation opened and the list it grew, both re-read so
-  // the page never draws what the datastore did not return.
+  // EVT-08, AC-5. After a send, the link the invitation opened and the list it grew, re-read so the
+  // page never draws what the datastore did not return. EVT-12 AC-6, AC-7: the event and its people
+  // too, so a conversion shows its scope and the added member in place. A null event leaves state.
   async function onInvited(): Promise<void> {
     try {
-      const [link, list] = await Promise.all([
+      const [fresh, people, link, list] = await Promise.all([
+        seam.getEvent(event.id),
+        seam.listEventInvitees(event.id),
         seam.getEventGuestLink(event.id),
         seam.listEventEmailInvitations(event.id),
       ]);
+      if (!fresh) return;
       setState((current) =>
-        current.phase === "ready" ? { ...current, guestLink: link, invitations: list } : current,
+        current.phase === "ready"
+          ? { ...current, event: fresh, invitees: people, guestLink: link, invitations: list }
+          : current,
       );
     } catch {
       // The send succeeded; a failed re-read leaves what is on screen until the next load.
@@ -333,9 +359,8 @@ export default function EventDetail(): JSX.Element {
           />
         ) : null}
 
-        {/* EVT-08, AC-1, AC-4, AC-12. Managers only, under the guest link; on a non-public event only
-            when it already has invitations to list. */}
-        {canEdit && (event.scope === "public" || invitations.length > 0) ? (
+        {/* EVT-08, AC-1, AC-12. Managers only, under the guest link — on every scope (EVT-12 AC-1). */}
+        {canEdit ? (
           <EventInvitePanel
             event={event}
             invitations={invitations}
@@ -587,7 +612,6 @@ function EventInvitePanel({
   const [result, setResult] = useState<EmailInvitationOutcome[] | null>(() =>
     handoff?.kind === "invited" ? handoff.outcomes : null,
   );
-  const isPublic = event.scope === "public";
 
   async function onSend(): Promise<void> {
     const emails = parseInvitationInput(text);
@@ -621,81 +645,73 @@ function EventInvitePanel({
     <div data-testid="event-invite-panel" className="flex flex-col gap-2 border-t border-line pt-4">
       <h2 className="text-xs font-bold uppercase tracking-wide text-ink-3">Invite by email</h2>
 
-      {isPublic ? (
-        <>
-          <p className="text-sm text-ink-2">
-            Each address gets one invitation with the guest link. Sending opens this event to guests.
-          </p>
-          <textarea
-            data-testid="event-invite-input"
-            rows={3}
-            value={text}
-            onChange={(e) => setText(e.target.value)}
-            placeholder="name@example.com, another@example.com"
-            aria-label="Email addresses"
-            className="w-full rounded-card bg-field px-3 py-2 text-sm text-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
-          />
-          {error !== null ? (
-            <div data-testid="event-invite-error" role="alert" className="text-sm text-danger">
-              <p>{error}</p>
-              {malformed.length > 0 ? (
-                <p className="break-all font-semibold">{malformed.join(", ")}</p>
-              ) : null}
+      <p data-testid="event-invite-hint" className="text-sm text-ink-2">
+        {inviteHint(event.scope, "Sending")}
+      </p>
+      <textarea
+        data-testid="event-invite-input"
+        rows={3}
+        value={text}
+        onChange={(e) => setText(e.target.value)}
+        placeholder="name@example.com, another@example.com"
+        aria-label="Email addresses"
+        className="w-full rounded-card bg-field px-3 py-2 text-sm text-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
+      />
+      {error !== null ? (
+        <div data-testid="event-invite-error" role="alert" className="text-sm text-danger">
+          <p>{error}</p>
+          {malformed.length > 0 ? (
+            <p className="break-all font-semibold">{malformed.join(", ")}</p>
+          ) : null}
+        </div>
+      ) : null}
+      <div className="flex justify-end">
+        <button
+          data-testid="event-invite-submit"
+          type="button"
+          disabled={busy || text.trim() === ""}
+          onClick={() => void onSend()}
+          className={PRIMARY_BUTTON}
+        >
+          {busy ? "Sending…" : "Send invitations"}
+        </button>
+      </div>
+      {result !== null ? (
+        <div data-testid="event-invite-result" role="status" className="flex flex-col gap-2">
+          {invited.length > 0 ? (
+            <div className="flex flex-col gap-1">
+              <h3 className="text-xs font-bold text-ink-2">Invited</h3>
+              <ul data-testid="event-invite-sent" className="flex flex-wrap gap-1.5">
+                {invited.map((r) => (
+                  <li
+                    key={r.email}
+                    data-email={r.email}
+                    className="break-all rounded-pill bg-wfh px-2.5 py-0.5 text-xs font-semibold text-ink"
+                  >
+                    {r.email}
+                  </li>
+                ))}
+              </ul>
             </div>
           ) : null}
-          <div className="flex justify-end">
-            <button
-              data-testid="event-invite-submit"
-              type="button"
-              disabled={busy || text.trim() === ""}
-              onClick={() => void onSend()}
-              className={PRIMARY_BUTTON}
-            >
-              {busy ? "Sending…" : "Send invitations"}
-            </button>
-          </div>
-          {result !== null ? (
-            <div data-testid="event-invite-result" role="status" className="flex flex-col gap-2">
-              {invited.length > 0 ? (
-                <div className="flex flex-col gap-1">
-                  <h3 className="text-xs font-bold text-ink-2">Invited</h3>
-                  <ul data-testid="event-invite-sent" className="flex flex-wrap gap-1.5">
-                    {invited.map((r) => (
-                      <li
-                        key={r.email}
-                        data-email={r.email}
-                        className="break-all rounded-pill bg-wfh px-2.5 py-0.5 text-xs font-semibold text-ink"
-                      >
-                        {r.email}
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              ) : null}
-              {already.length > 0 ? (
-                <div className="flex flex-col gap-1">
-                  <h3 className="text-xs font-bold text-ink-2">Already invited</h3>
-                  <ul data-testid="event-invite-ignored" className="flex flex-wrap gap-1.5">
-                    {already.map((r) => (
-                      <li
-                        key={r.email}
-                        data-email={r.email}
-                        className="break-all rounded-pill bg-field px-2.5 py-0.5 text-xs font-semibold text-ink"
-                      >
-                        {r.email}
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              ) : null}
+          {already.length > 0 ? (
+            <div className="flex flex-col gap-1">
+              <h3 className="text-xs font-bold text-ink-2">Already invited</h3>
+              <ul data-testid="event-invite-ignored" className="flex flex-wrap gap-1.5">
+                {already.map((r) => (
+                  <li
+                    key={r.email}
+                    data-email={r.email}
+                    className="break-all rounded-pill bg-field px-2.5 py-0.5 text-xs font-semibold text-ink"
+                  >
+                    {r.email}
+                  </li>
+                ))}
+              </ul>
             </div>
           ) : null}
-        </>
-      ) : (
-        <p data-testid="event-invite-not-public" className="text-sm text-ink-2">
-          Invitations can only be sent for public events.
-        </p>
-      )}
+        </div>
+      ) : null}
 
       <div data-testid="event-invited-list" className="flex flex-col gap-1">
         <h3 className="text-xs font-bold text-ink-2">Invited by email ({invitations.length})</h3>

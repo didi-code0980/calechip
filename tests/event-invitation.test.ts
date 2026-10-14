@@ -1,4 +1,4 @@
-// EVT-08 — email invitations to a public event. Every acceptance criterion that is a property of the
+// EVT-08 — email invitations to a public event; EVT-12 — to every scope (ADR-061). Every acceptance criterion that is a property of the
 // data, through the mock seam; the two mails through the template; the migration read for its shape.
 //
 // **THE MOCK REPRODUCES `supabase/migrations/20261012100000_evt08_event_email_invitation.sql`; IT
@@ -22,7 +22,7 @@ import {
   __setCurrentMember,
 } from "@/lib/data/mock";
 import { seam as real } from "@/lib/data/supabase";
-import { invalidInvitationEmails, parseInvitationInput } from "@/routes/EventDetail";
+import { invalidInvitationEmails, inviteHint, parseInvitationInput } from "@/routes/EventDetail";
 import {
   parseEventEmailRequest,
   parseInvitationEmailRequest,
@@ -37,6 +37,7 @@ import {
   FIXTURE_OTHER_TEAM_MEMBER,
   FIXTURE_PENDING_SIGNUP,
   FIXTURE_REMOVED_MEMBER,
+  FIXTURE_SECOND_ADMIN,
 } from "@/lib/fixtures";
 
 const as = (memberId: string | null): void => __setCurrentMember(memberId);
@@ -47,6 +48,11 @@ const read = (path: string): string =>
 const MIGRATION = read("../supabase/migrations/20261012100000_evt08_event_email_invitation.sql");
 /** The statements, with `--` comments removed — the header names things to say they are not used. */
 const MIGRATION_SQL = MIGRATION.replace(/--[^\n]*/g, "");
+// EVT-12. Replaces `invite_to_event` and three trigger functions; the EVT-08 file is kept as written.
+const MIGRATION_12_SQL = read("../supabase/migrations/20261014090000_evt12_invite_every_scope.sql").replace(
+  /--[^\n]*/g,
+  "",
+);
 const SENDER = read("../supabase/functions/send-event-email/index.ts");
 
 const OUTSIDER = "friend@outside.example";
@@ -148,33 +154,274 @@ describe("EVT-08 AC-3 — nobody else invites", () => {
   });
 });
 
-describe("EVT-08 AC-4 — public events only", () => {
+// EVT-08 AC-4 ("public events only") is replaced by EVT-12 AC-1, AC-3 and AC-13 — ADR-061 decision 1.
+describe("EVT-12 AC-1, AC-3, AC-13 — invitations on every scope", () => {
   it.each([
     ["team", [] as string[]],
     ["named", [FIXTURE_APPROVED_MEMBER.id]],
-  ] as const)("a %s event is refused for its creator and an admin, opening nothing", async (scope, ids) => {
+  ] as const)("a %s event accepts the creator's and an admin's invitations", async (scope, ids) => {
     const eventId = await createAs(FIXTURE_MEMBER.id, { scope, inviteeIds: [...ids] });
-    for (const who of [FIXTURE_MEMBER.id, FIXTURE_ADMIN.id]) {
-      const result = await inviteAs(who, eventId, [OUTSIDER]);
-      expect(result).toMatchObject({ ok: false, error: { code: "invitation_not_public" } });
+    expect(await inviteAs(FIXTURE_MEMBER.id, eventId, [OUTSIDER])).toEqual({
+      ok: true,
+      value: [{ email: OUTSIDER, outcome: "sent" }],
+    });
+    expect(await inviteAs(FIXTURE_ADMIN.id, eventId, [OUTSIDER_2])).toEqual({
+      ok: true,
+      value: [{ email: OUTSIDER_2, outcome: "sent" }],
+    });
+    expect((await listAs(FIXTURE_ADMIN.id, eventId)).map((i) => i.email).sort()).toEqual(
+      [OUTSIDER, OUTSIDER_2].sort(),
+    );
+  });
+
+  it("anybody else is refused on a team event, and nothing changes", async () => {
+    const eventId = await createAs(FIXTURE_MEMBER.id, { scope: "team" });
+    for (const who of [FIXTURE_APPROVED_MEMBER.id, FIXTURE_OTHER_TEAM_MEMBER.id, FIXTURE_REMOVED_MEMBER.id, null]) {
+      const result = await inviteAs(who, eventId, [OUTSIDER, FIXTURE_OTHER_TEAM_MEMBER.email ?? ""]);
+      expect(result).toMatchObject({ ok: false, error: { code: "event_not_permitted" } });
     }
+    as(FIXTURE_MEMBER.id);
+    expect((await mock.getEvent(eventId))?.scope).toBe("team");
+    expect(await mock.listEventInvitees(eventId)).toEqual([]);
     expect(await linkOf(eventId)).toBeNull();
-    expect(await listAs(FIXTURE_ADMIN.id, eventId)).toEqual([]);
     expect(__sentInvitationEmails()).toEqual([]);
   });
 
-  it("an event moved off public accepts no more, and keeps its link and its list", async () => {
+  it("an event moved off public goes on accepting invitations, under its new scope", async () => {
     const eventId = await createAs(FIXTURE_MEMBER.id);
     await inviteAs(FIXTURE_MEMBER.id, eventId, [OUTSIDER]);
-    const link = await linkOf(eventId);
     as(FIXTURE_MEMBER.id);
-    const moved = await mock.updateEvent(eventId, input({ scope: "team" }));
-    expect(moved.ok).toBe(true);
-    const result = await inviteAs(FIXTURE_MEMBER.id, eventId, [OUTSIDER_2]);
-    expect(result).toMatchObject({ ok: false, error: { code: "invitation_not_public" } });
-    expect(await linkOf(eventId)).toEqual(link);
-    expect((await listAs(FIXTURE_MEMBER.id, eventId)).map((i) => i.email)).toEqual([OUTSIDER]);
+    expect((await mock.updateEvent(eventId, input({ scope: "team" }))).ok).toBe(true);
+    const result = await inviteAs(FIXTURE_MEMBER.id, eventId, [FIXTURE_OTHER_TEAM_MEMBER.email ?? ""]);
+    expect(result).toEqual({ ok: true, value: [{ email: FIXTURE_OTHER_TEAM_MEMBER.email, outcome: "sent" }] });
+    as(FIXTURE_MEMBER.id);
+    expect((await mock.getEvent(eventId))?.scope).toBe("named");
+  });
+
+  it("the function no longer refuses a scope, and locks the event for update", () => {
+    const body = /function public\.invite_to_event[\s\S]*?\n\$\$;/.exec(MIGRATION_12_SQL)?.[0] ?? "";
+    expect(body).not.toBe("");
+    expect(body).not.toMatch(/EV009|invitation_not_public/);
+    expect(body).toMatch(/from public\.event e\s+where e\.id = p_event_id\s+for update;/);
+  });
+});
+
+describe("EVT-12 AC-4, AC-5 — an outsider, and a member who can already read", () => {
+  it("an outsider on a team event gets the guest mail and opens it; scope and people unchanged", async () => {
+    const eventId = await createAs(FIXTURE_MEMBER.id, { scope: "team" });
+    await inviteAs(FIXTURE_MEMBER.id, eventId, [OUTSIDER]);
+    const link = await linkOf(eventId);
+    expect(link).not.toBeNull();
+    expect(__sentInvitationEmails()).toEqual([
+      expect.objectContaining({ kind: "invitation_guest", to: OUTSIDER, guestToken: link?.token }),
+    ]);
+    as(FIXTURE_MEMBER.id);
+    expect((await mock.getEvent(eventId))?.scope).toBe("team");
+    expect(await mock.listEventInvitees(eventId)).toEqual([]);
+  });
+
+  it("a team member on a team event gets the member version, opens nothing, and is not named", async () => {
+    const eventId = await createAs(FIXTURE_MEMBER.id, { scope: "team" });
+    as(FIXTURE_APPROVED_MEMBER.id);
+    const notifications = await mock.listNotifications();
+    await inviteAs(FIXTURE_MEMBER.id, eventId, [FIXTURE_APPROVED_MEMBER.email ?? ""]);
+    expect(__sentInvitationEmails()).toEqual([
+      expect.objectContaining({ kind: "invitation_member", to: FIXTURE_APPROVED_MEMBER.email }),
+    ]);
+    expect(await linkOf(eventId)).toBeNull();
+    as(FIXTURE_MEMBER.id);
+    expect((await mock.getEvent(eventId))?.scope).toBe("team");
+    expect(await mock.listEventInvitees(eventId)).toEqual([]);
+    as(FIXTURE_APPROVED_MEMBER.id);
+    expect(await mock.listNotifications()).toEqual(notifications);
+  });
+
+  it("an admin from another team counts as a reader of a named event", async () => {
+    const eventId = await createAs(FIXTURE_OTHER_TEAM_MEMBER.id, { scope: "named" });
+    await inviteAs(FIXTURE_OTHER_TEAM_MEMBER.id, eventId, [FIXTURE_ADMIN.email ?? ""]);
+    expect(__sentInvitationEmails()).toEqual([expect.objectContaining({ kind: "invitation_member" })]);
+    as(FIXTURE_OTHER_TEAM_MEMBER.id);
+    expect(await mock.listEventInvitees(eventId)).toEqual([]);
+  });
+});
+
+describe("EVT-12 AC-6 — a member outside a Limited people event's reach is added", () => {
+  it("added, notified once in the app and by EVT-05's invited mail, and no invitation mail", async () => {
+    const eventId = await createAs(FIXTURE_MEMBER.id, {
+      scope: "named",
+      inviteeIds: [FIXTURE_APPROVED_MEMBER.id],
+    });
+    as(FIXTURE_APPROVED_MEMBER.id);
+    const named = await mock.listNotifications();
+    const mailsBefore = __sentEventEmails().length;
+    const result = await inviteAs(FIXTURE_MEMBER.id, eventId, [FIXTURE_OTHER_TEAM_MEMBER.email ?? ""]);
+    expect(result).toEqual({ ok: true, value: [{ email: FIXTURE_OTHER_TEAM_MEMBER.email, outcome: "sent" }] });
+
+    as(FIXTURE_MEMBER.id);
+    expect((await mock.listEventInvitees(eventId)).sort()).toEqual(
+      [FIXTURE_APPROVED_MEMBER.id, FIXTURE_OTHER_TEAM_MEMBER.id].sort(),
+    );
+    as(FIXTURE_OTHER_TEAM_MEMBER.id);
+    expect(await mock.getEvent(eventId)).not.toBeNull();
+    expect((await mock.listNotifications()).filter((n) => n.eventId === eventId)).toEqual([
+      expect.objectContaining({ kind: "event_invited" }),
+    ]);
+    expect(__sentEventEmails().slice(mailsBefore)).toEqual([
+      expect.objectContaining({ kind: "event_invited", to: FIXTURE_OTHER_TEAM_MEMBER.email }),
+    ]);
+    expect(__sentInvitationEmails()).toEqual([]);
+    expect(await linkOf(eventId)).toBeNull();
+    as(FIXTURE_APPROVED_MEMBER.id);
+    expect(await mock.listNotifications()).toEqual(named);
+  });
+
+  it("with event email off, the in-app row only", async () => {
+    const eventId = await createAs(FIXTURE_MEMBER.id, { scope: "named" });
+    as(FIXTURE_OTHER_TEAM_MEMBER.id);
+    await mock.setEventEmailEnabled(false);
+    const mailsBefore = __sentEventEmails().length;
+    await inviteAs(FIXTURE_MEMBER.id, eventId, [FIXTURE_OTHER_TEAM_MEMBER.email ?? ""]);
+    as(FIXTURE_OTHER_TEAM_MEMBER.id);
+    expect((await mock.listNotifications()).filter((n) => n.eventId === eventId)).toHaveLength(1);
+    expect(__sentEventEmails()).toHaveLength(mailsBefore);
+    expect(__sentInvitationEmails()).toEqual([]);
+  });
+});
+
+describe("EVT-12 AC-7, AC-8 — a member outside an Own team event's reach converts it", () => {
+  it("converts to named with the team snapshotted, silently but for the added member", async () => {
+    const eventId = await createAs(FIXTURE_MEMBER.id, { scope: "team" });
+    // An attendee from the snapshot, who would hear of an edit.
+    as(FIXTURE_APPROVED_MEMBER.id);
+    expect((await mock.joinEvent(eventId)).ok).toBe(true);
+    const snapshot = [FIXTURE_ADMIN.id, FIXTURE_SECOND_ADMIN.id, FIXTURE_APPROVED_MEMBER.id];
+    const before = new Map<string, unknown>();
+    for (const id of [...snapshot, FIXTURE_MEMBER.id]) {
+      as(id);
+      before.set(id, await mock.listNotifications());
+    }
+    const mailsBefore = __sentEventEmails().length;
+    as(FIXTURE_MEMBER.id);
+    const event = await mock.getEvent(eventId);
+
+    await inviteAs(FIXTURE_MEMBER.id, eventId, [FIXTURE_OTHER_TEAM_MEMBER.email ?? ""]);
+
+    as(FIXTURE_MEMBER.id);
+    const after = await mock.getEvent(eventId);
+    expect(after?.scope).toBe("named");
+    expect({ ...after, scope: event?.scope, updatedAt: event?.updatedAt }).toEqual(event);
+    expect((await mock.listEventInvitees(eventId)).sort()).toEqual(
+      [...snapshot, FIXTURE_OTHER_TEAM_MEMBER.id].sort(),
+    );
+    for (const id of [...snapshot, FIXTURE_MEMBER.id]) {
+      as(id);
+      expect(await mock.listNotifications()).toEqual(before.get(id));
+      expect(await mock.getEvent(eventId)).not.toBeNull();
+    }
+    as(FIXTURE_OTHER_TEAM_MEMBER.id);
+    expect((await mock.listNotifications()).filter((n) => n.eventId === eventId)).toEqual([
+      expect.objectContaining({ kind: "event_invited" }),
+    ]);
+    expect(__sentEventEmails().slice(mailsBefore)).toEqual([
+      expect.objectContaining({ kind: "event_invited", to: FIXTURE_OTHER_TEAM_MEMBER.email }),
+    ]);
+    expect(__sentInvitationEmails()).toEqual([]);
+  });
+
+  it("a mixed submission converts once and gives each address its own mail", async () => {
+    const eventId = await createAs(FIXTURE_MEMBER.id, { scope: "team" });
+    const result = await inviteAs(FIXTURE_MEMBER.id, eventId, [
+      OUTSIDER,
+      FIXTURE_APPROVED_MEMBER.email ?? "",
+      FIXTURE_OTHER_TEAM_MEMBER.email ?? "",
+    ]);
+    expect(result).toEqual({
+      ok: true,
+      value: [
+        { email: OUTSIDER, outcome: "sent" },
+        { email: FIXTURE_APPROVED_MEMBER.email, outcome: "sent" },
+        { email: FIXTURE_OTHER_TEAM_MEMBER.email, outcome: "sent" },
+      ],
+    });
+    expect(__sentInvitationEmails().map((m) => [m.kind, m.to])).toEqual([
+      ["invitation_guest", OUTSIDER],
+      ["invitation_member", FIXTURE_APPROVED_MEMBER.email],
+    ]);
+    as(FIXTURE_MEMBER.id);
+    expect((await mock.getEvent(eventId))?.scope).toBe("named");
+    expect(await mock.listEventInvitees(eventId)).toContain(FIXTURE_OTHER_TEAM_MEMBER.id);
+    expect(await linkOf(eventId)).not.toBeNull();
+  });
+
+  it("an edit made with the form still notifies attendees of a scope change", async () => {
+    const eventId = await createAs(FIXTURE_MEMBER.id, { scope: "team" });
+    as(FIXTURE_APPROVED_MEMBER.id);
+    await mock.joinEvent(eventId);
+    as(FIXTURE_MEMBER.id);
+    await mock.updateEvent(eventId, input({ scope: "named", inviteeIds: [FIXTURE_APPROVED_MEMBER.id] }));
+    as(FIXTURE_APPROVED_MEMBER.id);
+    expect((await mock.listNotifications()).map((n) => n.kind)).toContain("event_updated");
+  });
+
+  it("the conversion is silenced by a setting cleared before the added member's row", () => {
+    const body = /function public\.invite_to_event[\s\S]*?\n\$\$;/.exec(MIGRATION_12_SQL)?.[0] ?? "";
+    expect(body).toMatch(
+      /set_config\('calechip\.event_conversion', p_event_id::text, true\);[\s\S]*?update public\.event set scope = 'named'[\s\S]*?insert into public\.event_invitee[\s\S]*?set_config\('calechip\.event_conversion', '', true\);[\s\S]*?insert into public\.event_invitee \(event_id, member_id\)\s+values \(p_event_id, v_member\)/,
+    );
+    for (const fn of ["notify_event_updated", "notify_event_invited"]) {
+      const trigger =
+        new RegExp(`function public\\.${fn}\\(\\)[\\s\\S]*?\\n\\$\\$;`).exec(MIGRATION_12_SQL)?.[0] ?? "";
+      expect(trigger).toMatch(/current_setting\('calechip\.event_conversion', true\)/);
+    }
+  });
+});
+
+describe("EVT-12 AC-9, AC-12 — repeats, and public events unchanged", () => {
+  it("an address already invited adds nobody, converts nothing, and an outsider's reopens", async () => {
+    const eventId = await createAs(FIXTURE_MEMBER.id, { scope: "team" });
+    await inviteAs(FIXTURE_MEMBER.id, eventId, [OUTSIDER]);
+    as(FIXTURE_MEMBER.id);
+    await mock.closeEventToGuests(eventId);
+    const again = await inviteAs(FIXTURE_MEMBER.id, eventId, [OUTSIDER.toUpperCase()]);
+    expect(again).toEqual({ ok: true, value: [{ email: OUTSIDER.toUpperCase(), outcome: "ignored" }] });
+    expect(await linkOf(eventId)).not.toBeNull();
     expect(__sentInvitationEmails()).toHaveLength(1);
+    as(FIXTURE_MEMBER.id);
+    expect((await mock.getEvent(eventId))?.scope).toBe("team");
+  });
+
+  it("a member of another team invited to a public event is mailed, never named", async () => {
+    const eventId = await createAs(FIXTURE_MEMBER.id);
+    await inviteAs(FIXTURE_MEMBER.id, eventId, [FIXTURE_OTHER_TEAM_MEMBER.email ?? ""]);
+    expect(__sentInvitationEmails()).toEqual([expect.objectContaining({ kind: "invitation_member" })]);
+    as(FIXTURE_MEMBER.id);
+    expect((await mock.getEvent(eventId))?.scope).toBe("public");
+    expect(await mock.listEventInvitees(eventId)).toEqual([]);
+  });
+
+  it("the public branch reads neither member nor auth.users, and email_invitation skips a non-reader", () => {
+    const body = /function public\.invite_to_event[\s\S]*?\n\$\$;/.exec(MIGRATION_12_SQL)?.[0] ?? "";
+    const publicBranch =
+      /if v_scope = 'public'::public\.event_scope then([\s\S]*?)\n {2}end if;/.exec(body)?.[1] ?? "";
+    expect(publicBranch).not.toBe("");
+    expect(publicBranch).not.toMatch(/public\.member\b|auth\.users/);
+    expect(MIGRATION_12_SQL).toMatch(/if not public\.may_read_event\(new\.event_id, v_member_id\) then\s+return new;/);
+  });
+});
+
+describe("EVT-12 AC-11 — the hint", () => {
+  it("names the conversion on a team event and the addition on a named one", () => {
+    expect(inviteHint("public", "Sending")).toBe(
+      "Each address gets one invitation with the guest link. Sending opens this event to guests.",
+    );
+    expect(inviteHint("public", "Creating")).toMatch(/Creating opens this event to guests\.$/);
+    expect(inviteHint("team", "Sending")).toMatch(/becomes Limited people[\s\S]*join the team later won't see it/);
+    expect(inviteHint("named", "Sending")).toMatch(/added to its people/);
+    for (const scope of ["team", "named"] as const) {
+      expect(inviteHint(scope, "Sending")).toMatch(
+        /Anyone else gets the guest link, which opens this event to guests\.$/,
+      );
+    }
   });
 });
 

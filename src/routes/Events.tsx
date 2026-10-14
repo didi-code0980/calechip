@@ -21,11 +21,11 @@ import Loader from "@/components/Loader";
 /** § 2b. The written label is what carries the scope; the colour is decorative. */
 const SCOPE_LABELS: Record<EventScope, string> = {
   team: "Own team",
-  named: "Named people",
+  named: "Limited people", // EVT-12 AC-14. The label only; the value stays `named`.
   public: "Every team",
 };
 
-/** § 2b. Own team mint, Named people lavender, Every team peach — the pastel set, reused. */
+/** § 2b. Own team mint, Limited people lavender, Every team peach — the pastel set, reused. */
 const SCOPE_CLASSES: Record<EventScope, string> = {
   team: "bg-wfh/50 text-wfh-ink",
   named: "bg-holiday/60 text-ink",
