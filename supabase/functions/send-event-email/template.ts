@@ -217,14 +217,19 @@ function wordsFor(
   }
 }
 
-/** § 2b. The event panel's tint: peach-pink for approved, mint for created and invited, lavender for
- *  rejected and removed. */
-const PANEL_TINT: Record<EventEmailKind, string> = {
-  event_created: "#E8F6EF",
-  event_invited: "#E8F6EF",
-  attendance_approved: "#FDEDEF",
-  attendance_rejected: "#EFEAFB",
-  attendance_removed: "#EFEAFB",
+/** The header badge's colours per kind, from the pastel tokens in `src/index.css`: mint for a new
+ *  event, lavender for an invitation, peach for approved, soft pink for declined, plain for removed. */
+interface BadgeTone {
+  bg: string;
+  border: string;
+  ink: string;
+}
+const BADGE_TONE: Record<EventEmailKind, BadgeTone> = {
+  event_created: { bg: "#E8F6EF", border: "#A9E2CD", ink: "#17694E" },
+  event_invited: { bg: "#EFEAFB", border: "#C9BFF0", ink: "#4B3A99" },
+  attendance_approved: { bg: "#FFEFE4", border: "#FFCBAA", ink: "#A0491A" },
+  attendance_rejected: { bg: "#FFE4E6", border: "#FBC4CB", ink: "#9F1239" },
+  attendance_removed: { bg: "#F4F2FA", border: "#DCD5F2", ink: "#6E6A80" },
 };
 
 const PAGE = "#F4F2FA";
@@ -258,10 +263,10 @@ export function renderEventEmail(request: EventEmailRequest, appUrl: string): Re
   return renderLayout(
     {
       ...wordsFor(kind, actorName, event.name),
+      badgeTone: BADGE_TONE[kind],
       greeting: GREETING(recipientName),
       event,
       buttonUrl: `${appUrl}/events/${encodeURIComponent(event.id)}`,
-      tint: PANEL_TINT[kind],
       footerHtml:
         `${escapeHtml(FOOTER_LEAD)}<a href="${escapeHtml(profileUrl)}" style="color:${PRIMARY};text-decoration:underline;">` +
         `${FOOTER_LINK}</a>.`,
@@ -278,12 +283,12 @@ interface Layout {
   subject: string;
   headline: string;
   badge: string;
+  badgeTone: BadgeTone;
   intro: string;
   button: string;
   greeting: string;
   event: EventEmailRequest["event"];
   buttonUrl: string;
-  tint: string;
   footerHtml: string;
   footerText: string[];
 }
@@ -292,7 +297,7 @@ interface Layout {
  *  "keep EVT-05's template unchanged in layout"). Its output for an EVT-05 request is what
  *  `renderEventEmail` rendered before the extraction, byte for byte. */
 function renderLayout(layout: Layout, appUrl: string): RenderedEmail {
-  const { subject, headline, badge, intro, button, greeting, event, buttonUrl, tint } = layout;
+  const { subject, headline, badge, badgeTone, intro, button, greeting, event, buttonUrl } = layout;
   const dates = formatEventDates(event.startDate, event.endDate);
   const weekdays = formatEventWeekdays(event.startDate, event.endDate);
   const location = event.location !== null && event.location.trim() !== "" ? event.location : null;
@@ -379,7 +384,7 @@ function renderLayout(layout: Layout, appUrl: string): RenderedEmail {
     `</td>` +
     `<td align="right" style="vertical-align:middle;">` +
     `<table role="presentation" cellpadding="0" cellspacing="0" border="0" align="right"><tr>` +
-    `<td style="background-color:${PAGE};border:1px solid ${PILL_BORDER};border-radius:999px;padding:5px 12px;font-family:${FONT};font-size:11px;font-weight:800;letter-spacing:0.06em;text-transform:uppercase;color:${INK};white-space:nowrap;">&#9993; ${e(badge)}</td>` +
+    `<td style="background-color:${badgeTone.bg};border:1px solid ${badgeTone.border};border-radius:999px;padding:5px 12px;font-family:${FONT};font-size:11px;font-weight:800;letter-spacing:0.06em;text-transform:uppercase;color:${badgeTone.ink};white-space:nowrap;">&#9993; ${e(badge)}</td>` +
     `</tr></table>` +
     `</td>` +
     `</tr></table>` +
@@ -394,7 +399,7 @@ function renderLayout(layout: Layout, appUrl: string): RenderedEmail {
     `</td></tr>` +
     // Detail panel
     `<tr><td style="padding:0 32px;">` +
-    `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color:${tint};border:1px solid ${PILL_BORDER};border-radius:20px;">` +
+    `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="border:1px solid ${PILL_BORDER};border-radius:20px;">` +
     `<tr><td style="padding:18px 22px 8px 22px;">` +
     `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">` +
     `<tr>${td(`font-size:12px;font-weight:800;letter-spacing:0.08em;color:${MUTED};padding:0 0 4px 0;`, "EVENT DETAILS")}</tr>` +
@@ -528,12 +533,12 @@ export function renderInvitationEmail(request: InvitationEmailRequest, appUrl: s
       subject: invited.subject,
       headline: invited.headline,
       badge: invited.badge,
+      badgeTone: BADGE_TONE.event_invited,
       intro: GUEST_INTRO,
       button: GUEST_BUTTON,
       greeting: GUEST_GREETING,
       event,
       buttonUrl: `${appUrl}/guest/${encodeURIComponent(request.guestToken ?? "")}`,
-      tint: PANEL_TINT.event_invited,
       footerHtml: escapeHtml(footer),
       footerText: [footer],
     },
