@@ -5,7 +5,7 @@ id: CICD-05
 title: "The deployment repository deploys only CaleChip from merged config, health-checks it and restores the previous version on failure — drafted in this repository"
 feature_ids: [CICD-05]
 group: CICD
-state: ESCALATED      # `orchestrator` at /advance, 2026-10-14, on 04-review.md `verdict: FAIL` / `route_to: human` (R1, TopBar.tsx from three chore commits)
+state: REVIEW         # operator decision 2026-10-14 resolves the ESCALATED of 04-review.md R1 — see the note under allowed_paths. Was: ESCALATED.
 owner: ""
 branch: ""
 size_estimate: "M"     # S|M - set by tech-lead-design at PLAN; gates DoR
@@ -18,6 +18,10 @@ allowed_paths:        # Enumerated by tech-lead-design at /plan, 2026-10-14 - 01
   - "docs/ops/deployment-repo/.github/workflows/deploy-calechip.yml"
   - "docs/ops/deployment-repo/.github/workflows/pr-scope.yml"
   - "docs/ops/deployment-repo/.github/CODEOWNERS"
+# OPERATOR EXCEPTION, 2026-10-14, recorded by `orchestrator`: `src/components/TopBar.tsx`, from chore commits
+# 7e02a0e, 88a0b3b and 6685204 on feat/CICD-05, ships with this ticket as an accepted exception —
+# the operator chose option 3 of three ("3"). It is NOT added to allowed_paths: the list is not widened.
+# check-allowed-paths will still exit 1 on this branch and in CI; the operator accepts that at merge.
 glossary_owed: []
 schema_delta: none
 requires_adr: true    # ADR-059 (the CICD group), ACCEPTED by the operator 2026-10-13

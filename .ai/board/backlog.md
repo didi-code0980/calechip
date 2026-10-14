@@ -22,6 +22,9 @@ planned, sized, and safe to build** — the next stage for a row here is IN_PROG
 
 | # | Ticket | Title | Size | Depends on |
 |---|--------|-------|------|------------|
+| 1 | CICD-05 | The deployment repository deploys only CaleChip from merged config, health-checks it and restores the previous version on failure — drafted in this repository | M | CICD-04 |
+
+**`CICD-05` returned here from `## BLOCKED` on 2026-10-14** on the operator's decision (option 3, accepted exception for `TopBar.tsx`); `state: REVIEW`, `gates.review` not passed, `/review` re-runs.
 
 **Empty again — `CICD-05` left this section for `## BLOCKED` at /advance on 2026-10-14**, `ESCALATED` from `04-review.md` verdict FAIL, `route_to: human`. `CICD-06` is the top of `## BACKLOG` but depends on `CICD-05`.
 
@@ -1370,7 +1373,8 @@ Tickets that cannot proceed until a human decides something. Name the decision, 
 
 | # | Ticket | Blocked on | Since | Who decides |
 |---|--------|------------|-------|-------------|
-| 1 | CICD-05 | Whether `src/components/TopBar.tsx` — from chore commits `7e02a0e`, `88a0b3b`, `6685204` on `feat/CICD-05` — goes to `main` first, is moved off this branch, or ships with it as an accepted exception. `04-review.md` R1 FAIL; every other check passed | 2026-10-14 | operator |
+
+**`CICD-05` left this table on 2026-10-14**: the operator chose option 3 — `src/components/TopBar.tsx` from the three chore commits ships with the ticket as an accepted exception (note in its `ticket.yaml`). State back to `REVIEW`; `/review` re-runs in a fresh session.
 
 ## SHIPPED OUTSIDE THE LOOP
 
