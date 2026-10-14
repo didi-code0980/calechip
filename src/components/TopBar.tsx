@@ -100,6 +100,7 @@ export default function TopBar({ role }: TopBarProps) {
   // already renders from — `AdminTabs.tsx` records why the pathname is what answers this here and
   // why the router cannot.
   const onAdmin = isAdminAddress(pathname);
+  const onEvents = pathname === "/events" || pathname.startsWith("/events/");
 
   // UIE-03 § 4.3. No `testId` field any more: a segment's name depends on WHERE IT GOES *and*
   // WHERE IT IS — `week-month` from a week, `month-week` from a month — so it is `<nav.kind>-<kind>`
@@ -233,6 +234,16 @@ export default function TopBar({ role }: TopBarProps) {
             link, `home-pending-entries-link`, and that link is in the sidebar. A second control to
             one address would either duplicate an id — the strict-mode failure AC-6 exists to
             prevent — or give the product two names for one screen. */}
+        {/* SOLO 2026-10-14. **Calendar, on the events screens only, immediately left of `Admin`.**
+            The events screens carry no period cluster and the sidebar's period links are commented
+            out, so nothing in the shell led back to the calendar from `/events*`. `/` is the week
+            landing, as the admin face's `Calendar` uses. */}
+        {onEvents ? (
+          <Link data-testid="shell-calendar-link" to="/" className={PILL_OUTLINE}>
+            Calendar
+          </Link>
+        ) : null}
+
         {/* UIE-09 AC-1, AC-2 and AC-11. An OUTLINE PILL WITH NO CARET, reusing `PILL_OUTLINE` so it
             is the same object as `Today` rather than a new one that looks like it — the shape the
             transcription draws, and not a disclosure control (§ 2b). It reaches a SCREEN at an
@@ -288,7 +299,7 @@ export default function TopBar({ role }: TopBarProps) {
         <Link
           data-testid="nav-events-link"
           to="/events"
-          aria-current={pathname === "/events" || pathname.startsWith("/events/") ? "page" : undefined}
+          aria-current={onEvents ? "page" : undefined}
           className={PILL_OUTLINE}
         >
           Events
