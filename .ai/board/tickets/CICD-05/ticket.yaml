@@ -5,7 +5,7 @@ id: CICD-05
 title: "The deployment repository deploys only CaleChip from merged config, health-checks it and restores the previous version on failure — drafted in this repository"
 feature_ids: [CICD-05]
 group: CICD
-state: READY          # `orchestrator` at /advance, 2026-10-14, on 01-plan.md `gate: PASS`, DoR 6/6
+state: REVIEW         # developer at /implement, 2026-10-14, on 03-impl-log.md `gate: PASS`
 owner: ""
 branch: ""
 size_estimate: "M"     # S|M - set by tech-lead-design at PLAN; gates DoR
