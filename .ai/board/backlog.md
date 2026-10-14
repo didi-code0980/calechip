@@ -22,7 +22,8 @@ planned, sized, and safe to build** — the next stage for a row here is IN_PROG
 
 | # | Ticket | Title | Size | Depends on |
 |---|--------|-------|------|------------|
-| 1 | CICD-05 | The deployment repository deploys only CaleChip from merged config, health-checks it and restores the previous version on failure — drafted in this repository | M | CICD-04 |
+
+**Empty again — `CICD-05` left this section for `## BLOCKED` at /advance on 2026-10-14**, `ESCALATED` from `04-review.md` verdict FAIL, `route_to: human`. `CICD-06` is the top of `## BACKLOG` but depends on `CICD-05`.
 
 **`CICD-05` moved here from `## BACKLOG` at /advance on 2026-10-14**, from `01-plan.md` gate PASS with all six Definition of Ready items passing. `CICD-06` to `TSK-04` each moved up one row in `## BACKLOG`; bookkeeping, not a reordering. The paragraphs below were written while this table was empty and are left standing.
 
@@ -1369,6 +1370,7 @@ Tickets that cannot proceed until a human decides something. Name the decision, 
 
 | # | Ticket | Blocked on | Since | Who decides |
 |---|--------|------------|-------|-------------|
+| 1 | CICD-05 | Whether `src/components/TopBar.tsx` — from chore commits `7e02a0e`, `88a0b3b`, `6685204` on `feat/CICD-05` — goes to `main` first, is moved off this branch, or ships with it as an accepted exception. `04-review.md` R1 FAIL; every other check passed | 2026-10-14 | operator |
 
 ## SHIPPED OUTSIDE THE LOOP
 
