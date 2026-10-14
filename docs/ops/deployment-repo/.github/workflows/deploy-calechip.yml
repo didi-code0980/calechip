@@ -27,7 +27,7 @@ env:
 
 jobs:
   deploy:
-    runs-on: [self-hosted, linux, home-wsl]
+    runs-on: [self-hosted, mmlabs-server]
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@v7
