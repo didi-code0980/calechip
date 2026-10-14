@@ -19,13 +19,14 @@
 // The form always sends all three.
 //
 // **THE PICKER IS INLINE, NOT A DIALOG** (§ 2b): a scrollable checklist grouped under team names,
-// with a text filter, drawn only while `Named people` is chosen. It omits the caller — an
+// with a text filter, drawn only while `Limited people` is chosen. It omits the caller — an
 // affordance; `list_member_directory()` returns them and the policy would accept them.
 //
-// EVT-09. On the create form only, while *Every team* is chosen, an email field in the picker's slot
-// (01-plan.md § 2b, § 4.2). **IT ADDS A SURFACE, NOT A BEHAVIOUR**: the addresses go through
+// EVT-09. On the create form only, an email field under the scope choice — below the picker when it
+// is drawn (01-plan.md § 2b, § 4.2). **IT ADDS A SURFACE, NOT A BEHAVIOUR**: the addresses go through
 // `inviteToEvent`, EVT-08's seam function, unchanged — after `createEvent` succeeds and never before,
-// and not at all when one address is malformed (AC-4) or the scope is not public (AC-2).
+// and not at all when one address is malformed (AC-4). EVT-12 AC-2: for every scope, no longer public
+// only; what each address gets on an Own team or Limited people event is the seam's.
 import { useCallback, useEffect, useMemo, useState, type FormEvent, type JSX } from "react";
 import { Link, useLocation, useNavigate, useParams } from "react-router-dom";
 import { format } from "date-fns";
@@ -37,6 +38,7 @@ import DescriptionEditor from "@/components/DescriptionEditor";
 import { sanitizeDescription } from "@/components/DescriptionHtml";
 import {
   invalidInvitationEmails,
+  inviteHint,
   mayEditEvent,
   parseInvitationInput,
   type InviteHandoff,
@@ -55,7 +57,7 @@ interface FormValues {
   requiresApproval: boolean;
   /** `""` means registration runs to the end date. */
   registrationDeadline: string;
-  /** EVT-09. The create form's invite field, as typed; sent only while the scope is public. */
+  /** EVT-09. The create form's invite field, as typed; sent for every scope (EVT-12 AC-2). */
   inviteText: string;
 }
 
@@ -66,7 +68,7 @@ type LoadState =
 
 const SCOPE_CHOICES: readonly { scope: EventScope; label: string; hint: string }[] = [
   { scope: "team", label: "Own team", hint: "Everyone on your team" },
-  { scope: "named", label: "Named people", hint: "Only the people you pick, from any team" },
+  { scope: "named", label: "Limited people", hint: "Only the people you pick, from any team" },
   { scope: "public", label: "Every team", hint: "Everyone on every team" },
 ];
 
@@ -82,7 +84,7 @@ const INVITE_THREW = "Something went wrong. Please try again.";
 
 /** EVT-09 AC-2..AC-6. Validates the addresses, creates the event, then invites. Never invites
  *  before the event exists and never creates when an address is malformed.
- *  - `scope !== "public"` or no address after parsing → `createEvent` only; `handoff: null`.
+ *  - no address after parsing → `createEvent` only; `handoff: null`. Every scope (EVT-12 AC-2).
  *  - any malformed address → `{ ok: false, malformed }`, and neither call is made.
  *  - `createEvent` refused → `{ ok: false, error }`, and `inviteToEvent` is not called.
  *  - created, invite refused or thrown → `{ ok: true, id, handoff: { kind: "failed", … } }`.
@@ -96,7 +98,7 @@ export async function createEventWithInvitations(
   | { ok: false; error: Failure }
   | { ok: false; malformed: string[] }
 > {
-  const emails = input.scope === "public" ? parseInvitationInput(inviteText) : [];
+  const emails = parseInvitationInput(inviteText);
   const malformed = invalidInvitationEmails(emails);
   if (malformed.length > 0) return { ok: false, malformed };
 
@@ -344,7 +346,7 @@ function EventForm({
   return (
     <section className="mx-auto flex max-w-xl flex-col gap-4">
       {/* AC-23. Top to bottom: name; start and end side by side; scope as three choices; the picker
-          only while Named people is chosen; location; description; save and cancel. */}
+          only while Limited people is chosen; location; description; save and cancel. */}
       <form
         data-testid="event-form"
         noValidate
@@ -514,14 +516,14 @@ function EventForm({
           </div>
         ) : null}
 
-        {/* EVT-09 AC-1, § 2b. The create form only, public scope only — in the picker's slot. */}
-        {!editing && values.scope === "public" ? (
+        {/* EVT-09 AC-1, § 2b; EVT-12 AC-2. The create form only, every scope — after the picker. */}
+        {!editing ? (
           <div data-testid="event-form-invite" className="flex flex-col gap-1.5">
             <label className="flex flex-col gap-1.5">
               <span className={LABEL}>Invite by email (optional)</span>
-              <span className="text-[11px] text-ink-3">
+              <span data-testid="event-form-invite-hint" className="text-[11px] text-ink-3">
                 {inviteHasAddress
-                  ? "Each address gets one invitation with the guest link. Creating opens this event to guests."
+                  ? inviteHint(values.scope, "Creating")
                   : "People outside CaleChip get the guest link by email."}
               </span>
               <textarea

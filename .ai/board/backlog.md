@@ -24,6 +24,8 @@ planned, sized, and safe to build** — the next stage for a row here is IN_PROG
 |---|--------|-------|------|------------|
 | 1 | EVT-12 | The creator or an admin of an *Own team* or *Limited people* event invites people by email, a member outside its reach is added to its named list, and *Named people* is relabelled *Limited people* | M | EVT-08, EVT-09 (both DONE) |
 
+**`EVT-12` is at `REVIEW` in `ticket.yaml`** — recorded at /advance on 2026-10-14 from `03-impl-log.md` gate PASS. The row stays here until `/ship` moves it to `## ARCHIVE`.
+
 **`EVT-12` moved here from `## BACKLOG` at /advance on 2026-10-14**, from `01-plan.md` gate PASS with all six Definition of Ready items passing. `EVT-13` to `TSK-04` each moved up one row in `## BACKLOG`; bookkeeping, not a reordering. The paragraphs below were written while this table was empty and are left standing.
 
 **Empty again — `CICD-07` left this section for `## ARCHIVE` at its own ship on 2026-10-14.** `CICD-04` is the top of `## BACKLOG`.

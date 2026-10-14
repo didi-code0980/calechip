@@ -96,13 +96,16 @@ operator gave — see the note under § *Roles*. A bare `❌` there is a denial 
 | Approve, reject or remove a guest | own event only | own event only | ✅ any **`event_guest_update_manage`; column grant `update (status)`** |
 | Set a guest's state to cancelled, or change their name, email or event | ❌ | ❌ | ❌ **the update policy's `with check`; only the manage link cancels** |
 | Delete a guest registration | ❌ | ❌ | ❌ **ADR-052 decision 8 — no delete grant; deleting the event sets `event_id` null** |
-| Invite addresses by email to a public event (EVT-08) | own event only | own event only **— as a manager, nothing more** | ✅ any **`invite_to_event` — `may_manage_event` (42501), then `scope = 'public'` (EV009); ADR-055** |
-| Invite by email to a team-scope or named-people event | ❌ | ❌ | ❌ **`invite_to_event` → EV009** |
+| Invite addresses by email to an event of any scope (EVT-08, EVT-12) | own event only | own event only **— as a manager, nothing more** | ✅ any **`invite_to_event` — `may_manage_event` (42501); no scope check since EVT-12 (ADR-061 decision 1). ADR-055** |
+| Add a member who cannot read an Own team or Limited people event to its people, by inviting their address (EVT-12) | own event only | own event only | ✅ any **`invite_to_event`, team/named branch, after `may_manage_event`; on an Own team event this converts it to `named`, naming its team as it stands without the creator, and notifies nobody but the added member (ADR-061 decisions 2–4)** |
+| Add a member, or convert the scope, by inviting to a public event | ❌ | ❌ | ❌ **`invite_to_event`'s public branch reads no member and writes no `event_invitee` (EVT-12 AC-12)** |
+| Suppress a notification, or choose who a conversion names | ❌ | ❌ | ❌ **the transaction-local `calechip.event_conversion` is set and cleared inside `invite_to_event` only; no function in `public` takes a setting name (EVT-12 § 3)** |
 | Open an event to guests by inviting by email | own event only | own event only | ✅ any **`invite_to_event`, after the same two checks — EVT-06's opener by a new path (ADR-055 decision 2)** |
 | Insert, update or delete an email invitation row directly | ❌ | ❌ | ❌ **no insert, update or delete grant on `event_email_invitation`; nothing deletes a row (Q9-A)** |
 | Choose an invitation's guest token, inviter, time, or which mail is sent | ❌ | ❌ | ❌ **`invite_to_event` takes none; the table's defaults and `email_invitation()` decide** |
 | Read an event's invited addresses | own event only | own event only | ✅ any **`event_email_invitation_select_manage` — `may_manage_event`, never `may_decide`** |
-| Learn whether an invited address is a member's | ❌ | ❌ | ❌ **ADR-055 revert condition 1 — no column, return or read carries it; only the `email_invitation()` trigger looks it up** |
+| Learn whether an invited address is a member's, on a public event | ❌ | ❌ | ❌ **ADR-055 revert condition 1 — no column, return or read carries it; only the `email_invitation()` trigger looks it up** |
+| Learn whether an invited address is a member's, on an Own team or Limited people event | own event only, from the event's people | own event only | ✅ any **not from `invite_to_event`'s answer (`sent`/`ignored` only); from `event_invitee_select_manage`, unchanged — ADR-061 decision 5** |
 | Invite by email, or read invitations, once removed or no longer approved | ❌ | ❌ | ❌ |
 
 **Signed out — the `anon` role (EVT-06, EVT-07, ADR-052).** A caller holding only the public anon

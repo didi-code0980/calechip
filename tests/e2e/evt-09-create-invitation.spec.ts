@@ -49,15 +49,21 @@ const historyState = (page: Page) =>
   page.evaluate(() => (window.history.state as { usr?: unknown } | null)?.usr ?? null);
 
 test.describe("EVT-09 — invite by email while creating", () => {
-  test("AC-1: the field is drawn on the create form only while Every team is chosen, never on the edit form", async ({ page }) => {
+  // EVT-12 AC-2: drawn for every scope, after the picker when it is drawn; still never on the edit form.
+  test("AC-1, EVT-12 AC-2, AC-11: the field is drawn on the create form for every scope, never on the edit form", async ({ page }) => {
     await signIn(page, MEMBER.email);
     await openNewForm(page, "Field visibility");
 
     await page.getByTestId("event-scope-team").check();
-    await expect(page.getByTestId("event-form-invite")).toHaveCount(0);
+    await expect(page.getByTestId("event-form-invite")).toBeVisible();
+    await page.getByTestId("event-form-invite-input").fill("friend@outside.example");
+    await expect(page.getByTestId("event-form-invite-hint")).toContainText("then becomes Limited people");
     await page.getByTestId("event-scope-named").check();
-    await expect(page.getByTestId("event-form-invite")).toHaveCount(0);
+    await expect(page.getByTestId("event-form-invite")).toBeVisible();
+    await expect(page.getByTestId("event-form-invite-hint")).toContainText("added to its people");
     await expect(page.getByTestId("event-picker")).toBeVisible();
+    await expect(page.getByLabel("Limited people")).toBeVisible();
+    await page.getByTestId("event-form-invite-input").fill("");
 
     await page.getByTestId("event-scope-public").check();
     await expect(page.getByTestId("event-form-invite")).toBeVisible();
@@ -77,7 +83,8 @@ test.describe("EVT-09 — invite by email while creating", () => {
     await expect(page.getByTestId("event-form-invite")).toHaveCount(0);
   });
 
-  test("AC-2: an empty field, or a non-public scope whatever the field held, is EVT-01's creation", async ({ page }) => {
+  // EVT-12 AC-2 replaces "or a non-public scope whatever the field held": a team event's addresses are sent.
+  test("AC-2: an empty field is EVT-01's creation; EVT-12 AC-2: a team event's addresses are sent", async ({ page }) => {
     await signIn(page, MEMBER.email);
 
     await openNewForm(page, "Empty field");
@@ -98,8 +105,9 @@ test.describe("EVT-09 — invite by email while creating", () => {
     await page.getByTestId("event-save").click();
     await expect(page.getByTestId("event-detail")).toBeVisible();
     await expect(page.getByTestId("event-name")).toHaveText("Team after typing");
-    await expect(page.getByTestId("event-invite-result")).toHaveCount(0);
-    await expect(page.getByTestId("event-invited-row")).toHaveCount(0);
+    await expect(page.getByTestId("event-scope")).toHaveText("Own team");
+    await expect(page.getByTestId("event-invite-sent")).toContainText("friend@outside.example");
+    await expect(page.getByTestId("event-invited-row")).toHaveCount(1);
   });
 
   test("AC-3, AC-7: one press creates the event, invites each distinct address, and lands with the result", async ({ page }) => {

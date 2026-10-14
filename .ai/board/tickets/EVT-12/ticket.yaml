@@ -5,7 +5,7 @@ id: EVT-12
 title: "The creator or an admin of an *Own team* or *Limited people* event invites people by email, a member outside its reach is added to its named list, and *Named people* is relabelled *Limited people*"
 feature_ids: [EVT-12]
 group: EVT
-state: READY
+state: REVIEW
 owner: ""
 branch: ""
 size_estimate: "M"    # S|M - set by tech-lead-design at PLAN; gates DoR
