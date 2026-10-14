@@ -5,7 +5,7 @@ id: CICD-04
 title: "A version tag on `main` promotes the image already built for that commit, by digest and without rebuilding, and opens a release pull request in the deployment repository"
 feature_ids: [CICD-04]
 group: CICD
-state: READY          # `orchestrator` at /advance, 2026-10-14, on 01-plan.md `gate: PASS`, DoR 6/6
+state: DONE           # `orchestrator` at /ship, 2026-10-14, on 04-review.md `gate: PASS` / `verdict: PASS`
 owner: ""
 branch: ""
 size_estimate: "M"     # S|M - set by tech-lead-design at PLAN; gates DoR
@@ -23,4 +23,4 @@ chat_budget:
 tracker: { provider: "", external_id: "", sync_enabled: false }
 gates:
   plan:   { passed: true, at: "2026-10-14T02:22:12+00:00" }
-  review: { passed: false, at: null }
+  review: { passed: true, at: "2026-10-14T02:34:53+00:00" }
