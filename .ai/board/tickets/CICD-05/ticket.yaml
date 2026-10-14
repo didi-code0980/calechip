@@ -5,7 +5,7 @@ id: CICD-05
 title: "The deployment repository deploys only CaleChip from merged config, health-checks it and restores the previous version on failure — drafted in this repository"
 feature_ids: [CICD-05]
 group: CICD
-state: REVIEW         # operator decision 2026-10-14 resolves the ESCALATED of 04-review.md R1 — see the note under allowed_paths. Was: ESCALATED.
+state: DONE           # `orchestrator` at /ship, 2026-10-14, on 04-review.md `gate: PASS` / `verdict: PASS` (re-run, after the operator exception for TopBar.tsx)
 owner: ""
 branch: ""
 size_estimate: "M"     # S|M - set by tech-lead-design at PLAN; gates DoR
