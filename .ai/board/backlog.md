@@ -24,6 +24,8 @@ planned, sized, and safe to build** — the next stage for a row here is IN_PROG
 |---|--------|-------|------|------------|
 | 1 | CICD-04 | A version tag on `main` promotes the image already built for that commit, by digest and without rebuilding, and opens a release pull request in the deployment repository | M | CICD-03 |
 
+**`CICD-04` is at `REVIEW` in `ticket.yaml`, `gates.review` passed** — recorded at /advance on 2026-10-14 from `04-review.md` verdict PASS, after `03-impl-log.md` gate PASS. The row stays here until `/ship` moves it to `## ARCHIVE`.
+
 **`CICD-04` moved here from `## BACKLOG` at /advance on 2026-10-14**, from `01-plan.md` gate PASS with all six Definition of Ready items passing. `CICD-05` to `TSK-04` each moved up one row in `## BACKLOG`; bookkeeping, not a reordering. The paragraphs below were written while this table was empty and are left standing.
 
 **Empty again — `CICD-03` left this section for `## ARCHIVE` at its own ship on 2026-10-13.** `CICD-04` is the top of `## BACKLOG`.
