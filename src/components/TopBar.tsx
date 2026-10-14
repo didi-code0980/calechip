@@ -130,16 +130,6 @@ export default function TopBar({ role }: TopBarProps) {
       data-testid="shell-topbar"
       className="flex h-[70px] shrink-0 flex-wrap items-center gap-3 px-6"
     >
-      {/* SOLO 2026-10-14. **Calendar, on the events screens only, at the far left** — where the
-          period cluster sits on a calendar screen. The events screens carry no cluster and the
-          sidebar's period links are commented out, so nothing in the shell led back to the calendar
-          from `/events*`. `/` is the week landing, as the admin face's `Calendar` uses. */}
-      {onEvents ? (
-        <Link data-testid="shell-calendar-link" to="/" className={PILL_OUTLINE}>
-          Calendar
-        </Link>
-      ) : null}
-
       {/* AC-15. The whole left cluster and the whole switcher are ABSENT on a route that has no
           period — `/allow-list`, `/entries/new`, `/setting` and the rest. Absent, not disabled:
           a disabled previous-period control on a screen with no period asserts that a period exists
@@ -244,6 +234,16 @@ export default function TopBar({ role }: TopBarProps) {
             link, `home-pending-entries-link`, and that link is in the sidebar. A second control to
             one address would either duplicate an id — the strict-mode failure AC-6 exists to
             prevent — or give the product two names for one screen. */}
+        {/* SOLO 2026-10-14. **Calendar, on the events screens only, immediately left of `Admin`.**
+            The events screens carry no period cluster and the sidebar's period links are commented
+            out, so nothing in the shell led back to the calendar from `/events*`. `/` is the week
+            landing, as the admin face's `Calendar` uses. */}
+        {onEvents ? (
+          <Link data-testid="shell-calendar-link" to="/" className={PILL_OUTLINE}>
+            Calendar
+          </Link>
+        ) : null}
+
         {/* UIE-09 AC-1, AC-2 and AC-11. An OUTLINE PILL WITH NO CARET, reusing `PILL_OUTLINE` so it
             is the same object as `Today` rather than a new one that looks like it — the shape the
             transcription draws, and not a disclosure control (§ 2b). It reaches a SCREEN at an
