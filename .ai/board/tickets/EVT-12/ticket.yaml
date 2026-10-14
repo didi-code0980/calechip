@@ -34,4 +34,4 @@ chat_budget:
 tracker: { provider: "", external_id: "", sync_enabled: false }
 gates:
   plan:   { passed: true, at: "2026-10-14T23:10:47+07:00" }
-  review: { passed: false, at: null }
+  review: { passed: true, at: "2026-10-14T23:47:33+07:00" }
