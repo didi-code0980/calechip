@@ -146,13 +146,15 @@ Under the current gate placement a ticket sits here until it has been planned �
 
 | # | Ticket | Title | State | Blocked on |
 |---|--------|-------|-------|------------|
-| 1 | CICD-08 | Every stage of the pipeline has run once for real — a pull request, a merge, a pre-release tag and a forced failed health check — and the evidence is recorded | BACKLOG | CICD-07; operator: Actions secrets, deployment repo applied, runner registered, branch protection |
-| 2 | TSK-01 | A member keeps a private list of tasks for each day, and only they can read or change it | BACKLOG | — |
-| 3 | TSK-02 | Each time the app opens, a member is shown their overdue tasks and can tick them or move them all to today | BACKLOG | TSK-01 |
-| 4 | TSK-03 | A member declaring PTO is warned about their own tasks on those days, without being stopped | BACKLOG | TSK-01 |
-| 5 | TSK-04 | The week view shows, in each day's header, how many of the viewer's own tasks are done out of the total | BACKLOG | TSK-01 |
-| 6 | EVT-12 | The creator or an admin of an *Own team* or *Limited people* event invites people by email, a member outside its reach is added to its named list, and *Named people* is relabelled *Limited people* | BACKLOG | — |
-| 7 | EVT-13 | A signed-in member who opens a guest link to an event they can read is taken to the event in the app | BACKLOG | — |
+| 1 | EVT-12 | The creator or an admin of an *Own team* or *Limited people* event invites people by email, a member outside its reach is added to its named list, and *Named people* is relabelled *Limited people* | BACKLOG | — |
+| 2 | EVT-13 | A signed-in member who opens a guest link to an event they can read is taken to the event in the app | BACKLOG | — |
+| 3 | CICD-08 | Every stage of the pipeline has run once for real — a pull request, a merge, a pre-release tag and a forced failed health check — and the evidence is recorded | BACKLOG | CICD-07; operator: Actions secrets, deployment repo applied, runner registered, branch protection |
+| 4 | TSK-01 | A member keeps a private list of tasks for each day, and only they can read or change it | BACKLOG | — |
+| 5 | TSK-02 | Each time the app opens, a member is shown their overdue tasks and can tick them or move them all to today | BACKLOG | TSK-01 |
+| 6 | TSK-03 | A member declaring PTO is warned about their own tasks on those days, without being stopped | BACKLOG | TSK-01 |
+| 7 | TSK-04 | The week view shows, in each day's header, how many of the viewer's own tasks are done out of the total | BACKLOG | TSK-01 |
+
+**Reordered by the operator on 2026-10-14** (*"back về làm EVT"*): `EVT-12` and `EVT-13` to rows 1 and 2, ahead of `CICD-08` and `TSK-01` to `TSK-04`, whose order among themselves is unchanged. Recorded by `orchestrator`, not decided by it. `BUG-003` to `BUG-005` still have no row; placing them is the operator's.
 
 **Rows 7 and 8 were appended by `product` at /triage on 2026-10-14**, from `.ai/board/ideas/2026-10-14-a-team-or-named-event-cannot-invite-anyone-by-email.md`. Split at triage: the invitation pipe and its two surfaces, then the guest-link redirect, which touches neither. Both rest on [ADR-061](../registry/decisions/ADR-061-invitations-reach-every-event-scope-and-a-signed-in-reader-leaves-the-guest-page.md). Appended, not placed; the operator said *"ignore the CICD back to EVT"* the same afternoon, so they may want these above `CICD-07`.
 
