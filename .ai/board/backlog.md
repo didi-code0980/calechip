@@ -1418,7 +1418,7 @@ các tính năng mới và đưa vào backlog"*. The four solo rows registered e
 | 17 | CICD-01 | The pull-request gate is green on `main` again, with each failing end-to-end test quarantined against a ticket in a register | 2026-10-13 | PENDING_PR |
 | 18 | CICD-02 | A push to a feature branch gets lint, typecheck and unit results within about three minutes, and a pull request runs the full gate as named, required checks | 2026-10-13 | [#131](https://github.com/didi-code0980/calechip/pull/131) |
 | 19 | CICD-03 | Every merge to `main` builds one image, pushes it to Docker Hub tagged by its commit, and smoke-tests it against the image's health endpoint | 2026-10-13 | [#132](https://github.com/didi-code0980/calechip/pull/132) |
-| 20 | CICD-04 | A version tag on `main` promotes the image already built for that commit, by digest and without rebuilding, and opens a release pull request in the deployment repository | 2026-10-14 | PENDING_PR |
+| 20 | CICD-04 | A version tag on `main` promotes the image already built for that commit, by digest and without rebuilding, and opens a release pull request in the deployment repository | 2026-10-14 | [#133](https://github.com/didi-code0980/calechip/pull/133) |
 
 **The window displaced `CAL-09` at CICD-03's ship** — *CAL-09, The calendar reads serve a year larger than one datastore page, shipped 2026-09-08,* [#79](https://github.com/didi-code0980/calechip/pull/79).
 
