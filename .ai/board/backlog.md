@@ -1454,7 +1454,7 @@ các tính năng mới và đưa vào backlog"*. The four solo rows registered e
 | 17 | CICD-05 | The deployment repository deploys only CaleChip from merged config, health-checks it and restores the previous version on failure — drafted in this repository | 2026-10-14 | [#134](https://github.com/didi-code0980/calechip/pull/134) |
 | 18 | CICD-06 | The pipeline, its secrets, how to cut a release and how to roll one back are written down, and the standards that describe CI match it | 2026-10-14 | [#135](https://github.com/didi-code0980/calechip/pull/135) |
 | 19 | CICD-07 | The self-hosted runner on the WSL server has a hand-run setup runbook, and the deploy workflow selects it by the label `mmlabs-server` | 2026-10-14 | [#138](https://github.com/didi-code0980/calechip/pull/138) |
-| 20 | EVT-12 | The creator or an admin of an *Own team* or *Limited people* event invites people by email, a member outside its reach is added to its named list, and *Named people* is relabelled *Limited people* | 2026-10-14 | PENDING_PR |
+| 20 | EVT-12 | The creator or an admin of an *Own team* or *Limited people* event invites people by email, a member outside its reach is added to its named list, and *Named people* is relabelled *Limited people* | 2026-10-14 | [#140](https://github.com/didi-code0980/calechip/pull/140) |
 
 **The window displaced `CAL-11` at EVT-12's ship** — *CAL-11, An admin reads any team's entries and roster through the seam, shipped 2026-09-23,* [#95](https://github.com/didi-code0980/calechip/pull/95).
 
