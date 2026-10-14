@@ -1,6 +1,6 @@
 ---
-doc_version: 2
-last_updated: 2026-08-31
+doc_version: 3
+last_updated: 2026-10-14
 governed_by: [RULE-02, RULE-09]
 ---
 
@@ -154,9 +154,22 @@ enforcement map in [rules.md](../registry/rules.md) names it.
 
 ## Build and deployment
 
-TODO(project): the deployment target for a Vite single-page build, and the build output directory,
-which must also be added to `.gitignore`. Not decided on 2026-08-31 and deliberately left open — it
-constrains nothing upstream of it.
+- **Build output:** `dist/`, ignored in `.gitignore`.
+- **Container:** static nginx on port 3000, with the health check `GET :3000/healthz`. No Node
+  process at runtime (`Dockerfile`, `docker/nginx.conf`).
+- **Image:** `mingming21400/calechip` on Docker Hub. Each merge to `main` pushes `:sha-<7>`; a
+  version tag promotes that image to `:vX.Y.Z` by digest, never by a second build.
+- **Target:** Docker Compose on the operator's WSL2 home server, behind a Cloudflare Tunnel, deployed
+  from the separate deployment repository by a self-hosted runner there.
+- **`VITE_*` values are baked in at build**, so one image serves one Supabase project.
+- **No staging environment.**
+- **CI:** GitHub Actions.
+
+Everything else — every workflow and its trigger, the secrets, cutting a release, the rollback
+runbook — is in [docs/ops/ci-cd.md](../../docs/ops/ci-cd.md).
+
+*Until 2026-10-14 this said "TODO(project): the deployment target for a Vite single-page build, and
+the build output directory, which must also be added to `.gitignore`." CICD-06.*
 
 ## Versions the model cannot recall
 

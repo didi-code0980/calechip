@@ -180,7 +180,9 @@ human, as ideas are promoted.
   is human-only" is a sentence with nothing behind it.
 - **`.github/workflows/`** — the workflows exist. The required checks are `verify`, `allowed-paths`
   and `mir-tracking`; the settings and the command that applies them are in
-  `docs/ops/branch-protection.md`.
+  `docs/ops/branch-protection.md`. `build-image` and `release` fail on every run until the four
+  secrets, `DEPLOY_REPO_TOKEN` and the variable `DEPLOY_REPO` listed in
+  [docs/ops/ci-cd.md § Secrets and variables](docs/ops/ci-cd.md#secrets-and-variables) are added.
   *Until 2026-10-13 this said "two workflows, exactly two status check names: `verify` and
   `allowed-paths`". CICD-02.*
 - **Branch protection** — point it at those three names, and **not until `verify` has passed at least
