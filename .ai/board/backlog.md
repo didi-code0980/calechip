@@ -24,6 +24,8 @@ planned, sized, and safe to build** — the next stage for a row here is IN_PROG
 |---|--------|-------|------|------------|
 | 1 | CICD-07 | The self-hosted runner on the WSL server has a hand-run setup runbook, and the deploy workflow selects it by the label `mmlabs-server` | S | CICD-05 (DONE) |
 
+**`CICD-07` is at `REVIEW` in `ticket.yaml`** — set by `/implement`, confirmed at /advance on 2026-10-14 from `03-impl-log.md` gate PASS. The row stays here until `/ship` moves it to `## ARCHIVE`.
+
 **`CICD-07` moved here from `## BACKLOG` at /advance on 2026-10-14**, from `01-plan.md` gate PASS with all six Definition of Ready items passing. `CICD-08` to `EVT-13` each moved up one row in `## BACKLOG`; bookkeeping, not a reordering. The paragraphs below were written while this table was empty and are left standing.
 
 **Empty again — `CICD-06` left this section for `## ARCHIVE` at its own ship on 2026-10-14.** `TSK-01` is the top of `## BACKLOG`; the `CICD` group is complete.

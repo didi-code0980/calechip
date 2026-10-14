@@ -31,6 +31,7 @@ release pull request it opens in the deployment repository is the deploy: mergin
 | `release` | `.github/workflows/release.yml` | push of a tag matching `v*.*.*` | promotes `:sha-<7>` to `:vX.Y.Z` by digest, opens the deployment pull request, creates the GitHub Release | no | CICD-04 |
 | `deploy-calechip` | deployment repository, `.github/workflows/deploy-calechip.yml` — *draft, not applied* | push to `main` touching `apps/calechip/**` | on the self-hosted runner: pull, `up --wait`, restore the previous version if unhealthy | no | CICD-05 |
 | `pr-scope` | deployment repository, `.github/workflows/pr-scope.yml` — *draft, not applied* | `pull_request` to `main` | a `release/<app>-v…` pull request may change only `apps/<app>/` | optional, once it has passed | CICD-05 |
+| `runner-check` | deployment repository, `.github/workflows/runner-check.yml` — *draft, not applied* | `workflow_dispatch` | on the self-hosted runner: proves it runs as `gh-runner` and reaches Docker | no | CICD-07 |
 
 **The required checks are exactly `verify`, `allowed-paths` and `mir-tracking`.** The settings that
 make them required, and why the others are not, are in
@@ -260,6 +261,8 @@ workflow is right.**
 - [branch-protection.md](branch-protection.md) — the required checks and the protection settings.
 - [deployment-repo/README.md](deployment-repo/README.md) — the deployment repository's drafts, the
   restore mechanism, the runner and its label.
+- [deployment-repo/runner-setup.md](deployment-repo/runner-setup.md) — setting up the self-hosted
+  runner `mmlabs-server`, and its three verifications.
 - [e2e-quarantine.md](e2e-quarantine.md) — quarantining a failing end-to-end test (ADR-060).
 - [.ai/standards/tech-stack.md § Build and deployment](../../.ai/standards/tech-stack.md#build-and-deployment)
   — the build and deployment facts every agent stage reads.
