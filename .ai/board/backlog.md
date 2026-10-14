@@ -148,8 +148,12 @@ Under the current gate placement a ticket sits here until it has been planned �
 | 6 | TSK-04 | The week view shows, in each day's header, how many of the viewer's own tasks are done out of the total | BACKLOG | TSK-01 |
 | 7 | EVT-12 | The creator or an admin of an *Own team* or *Limited people* event invites people by email, a member outside its reach is added to its named list, and *Named people* is relabelled *Limited people* | BACKLOG | — |
 | 8 | EVT-13 | A signed-in member who opens a guest link to an event they can read is taken to the event in the app | BACKLOG | — |
+| 9 | UIE-12 | The way to join an event stays in view while its page scrolls, on `/events/:id` and on `/guest/:token` | BACKLOG | — |
+| 10 | EVT-14 | A signed-out reader of a guest link is offered sign-in and sign-up, and signing in returns them to the event | BACKLOG | EVT-13 |
 
 **Rows 7 and 8 were appended by `product` at /triage on 2026-10-14**, from `.ai/board/ideas/2026-10-14-a-team-or-named-event-cannot-invite-anyone-by-email.md`. Split at triage: the invitation pipe and its two surfaces, then the guest-link redirect, which touches neither. Both rest on [ADR-061](../registry/decisions/ADR-061-invitations-reach-every-event-scope-and-a-signed-in-reader-leaves-the-guest-page.md). Appended, not placed; the operator said *"ignore the CICD back to EVT"* the same afternoon, so they may want these above `CICD-07`.
+
+**Rows 9 and 10 were appended by `product` at /triage on 2026-10-14**, from `.ai/board/ideas/2026-10-14-the-way-to-join-an-event-scrolls-out-of-sight-and-a-guest-cannot-sign-in-from-it.md`. Split at triage: the sticky join block on both event pages, then the guest sign-in prompt with its return-to. Both edit `src/routes/GuestEvent.tsx`, so they run one after the other. Appended, not placed.
 
 **Rows 1 and 2 were added at triage on 2026-10-14**, from a gap check of the CI/CD request against what `CICD-01` to `CICD-06` shipped. They are placed above the `TSK` rows because the request is one piece of work and these close it; the operator may reorder. `TSK-01` to `TSK-04` each moved down two rows.
 

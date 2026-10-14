@@ -1,7 +1,7 @@
 ---
 stage: TRIAGE
 agent: product
-produced_at: 2026-10-14T11:58:00Z
+produced_at: 2026-10-14T13:55:00Z   # the verdict; the capture was 2026-10-14T11:58:00Z
 inputs_read:
   - CLAUDE.md
   - .ai/steward/context.md
@@ -17,13 +17,17 @@ inputs_read:
   - src/routes/SignUp.tsx
   - src/routes/AwaitingApproval.tsx
   - src/App.tsx
-consulted: [operator]
+  - .ai/templates/ticket.yaml
+  - .ai/board/backlog.md
+  - .ai/board/tickets/EVT-12/ticket.yaml
+  - .ai/board/tickets/EVT-13/ticket.yaml
+consulted: [operator, tech-lead-design]
 gate: PASS
 blocking_reason: ""
-next_state: TRIAGE
-verdict: ""
-verdict_reason: ""
-ticket_id: ""
+next_state: TRIAGE          # not the routing input — see `verdict` below
+verdict: PROMOTE
+verdict_reason: "Worth doing and not covered; no ADR, because hiding the prompt from a signed-in reader is ADR-061 decision 8's 'the guest page as today', the /signin return-to grants nothing, and there is no schema or dependency change"
+ticket_id: "UIE-12, EVT-14"
 awaiting_adrs: []
 operator_request: "Make the “Join event” registration block the primary call to action.\n\n* The registration block should stay visible (sticky/floating) while the user scrolls through the event article.\n* For guests (not logged in / no account): show a sign-up / log-in prompt fixed to the header or footer."
 ---
@@ -145,3 +149,40 @@ not its member attendance, and nothing links the two.
 
 None outstanding for the operator. G1 to G3 are guesses PLAN may overturn, and the AC-16 point under
 `## Constraints already known` is TRIAGE's to judge.
+
+---
+
+## Triage verdict — PROMOTE, as `UIE-12` and `EVT-14`
+
+2026-10-14, `product`.
+
+**Worth doing, not covered.** No row on the board puts the join control in view or gives the guest
+page a way to sign in. EVT-13 is the redirect for a signed-in reader who can read the event, and this
+idea depends on it rather than repeating it.
+
+**No ADR.** This is `tech-lead-design`'s technical read at /triage, and `product` checked it against
+the registry:
+
+- **Q5-A fits ADR-061.** EVT-06 AC-16 is a plan acceptance criterion
+  (`.ai/board/tickets/EVT-06/01-plan.md:222-226`), not an ADR decision. ADR-061 already has the guest
+  page read the session (ADR-061:92). Its decision 8 says a signed-in reader who cannot read the event
+  "sees the guest page as today" (ADR-061:61-63), and today's page has no prompt. Hiding the prompt
+  from that reader grants, denies and reveals nothing. PLAN records the change to AC-16 as an
+  amendment made by a plan criterion.
+- **Q3-A's return-to on `/signin` needs no ADR.** It changes no permission, schema or dependency.
+  PLAN states the open-redirect rule as a criterion: a same-origin path only, otherwise `/`.
+- **No schema change and no new dependency** (G3 holds on the technical read). `useSession` is
+  already read in `App` and can be passed to the guest page as a prop, so the seam gets no new
+  method.
+
+| Ticket | Ships | Depends on | Schema |
+|---|---|---|---|
+| UIE-12 | The join or register block stays in view on `/events/:id` and `/guest/:token` (Q1-A) | — | none |
+| EVT-14 | The sign-in and sign-up prompt for signed-out guest readers (Q4-A, Q5-A), and the return-to on `/signin` (Q3-A) | EVT-13 | none |
+
+**Split at triage** (MD-017), into groups by ADR-028. The sticky block moves an existing control and
+adds no capability, so it is `UIE`. The prompt and the return-to add a way in that did not exist, so
+they are `EVT`, following the EVT-13 precedent. **Both edit `src/routes/GuestEvent.tsx`**, so they run
+one after the other. That is a sequencing fact, not a dependency.
+
+**`glossary_owed: []`** on both. *Guest* and *Guest link* are already in `glossary.md`.
