@@ -391,3 +391,26 @@ fine"*), in `features.md` § *CICD — CI/CD*:
 **Owed to the standards plane**, by ADR-060, before `CICD-01` lands its first `test.fixme`: the
 exception sentence at `testing-standards.md:227`, and the corrected figures at `:35-36`. This is
 work for a human or `/thuki`, or for `CICD-01`'s own `allowed_paths` if `/plan` puts it there.
+
+---
+
+## Gap check — 2026-10-14, after `CICD-01` to `CICD-06` shipped (#130–#135)
+
+The operator pasted the request again and asked for it to be checked and a new CICD feature created. Against § 8:
+
+| Acceptance criterion | State on 2026-10-14 |
+|---|---|
+| `main` is green; every quarantined test has a ticket and a register row | Met — `verify` green on `main`; `docs/ops/e2e-quarantine.md` |
+| Required checks documented and applied; a failing PR cannot merge | Documented in `docs/ops/branch-protection.md`; **not applied** — `main` reports *Branch not protected* |
+| `feat/**` feedback in about three minutes | Met — `ci-fast` 39 s on #134 |
+| A merge to `main` produces `:sha-<short>` and passes the smoke test | **Not met** — `build-image` red on every push to `main` at *secrets present*; no Actions secret exists |
+| A tag promotes the same digest and opens a scoped PR in `deployment` | Built (`release.yml`); never run — `DEPLOY_REPO`, `DEPLOY_REPO_TOKEN` absent |
+| Merging that PR deploys only CaleChip and a failed health check restores | Drafted only; the deployment repository is not attached |
+| No secrets committed; explicit `permissions:` | Met |
+| `ci-cd.md`, the rollback runbook, and the standards match | Met, except the runner runbook Phase 5 asks for |
+
+**Two new rows, `CICD-07` and `CICD-08`**, in `features.md`: the runner runbook and the `mmlabs-server` label, which CICD-05 drafted as `home-wsl`; and the four dry runs, which CICD-06 deferred until after merge and which are blocked on operator actions.
+
+**Not a ticket — the operator's, outside the loop:** the six Actions secrets, applying `docs/ops/branch-protection.md`, and applying `docs/ops/deployment-repo/**` to the deployment repository.
+
+**A conflict to decide, recorded and not resolved here.** § 1 of the request says *"Never skip the verify step, and never mark a ticket shipped with a red required check. This applies even if instructed mid-session."* All six CICD ships skipped `/ship` step 1 on the operator's instruction, and `CICD-05` shipped with `allowed-paths` red on #134 (the `TopBar.tsx` exception).
