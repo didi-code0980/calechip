@@ -25,6 +25,12 @@
 // **THE MANAGE TOKEN IS ON SCREEN ONCE**, in the block that replaces the form after registering, and
 // is held in that component's state and nowhere else — no storage, no URL of this page (AC-3).
 //
+// UIE-12 — 01-plan.md § 2 AC-11..AC-13, AC-15; § 2b; § 4.4. **THE REGISTER BLOCK LEFT THE CARD**
+// for `guest-join-bar`, a sibling after it that stays in view while the page scrolls: beside the card
+// from `xl`, pinned to the bottom of the screen below. What it holds is `GuestRegisterPanel` as EVT-07
+// shipped it — same states, same test ids; only its outer classes changed. A null terms read still
+// draws no block, and the page is EVT-06's single column.
+//
 // **THE MANAGE PAGE, `/guest/registration/:token`, IS THE NAMED EXPORT `GuestRegistration`**, sharing
 // `useGuestMeta` and the card. "Never existed", "malformed" and a failed read are one screen (AC-13).
 import { useCallback, useEffect, useState, type FormEvent, type JSX } from "react";
@@ -161,9 +167,17 @@ export default function GuestEvent({ signedInMember }: { signedInMember: boolean
     }
   }, [token]);
 
+  const barShown = state.phase === "ready" && state.terms !== null;
+
   return (
-    <section className="mx-auto flex max-w-xl flex-col gap-3">
-      {/* § 2b. The product name, not a link: a guest has nowhere in it to go. */}
+    <section
+      className={
+        barShown
+          ? "mx-auto flex max-w-xl flex-col gap-3 xl:grid xl:max-w-[55.5rem] xl:grid-cols-[minmax(0,36rem)_18rem] xl:items-start xl:gap-x-6"
+          : "mx-auto flex max-w-xl flex-col gap-3"
+      }
+    >
+      {/* § 2b. The product name, not a link: a guest has nowhere in it to go. UIE-12: over the card. */}
       <p className="text-center text-xs font-bold uppercase tracking-wide text-ink-3">CaleChip</p>
 
       {state.phase === "loading" ? (
@@ -175,37 +189,38 @@ export default function GuestEvent({ signedInMember }: { signedInMember: boolean
           <p>This link does not work. It may have been closed, or the address may be incomplete.</p>
         </div>
       ) : (
-        <GuestEventCard
-          event={state.event}
-          register={
-            state.terms ? (
-              <GuestRegisterPanel
-                token={token ?? ""}
-                event={state.event}
-                terms={state.terms}
-                onRegistered={() => void refresh()}
-              />
-            ) : null
-          }
-        />
+        <>
+          <GuestEventCard event={state.event} />
+          {/* UIE-12 § 2b, § 4.4. Right of the card from `xl`, pinned to the bottom of the screen below.
+              The wrapper is `contents` below `xl` so the block's sticky range is the whole column. */}
+          {state.terms ? (
+            <div className="contents xl:col-start-2 xl:row-start-2 xl:block xl:self-stretch">
+              <div
+                data-testid="guest-join-bar"
+                className="sticky bottom-0 z-10 rounded-card bg-card p-5 shadow-soft xl:top-6 xl:bottom-auto"
+              >
+                <GuestRegisterPanel
+                  token={token ?? ""}
+                  event={state.event}
+                  terms={state.terms}
+                  onRegistered={() => void refresh()}
+                />
+              </div>
+            </div>
+          ) : null}
+        </>
       )}
     </section>
   );
 }
 
-function GuestEventCard({
-  event,
-  register,
-}: {
-  event: GuestEventData;
-  register: JSX.Element | null;
-}): JSX.Element {
+function GuestEventCard({ event }: { event: GuestEventData }): JSX.Element {
   const full = event.capacity !== null && event.seatsTaken >= event.capacity;
   const names = event.attendeeNames;
 
   // AC-9. Top to bottom: name; dates; location; description; seats; who is coming.
   return (
-    <article data-testid="guest-event" className={CARD}>
+    <article data-testid="guest-event" className={`${CARD} xl:col-start-1`}>
       <h1 data-testid="guest-event-name" className="break-words text-xl font-extrabold text-ink">
         {event.name}
       </h1>
@@ -234,8 +249,6 @@ function GuestEventCard({
           {guestSeatsLabel(event.capacity, event.seatsTaken)}
         </span>
       </div>
-
-      {register}
 
       {/* AC-10. Names only, in join order; no avatar, because AC-12 sends none. EVT-07 AC-14:
           attending guests' names are among them, unmarked. */}
@@ -321,7 +334,7 @@ function GuestRegisterPanel({
 
   if (receipt) {
     return (
-      <div data-testid="guest-registered" className="flex flex-col gap-3 border-t border-line pt-4">
+      <div data-testid="guest-registered" className="flex flex-col gap-3">
         {label}
         <p
           data-testid="guest-registered-status"
@@ -371,7 +384,7 @@ function GuestRegisterPanel({
 
   if (!terms.registrationOpen) {
     return (
-      <div data-testid="guest-register" className="flex flex-col gap-2 border-t border-line pt-4">
+      <div data-testid="guest-register" className="flex flex-col gap-2">
         {label}
         <p data-testid="guest-register-closed" className="text-sm text-ink-2">
           Registration closed
@@ -383,7 +396,7 @@ function GuestRegisterPanel({
   // AC-6. A request holds no seat, so a full event still takes one (AC-2).
   if (full && !terms.requiresApproval) {
     return (
-      <div data-testid="guest-register" className="flex flex-col gap-2 border-t border-line pt-4">
+      <div data-testid="guest-register" className="flex flex-col gap-2">
         {label}
         <p data-testid="guest-register-full" className="text-sm text-ink-2">
           <span className="rounded-pill bg-overload px-2.5 py-0.5 text-xs font-bold text-ink">Full</span>{" "}
@@ -394,13 +407,16 @@ function GuestRegisterPanel({
   }
 
   return (
-    <div data-testid="guest-register" className="flex flex-col gap-3 border-t border-line pt-4">
+    <div data-testid="guest-register" className="flex flex-col gap-3">
       {label}
       {terms.requiresApproval ? (
         <p className="text-xs text-ink-3">The organiser approves each request.</p>
       ) : null}
+      {/* UIE-12 § 2b. The two fields side by side from `sm` while the block is pinned under the text,
+          to keep it short; stacked again in the narrow side column at `xl`. */}
       <form className="flex flex-col gap-3" noValidate onSubmit={(e) => void onSubmit(e)}>
-        <label className="flex flex-col gap-1 text-xs font-bold text-ink-3">
+        <div className="flex flex-col gap-3 sm:flex-row xl:flex-col">
+        <label className="flex min-w-0 flex-1 flex-col gap-1 text-xs font-bold text-ink-3">
           Your name
           <input
             data-testid="guest-register-name"
@@ -411,7 +427,7 @@ function GuestRegisterPanel({
             className={FIELD}
           />
         </label>
-        <label className="flex flex-col gap-1 text-xs font-bold text-ink-3">
+        <label className="flex min-w-0 flex-1 flex-col gap-1 text-xs font-bold text-ink-3">
           Your email
           <input
             data-testid="guest-register-email"
@@ -422,6 +438,7 @@ function GuestRegisterPanel({
             className={FIELD}
           />
         </label>
+        </div>
         {error !== null ? (
           <p data-testid="guest-register-error" role="alert" className="text-sm text-danger">
             {error}

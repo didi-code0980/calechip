@@ -19,11 +19,16 @@
 // their email is drawn only when `listEventGuests` filled it, which it does for the creator and
 // admins alone (AC-15). Approve, reject and remove go through `decideGuest`; `event_guest_guard` and
 // `event_guest_update_manage` are the controls.
+//
+// UIE-12 — 01-plan.md § 4.2. **THE READER'S OWN ROW LEFT THIS PANEL FOR `EventJoinBar`**: the join
+// button, the status sentence, withdraw and its dialog. The load moved into `useEventAttendance`,
+// called once by `EventDetail` and handed to both, so the bar and the panel read one list and share
+// one `busy`. What stays here — seats, deadline, requests, *Going*, the two remove dialogs — is
+// unchanged, test ids included.
 import { useCallback, useEffect, useState, type JSX } from "react";
 import { format, parseISO } from "date-fns";
 import { seam } from "@/lib/data";
 import type {
-  AttendanceStatus,
   CalEvent,
   DirectoryMember,
   EventAttendance,
@@ -36,28 +41,84 @@ import Modal from "@/components/Modal";
 
 export interface EventAttendancePanelProps {
   event: CalEvent;
-  me: Member | null;
   directory: DirectoryMember[];
-  /** The named list, as `listEventInvitees` answered it — empty for anyone who may not manage. */
-  invitees: string[];
   /** The creator or an admin — the affordance over `event_attendance_update_manage`. */
   canManage: boolean;
+  attendance: EventAttendanceLoad;
+}
+
+type WriteResult = { ok: true } | { ok: false; error: { message: string } };
+
+/** UIE-12 § 4.2. One load of the attendance and the guests, shared by the panel and the join bar. */
+export interface EventAttendanceLoad {
+  /** `null` until the first load answers; `[]` after a failed load. */
+  rows: EventAttendance[] | null;
+  guests: EventGuest[];
+  /** True after a failed load — the panel shows today's sentence for it. */
+  loadFailed: boolean;
+  /** One write at a time, across the bar and the panel. */
+  busy: boolean;
+  /** Runs one write, then reloads both lists. Resolves the write's message on failure, else null. */
+  run(write: () => Promise<WriteResult>): Promise<string | null>;
+}
+
+/** Loads on mount and whenever `event.id` or `event.updatedAt` changes — the job the
+ *  `key={event.updatedAt}` remount on the panel used to do. */
+export function useEventAttendance(event: CalEvent): EventAttendanceLoad {
+  const [rows, setRows] = useState<EventAttendance[] | null>(null);
+  const [guests, setGuests] = useState<EventGuest[]>([]);
+  const [loadFailed, setLoadFailed] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const eventId = event.id;
+  const updatedAt = event.updatedAt;
+
+  const load = useCallback(async (): Promise<void> => {
+    try {
+      // EVT-07. Guests beside the attendance, in one load.
+      const [attendance, guestRows] = await Promise.all([
+        seam.listEventAttendance(eventId),
+        seam.listEventGuests(eventId),
+      ]);
+      setRows(attendance);
+      setGuests(guestRows);
+      setLoadFailed(false);
+    } catch {
+      setRows([]);
+      setGuests([]);
+      setLoadFailed(true);
+    }
+  }, [eventId]);
+
+  // `updatedAt` is in the list only to reload after an edit elsewhere.
+  useEffect(() => {
+    void load();
+  }, [load, updatedAt]);
+
+  const run = useCallback(
+    async (write: () => Promise<WriteResult>): Promise<string | null> => {
+      setBusy(true);
+      const result = await write();
+      setBusy(false);
+      await load();
+      return result.ok ? null : result.error.message;
+    },
+    [load],
+  );
+
+  return { rows, guests, loadFailed, busy, run };
+}
+
+/** Members and guests attending — the seats taken. */
+export function seatsTaken(rows: readonly EventAttendance[] | null, guests: readonly EventGuest[]): number {
+  return (
+    (rows ?? []).filter((a) => a.status === "attending").length +
+    guests.filter((g) => g.status === "attending").length
+  );
 }
 
 const QUIET_BUTTON =
   "rounded-pill border border-line px-3 py-1.5 text-xs font-semibold text-ink-2 transition-colors " +
   "hover:border-ink-3 hover:text-ink disabled:opacity-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink";
-
-const PRIMARY_BUTTON =
-  "rounded-pill bg-primary px-4 py-2 text-xs font-bold text-white transition-opacity hover:opacity-90 " +
-  "disabled:opacity-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink";
-
-const MY_STATUS: Record<AttendanceStatus, string> = {
-  pending: "Your request is waiting for a decision.",
-  attending: "You're going.",
-  rejected: "Your request was declined.",
-  removed: "You were taken off the list for this event.",
-};
 
 /**
  * `public.is_event_audience`, as far as the screen can see it — an affordance. No admin clause
@@ -65,7 +126,7 @@ const MY_STATUS: Record<AttendanceStatus, string> = {
  * they are named or already on it, and `listEventInvitees` answers them an empty list, so the scope
  * alone is the answer; an admin reads the named list and is checked against it.
  */
-function inAudience(event: CalEvent, me: Member | null, invitees: readonly string[]): boolean {
+export function inAudience(event: CalEvent, me: Member | null, invitees: readonly string[]): boolean {
   if (me === null || me.teamId === null || me.status !== "approved" || me.removedAt !== null) return false;
   if (me.id === event.creatorId) return true;
   switch (event.scope) {
@@ -137,51 +198,23 @@ function PersonPill({
 
 export default function EventAttendancePanel({
   event,
-  me,
   directory,
-  invitees,
   canManage,
+  attendance,
 }: EventAttendancePanelProps): JSX.Element {
-  const [rows, setRows] = useState<EventAttendance[] | null>(null);
-  const [guests, setGuests] = useState<EventGuest[]>([]);
-  const [busy, setBusy] = useState(false);
+  const { rows, guests, loadFailed, busy } = attendance;
   const [error, setError] = useState<string | null>(null);
-  const [leaving, setLeaving] = useState(false);
   const [removing, setRemoving] = useState<string | null>(null);
   const [removingGuest, setRemovingGuest] = useState<EventGuest | null>(null);
 
-  const load = useCallback(async (): Promise<void> => {
-    try {
-      // EVT-07. Guests beside the attendance, in one load.
-      const [attendance, guestRows] = await Promise.all([
-        seam.listEventAttendance(event.id),
-        seam.listEventGuests(event.id),
-      ]);
-      setRows(attendance);
-      setGuests(guestRows);
-    } catch {
-      setRows([]);
-      setGuests([]);
-      setError("We could not load who is coming. Please reload the page.");
-    }
-  }, [event.id]);
-
-  useEffect(() => {
-    void load();
-  }, [load]);
-
-  async function run(write: () => Promise<{ ok: true } | { ok: false; error: { message: string } }>): Promise<boolean> {
-    setBusy(true);
+  async function run(write: () => Promise<WriteResult>): Promise<boolean> {
     setError(null);
-    const result = await write();
-    setBusy(false);
-    if (!result.ok) setError(result.error.message);
-    await load();
-    return result.ok;
+    const message = await attendance.run(write);
+    if (message !== null) setError(message);
+    return message === null;
   }
 
   const all = rows ?? [];
-  const mine = me ? all.find((a) => a.memberId === me.id) ?? null : null;
   // EVT-07 AC-14, AC-16. Members and guests together, in join order.
   const seats = [
     ...all.map((row): Seat => ({ kind: "member", row })),
@@ -193,13 +226,7 @@ export default function EventAttendancePanel({
   const full = event.capacity !== null && taken >= event.capacity;
   const open = registrationOpen(event, eventToday());
   const closesOn = event.registrationDeadline ?? event.endDate;
-
-  const canJoin =
-    rows !== null &&
-    mine === null &&
-    open &&
-    inAudience(event, me, invitees) &&
-    (event.requiresApproval || !full);
+  const shownError = error ?? (loadFailed ? "We could not load who is coming. Please reload the page." : null);
 
   const removingName =
     removing === null
@@ -227,45 +254,9 @@ export default function EventAttendancePanel({
         ) : null}
       </div>
 
-      {/* The join panel — exactly one of: the join button, my status with leave, my status alone,
-          or nothing (AC-27). */}
-      {mine !== null ? (
-        <div className="flex flex-wrap items-center gap-3">
-          <p data-testid="event-my-status" data-status={mine.status} className="text-sm font-semibold text-ink">
-            {MY_STATUS[mine.status]}
-          </p>
-          {open && (mine.status === "pending" || mine.status === "attending") ? (
-            <button
-              data-testid="event-leave-button"
-              type="button"
-              disabled={busy}
-              onClick={() => {
-                setError(null);
-                setLeaving(true);
-              }}
-              className="text-xs font-semibold text-ink-3 underline hover:text-ink disabled:opacity-50"
-            >
-              {mine.status === "pending" ? "Cancel request" : "Withdraw"}
-            </button>
-          ) : null}
-        </div>
-      ) : canJoin ? (
-        <div>
-          <button
-            data-testid="event-join-button"
-            type="button"
-            disabled={busy}
-            onClick={() => void run(() => seam.joinEvent(event.id))}
-            className={PRIMARY_BUTTON}
-          >
-            {event.requiresApproval ? "Request to join" : "Join"}
-          </button>
-        </div>
-      ) : null}
-
-      {error !== null ? (
+      {shownError !== null ? (
         <p data-testid="event-attendance-error" role="alert" className="text-sm text-danger">
-          {error}
+          {shownError}
         </p>
       ) : null}
 
@@ -408,42 +399,6 @@ export default function EventAttendancePanel({
           </ul>
         )}
       </div>
-
-      {leaving ? (
-        <Modal testIdPrefix="event-leave" label="Leave this event" onClose={() => setLeaving(false)}>
-          <div className="flex flex-col gap-4 pr-8">
-            {/* AC-29. The confirmation names the event. */}
-            <h2 className="text-lg font-extrabold text-ink">Leave &ldquo;{event.name}&rdquo;?</h2>
-            <p className="text-sm text-ink-2">
-              {mine?.status === "pending"
-                ? "Your request will be withdrawn."
-                : "Your seat will be given up. You can join again while registration is open."}
-            </p>
-            <div className="flex justify-end gap-2">
-              <button
-                data-testid="event-leave-cancel"
-                type="button"
-                onClick={() => setLeaving(false)}
-                className={QUIET_BUTTON}
-              >
-                Cancel
-              </button>
-              <button
-                data-testid="event-leave-confirm"
-                type="button"
-                disabled={busy}
-                onClick={() => {
-                  setLeaving(false);
-                  void run(() => seam.leaveEvent(event.id));
-                }}
-                className={PRIMARY_BUTTON}
-              >
-                Leave
-              </button>
-            </div>
-          </div>
-        </Modal>
-      ) : null}
 
       {removing !== null ? (
         <Modal testIdPrefix="event-remove" label="Remove from this event" onClose={() => setRemoving(null)}>
