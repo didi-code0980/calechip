@@ -268,7 +268,7 @@ function GuestAuthPrompt({
       aria-label="Sign in or sign up"
       className={`sticky top-0 z-20 mx-auto mb-3 w-full ${width} rounded-card bg-card shadow-soft`}
     >
-      <div className="flex flex-wrap items-center gap-x-3 gap-y-2 rounded-card bg-holiday/30 px-4 py-3">
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-2 rounded-card bg-card px-4 py-3">
         <div className="min-w-0 flex-1 basis-56">
           <p className="text-sm font-semibold text-ink">Have a CaleChip account? Sign in to join as yourself.</p>
           <p className="text-xs text-ink-3">New accounts are approved by an admin before they can be used.</p>
