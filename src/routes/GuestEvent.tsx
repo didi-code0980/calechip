@@ -268,14 +268,15 @@ function GuestAuthPrompt({
       aria-label="Sign in or sign up"
       className={`sticky top-0 z-20 mx-auto mb-3 w-full ${width} rounded-card bg-card shadow-soft`}
     >
-      <div className="flex flex-wrap items-center gap-x-3 gap-y-2 rounded-card bg-card px-4 py-3">
-        <div className="min-w-0 flex-1 basis-56">
-          <p className="text-sm font-semibold text-ink">Have a CaleChip account? Sign in to join as yourself.</p>
-          <p className="text-xs text-ink-3">New accounts are approved by an admin before they can be used.</p>
-        </div>
-        <div className="flex items-center gap-2">
-          {/* `cc-orbit` (index.css) runs a pastel highlight round each call to action. */}
-          <span className="cc-orbit">
+      {/* `cc-orbit` (index.css) runs a pastel highlight round the whole prompt. It cannot sit on the
+          aside, whose `sticky` its `position: relative` would undo, so it is this inner frame. */}
+      <div className="cc-orbit">
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-2 rounded-3xl bg-card px-4 py-3">
+          <div className="min-w-0 flex-1 basis-56">
+            <p className="text-sm font-semibold text-ink">Have a CaleChip account? Sign in to join as yourself.</p>
+            <p className="text-xs text-ink-3">New accounts are approved by an admin before they can be used.</p>
+          </div>
+          <div className="flex items-center gap-2">
             <Link
               data-testid="guest-auth-prompt-signin"
               to={signInReturningTo(`/guest/${token}`)}
@@ -283,33 +284,31 @@ function GuestAuthPrompt({
             >
               Sign in
             </Link>
-          </span>
-          <span className="cc-orbit">
-            <Link data-testid="guest-auth-prompt-signup" to="/signup" className={`${QUIET_BUTTON} bg-card`}>
+            <Link data-testid="guest-auth-prompt-signup" to="/signup" className={QUIET_BUTTON}>
               Sign up
             </Link>
-          </span>
-          <button
-            data-testid="guest-auth-prompt-dismiss"
-            type="button"
-            aria-label="Dismiss"
-            onClick={onDismiss}
-            className="flex h-8 w-8 items-center justify-center rounded-pill text-ink-3 transition-colors hover:text-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
-          >
-            {/* An SVG and not a typed U+00D7, which the § Language lint rule matches — as `Modal.tsx`. */}
-            <svg
-              viewBox="0 0 16 16"
-              width="14"
-              height="14"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-              aria-hidden="true"
+            <button
+              data-testid="guest-auth-prompt-dismiss"
+              type="button"
+              aria-label="Dismiss"
+              onClick={onDismiss}
+              className="flex h-8 w-8 items-center justify-center rounded-pill text-ink-3 transition-colors hover:text-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
             >
-              <path d="M4 4l8 8M12 4l-8 8" />
-            </svg>
-          </button>
+              {/* An SVG and not a typed U+00D7, which the § Language lint rule matches — as `Modal.tsx`. */}
+              <svg
+                viewBox="0 0 16 16"
+                width="14"
+                height="14"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                aria-hidden="true"
+              >
+                <path d="M4 4l8 8M12 4l-8 8" />
+              </svg>
+            </button>
+          </div>
         </div>
       </div>
     </aside>
