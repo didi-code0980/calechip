@@ -274,16 +274,21 @@ function GuestAuthPrompt({
           <p className="text-xs text-ink-3">New accounts are approved by an admin before they can be used.</p>
         </div>
         <div className="flex items-center gap-2">
-          <Link
-            data-testid="guest-auth-prompt-signin"
-            to={signInReturningTo(`/guest/${token}`)}
-            className={PRIMARY_BUTTON}
-          >
-            Sign in
-          </Link>
-          <Link data-testid="guest-auth-prompt-signup" to="/signup" className={QUIET_BUTTON}>
-            Sign up
-          </Link>
+          {/* `cc-orbit` (index.css) runs a pastel highlight round each call to action. */}
+          <span className="cc-orbit">
+            <Link
+              data-testid="guest-auth-prompt-signin"
+              to={signInReturningTo(`/guest/${token}`)}
+              className={PRIMARY_BUTTON}
+            >
+              Sign in
+            </Link>
+          </span>
+          <span className="cc-orbit">
+            <Link data-testid="guest-auth-prompt-signup" to="/signup" className={`${QUIET_BUTTON} bg-card`}>
+              Sign up
+            </Link>
+          </span>
           <button
             data-testid="guest-auth-prompt-dismiss"
             type="button"

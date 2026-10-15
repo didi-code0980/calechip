@@ -284,3 +284,50 @@
     animation: none;
   }
 }
+
+/* A highlight that runs round a call to action — the guest page's Sign in and Sign up. The wrapper
+   is a 2px pill frame; behind the button a square, larger than any pill it wraps, carries a conic
+   sweep of the three entry pastels and turns once every 2.4s. The pill's radius and `overflow`
+   clip it to a ring, and the button's own fill covers the middle, so a button inside must have a
+   background of its own. Charm, so it stands still for a reader who asked for less motion: the
+   ring stays, coloured, without turning. */
+@keyframes cc-orbit {
+  to {
+    rotate: 1turn;
+  }
+}
+
+.cc-orbit {
+  position: relative;
+  isolation: isolate;
+  display: inline-flex;
+  padding: 2px;
+  border-radius: var(--radius-pill);
+  overflow: hidden;
+}
+
+.cc-orbit::before {
+  content: "";
+  position: absolute;
+  z-index: -1;
+  left: 50%;
+  top: 50%;
+  width: max(300%, 12rem);
+  aspect-ratio: 1;
+  translate: -50% -50%;
+  background: conic-gradient(
+    from 0deg,
+    transparent 0 55%,
+    var(--color-pto),
+    var(--color-wfh),
+    var(--color-holiday),
+    transparent 95%
+  );
+  animation: cc-orbit 2.4s linear infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cc-orbit::before {
+    animation: none;
+  }
+}
