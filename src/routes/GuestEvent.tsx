@@ -1,8 +1,12 @@
 // EVT-06 — the guest page, `/guest/:token`. 01-plan.md § 2 AC-9..AC-17; § 2b; § 4.4. ADR-052.
 //
-// **NO SESSION IS READ, AND NONE IS NEEDED.** The token is the whole address: a signed-out caller
-// and a signed-in member of any team, role or membership state see exactly the same page (AC-16).
-// It renders inside `BareLayout`, so there is no sidebar, no top bar and no sign-in screen (AC-9).
+// **THE PAGE KNOWS ONE FACT ABOUT THE SESSION: WHETHER IT IS AN APPROVED MEMBER'S** (EVT-13, ADR-061
+// decision 8, which replaces AC-16 for a reader of the event). That member is asked about first —
+// `getGuestLinkEventId` — and a reader of the event is sent on to `/events/<id>`, replacing this
+// history entry so Back does not bounce them forward again. A signed-out caller, a pending, rejected,
+// removed or member-less session, and an approved member who cannot read the event all see exactly
+// the same page; the definer function, not this page, decides who is a reader. It renders inside
+// `BareLayout`, so there is no sidebar, no top bar and no sign-in screen (AC-9).
 //
 // **"NEVER EXISTED", "MALFORMED", "CLOSED" AND "DELETED" ARE ONE SCREEN** — `guest-event-not-found`,
 // one sentence, nothing onward (AC-13). A failed read is the same screen too: a second sentence for
@@ -24,7 +28,7 @@
 // **THE MANAGE PAGE, `/guest/registration/:token`, IS THE NAMED EXPORT `GuestRegistration`**, sharing
 // `useGuestMeta` and the card. "Never existed", "malformed" and a failed read are one screen (AC-13).
 import { useCallback, useEffect, useState, type FormEvent, type JSX } from "react";
-import { useParams } from "react-router-dom";
+import { useNavigate, useParams } from "react-router-dom";
 import { seam } from "@/lib/data";
 import type {
   GuestEvent as GuestEventData,
@@ -109,29 +113,42 @@ const FIELD =
   "w-full rounded-pill bg-field px-3 py-2 text-sm text-ink focus-visible:outline-2 " +
   "focus-visible:outline-offset-2 focus-visible:outline-ink";
 
-export default function GuestEvent(): JSX.Element {
+export default function GuestEvent({ signedInMember }: { signedInMember: boolean }): JSX.Element {
   const { token } = useParams<{ token: string }>();
+  const navigate = useNavigate();
   const [state, setState] = useState<LoadState>({ phase: "loading" });
   useGuestMeta();
 
   useEffect(() => {
     let live = true;
     setState({ phase: "loading" });
-    // EVT-07 AC-22. The terms read failing never costs the guest the page EVT-06 draws.
-    const terms = seam.getGuestRegistrationTerms(token ?? "").catch(() => null);
-    Promise.all([seam.getGuestEvent(token ?? ""), terms])
-      .then(([event, termsRead]) => {
+    void (async () => {
+      // EVT-13 AC-1, AC-8. Asked on every opening, and only for an approved member (AC-4, AC-5). A
+      // failed read is read as "not a reader": the guest page is never lost to it.
+      if (signedInMember) {
+        const eventId = await seam.getGuestLinkEventId(token ?? "").catch(() => null);
+        if (!live) return;
+        if (eventId !== null) {
+          // The state stays `loading`, so no guest content is drawn before the redirect.
+          navigate(`/events/${eventId}`, { replace: true });
+          return;
+        }
+      }
+      try {
+        // EVT-07 AC-22. The terms read failing never costs the guest the page EVT-06 draws.
+        const terms = seam.getGuestRegistrationTerms(token ?? "").catch(() => null);
+        const [event, termsRead] = await Promise.all([seam.getGuestEvent(token ?? ""), terms]);
         if (live) {
           setState(event ? { phase: "ready", event, terms: termsRead } : { phase: "missing" });
         }
-      })
-      .catch(() => {
+      } catch {
         if (live) setState({ phase: "missing" });
-      });
+      }
+    })();
     return () => {
       live = false;
     };
-  }, [token]);
+  }, [token, signedInMember, navigate]);
 
   // EVT-07 AC-1. After a registration, the seats and the names are read again in place — no loading
   // phase, so the block holding the manage link is not unmounted.
