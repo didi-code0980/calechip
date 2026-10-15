@@ -1459,7 +1459,7 @@ các tính năng mới và đưa vào backlog"*. The four solo rows registered e
 | 17 | CICD-06 | The pipeline, its secrets, how to cut a release and how to roll one back are written down, and the standards that describe CI match it | 2026-10-14 | [#135](https://github.com/didi-code0980/calechip/pull/135) |
 | 18 | CICD-07 | The self-hosted runner on the WSL server has a hand-run setup runbook, and the deploy workflow selects it by the label `mmlabs-server` | 2026-10-14 | [#138](https://github.com/didi-code0980/calechip/pull/138) |
 | 19 | EVT-12 | The creator or an admin of an *Own team* or *Limited people* event invites people by email, a member outside its reach is added to its named list, and *Named people* is relabelled *Limited people* | 2026-10-14 | [#140](https://github.com/didi-code0980/calechip/pull/140) |
-| 20 | EVT-13 | A signed-in member who opens a guest link to an event they can read is taken to the event in the app | 2026-10-15 | PENDING_PR |
+| 20 | EVT-13 | A signed-in member who opens a guest link to an event they can read is taken to the event in the app | 2026-10-15 | [#141](https://github.com/didi-code0980/calechip/pull/141) |
 
 **The window displaced `EVT-01` at EVT-13's ship** — *EVT-01, A member announces an event to their own team, to named people, or to every team, and those it is for can read it, shipped 2026-09-29,* [#105](https://github.com/didi-code0980/calechip/pull/105), merged — corrected from `PENDING_PR` at EVT-02's ship.
 
