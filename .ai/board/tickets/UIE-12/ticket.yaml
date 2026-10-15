@@ -17,7 +17,8 @@ allowed_paths:
   - "src/components/EventAttendancePanel.tsx"
   - "src/routes/EventDetail.tsx"
   - "src/routes/GuestEvent.tsx"
-  - "src/components/AppShell.tsx"   # 99-questions.md Q1
+  # src/components/AppShell.tsx added at 99-questions.md Q1
+  - "src/components/AppShell.tsx"
   - "tests/event-join-bar.test.ts"
   - "tests/e2e/uie-12-sticky-join.spec.ts"
 glossary_owed: []
