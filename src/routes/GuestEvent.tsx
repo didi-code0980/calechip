@@ -31,11 +31,20 @@
 // shipped it — same states, same test ids; only its outer classes changed. A null terms read still
 // draws no block, and the page is EVT-06's single column.
 //
+// EVT-14 — 01-plan.md § 2 AC-1..AC-6, AC-11, AC-12; § 2b; § 4.3. **A SIGNED-OUT READER IS OFFERED
+// SIGN-IN AND SIGN-UP**, in `guest-auth-prompt`, a sticky strip above the page on a `ready` event and
+// nowhere else — never to a signed-in caller in any state (AC-2), never while loading, on the
+// not-found screen or on the manage page (AC-3). *Sign in* carries the way back to this address
+// (`signInReturningTo`); *Sign up* carries nothing (Q4-C). Dismissing it is component state only, so a
+// remount shows it again and nothing is written anywhere (AC-6). Both are links to public screens: an
+// affordance, granting nothing (ADR-005).
+//
 // **THE MANAGE PAGE, `/guest/registration/:token`, IS THE NAMED EXPORT `GuestRegistration`**, sharing
 // `useGuestMeta` and the card. "Never existed", "malformed" and a failed read are one screen (AC-13).
 import { useCallback, useEffect, useState, type FormEvent, type JSX } from "react";
-import { useNavigate, useParams } from "react-router-dom";
+import { Link, useNavigate, useParams } from "react-router-dom";
 import { seam } from "@/lib/data";
+import { signInReturningTo } from "@/lib/return-to";
 import type {
   GuestEvent as GuestEventData,
   GuestRegistrationReceipt,
@@ -119,10 +128,18 @@ const FIELD =
   "w-full rounded-pill bg-field px-3 py-2 text-sm text-ink focus-visible:outline-2 " +
   "focus-visible:outline-offset-2 focus-visible:outline-ink";
 
-export default function GuestEvent({ signedInMember }: { signedInMember: boolean }): JSX.Element {
+export default function GuestEvent({
+  signedInMember,
+  signedOut,
+}: {
+  signedInMember: boolean;
+  signedOut: boolean;
+}): JSX.Element {
   const { token } = useParams<{ token: string }>();
   const navigate = useNavigate();
   const [state, setState] = useState<LoadState>({ phase: "loading" });
+  // EVT-14 AC-6. This page view only: a remount — a reload, a new token — shows the prompt again.
+  const [promptDismissed, setPromptDismissed] = useState(false);
   useGuestMeta();
 
   useEffect(() => {
@@ -168,49 +185,129 @@ export default function GuestEvent({ signedInMember }: { signedInMember: boolean
   }, [token]);
 
   const barShown = state.phase === "ready" && state.terms !== null;
+  // EVT-14 AC-1..AC-3. Signed out, and an event to come back to.
+  const promptShown = signedOut && state.phase === "ready" && !promptDismissed;
 
   return (
-    <section
-      className={
-        barShown
-          ? "mx-auto flex max-w-xl flex-col gap-3 xl:grid xl:max-w-[55.5rem] xl:grid-cols-[minmax(0,36rem)_18rem] xl:items-start xl:gap-x-6"
-          : "mx-auto flex max-w-xl flex-col gap-3"
-      }
-    >
-      {/* § 2b. The product name, not a link: a guest has nowhere in it to go. UIE-12: over the card. */}
-      <p className="text-center text-xs font-bold uppercase tracking-wide text-ink-3">CaleChip</p>
+    <>
+      {/* EVT-14 § 2b. A sibling before the section, not inside its grid, so UIE-12's columns and row
+          placements are untouched; the section's own width, so the two line up. */}
+      {promptShown ? (
+        <GuestAuthPrompt
+          token={token ?? ""}
+          width={barShown ? "max-w-xl xl:max-w-[55.5rem]" : "max-w-xl"}
+          onDismiss={() => setPromptDismissed(true)}
+        />
+      ) : null}
+      <section
+        className={
+          barShown
+            ? "mx-auto flex max-w-xl flex-col gap-3 xl:grid xl:max-w-[55.5rem] xl:grid-cols-[minmax(0,36rem)_18rem] xl:items-start xl:gap-x-6"
+            : "mx-auto flex max-w-xl flex-col gap-3"
+        }
+      >
+        {/* § 2b. The product name, not a link: a guest has nowhere in it to go. UIE-12: over the card. */}
+        <p className="text-center text-xs font-bold uppercase tracking-wide text-ink-3">CaleChip</p>
 
-      {state.phase === "loading" ? (
-        <p role="status" className="p-8 text-center text-sm text-ink-2">
-          <Loader label="Loading the event…" />
-        </p>
-      ) : state.phase === "missing" ? (
-        <div data-testid="guest-event-not-found" className={`${CARD} text-center text-sm text-ink-2`}>
-          <p>This link does not work. It may have been closed, or the address may be incomplete.</p>
-        </div>
-      ) : (
-        <>
-          <GuestEventCard event={state.event} />
-          {/* UIE-12 § 2b, § 4.4. Right of the card from `xl`, pinned to the bottom of the screen below.
-              The wrapper is `contents` below `xl` so the block's sticky range is the whole column. */}
-          {state.terms ? (
-            <div className="contents xl:col-start-2 xl:row-start-2 xl:block xl:self-stretch">
-              <div
-                data-testid="guest-join-bar"
-                className="sticky bottom-0 z-10 rounded-card bg-card p-5 shadow-soft xl:top-6 xl:bottom-auto"
-              >
-                <GuestRegisterPanel
-                  token={token ?? ""}
-                  event={state.event}
-                  terms={state.terms}
-                  onRegistered={() => void refresh()}
-                />
+        {state.phase === "loading" ? (
+          <p role="status" className="p-8 text-center text-sm text-ink-2">
+            <Loader label="Loading the event…" />
+          </p>
+        ) : state.phase === "missing" ? (
+          <div data-testid="guest-event-not-found" className={`${CARD} text-center text-sm text-ink-2`}>
+            <p>This link does not work. It may have been closed, or the address may be incomplete.</p>
+          </div>
+        ) : (
+          <>
+            <GuestEventCard event={state.event} />
+            {/* UIE-12 § 2b, § 4.4. Right of the card from `xl`, pinned to the bottom of the screen below.
+                The wrapper is `contents` below `xl` so the block's sticky range is the whole column. */}
+            {state.terms ? (
+              <div className="contents xl:col-start-2 xl:row-start-2 xl:block xl:self-stretch">
+                <div
+                  data-testid="guest-join-bar"
+                  className={`sticky bottom-0 z-10 rounded-card bg-card p-5 shadow-soft xl:bottom-auto ${
+                    // EVT-14 § 2b, AC-4. From `xl` both are pinned to the top; below the prompt while
+                    // it is shown, so neither covers the other. Below `xl` they are at opposite ends.
+                    promptShown ? "xl:top-24" : "xl:top-6"
+                  }`}
+                >
+                  <GuestRegisterPanel
+                    token={token ?? ""}
+                    event={state.event}
+                    terms={state.terms}
+                    onRegistered={() => void refresh()}
+                  />
+                </div>
               </div>
-            </div>
-          ) : null}
-        </>
-      )}
-    </section>
+            ) : null}
+          </>
+        )}
+      </section>
+    </>
+  );
+}
+
+/**
+ * EVT-14 § 2b, § 4.3 — the sign-in and sign-up prompt. `sticky top-0` over the join bar's `z-10`
+ * (AC-5); one line from `sm`, wrapping below. No navigation but its two links (AC-12, EVT-06 AC-9).
+ * `width` is the section's, so the two edges line up whether or not UIE-12's grid is in use.
+ */
+function GuestAuthPrompt({
+  token,
+  width,
+  onDismiss,
+}: {
+  token: string;
+  width: string;
+  onDismiss: () => void;
+}): JSX.Element {
+  return (
+    <aside
+      data-testid="guest-auth-prompt"
+      aria-label="Sign in or sign up"
+      className={`sticky top-0 z-20 mx-auto mb-3 w-full ${width} rounded-card bg-card shadow-soft`}
+    >
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-2 rounded-card bg-holiday/30 px-4 py-3">
+        <div className="min-w-0 flex-1 basis-56">
+          <p className="text-sm font-semibold text-ink">Have a CaleChip account? Sign in to join as yourself.</p>
+          <p className="text-xs text-ink-3">New accounts are approved by an admin before they can be used.</p>
+        </div>
+        <div className="flex items-center gap-2">
+          <Link
+            data-testid="guest-auth-prompt-signin"
+            to={signInReturningTo(`/guest/${token}`)}
+            className={PRIMARY_BUTTON}
+          >
+            Sign in
+          </Link>
+          <Link data-testid="guest-auth-prompt-signup" to="/signup" className={QUIET_BUTTON}>
+            Sign up
+          </Link>
+          <button
+            data-testid="guest-auth-prompt-dismiss"
+            type="button"
+            aria-label="Dismiss"
+            onClick={onDismiss}
+            className="flex h-8 w-8 items-center justify-center rounded-pill text-ink-3 transition-colors hover:text-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
+          >
+            {/* An SVG and not a typed U+00D7, which the § Language lint rule matches — as `Modal.tsx`. */}
+            <svg
+              viewBox="0 0 16 16"
+              width="14"
+              height="14"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              aria-hidden="true"
+            >
+              <path d="M4 4l8 8M12 4l-8 8" />
+            </svg>
+          </button>
+        </div>
+      </div>
+    </aside>
   );
 }
 

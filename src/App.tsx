@@ -4,7 +4,8 @@
 // scaffold smoke test in tests/e2e/smoke.spec.ts keeps passing without being edited — which is why
 // that file is deliberately absent from allowed_paths. `seam-banner` keeps its name and position for
 // the same reason.
-import { BrowserRouter, Navigate, Outlet, Route, Routes } from "react-router-dom";
+import type { JSX } from "react";
+import { BrowserRouter, Navigate, Outlet, Route, Routes, useSearchParams } from "react-router-dom";
 import { seamName } from "./lib/data";
 import { useSession } from "./hooks/useSession";
 import AppShell from "./components/AppShell";
@@ -45,6 +46,8 @@ import SignUp from "./routes/SignUp";
 // sentence itself is still announced: `Loader.tsx` keeps it as `sr-only` text, because the element
 // below carries `role="status"` and an emptied one announces nothing.
 import Loader from "@/components/Loader";
+// EVT-14. The return-to `/signin` honours, and the rule that keeps it on this origin (AC-9).
+import { RETURN_TO_PARAM, safeReturnTo } from "@/lib/return-to";
 
 /**
  * UIE-02 § 4.6 and § 4.7 — the non-member arm of the shell layout route, and the home of the `p-8`
@@ -74,6 +77,17 @@ function BareLayout() {
       <Outlet />
     </div>
   );
+}
+
+/**
+ * EVT-14 § 4.2 — the `/signin` route's signed-in arm. Sends the caller to `?next=` when it is a path
+ * on this origin (AC-8, AC-9) and to `/` otherwise, exactly as before this ticket (AC-10). A component
+ * of its own because it must sit inside <BrowserRouter> to read the query string, and `App` does not.
+ * `replace` is what keeps Back from showing the sign-in screen again (AC-8).
+ */
+function AfterSignIn(): JSX.Element {
+  const [params] = useSearchParams();
+  return <Navigate to={safeReturnTo(params.get(RETURN_TO_PARAM))} replace />;
 }
 
 export default function App() {
@@ -150,8 +164,17 @@ export default function App() {
               {/* EVT-06, AC-9. Reachable in EVERY membership state and signed out, with no guard: the
                   token is the whole address. EVT-13, AC-1 to AC-5 (ADR-061 decision 8): an approved
                   member is asked about, and a reader of the event is sent on to `/events/<id>` by
-                  the page itself; everyone else sees exactly what a guest sees. */}
-              <Route path="/guest/:token" element={<GuestEvent signedInMember={membership.state === "member"} />} />
+                  the page itself; everyone else sees exactly what a guest sees. EVT-14, AC-1, AC-2:
+                  a signed-out caller is also offered sign-in and sign-up, which no session is. */}
+              <Route
+                path="/guest/:token"
+                element={
+                  <GuestEvent
+                    signedInMember={membership.state === "member"}
+                    signedOut={membership.state === "signed-out"}
+                  />
+                }
+              />
 
               {/* EVT-07, AC-11, AC-13. The manage page: the same bare card, no guard, any state —
                   the manage token is the whole address. */}
@@ -159,14 +182,15 @@ export default function App() {
 
               {/* AC-1, AC-2, AC-3, AC-5, AC-9. A caller with a session is sent to the landing
                   address instead — a sign-in screen offered to somebody already signed in is a
-                  second way to reach a state they are already in. */}
+                  second way to reach a state they are already in. EVT-14, AC-8..AC-10: to `?next=`
+                  when it is a path on this origin, and to `/` otherwise. */}
               <Route
                 path="/signin"
                 element={
                   membership.state === "signed-out" ? (
                     <SignIn signIn={signIn} />
                   ) : (
-                    <Navigate to="/" replace />
+                    <AfterSignIn />
                   )
                 }
               />
