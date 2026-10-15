@@ -420,3 +420,141 @@ describe("what it does not touch (AC-18, INV-04)", () => {
     expect(await snapshot()).toEqual(before);
   });
 });
+
+// ---------------------------------------------------------------------------
+// EVT-13 — a signed-in reader leaves the guest page. 01-plan.md § 3's denials, through the mock
+// seam, and `20261015090000_evt13_guest_link_event_id.sql` read for its shape. The mock reproduces
+// the function; it cannot prove it.
+// ---------------------------------------------------------------------------
+
+const EVT13_MIGRATION_SQL = readFileSync(
+  fileURLToPath(
+    new URL("../supabase/migrations/20261015090000_evt13_guest_link_event_id.sql", import.meta.url),
+  ),
+  "utf8",
+).replace(/--[^\n]*/g, "");
+
+async function eventIdAs(memberId: string | null, token: string): Promise<string | null> {
+  as(memberId);
+  return mock.getGuestLinkEventId(token);
+}
+
+describe("EVT-13 — the event behind a guest link, to a reader only (AC-1 to AC-9)", () => {
+  it("AC-1, AC-2: every kind of reader gets the event id", async () => {
+    const pub = await createAs(FIXTURE_MEMBER.id, { scope: "public" });
+    const pubToken = await tokenOf(FIXTURE_MEMBER.id, pub);
+    for (const who of [FIXTURE_ADMIN.id, FIXTURE_MEMBER.id, MEMBER_A2, FIXTURE_OTHER_TEAM_MEMBER.id]) {
+      expect(await eventIdAs(who, pubToken)).toBe(pub);
+    }
+
+    const team = await createAs(FIXTURE_MEMBER.id, { scope: "team" });
+    const teamToken = await tokenOf(FIXTURE_MEMBER.id, team);
+    for (const who of [FIXTURE_ADMIN.id, FIXTURE_MEMBER.id, MEMBER_A2, MANAGER_A]) {
+      expect(await eventIdAs(who, teamToken)).toBe(team);
+    }
+
+    const named = await createAs(FIXTURE_MEMBER.id, { scope: "named", inviteeIds: [MEMBER_B2] });
+    const namedToken = await tokenOf(FIXTURE_MEMBER.id, named);
+    for (const who of [FIXTURE_ADMIN.id, FIXTURE_MEMBER.id, MEMBER_B2]) {
+      expect(await eventIdAs(who, namedToken)).toBe(named);
+    }
+  });
+
+  it("AC-3: a member of another team on an own-team event, and a member not named, get null", async () => {
+    const team = await createAs(FIXTURE_MEMBER.id, { scope: "team" });
+    const teamToken = await tokenOf(FIXTURE_MEMBER.id, team);
+    expect(await eventIdAs(FIXTURE_OTHER_TEAM_MEMBER.id, teamToken)).toBeNull();
+    expect(await eventIdAs(MEMBER_B2, teamToken)).toBeNull();
+
+    const named = await createAs(FIXTURE_MEMBER.id, { scope: "named", inviteeIds: [MEMBER_B2] });
+    const namedToken = await tokenOf(FIXTURE_MEMBER.id, named);
+    expect(await eventIdAs(MEMBER_A2, namedToken)).toBeNull();
+    expect(await eventIdAs(FIXTURE_OTHER_TEAM_MEMBER.id, namedToken)).toBeNull();
+    // The guest read they fall back to is unchanged and carries no id.
+    as(MEMBER_A2);
+    expect(Object.keys((await mock.getGuestEvent(namedToken)) ?? {})).not.toContain("id");
+  });
+
+  it("AC-4: a pending sign-up gets null, even on a public event", async () => {
+    const pub = await createAs(FIXTURE_MEMBER.id, { scope: "public" });
+    const token = await tokenOf(FIXTURE_MEMBER.id, pub);
+    const pending = await signUp("Guest Pending Thirteen");
+    expect(await eventIdAs(pending, token)).toBeNull();
+  });
+
+  it("AC-5, AC-7: signed out gets null for any token", async () => {
+    const pub = await createAs(FIXTURE_MEMBER.id, { scope: "public" });
+    const token = await tokenOf(FIXTURE_MEMBER.id, pub);
+    expect(await eventIdAs(null, token)).toBeNull();
+  });
+
+  it("AC-6: a closed, deleted, unknown or malformed token gets null for its creator — malformed with no round trip", async () => {
+    const id = await createAs(FIXTURE_MEMBER.id);
+    const closed = await tokenOf(FIXTURE_MEMBER.id, id);
+    expect((await closeAs(FIXTURE_MEMBER.id, id)).ok).toBe(true);
+    const gone = await createAs(FIXTURE_MEMBER.id);
+    const deleted = await tokenOf(FIXTURE_MEMBER.id, gone);
+    as(FIXTURE_MEMBER.id);
+    expect((await mock.deleteEvent(gone)).ok).toBe(true);
+    for (const token of [closed, deleted, "0".repeat(64), "short", "", closed.toUpperCase()]) {
+      expect(await eventIdAs(FIXTURE_MEMBER.id, token)).toBeNull();
+      expect(await eventIdAs(FIXTURE_ADMIN.id, token)).toBeNull();
+    }
+    // The real seam answers a malformed token before building a client — no VITE_SUPABASE_URL here.
+    for (const token of ["short", "", "x".repeat(64)]) {
+      expect(await real.getGuestLinkEventId(token)).toBeNull();
+    }
+  });
+
+  it("AC-8: the answer follows access at the moment of asking", async () => {
+    const named = await createAs(FIXTURE_MEMBER.id, { scope: "named", inviteeIds: [] });
+    const token = await tokenOf(FIXTURE_MEMBER.id, named);
+    const later = await approved("Guest Later Thirteen", FIXTURE_TEAM.id);
+    expect(await eventIdAs(later, token)).toBeNull();
+
+    const pub = await createAs(FIXTURE_MEMBER.id, { scope: "public" });
+    const pubToken = await tokenOf(FIXTURE_MEMBER.id, pub);
+    expect(await eventIdAs(later, pubToken)).toBe(pub);
+    as(FIXTURE_ADMIN.id);
+    expect((await mock.removeMember(later)).ok).toBe(true);
+    expect(await eventIdAs(later, pubToken)).toBeNull();
+  });
+
+  it("AC-9: asking writes nothing", async () => {
+    const id = await createAs(FIXTURE_MEMBER.id);
+    const token = await tokenOf(FIXTURE_MEMBER.id, id);
+    const snapshot = async () => {
+      as(FIXTURE_ADMIN.id);
+      return [
+        await mock.listEvents(),
+        await mock.listEventAttendance(id),
+        await mock.listEventGuests(id),
+        await mock.getEventGuestLink(id),
+        await mock.listMembers(),
+      ];
+    };
+    const before = await snapshot();
+    for (const who of [null, FIXTURE_MEMBER.id, MEMBER_A2, FIXTURE_OTHER_TEAM_MEMBER.id, FIXTURE_ADMIN.id]) {
+      await eventIdAs(who, token);
+    }
+    expect(await snapshot()).toEqual(before);
+  });
+
+  it("AC-7: the migration grants the function to authenticated only and gates the id on may_read_event", () => {
+    const sql = EVT13_MIGRATION_SQL;
+    expect(sql).toMatch(
+      /create or replace function public\.guest_link_event_id\(p_token text\) returns uuid\s+language sql stable security definer set search_path = ''/,
+    );
+    expect(sql).toMatch(
+      /revoke all on function public\.guest_link_event_id\(text\) from public, anon, authenticated;/,
+    );
+    expect(sql).toMatch(/grant execute on function public\.guest_link_event_id\(text\) to authenticated;/);
+    expect(sql).not.toMatch(/grant[^;]*\bto\b[^;]*\banon\b/);
+    // One select, and its only filter beyond the token is the reader check.
+    expect(sql.match(/\bselect\s+l\.event_id/g)).toHaveLength(1);
+    expect(sql).toMatch(/where l\.token = p_token\s+and public\.may_read_event\(l\.event_id, \(select auth\.uid\(\)\)\);/);
+    // Nothing else: no table, policy, trigger or table grant.
+    expect(sql).not.toMatch(/create (table|policy|trigger)|alter (table|policy)|drop /);
+    expect(sql).not.toMatch(/grant[^;]*\bon\s+(table\s+)?public\.(?!guest_link_event_id)/);
+  });
+});

@@ -3798,6 +3798,20 @@ export const seam: DataSeam = {
   },
 
   // -------------------------------------------------------------------------
+  // EVT-13 — a signed-in reader leaves the guest page. 01-plan.md § 4.2. ADR-061 decision 8.
+  // -------------------------------------------------------------------------
+
+  // `guest_link_event_id`: the open link's event, through `may_read_event` for the caller. Null for
+  // "no such open link" and "not a reader" alike. Lookup and check with no `await` between them.
+  async getGuestLinkEventId(token: string): Promise<string | null> {
+    if (!GUEST_LINK_TOKEN_PATTERN.test(token)) return null;
+    const eventId = guestEventId(token);
+    const event = eventId === null ? undefined : events.find((e) => e.id === eventId);
+    if (!event) return null;
+    return mayReadEvent(event, currentMemberId) ? event.id : null;
+  },
+
+  // -------------------------------------------------------------------------
   // EVT-08 — email invitations. The two functions of 01-plan.md § 4.2, each reproducing the definer
   // function, trigger or policy named beside it rather than the screen.
   // -------------------------------------------------------------------------

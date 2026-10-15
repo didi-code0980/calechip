@@ -75,6 +75,13 @@ async function navigate(page: Page, address: string): Promise<void> {
   }, new URL(address, page.url()).pathname);
 }
 
+/** EVT-13 AC-1. The creator would be sent from the guest link to the event page, so the guest
+ *  surface is asserted as a signed-out caller sees it. */
+async function signOut(page: Page): Promise<void> {
+  await page.getByTestId("home-sign-out").click();
+  await expect(page.getByTestId("sign-in-submit")).toBeVisible();
+}
+
 async function openCreateForm(page: Page, name: string): Promise<Locator> {
   await page.getByTestId("nav-events-link").click();
   await expect(page).toHaveURL(/\/events$/);
@@ -213,6 +220,7 @@ test.describe("EVT-11 — pictures in an event's description", () => {
     expect(src).toMatch(/^data:image\//);
 
     const address = await openToGuests(page);
+    await signOut(page);
     await navigate(page, address);
     const guestPicture = page.getByTestId("guest-event-description").locator("img");
     await expect(guestPicture).toHaveCount(1);
@@ -293,6 +301,7 @@ test.describe("EVT-11 — pictures in an event's description", () => {
       expect(await attributeNames(pictures)).toEqual(["alt", "src"]);
     }
 
+    await signOut(page);
     await navigate(page, address);
     const guestPictures = page.getByTestId("guest-event-description").locator("img");
     await expect(guestPictures).toHaveCount(1);

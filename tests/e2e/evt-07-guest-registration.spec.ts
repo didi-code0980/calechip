@@ -150,6 +150,8 @@ test.describe("EVT-07 — guest registration", () => {
     await signIn(page, MEMBER.email);
     await createEvent(page, { name: "Guest checks" });
     const address = await openToGuests(page);
+    // EVT-13 AC-1. The creator would be sent to the event page; a guest registers signed out.
+    await signOut(page);
     await navigate(page, address);
 
     await page.getByTestId("guest-register-email").fill("ok@example.com");
@@ -211,9 +213,12 @@ test.describe("EVT-07 — guest registration", () => {
     await signIn(page, MEMBER.email);
     await createEvent(page, { name: "Guest removal", capacity: "3" });
     const address = await openToGuests(page);
+    // EVT-13 AC-1. The creator would be sent to the event page; the guest registers signed out.
+    await signOut(page);
     await navigate(page, address);
     const manage = await registerAsGuest(page, "Leaving", "leaving@example.com");
 
+    await signInAgain(page, MEMBER.email);
     await navigate(page, "/events");
     await page.getByTestId("event-row").filter({ hasText: "Guest removal" }).click();
     const attendee = page.getByTestId("event-guest-attendee");

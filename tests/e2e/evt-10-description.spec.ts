@@ -52,6 +52,13 @@ async function navigate(page: Page, address: string): Promise<void> {
   }, new URL(address, page.url()).pathname);
 }
 
+/** EVT-13 AC-1. The creator would be sent from the guest link to the event page, so the guest
+ *  surface is asserted as a signed-out caller sees it. */
+async function signOut(page: Page): Promise<void> {
+  await page.getByTestId("home-sign-out").click();
+  await expect(page.getByTestId("sign-in-submit")).toBeVisible();
+}
+
 async function openCreateForm(page: Page, name: string): Promise<Locator> {
   await page.getByTestId("nav-events-link").click();
   await expect(page).toHaveURL(/\/events$/);
@@ -312,6 +319,7 @@ test.describe("EVT-10 — a formatted description", () => {
 
     // AC-3. The guest page draws the same elements, in the same order, with the same text.
     const address = await openToGuests(page);
+    await signOut(page);
     await navigate(page, address);
     const g = page.getByTestId("guest-event-description");
     await expect(g).toBeVisible();
@@ -358,6 +366,7 @@ test.describe("EVT-10 — a formatted description", () => {
 
     // And the guest page draws no description either.
     const address = await openToGuests(page);
+    await signOut(page);
     await navigate(page, address);
     await expect(page.getByTestId("guest-event")).toBeVisible();
     await expect(page.getByTestId("guest-event-description")).toHaveCount(0);
@@ -432,6 +441,7 @@ test.describe("EVT-10 — a formatted description", () => {
     await expect(page.getByTestId("event-name")).toHaveText("Hostile event");
     await assertHostileNeutralised(page, "event-description");
 
+    await signOut(page);
     await navigate(page, address);
     await expect(page.getByTestId("guest-event-name")).toHaveText("Hostile event");
     await assertHostileNeutralised(page, "guest-event-description");

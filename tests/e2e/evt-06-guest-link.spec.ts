@@ -12,12 +12,18 @@ import { expect, test, type Page } from "@playwright/test";
 // journeys, which need no event, use `goto`.
 //
 // Fixtures (`src/lib/fixtures.ts`): thanh@ is FIXTURE_MEMBER (team CaleChip), linh@ is
-// FIXTURE_APPROVED_MEMBER on the same team, and quan@ is FIXTURE_ADMIN.
+// FIXTURE_APPROVED_MEMBER on the same team, quan@ is FIXTURE_ADMIN, and chi@other is
+// FIXTURE_OTHER_TEAM_MEMBER.
+//
+// EVT-13 — ADR-061 decision 8 replaces AC-16 for a signed-in reader of the event: they are taken to
+// the event page. AC-10's empty page is now asserted signed out; a signed-in non-reader keeps the
+// guest page.
 
 const PASSWORD = "password123";
 const MEMBER = { email: "thanh@example.com", name: "Thành viên" };
 const TEAMMATE = { email: "linh@example.com", name: "Đã duyệt" };
 const ADMIN = { email: "quan@example.com" };
+const OTHER_TEAM = { email: "chi@other.example.com" };
 
 async function fillSignIn(page: Page, email: string): Promise<void> {
   await expect(page.getByTestId("sign-in-submit")).toBeVisible();
@@ -50,7 +56,13 @@ async function openEvent(page: Page, name: string): Promise<void> {
 
 async function createEvent(
   page: Page,
-  values: { name: string; capacity?: string; location?: string; description?: string },
+  values: {
+    name: string;
+    capacity?: string;
+    location?: string;
+    description?: string;
+    scope?: "team" | "named" | "public";
+  },
 ): Promise<void> {
   await openEvents(page);
   await page.getByTestId("events-new-button").click();
@@ -63,7 +75,7 @@ async function createEvent(
     await page.getByTestId("event-description-input").fill(values.description);
   }
   if (values.capacity !== undefined) await page.getByTestId("event-capacity-input").fill(values.capacity);
-  await page.getByTestId("event-scope-public").check();
+  await page.getByTestId(`event-scope-${values.scope ?? "public"}`).check();
   await page.getByTestId("event-save").click();
   await expect(page.getByTestId("event-detail")).toBeVisible();
 }
@@ -182,10 +194,12 @@ test.describe("EVT-06 — the guest link", () => {
     expect(await meta(page, "referrer")).toBeNull();
   });
 
-  test("AC-10, AC-16: a signed-in reader sees the same page, with nobody joined yet", async ({ page }) => {
+  test("AC-10: signed out, a page with nobody joined yet", async ({ page }) => {
     await signIn(page, MEMBER.email);
     await createEvent(page, { name: "Guest empty" });
     const address = await openToGuests(page);
+    await page.getByTestId("home-sign-out").click();
+    await expect(page.getByTestId("sign-in-submit")).toBeVisible();
     await navigate(page, address);
     await expect(page.getByTestId("guest-event")).toBeVisible();
     await expect(page).toHaveURL(/\/guest\/[0-9a-f]{64}$/);
@@ -194,6 +208,36 @@ test.describe("EVT-06 — the guest link", () => {
     await expect(page.getByTestId("guest-event-attendees-empty")).toBeVisible();
     await expect(page.getByTestId("guest-event-location")).toHaveCount(0);
     await expect(page.getByTestId("guest-event-description")).toHaveCount(0);
+  });
+
+  test("EVT-13 AC-1: a signed-in reader is taken to the event page, and Back does not return to the link", async ({ page }) => {
+    await signIn(page, MEMBER.email);
+    await createEvent(page, { name: "Guest redirect" });
+    const detail = page.url();
+    const address = await openToGuests(page);
+    await navigate(page, address);
+    await expect(page).toHaveURL(detail);
+    await expect(page.getByTestId("event-detail")).toBeVisible();
+    await expect(page.getByTestId("event-name")).toHaveText("Guest redirect");
+    await expect(page.getByTestId("guest-event")).toHaveCount(0);
+
+    // The redirect replaced the guest link's history entry: Back lands where the reader was before.
+    await page.goBack();
+    await expect(page).not.toHaveURL(/\/guest\//);
+    await expect(page.getByTestId("guest-event")).toHaveCount(0);
+  });
+
+  test("EVT-13 AC-3: a signed-in member who cannot read the event sees the guest page, with no redirect", async ({ page }) => {
+    await signIn(page, MEMBER.email);
+    await createEvent(page, { name: "Guest own team", scope: "team" });
+    const address = await openToGuests(page);
+    await switchTo(page, OTHER_TEAM.email);
+    await navigate(page, address);
+    await expect(page.getByTestId("guest-event")).toBeVisible();
+    await expect(page.getByTestId("guest-event-name")).toHaveText("Guest own team");
+    await expect(page).toHaveURL(/\/guest\/[0-9a-f]{64}$/);
+    await expect(page.getByTestId("event-detail")).toHaveCount(0);
+    await expect(page.getByTestId("nav-events-link")).toHaveCount(0);
   });
 
   test("AC-3, AC-18: a reader who may not manage it sees no panel; AC-2: an admin does", async ({ page }) => {
@@ -237,6 +281,9 @@ test.describe("EVT-06 — the guest link", () => {
     await expect(page.getByTestId("guest-event-not-found")).toBeVisible();
     await page.goBack();
     await expect(page.getByTestId("event-detail")).toBeVisible();
+    // EVT-13 AC-1. The creator would now be sent to the event page; the guest page is a signed-out view.
+    await page.getByTestId("home-sign-out").click();
+    await expect(page.getByTestId("sign-in-submit")).toBeVisible();
     await navigate(page, second);
     await expect(page.getByTestId("guest-event")).toBeVisible();
   });

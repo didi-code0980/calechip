@@ -86,6 +86,7 @@ operator gave — see the note under § *Roles*. A bare `❌` there is a denial 
 | Read an open event's public fields and attendee names, with its token | ✅ | ✅ | ✅ **— and signed out; see below** |
 | Read anything through a token that is not an open event's | ❌ | ❌ | ❌ |
 | List open events, or learn whether an event exists, through the guest reads | ❌ | ❌ | ❌ **ADR-052 § Consequences — both reads take only a token** |
+| Learn the event id behind an open guest link (EVT-13) | only for an event they can read | same as member | ✅ any open link **`guest_link_event_id(text)` — granted to `authenticated` only; returns `event_id` only when `may_read_event(event_id, auth.uid())`, and null for "no such open link" and "not a reader" alike (ADR-061 decision 8)** |
 | Register on an event through its open guest link (EVT-07) | ✅ | ✅ | ✅ **— and signed out; `register_guest`, the only door: no role holds an insert grant on `event_guest`** |
 | Register through any other token, or choose a registration's state, manage token or event | ❌ | ❌ | ❌ **`register_guest` takes none; `event_guest_guard` sets the state** |
 | Read one's own registration, or cancel it while registration is open, with its manage token | ✅ | ✅ | ✅ **— and signed out; `get_guest_registration`, `cancel_guest_registration`** |
@@ -120,6 +121,8 @@ two of EVT-07 AC-22. Nothing else: no table (`event`, `event_attendance`, `event
 `list_event_guest_emails` included — and no open or close. No `anon` policy exists on any table, and
 none on `public.member` (INV-04). `supabase/migrations/20261009120000_evt06_guest_link.sql` § 4 and
 `supabase/migrations/20261009150000_evt07_guest_registration.sql` § 7 hold the grants.
+`guest_link_event_id(text)` (EVT-13) is not granted to `anon`: a signed-out caller holding a token
+never learns the event id behind it (`supabase/migrations/20261015090000_evt13_guest_link_event_id.sql`).
 
 *Amended 2026-10-09 by EVT-07 (01-plan.md AC-21). Read: "may call exactly two functions —
 `get_guest_event(text)` and `list_guest_event_attendees(text)` … `supabase/migrations/20261009120000_evt06_guest_link.sql`

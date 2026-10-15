@@ -1498,6 +1498,16 @@ export interface DataSeam {
   decideGuest(guestId: string, status: "attending" | "rejected" | "removed"): Promise<Result<EventGuest>>;
 
   // -------------------------------------------------------------------------
+  // EVT-13 — a signed-in reader leaves the guest page. 01-plan.md section 4.2. ADR-061 decision 8.
+  // -------------------------------------------------------------------------
+
+  /** EVT-13 AC-1..AC-7. The id of the event behind an OPEN guest link, only when the signed-in caller
+   *  can read that event; null otherwise — signed out, not a reader, a closed, deleted or unknown
+   *  link alike. Null for a token failing GUEST_LINK_TOKEN_PATTERN, with no round trip. Throws on a
+   *  read failure. */
+  getGuestLinkEventId(token: string): Promise<string | null>;
+
+  // -------------------------------------------------------------------------
   // EVT-08 — email invitations. 01-plan.md section 4.2. ADR-055.
   //
   // Two functions. NOTHING IN THE SEAM SENDS, QUEUES OR NAMES A MAIL: `invite_to_event` writes the

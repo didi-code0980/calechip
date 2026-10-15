@@ -308,6 +308,8 @@ allowed_paths:
   - "tests/guest-link.test.ts"
   - "tests/e2e/evt-06-guest-link.spec.ts"
   - "tests/e2e/evt-07-guest-registration.spec.ts"
+  - "tests/e2e/evt-10-description.spec.ts"
+  - "tests/e2e/evt-11-description-pictures.spec.ts"
 ```
 
 **Glossary:** `glossary_owed: []`. *Guest link* already has a row and is not rewritten.
@@ -322,6 +324,11 @@ which AC-1 reverses: it becomes the redirect case, and a signed-in non-reader ca
 `evt-07-guest-registration.spec.ts` AC-4 (`:149`) and AC-17 (`:210`) register as a guest while signed
 in as the event's creator, who is now redirected; each signs out, or switches to a member who cannot
 read the event, before opening the link — a change of who drives the journey, not of what it asserts.
+`evt-10-description.spec.ts` AC-2/3/4 (`:237`), AC-6 (`:329`) and AC-8 (`:418`), and
+`evt-11-description-pictures.spec.ts` AC-3 (`:206`) and AC-7 (`:266`), open the guest page signed in
+as the event's creator to assert the guest surface, and are now redirected; each signs out before
+that `navigate` and signs back in client-side only if a later step needs the creator. No assertion
+changes. *Added at the developer's Q1 (`99-questions.md`).*
 
 **Deliberately absent:** `src/lib/domain/types.ts` (the function returns a `string`); a new e2e spec
 (the cases sit beside `EVT-06`'s guest-page cases); `.ai/registry/decisions/ADR-052-*.md`'s Status
@@ -360,3 +367,8 @@ pattern check; a second component would duplicate both.
   page already does for anyone — to what decision 8 protects, the event id and anything beyond the
   guest page; and it gained the signed-out caller. `schema_delta` amended from `none` (§ 6). Raised by
   `tech-lead-design`. Amended by `tech-lead-design`.
+- 2026-10-15T08:04:35+0700 — Amended by tech-lead-design at the developer's Q1: § 7 gains
+  `tests/e2e/evt-10-description.spec.ts` and `tests/e2e/evt-11-description-pictures.spec.ts`, whose
+  guest-surface journeys are driven by the signed-in creator and are redirected by AC-1 — the same
+  case already planned for `evt-07`, missed at PLAN. Twelve paths; `size` stays `M`, at the split
+  limit and not over it.
