@@ -27,6 +27,11 @@
 // (01-plan.md § 4.1): the panel then opens holding the send's result, or the error and the addresses
 // to resend (AC-3, AC-6). Read once and cleared from history, so a reload shows neither (AC-8).
 //
+// UIE-12. The reader's own join, status and withdraw left the attendance panel for `EventJoinBar`,
+// which stays in view while the page scrolls (01-plan.md § 2b, § 4.3): beside the article from `xl`,
+// pinned under it below. One attendance load feeds both. A reader the bar has nothing for gets this
+// page exactly as before — one column (AC-6).
+//
 // The delete confirmation is a dialog; the picker on the form is deliberately not, so the route
 // family never stacks one dialog on another (§ 2b).
 import { useCallback, useEffect, useState, type JSX } from "react";
@@ -47,7 +52,13 @@ import { GUEST_EMAIL_MAX, GUEST_EMAIL_PATTERN } from "@/lib/domain/types";
 import Avatar from "@/components/Avatar";
 import Loader from "@/components/Loader";
 import Modal from "@/components/Modal";
-import EventAttendancePanel from "@/components/EventAttendancePanel";
+import EventAttendancePanel, {
+  seatsTaken,
+  useEventAttendance,
+  type EventAttendanceLoad,
+} from "@/components/EventAttendancePanel";
+import EventJoinBar, { joinBarState } from "@/components/EventJoinBar";
+import { eventToday, registrationOpen } from "@/lib/event-registration";
 import { DescriptionHtml } from "@/components/DescriptionHtml";
 import { EventScopeBadge, creatorName, eventDateLabel } from "./Events";
 
@@ -258,156 +269,188 @@ export default function EventDetail(): JSX.Element {
   }));
 
   return (
-    <section className="mx-auto flex max-w-xl flex-col gap-4">
-      <Link to="/events" className="self-start text-xs font-semibold text-ink-3 hover:text-ink">
-        &lsaquo; Events
-      </Link>
-
-      {/* AC-22. Top to bottom: name; date range; scope badge; creator; location; description; and,
-          for the creator and admins on a named-people event, the named list. */}
-      <article data-testid="event-detail" className="flex flex-col gap-4 rounded-card bg-card p-6 shadow-soft md:p-8">
-        <div className="flex flex-wrap items-start gap-3">
-          <h1 data-testid="event-name" className="min-w-0 flex-1 break-words text-xl font-extrabold text-ink">
-            {event.name}
-          </h1>
-          {canEdit ? (
-            <div className="flex gap-2">
-              <Link data-testid="event-edit-button" to={`/events/${event.id}/edit`} className={ACTION_BUTTON}>
-                Edit
+    <WithEventAttendance event={event}>
+      {(attendance) => {
+        // § 4.3. The page reads the bar's own answer to choose its arrangement, so it is decided once.
+        const barShown =
+          joinBarState({
+            event,
+            me,
+            invitees,
+            rows: attendance.rows,
+            taken: seatsTaken(attendance.rows, attendance.guests),
+            open: registrationOpen(event, eventToday()),
+          }).kind !== "hidden";
+        return (
+            <section
+              className={
+                barShown
+                  ? "mx-auto flex max-w-xl flex-col gap-4 xl:grid xl:max-w-[55.5rem] xl:grid-cols-[minmax(0,36rem)_18rem] xl:items-start xl:gap-x-6"
+                  : "mx-auto flex max-w-xl flex-col gap-4"
+              }
+            >
+              <Link to="/events" className="self-start text-xs font-semibold text-ink-3 hover:text-ink xl:justify-self-start">
+                &lsaquo; Events
               </Link>
-              <button
-                data-testid="event-delete-button"
-                type="button"
-                onClick={() => {
-                  setDeleteError(null);
-                  setConfirming(true);
-                }}
-                className={`${ACTION_BUTTON} hover:border-danger hover:text-danger`}
-              >
-                Delete
-              </button>
-            </div>
-          ) : null}
-        </div>
 
-        <p data-testid="event-dates" className="text-sm font-semibold text-ink-2">
-          {eventDateLabel(event)}
-        </p>
+              {/* AC-22. Top to bottom: name; date range; scope badge; creator; location; description; and,
+                  for the creator and admins on a named-people event, the named list. */}
+              <article data-testid="event-detail" className="flex flex-col gap-4 rounded-card bg-card p-6 shadow-soft md:p-8 xl:col-start-1">
+                <div className="flex flex-wrap items-start gap-3">
+                  <h1 data-testid="event-name" className="min-w-0 flex-1 break-words text-xl font-extrabold text-ink">
+                    {event.name}
+                  </h1>
+                  {canEdit ? (
+                    <div className="flex gap-2">
+                      <Link data-testid="event-edit-button" to={`/events/${event.id}/edit`} className={ACTION_BUTTON}>
+                        Edit
+                      </Link>
+                      <button
+                        data-testid="event-delete-button"
+                        type="button"
+                        onClick={() => {
+                          setDeleteError(null);
+                          setConfirming(true);
+                        }}
+                        className={`${ACTION_BUTTON} hover:border-danger hover:text-danger`}
+                      >
+                        Delete
+                      </button>
+                    </div>
+                  ) : null}
+                </div>
 
-        <div>
-          <EventScopeBadge scope={event.scope} testId="event-scope" />
-        </div>
+                <p data-testid="event-dates" className="text-sm font-semibold text-ink-2">
+                  {eventDateLabel(event)}
+                </p>
 
-        <p data-testid="event-creator" data-creator-id={event.creatorId} className="text-sm text-ink-2">
-          Announced by{" "}
-          <span className="font-semibold text-ink">{creatorName(event.creatorId, directory)}</span>
-        </p>
+                <div>
+                  <EventScopeBadge scope={event.scope} testId="event-scope" />
+                </div>
 
-        {/* AC-2. Absent, not an empty label, when the event has none. */}
-        {event.location !== null ? (
-          <p data-testid="event-location" className="text-sm text-ink-2">
-            <span className="text-xs font-bold uppercase tracking-wide text-ink-3">Where</span>{" "}
-            <span className="text-ink">{event.location}</span>
-          </p>
-        ) : null}
+                <p data-testid="event-creator" data-creator-id={event.creatorId} className="text-sm text-ink-2">
+                  Announced by{" "}
+                  <span className="font-semibold text-ink">{creatorName(event.creatorId, directory)}</span>
+                </p>
 
-        {/* EVT-10 AC-8. Sanitised against ADR-056's allow-list on the way to the DOM. */}
-        <DescriptionHtml html={event.description} testId="event-description" />
+                {/* AC-2. Absent, not an empty label, when the event has none. */}
+                {event.location !== null ? (
+                  <p data-testid="event-location" className="text-sm text-ink-2">
+                    <span className="text-xs font-bold uppercase tracking-wide text-ink-3">Where</span>{" "}
+                    <span className="text-ink">{event.location}</span>
+                  </p>
+                ) : null}
 
-        {canEdit && event.scope === "named" ? (
-          <div data-testid="event-invitees" className="flex flex-col gap-2 border-t border-line pt-4">
-            <h2 className="text-xs font-bold uppercase tracking-wide text-ink-3">
-              Invited ({named.length})
-            </h2>
-            {named.length === 0 ? (
-              <p className="text-sm text-ink-3">Nobody is named yet.</p>
-            ) : (
-              <ul className="flex flex-wrap gap-2">
-                {named.map(({ memberId, person }) => (
-                  <li
-                    key={memberId}
-                    data-member-id={memberId}
-                    className="flex items-center gap-1.5 rounded-pill bg-field py-0.5 pl-0.5 pr-2.5 text-xs font-semibold text-ink"
-                  >
-                    <Avatar value={person?.avatar ?? ""} className="h-5 w-5 rounded-full" />
-                    {person ? person.displayName : "Former member"}
-                  </li>
-                ))}
-              </ul>
-            )}
-          </div>
-        ) : null}
+                {/* EVT-10 AC-8. Sanitised against ADR-056's allow-list on the way to the DOM. */}
+                <DescriptionHtml html={event.description} testId="event-description" />
 
-        {/* EVT-02, AC-27. Keyed on `updatedAt` so an edit elsewhere reloads the list with the event. */}
-        <EventAttendancePanel
-          key={event.updatedAt}
-          event={event}
-          me={me}
-          directory={directory}
-          invitees={invitees}
-          canManage={canEdit}
-        />
+                {canEdit && event.scope === "named" ? (
+                  <div data-testid="event-invitees" className="flex flex-col gap-2 border-t border-line pt-4">
+                    <h2 className="text-xs font-bold uppercase tracking-wide text-ink-3">
+                      Invited ({named.length})
+                    </h2>
+                    {named.length === 0 ? (
+                      <p className="text-sm text-ink-3">Nobody is named yet.</p>
+                    ) : (
+                      <ul className="flex flex-wrap gap-2">
+                        {named.map(({ memberId, person }) => (
+                          <li
+                            key={memberId}
+                            data-member-id={memberId}
+                            className="flex items-center gap-1.5 rounded-pill bg-field py-0.5 pl-0.5 pr-2.5 text-xs font-semibold text-ink"
+                          >
+                            <Avatar value={person?.avatar ?? ""} className="h-5 w-5 rounded-full" />
+                            {person ? person.displayName : "Former member"}
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                  </div>
+                ) : null}
 
-        {/* EVT-06, AC-2, AC-3. Managers only, last in the card. */}
-        {canEdit ? (
-          <EventGuestPanel
-            event={event}
-            link={guestLink}
-            onChange={(next) =>
-              setState((current) => (current.phase === "ready" ? { ...current, guestLink: next } : current))
-            }
-          />
-        ) : null}
+                {/* EVT-02, AC-27. UIE-12 § 4.2: the load is the page's, and reloads on `updatedAt` itself. */}
+                <EventAttendancePanel event={event} directory={directory} canManage={canEdit} attendance={attendance} />
 
-        {/* EVT-08, AC-1, AC-12. Managers only, under the guest link — on every scope (EVT-12 AC-1). */}
-        {canEdit ? (
-          <EventInvitePanel
-            event={event}
-            invitations={invitations}
-            directory={directory}
-            onInvited={onInvited}
-            handoff={handoff}
-          />
-        ) : null}
-      </article>
+                {/* EVT-06, AC-2, AC-3. Managers only, last in the card. */}
+                {canEdit ? (
+                  <EventGuestPanel
+                    event={event}
+                    link={guestLink}
+                    onChange={(next) =>
+                      setState((current) => (current.phase === "ready" ? { ...current, guestLink: next } : current))
+                    }
+                  />
+                ) : null}
 
-      {confirming ? (
-        <Modal testIdPrefix="event-delete" label="Delete this event" onClose={() => setConfirming(false)}>
-          <div className="flex flex-col gap-4 pr-8">
-            {/* AC-15. The confirmation names the event. */}
-            <h2 className="text-lg font-extrabold text-ink">Delete &ldquo;{event.name}&rdquo;?</h2>
-            <p className="text-sm text-ink-2">
-              It will disappear for everyone it was announced to. This cannot be undone.
-            </p>
-            {deleteError !== null ? (
-              <p role="alert" className="text-sm text-danger">
-                {deleteError}
-              </p>
-            ) : null}
-            <div className="flex justify-end gap-2">
-              <button
-                data-testid="event-delete-cancel"
-                type="button"
-                onClick={() => setConfirming(false)}
-                className={ACTION_BUTTON}
-              >
-                Cancel
-              </button>
-              <button
-                data-testid="event-delete-confirm"
-                type="button"
-                disabled={deleting}
-                onClick={() => void onConfirmDelete()}
-                className="rounded-pill bg-danger px-4 py-1.5 text-xs font-bold text-white transition-opacity hover:opacity-90 disabled:opacity-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
-              >
-                {deleting ? "Deleting…" : "Delete event"}
-              </button>
-            </div>
-          </div>
-        </Modal>
-      ) : null}
-    </section>
+                {/* EVT-08, AC-1, AC-12. Managers only, under the guest link — on every scope (EVT-12 AC-1). */}
+                {canEdit ? (
+                  <EventInvitePanel
+                    event={event}
+                    invitations={invitations}
+                    directory={directory}
+                    onInvited={onInvited}
+                    handoff={handoff}
+                  />
+                ) : null}
+              </article>
+
+              {/* UIE-12 § 2b. Right of the article from `xl`, last in the column below it. */}
+              <div className="contents xl:col-start-2 xl:row-start-2 xl:block xl:self-stretch">
+                <EventJoinBar event={event} me={me} invitees={invitees} attendance={attendance} />
+              </div>
+
+              {confirming ? (
+                <Modal testIdPrefix="event-delete" label="Delete this event" onClose={() => setConfirming(false)}>
+                  <div className="flex flex-col gap-4 pr-8">
+                    {/* AC-15. The confirmation names the event. */}
+                    <h2 className="text-lg font-extrabold text-ink">Delete &ldquo;{event.name}&rdquo;?</h2>
+                    <p className="text-sm text-ink-2">
+                      It will disappear for everyone it was announced to. This cannot be undone.
+                    </p>
+                    {deleteError !== null ? (
+                      <p role="alert" className="text-sm text-danger">
+                        {deleteError}
+                      </p>
+                    ) : null}
+                    <div className="flex justify-end gap-2">
+                      <button
+                        data-testid="event-delete-cancel"
+                        type="button"
+                        onClick={() => setConfirming(false)}
+                        className={ACTION_BUTTON}
+                      >
+                        Cancel
+                      </button>
+                      <button
+                        data-testid="event-delete-confirm"
+                        type="button"
+                        disabled={deleting}
+                        onClick={() => void onConfirmDelete()}
+                        className="rounded-pill bg-danger px-4 py-1.5 text-xs font-bold text-white transition-opacity hover:opacity-90 disabled:opacity-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
+                      >
+                        {deleting ? "Deleting…" : "Delete event"}
+                      </button>
+                    </div>
+                  </div>
+                </Modal>
+              ) : null}
+            </section>
+        );
+      }}
+    </WithEventAttendance>
   );
+}
+
+/** UIE-12. `useEventAttendance` needs the event, which exists only past the loading and missing
+ *  returns above — so the ready page calls it here, inside a component of its own. */
+function WithEventAttendance({
+  event,
+  children,
+}: {
+  event: CalEvent;
+  children: (attendance: EventAttendanceLoad) => JSX.Element;
+}): JSX.Element {
+  return children(useEventAttendance(event));
 }
 
 type CopyState = "idle" | "copied" | "refused";

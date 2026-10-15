@@ -26,7 +26,11 @@ inputs_read:
   - tests/e2e/evt-07-guest-registration.spec.ts
   - tests/e2e/evt-10-description.spec.ts
   - tests/guest-registration.test.ts
-consulted: []
+consulted:
+  - with: developer
+    asked: "The content pane never scrolls (the document does), so a sticky bar inside it never sticks; add src/components/AppShell.tsx to allowed_paths for a one-class fix? (99-questions.md Q1)"
+    answer: "Agreed: the row's flex-1 becomes flex-[1_1_0px], restoring UIE-02 § 4.9's pane-only scrolling; the full e2e suite must pass"
+    resulted_in_amendment: true
 chat_before_verdict: none
 gate: PASS
 blocking_reason: ""
@@ -146,10 +150,11 @@ against the page's scrolling region.
 - Then the box of `event-join-button` does not intersect the box of `report-issue-bubble`; and after
   joining, nor does the box of `event-leave-button`.
 
-**AC-9 — a refused join is reported in the block**
-- Given the member of AC-1 with the page open and `event-join-button` showing
-- When the event's registration deadline is moved to a past date by a direct seam call (as
-  `evt-10-description.spec.ts` writes an event), and they then click `event-join-button`
+**AC-9 — a refused join is reported in the block** *(amended at IN_PROGRESS, `99-questions.md` Q2)*
+- Given an open event with capacity 1 and no approval, opened to guests by its creator, and an
+  approved member in its audience with the page open and `event-join-button` showing
+- When the last seat is taken by a guest through a direct `registerGuest(<token>, …)` seam call, and
+  the member then clicks `event-join-button`
 - Then `event-join-error` is shown inside `event-join-bar` carrying the seam's message, and no
   `event-my-status` appears. The guard refuses the write whatever the page drew (ADR-005).
 
@@ -412,9 +417,15 @@ allowed_paths:
   - "src/components/EventAttendancePanel.tsx"
   - "src/routes/EventDetail.tsx"
   - "src/routes/GuestEvent.tsx"
+  - "src/components/AppShell.tsx"
   - "tests/event-join-bar.test.ts"
   - "tests/e2e/uie-12-sticky-join.spec.ts"
 ```
+
+- `src/components/AppShell.tsx` — **added at IN_PROGRESS, `99-questions.md` Q1.** One class on the
+  shell's row, `flex-1` → `flex-[1_1_0px]`, so the content pane is the scroller UIE-02 § 4.9 says it
+  is; without it nothing in the pane can be sticky. Every shell route then scrolls in the pane, so
+  the whole end-to-end suite, not only AC-14's five specs, must pass.
 
 - `tests/event-join-bar.test.ts` — AC-16, one case per row of § 4.1's table and the four statuses.
 - `tests/e2e/uie-12-sticky-join.spec.ts` — AC-1 to AC-9, AC-7G, AC-11 to AC-13, AC-15. A long
@@ -425,7 +436,8 @@ allowed_paths:
 
 `glossary_owed` is `[]`; no glossary row is written.
 
-`size: S` — six paths. It agrees with `size_estimate: S`.
+`size: M` — seven paths since Q1 added `AppShell.tsx` (six at PLAN, `S`). It disagrees with
+`size_estimate: S` because the estimate assumed the shell's pane already scrolled; it did not.
 
 ## 8. Rejected alternatives
 
@@ -453,3 +465,11 @@ allowed_paths:
   bottom-pinned block would otherwise sit under) and fixed the breakpoint at `xl` from the sidebar's
   measured width. No AC was narrowed to fit the code. Raised by `tech-lead-design`. Amended by
   `tech-lead-design`.
+- `2026-10-15T11:18:30+0700` — § 7 `src/components/AppShell.tsx` added and `size` S → M. § 2b's
+  premise that the content pane scrolls was false: `main` grows past `min-h-screen` and the document
+  scrolls, so a sticky element in the pane never sticks. Raised by `developer` (`99-questions.md`
+  Q1). Amended by `tech-lead-design`, in the same session.
+- `2026-10-15T11:22:00+0700` — § 2 AC-9's Given/When changed from *the deadline is moved to the past*
+  to *a guest takes the last seat*, Then unchanged: only the creator may move the deadline, so the
+  original could not be set up with the reader's page open. Raised by `developer`
+  (`99-questions.md` Q2). Amended by `tech-lead-design`, in the same session.

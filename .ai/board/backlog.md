@@ -24,6 +24,8 @@ planned, sized, and safe to build** — the next stage for a row here is IN_PROG
 |---|--------|-------|------|------------|
 | 1 | UIE-12 | The way to join an event stays in view while its page scrolls, on `/events/:id` and on `/guest/:token` | S | — |
 
+**`UIE-12` is at `REVIEW` in `ticket.yaml`, `gates.review` passed** — recorded at /advance on 2026-10-15 from `04-review.md` verdict PASS, after `03-impl-log.md` gate PASS (both stages ran before this /advance). `size` went S → M at the developer's Q1, which added `src/components/AppShell.tsx` to `allowed_paths`; AC-9 was amended at Q2 (`99-questions.md`). The row stays here until `/ship` moves it to `## ARCHIVE`.
+
 **`UIE-12` moved here from `## BACKLOG` at /advance on 2026-10-15**, from `01-plan.md` gate PASS with all six Definition of Ready items passing. It was row 6 and was planned ahead of `CICD-08` and `TSK-01` to `TSK-04` on the operator's choice; `EVT-14` moved up one row. Bookkeeping, not a reordering of the rest. The paragraphs below were written while this table was empty and are left standing.
 
 **Empty again — `EVT-13` left this section for `## ARCHIVE` at its own ship on 2026-10-15.** `CICD-08` is the top of `## BACKLOG`.

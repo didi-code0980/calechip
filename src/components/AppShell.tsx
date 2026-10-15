@@ -104,9 +104,17 @@ export default function AppShell({ member, signOut, refreshMembership }: AppShel
   // pane the ONLY scrolling region: without it a flex child's default `min-height: auto` lets the
   // pane grow to its content and the whole page scrolls instead, which takes the sidebar's legend
   // and footer off the bottom with it.
+  //
+  // UIE-12 (99-questions.md Q1). **`min-h-0` WAS NOT ENOUGH, AND THE PAGE SCROLLED ANYWAY.** `app-root`
+  // is `min-h-screen`, not a definite height, and in a column flex container with no definite height
+  // `flex-1`'s `0%` basis is read as content-sized: the row grew to its content, `app-root` with it,
+  // and the document scrolled while the pane — `overflow-y-auto` and never overflowing — did not. A
+  // PIXEL basis is definite, so the row's hypothetical height is 0, it fills `app-root`'s one screen,
+  // and the pane is the scroller this comment always said it was. Nothing sticky inside the pane can
+  // stick without it.
   return (
     <ViewedTeamProvider member={member}>
-    <div className="flex min-h-0 flex-1">
+    <div className="flex min-h-0 flex-[1_1_0px]">
       <Sidebar member={member} signOut={signOut} />
 
       {/* The content pane. `min-w-0` is AC-21: without it a flex child refuses to shrink below its
