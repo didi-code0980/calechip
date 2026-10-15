@@ -24,6 +24,8 @@ planned, sized, and safe to build** — the next stage for a row here is IN_PROG
 |---|--------|-------|------|------------|
 | 1 | TSK-05 | Ticking a task done or not done changes on screen at once, and the server's answer confirms or undoes it | S | TSK-01 (DONE, #149) |
 
+**`TSK-05` is at `REVIEW` in `ticket.yaml`** — set by `/implement`, confirmed at /advance on 2026-10-15 from `03-impl-log.md` gate PASS. The row stays here until `/ship` moves it to `## ARCHIVE`.
+
 **`TSK-05` moved here from `## BACKLOG` at /advance on 2026-10-15**, from `01-plan.md` gate PASS with all six Definition of Ready items passing. It was row 5 and was planned ahead of `CICD-08` and `TSK-02` to `TSK-04` on the operator's choice. Bookkeeping, not a reordering of the rest. The paragraphs below were written while this table was empty and are left standing.
 
 **Empty again — `TSK-01` left this section for `## ARCHIVE` at its own ship on 2026-10-15.** `CICD-08` is the top of `## BACKLOG`.

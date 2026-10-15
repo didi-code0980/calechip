@@ -270,10 +270,12 @@ test.describe("TSK-01 — my tasks", () => {
     await expect(page.getByTestId("tasks-overdue")).toHaveCount(0);
     await page.getByTestId("tasks-today").click();
 
-    // AC-14. Tick one, move the other to today.
+    // AC-14, as amended by TSK-05 AC-9. Tick one: it stays in the section, shown done, until the page
+    // next loads. Then move the other to today; that save is the next load.
     await row(page, "From the 12th").getByTestId("task-done").click();
     await expect(page.getByTestId("tasks-overdue-count")).toHaveText("1");
-    await overdue.getByTestId("task-move").click();
+    await expect(overdue.getByTestId("task-row").filter({ hasText: "From the 12th" })).toHaveAttribute("data-done", "true");
+    await row(page, "From the 13th").getByTestId("task-move").click();
     await page.getByTestId("task-move-date").fill("2030-03-15");
     await page.getByTestId("task-move-save").click();
     await expect(page.getByTestId("tasks-overdue")).toHaveCount(0);

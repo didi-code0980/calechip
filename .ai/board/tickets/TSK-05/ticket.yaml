@@ -5,7 +5,7 @@ id: TSK-05
 title: "Ticking a task done or not done changes on screen at once, and the server's answer confirms or undoes it"
 feature_ids: [TSK-05]
 group: TSK
-state: READY
+state: REVIEW
 owner: ""
 branch: ""
 size_estimate: S     # S|M - set by tech-lead-design at PLAN; gates DoR
