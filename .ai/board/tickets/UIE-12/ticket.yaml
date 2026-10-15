@@ -5,14 +5,20 @@ id: UIE-12
 title: "The way to join an event stays in view while its page scrolls, on `/events/:id` and on `/guest/:token`"
 feature_ids: [UIE-12]
 group: UIE
-state: BACKLOG
+state: READY
 owner: ""
 branch: ""
-size_estimate: ""     # S|M - set by tech-lead-design at PLAN; gates DoR
-size: ""              # S|M|L|XL - set by tech-lead-design at PLAN; decides splitting
+size_estimate: "S"    # S|M - set by tech-lead-design at PLAN; gates DoR
+size: "S"             # S|M|L|XL - set by tech-lead-design at PLAN; decides splitting
 depends_on: []        # shares src/routes/GuestEvent.tsx with EVT-14; sequenced, not a dependency
-invariants_touched: []
-allowed_paths: []
+invariants_touched: []   # answered at PLAN, not the default - 01-plan.md § 2
+allowed_paths:
+  - "src/components/EventJoinBar.tsx"
+  - "src/components/EventAttendancePanel.tsx"
+  - "src/routes/EventDetail.tsx"
+  - "src/routes/GuestEvent.tsx"
+  - "tests/event-join-bar.test.ts"
+  - "tests/e2e/uie-12-sticky-join.spec.ts"
 glossary_owed: []
 schema_delta: none      # layout only; no table, policy, trigger or function (idea G3)
 requires_adr: false
@@ -21,5 +27,5 @@ chat_budget:
   developer->tech-lead-design: { used: 0, max: 6 }
 tracker: { provider: "", external_id: "", sync_enabled: false }
 gates:
-  plan:   { passed: false, at: null }
+  plan:   { passed: true, at: "2026-10-15T11:09:32+07:00" }
   review: { passed: false, at: null }

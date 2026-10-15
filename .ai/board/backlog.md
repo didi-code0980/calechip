@@ -22,6 +22,9 @@ planned, sized, and safe to build** — the next stage for a row here is IN_PROG
 
 | # | Ticket | Title | Size | Depends on |
 |---|--------|-------|------|------------|
+| 1 | UIE-12 | undefined | S | — |
+
+**`UIE-12` moved here from `## BACKLOG` at /advance on 2026-10-15**, from `01-plan.md` gate PASS with all six Definition of Ready items passing. It was row 6 and was planned ahead of `CICD-08` and `TSK-01` to `TSK-04` on the operator's choice; `EVT-14` moved up one row. Bookkeeping, not a reordering of the rest. The paragraphs below were written while this table was empty and are left standing.
 
 **Empty again — `EVT-13` left this section for `## ARCHIVE` at its own ship on 2026-10-15.** `CICD-08` is the top of `## BACKLOG`.
 
@@ -150,7 +153,6 @@ mechanism exists because this ticket's first attempt was lost entirely — MD-04
 
 
 ## BACKLOG
-
 Tickets awaiting PLAN. **Ordered.** A human reorders; the orchestrator takes the top.
 
 Under the current gate placement a ticket sits here until it has been planned — DoR is evaluated
