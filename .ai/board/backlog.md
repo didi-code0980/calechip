@@ -22,6 +22,9 @@ planned, sized, and safe to build** — the next stage for a row here is IN_PROG
 
 | # | Ticket | Title | Size | Depends on |
 |---|--------|-------|------|------------|
+| 1 | TSK-01 | A member keeps a private list of tasks for each day, and only they can read or change it | M | — |
+
+**`TSK-01` moved here from `## BACKLOG` at /advance on 2026-10-15**, from `01-plan.md` gate PASS with all six Definition of Ready items passing. It was row 2 and was planned ahead of `CICD-08` on the operator's choice; `TSK-02` to `TSK-04` each moved up one row. Bookkeeping, not a reordering. The paragraphs below were written while this table was empty and are left standing.
 
 **Empty again — `EVT-14` left this section for `## ARCHIVE` at its own ship on 2026-10-15.** `CICD-08` is the top of `## BACKLOG`.
 
@@ -171,10 +174,9 @@ Under the current gate placement a ticket sits here until it has been planned �
 | # | Ticket | Title | State | Blocked on |
 |---|--------|-------|-------|------------|
 | 1 | CICD-08 | Every stage of the pipeline has run once for real — a pull request, a merge, a pre-release tag and a forced failed health check — and the evidence is recorded | BACKLOG | CICD-07; operator: Actions secrets, deployment repo applied, runner registered, branch protection |
-| 2 | TSK-01 | A member keeps a private list of tasks for each day, and only they can read or change it | BACKLOG | — |
-| 3 | TSK-02 | Each time the app opens, a member is shown their overdue tasks and can tick them or move them all to today | BACKLOG | TSK-01 |
-| 4 | TSK-03 | A member declaring PTO is warned about their own tasks on those days, without being stopped | BACKLOG | TSK-01 |
-| 5 | TSK-04 | The week view shows, in each day's header, how many of the viewer's own tasks are done out of the total | BACKLOG | TSK-01 |
+| 2 | TSK-02 | Each time the app opens, a member is shown their overdue tasks and can tick them or move them all to today | BACKLOG | TSK-01 |
+| 3 | TSK-03 | A member declaring PTO is warned about their own tasks on those days, without being stopped | BACKLOG | TSK-01 |
+| 4 | TSK-04 | The week view shows, in each day's header, how many of the viewer's own tasks are done out of the total | BACKLOG | TSK-01 |
 
 **Reordered by the operator on 2026-10-14** (*"back về làm EVT"*): `EVT-12` and `EVT-13` to rows 1 and 2, ahead of `CICD-08` and `TSK-01` to `TSK-04`, whose order among themselves is unchanged. Recorded by `orchestrator`, not decided by it. `BUG-003` to `BUG-005` still have no row; placing them is the operator's.
 
