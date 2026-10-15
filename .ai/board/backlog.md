@@ -22,7 +22,7 @@ planned, sized, and safe to build** — the next stage for a row here is IN_PROG
 
 | # | Ticket | Title | Size | Depends on |
 |---|--------|-------|------|------------|
-| 1 | UIE-12 | undefined | S | — |
+| 1 | UIE-12 | The way to join an event stays in view while its page scrolls, on `/events/:id` and on `/guest/:token` | S | — |
 
 **`UIE-12` moved here from `## BACKLOG` at /advance on 2026-10-15**, from `01-plan.md` gate PASS with all six Definition of Ready items passing. It was row 6 and was planned ahead of `CICD-08` and `TSK-01` to `TSK-04` on the operator's choice; `EVT-14` moved up one row. Bookkeeping, not a reordering of the rest. The paragraphs below were written while this table was empty and are left standing.
 
@@ -153,6 +153,7 @@ mechanism exists because this ticket's first attempt was lost entirely — MD-04
 
 
 ## BACKLOG
+
 Tickets awaiting PLAN. **Ordered.** A human reorders; the orchestrator takes the top.
 
 Under the current gate placement a ticket sits here until it has been planned — DoR is evaluated
@@ -165,8 +166,7 @@ Under the current gate placement a ticket sits here until it has been planned �
 | 3 | TSK-02 | Each time the app opens, a member is shown their overdue tasks and can tick them or move them all to today | BACKLOG | TSK-01 |
 | 4 | TSK-03 | A member declaring PTO is warned about their own tasks on those days, without being stopped | BACKLOG | TSK-01 |
 | 5 | TSK-04 | The week view shows, in each day's header, how many of the viewer's own tasks are done out of the total | BACKLOG | TSK-01 |
-| 6 | UIE-12 | The way to join an event stays in view while its page scrolls, on `/events/:id` and on `/guest/:token` | BACKLOG | — |
-| 7 | EVT-14 | A signed-out reader of a guest link is offered sign-in and sign-up, and signing in returns them to the event | BACKLOG | — |
+| 6 | EVT-14 | A signed-out reader of a guest link is offered sign-in and sign-up, and signing in returns them to the event | BACKLOG | — |
 
 **Reordered by the operator on 2026-10-14** (*"back về làm EVT"*): `EVT-12` and `EVT-13` to rows 1 and 2, ahead of `CICD-08` and `TSK-01` to `TSK-04`, whose order among themselves is unchanged. Recorded by `orchestrator`, not decided by it. `BUG-003` to `BUG-005` still have no row; placing them is the operator's.
 
