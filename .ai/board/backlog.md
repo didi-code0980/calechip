@@ -1478,7 +1478,7 @@ các tính năng mới và đưa vào backlog"*. The four solo rows registered e
 | 17 | EVT-13 | A signed-in member who opens a guest link to an event they can read is taken to the event in the app | 2026-10-15 | [#141](https://github.com/didi-code0980/calechip/pull/141) |
 | 18 | UIE-12 | The way to join an event stays in view while its page scrolls, on `/events/:id` and on `/guest/:token` | 2026-10-15 | [#145](https://github.com/didi-code0980/calechip/pull/145) |
 | 19 | EVT-14 | A signed-out reader of a guest link is offered sign-in and sign-up, and signing in returns them to the event | 2026-10-15 | [#146](https://github.com/didi-code0980/calechip/pull/146) |
-| 20 | TSK-01 | A member keeps a private list of tasks for each day, and only they can read or change it | 2026-10-15 | PENDING_PR |
+| 20 | TSK-01 | A member keeps a private list of tasks for each day, and only they can read or change it | 2026-10-15 | [#149](https://github.com/didi-code0980/calechip/pull/149) |
 
 **The window displaced `EVT-03` at TSK-01's ship** — *EVT-03, Events are drawn on the week and month grids, and a click opens the event, shipped 2026-10-08,* [#113](https://github.com/didi-code0980/calechip/pull/113).
 
