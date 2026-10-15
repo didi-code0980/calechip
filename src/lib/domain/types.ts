@@ -286,6 +286,17 @@ export type FailureCode =
   // EVT-11. The picked file is not an accepted picture, too large, or would not decode — AC-4.
   // Raised by `downscaleToDataUrl` in the browser; never by the datastore.
   | "description_image_refused"
+  // TSK-01. Title empty once trimmed, or over TASK_TITLE_MAX — AC-8. Refused in the SEAM before the
+  // request; `task_title_shape` (23514) is the control.
+  | "invalid_task_title"
+  // TSK-01. Note over TASK_NOTE_MAX once trimmed — AC-8. `task_note_shape` (23514) is the control.
+  | "invalid_task_note"
+  // TSK-01. A create or a move to a date before today in Asia/Ho_Chi_Minh — AC-7, AC-11. Refused in
+  // the SEAM only; the database holds no date floor (01-plan.md § 1 decision 2).
+  | "task_date_past"
+  // TSK-01. 42501, no session, or a write that touched zero rows — AC-17, AC-18. Never confirms that
+  // the task exists.
+  | "task_not_permitted"
   | "unknown";
 
 export interface Failure {
@@ -1216,3 +1227,23 @@ export interface EmailInvitationOutcome {
   email: string;
   outcome: "sent" | "ignored";
 }
+
+// ---------------------------------------------------------------------------
+// TSK-01, 01-plan.md section 4.1. ADR-057.
+// ---------------------------------------------------------------------------
+
+/** TSK-01. One task: the caller's own, always — no other person's task ever reaches the browser.
+ *  NO TIME FIELD OF ANY KIND, and there must never be one (ADR-057 decision 6, charter refusal 3). */
+export interface Task {
+  id: string;
+  memberId: string;
+  date: string; // yyyy-MM-dd
+  title: string; // trimmed, 1..TASK_TITLE_MAX characters
+  note: string | null; // trimmed, 1..TASK_NOTE_MAX characters, or null
+  done: boolean;
+  createdAt: string; // ISO 8601 instant; ordering only, never displayed
+}
+
+/** TSK-01. Bounds, in characters. Mirrored by `task_title_shape` and `task_note_shape`. */
+export const TASK_TITLE_MAX = 200;
+export const TASK_NOTE_MAX = 1000;

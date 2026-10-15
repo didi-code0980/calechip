@@ -67,7 +67,7 @@
 // instead of one. `shell-roster-count` stays OUTSIDE the groups — it is INV-04's denominator
 // everywhere else in the product and must not leave the screen with a closed drawer.
 import { useEffect, useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useRoster } from "@/hooks/useRoster";
 import { useViewedTeam } from "@/hooks/useViewedTeam";
 import { seam } from "@/lib/data";
@@ -105,6 +105,13 @@ const TAGLINE = "Leave and working from home";
 // the admin panel. Kept so restoring that block is one edit rather than two.
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 const NAV_LINK =
+  "block rounded-pill px-3 py-1.5 text-[13px] font-semibold text-ink-2 transition-colors " +
+  "hover:bg-field hover:text-ink " +
+  "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink";
+
+// TSK-01 § 2b. The shell's nav-link look, which is `NAV_LINK` above. Written as its own constant
+// rather than by reviving that one, whose disable directive records that it is held for one edit.
+const TASKS_LINK =
   "block rounded-pill px-3 py-1.5 text-[13px] font-semibold text-ink-2 transition-colors " +
   "hover:bg-field hover:text-ink " +
   "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink";
@@ -243,6 +250,9 @@ export default function Sidebar({ member, signOut }: SidebarProps) {
   const roster = useRoster(viewed);
   const selectedTeamId = viewed.kind === "other" ? viewed.team.id : ownTeamId;
   const navigate = useNavigate();
+  // TSK-01 AC-5. `/tasks` and `/tasks/<day>`; `/tasksX` is not the page.
+  const { pathname } = useLocation();
+  const onTasks = pathname === "/tasks" || pathname.startsWith("/tasks/");
   const [signingOut, setSigningOut] = useState(false);
 
   // SOLO 2026-09-13. The team's NAME for the roster header, in place of the word `Team`. One read
@@ -319,6 +329,20 @@ export default function Sidebar({ member, signOut }: SidebarProps) {
         <BrandLogo testId="shell-brand-logo" />
         <p className="mt-1.5 text-[11px] text-ink-3">{TAGLINE}</p>
       </div>
+
+      {/* TSK-01 AC-5, 01-plan.md § 4.6. One link, for every role, directly under the brand. A LINK and
+          not a button: UIE-10 AC-10 holds this pane to exactly one button. `aria-current` on
+          `/tasks` and on `/tasks/<day>`, and nowhere else. */}
+      <nav aria-label="My tasks" className="flex flex-col gap-0.5">
+        <Link
+          data-testid="nav-tasks-link"
+          to="/tasks"
+          aria-current={onTasks ? "page" : undefined}
+          className={`${TASKS_LINK} ${onTasks ? "bg-field text-ink" : ""}`}
+        >
+          My tasks
+        </Link>
+      </nav>
 
       {/* CAL-12 AC-2. The team picker, between the brand and the roster it governs. LINKS, and not
           a `<select>` or a button: UIE-10 AC-10 (`tests/e2e/uie-10-sidebar.spec.ts:442`-`:445`)
