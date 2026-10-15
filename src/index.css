@@ -284,3 +284,51 @@
     animation: none;
   }
 }
+
+/* A highlight that runs round a card — the guest page's sign-in prompt. The wrapper is a 2px frame
+   with the card radius; behind its content a square, larger than the card, carries a conic sweep of
+   the three entry pastels and turns once every 2.4s. The frame's radius and `overflow` clip it to a
+   ring, and the content's own fill covers the middle, so the child must have a background of its
+   own and a radius 2px smaller (`rounded-3xl`, 24px, inside the 26px card). Charm, so it stands
+   still for a reader who asked for less motion: the ring stays, coloured, without turning. Not for
+   a `sticky` element — its `position: relative` would undo the stickiness; wrap the inside instead. */
+@keyframes cc-orbit {
+  to {
+    rotate: 1turn;
+  }
+}
+
+.cc-orbit {
+  position: relative;
+  isolation: isolate;
+  display: block;
+  padding: 2px;
+  border-radius: var(--radius-card);
+  overflow: hidden;
+}
+
+.cc-orbit::before {
+  content: "";
+  position: absolute;
+  z-index: -1;
+  left: 50%;
+  top: 50%;
+  width: max(300%, 12rem);
+  aspect-ratio: 1;
+  translate: -50% -50%;
+  background: conic-gradient(
+    from 0deg,
+    transparent 0 55%,
+    var(--color-pto),
+    var(--color-wfh),
+    var(--color-holiday),
+    transparent 95%
+  );
+  animation: cc-orbit 2.4s linear infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cc-orbit::before {
+    animation: none;
+  }
+}
