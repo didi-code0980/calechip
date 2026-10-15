@@ -22,9 +22,10 @@ planned, sized, and safe to build** — the next stage for a row here is IN_PROG
 
 | # | Ticket | Title | Size | Depends on |
 |---|--------|-------|------|------------|
-| 1 | TSK-01 | A member keeps a private list of tasks for each day, and only they can read or change it | M | — |
 
-**`TSK-01` is at `REVIEW` in `ticket.yaml`, `gates.review` passed** — recorded at /advance on 2026-10-15 from `04-review.md` verdict PASS, after `03-impl-log.md` gate PASS. The row stays here until `/ship` moves it to `## ARCHIVE`.
+**Empty again — `TSK-01` left this section for `## ARCHIVE` at its own ship on 2026-10-15.** `CICD-08` is the top of `## BACKLOG`.
+
+**`TSK-01` was at `REVIEW` in `ticket.yaml`, `gates.review` passed** — recorded at /advance on 2026-10-15 from `04-review.md` verdict PASS, after `03-impl-log.md` gate PASS. The row stays here until `/ship` moves it to `## ARCHIVE`.
 
 **`TSK-01` moved here from `## BACKLOG` at /advance on 2026-10-15**, from `01-plan.md` gate PASS with all six Definition of Ready items passing. It was row 2 and was planned ahead of `CICD-08` on the operator's choice; `TSK-02` to `TSK-04` each moved up one row. Bookkeeping, not a reordering. The paragraphs below were written while this table was empty and are left standing.
 
@@ -1458,26 +1459,28 @@ các tính năng mới và đưa vào backlog"*. The four solo rows registered e
 
 | # | Ticket | Title | Shipped | PR |
 |---|--------|-------|---------|-----|
-| 1 | EVT-03 | Events are drawn on the week and month grids, and a click opens the event | 2026-10-08 | [#113](https://github.com/didi-code0980/calechip/pull/113) |
-| 2 | EVT-04 | A person is notified in the app when an event concerns them | 2026-10-08 | [#114](https://github.com/didi-code0980/calechip/pull/114) |
-| 3 | EVT-05 | A person is emailed when an event for their team is created, when they are invited, and when their request is decided | 2026-10-09 | [#116](https://github.com/didi-code0980/calechip/pull/116) |
-| 4 | EVT-06 | A creator opens an event to guests, and anyone with its link reads it and who is coming | 2026-10-09 | [#117](https://github.com/didi-code0980/calechip/pull/117) |
-| 5 | EVT-07 | A guest registers for an opened event with a name and an email, and manages it from a link shown once | 2026-10-09 | [#118](https://github.com/didi-code0980/calechip/pull/118) |
-| 6 | EVT-08 | The creator or an admin of a public event invites people by email from the event's page, and each address is mailed once | 2026-10-12 | [#124](https://github.com/didi-code0980/calechip/pull/124) |
-| 7 | EVT-09 | A creator enters email addresses to invite while creating a public event | 2026-10-12 | [#125](https://github.com/didi-code0980/calechip/pull/125) |
-| 8 | EVT-10 | A creator formats an event's description, and every surface that shows it renders it sanitised | 2026-10-13 | [#126](https://github.com/didi-code0980/calechip/pull/126) |
-| 9 | EVT-11 | A creator puts pictures in an event's description, downscaled and capped in size | 2026-10-13 | [#127](https://github.com/didi-code0980/calechip/pull/127) |
-| 10 | CICD-01 | The pull-request gate is green on `main` again, with each failing end-to-end test quarantined against a ticket in a register | 2026-10-13 | PENDING_PR |
-| 11 | CICD-02 | A push to a feature branch gets lint, typecheck and unit results within about three minutes, and a pull request runs the full gate as named, required checks | 2026-10-13 | [#131](https://github.com/didi-code0980/calechip/pull/131) |
-| 12 | CICD-03 | Every merge to `main` builds one image, pushes it to Docker Hub tagged by its commit, and smoke-tests it against the image's health endpoint | 2026-10-13 | [#132](https://github.com/didi-code0980/calechip/pull/132) |
-| 13 | CICD-04 | A version tag on `main` promotes the image already built for that commit, by digest and without rebuilding, and opens a release pull request in the deployment repository | 2026-10-14 | [#133](https://github.com/didi-code0980/calechip/pull/133) |
-| 14 | CICD-05 | The deployment repository deploys only CaleChip from merged config, health-checks it and restores the previous version on failure — drafted in this repository | 2026-10-14 | [#134](https://github.com/didi-code0980/calechip/pull/134) |
-| 15 | CICD-06 | The pipeline, its secrets, how to cut a release and how to roll one back are written down, and the standards that describe CI match it | 2026-10-14 | [#135](https://github.com/didi-code0980/calechip/pull/135) |
-| 16 | CICD-07 | The self-hosted runner on the WSL server has a hand-run setup runbook, and the deploy workflow selects it by the label `mmlabs-server` | 2026-10-14 | [#138](https://github.com/didi-code0980/calechip/pull/138) |
-| 17 | EVT-12 | The creator or an admin of an *Own team* or *Limited people* event invites people by email, a member outside its reach is added to its named list, and *Named people* is relabelled *Limited people* | 2026-10-14 | [#140](https://github.com/didi-code0980/calechip/pull/140) |
-| 18 | EVT-13 | A signed-in member who opens a guest link to an event they can read is taken to the event in the app | 2026-10-15 | [#141](https://github.com/didi-code0980/calechip/pull/141) |
-| 19 | UIE-12 | The way to join an event stays in view while its page scrolls, on `/events/:id` and on `/guest/:token` | 2026-10-15 | [#145](https://github.com/didi-code0980/calechip/pull/145) |
-| 20 | EVT-14 | A signed-out reader of a guest link is offered sign-in and sign-up, and signing in returns them to the event | 2026-10-15 | [#146](https://github.com/didi-code0980/calechip/pull/146) |
+| 1 | EVT-04 | A person is notified in the app when an event concerns them | 2026-10-08 | [#114](https://github.com/didi-code0980/calechip/pull/114) |
+| 2 | EVT-05 | A person is emailed when an event for their team is created, when they are invited, and when their request is decided | 2026-10-09 | [#116](https://github.com/didi-code0980/calechip/pull/116) |
+| 3 | EVT-06 | A creator opens an event to guests, and anyone with its link reads it and who is coming | 2026-10-09 | [#117](https://github.com/didi-code0980/calechip/pull/117) |
+| 4 | EVT-07 | A guest registers for an opened event with a name and an email, and manages it from a link shown once | 2026-10-09 | [#118](https://github.com/didi-code0980/calechip/pull/118) |
+| 5 | EVT-08 | The creator or an admin of a public event invites people by email from the event's page, and each address is mailed once | 2026-10-12 | [#124](https://github.com/didi-code0980/calechip/pull/124) |
+| 6 | EVT-09 | A creator enters email addresses to invite while creating a public event | 2026-10-12 | [#125](https://github.com/didi-code0980/calechip/pull/125) |
+| 7 | EVT-10 | A creator formats an event's description, and every surface that shows it renders it sanitised | 2026-10-13 | [#126](https://github.com/didi-code0980/calechip/pull/126) |
+| 8 | EVT-11 | A creator puts pictures in an event's description, downscaled and capped in size | 2026-10-13 | [#127](https://github.com/didi-code0980/calechip/pull/127) |
+| 9 | CICD-01 | The pull-request gate is green on `main` again, with each failing end-to-end test quarantined against a ticket in a register | 2026-10-13 | PENDING_PR |
+| 10 | CICD-02 | A push to a feature branch gets lint, typecheck and unit results within about three minutes, and a pull request runs the full gate as named, required checks | 2026-10-13 | [#131](https://github.com/didi-code0980/calechip/pull/131) |
+| 11 | CICD-03 | Every merge to `main` builds one image, pushes it to Docker Hub tagged by its commit, and smoke-tests it against the image's health endpoint | 2026-10-13 | [#132](https://github.com/didi-code0980/calechip/pull/132) |
+| 12 | CICD-04 | A version tag on `main` promotes the image already built for that commit, by digest and without rebuilding, and opens a release pull request in the deployment repository | 2026-10-14 | [#133](https://github.com/didi-code0980/calechip/pull/133) |
+| 13 | CICD-05 | The deployment repository deploys only CaleChip from merged config, health-checks it and restores the previous version on failure — drafted in this repository | 2026-10-14 | [#134](https://github.com/didi-code0980/calechip/pull/134) |
+| 14 | CICD-06 | The pipeline, its secrets, how to cut a release and how to roll one back are written down, and the standards that describe CI match it | 2026-10-14 | [#135](https://github.com/didi-code0980/calechip/pull/135) |
+| 15 | CICD-07 | The self-hosted runner on the WSL server has a hand-run setup runbook, and the deploy workflow selects it by the label `mmlabs-server` | 2026-10-14 | [#138](https://github.com/didi-code0980/calechip/pull/138) |
+| 16 | EVT-12 | The creator or an admin of an *Own team* or *Limited people* event invites people by email, a member outside its reach is added to its named list, and *Named people* is relabelled *Limited people* | 2026-10-14 | [#140](https://github.com/didi-code0980/calechip/pull/140) |
+| 17 | EVT-13 | A signed-in member who opens a guest link to an event they can read is taken to the event in the app | 2026-10-15 | [#141](https://github.com/didi-code0980/calechip/pull/141) |
+| 18 | UIE-12 | The way to join an event stays in view while its page scrolls, on `/events/:id` and on `/guest/:token` | 2026-10-15 | [#145](https://github.com/didi-code0980/calechip/pull/145) |
+| 19 | EVT-14 | A signed-out reader of a guest link is offered sign-in and sign-up, and signing in returns them to the event | 2026-10-15 | [#146](https://github.com/didi-code0980/calechip/pull/146) |
+| 20 | TSK-01 | A member keeps a private list of tasks for each day, and only they can read or change it | 2026-10-15 | PENDING_PR |
+
+**The window displaced `EVT-03` at TSK-01's ship** — *EVT-03, Events are drawn on the week and month grids, and a click opens the event, shipped 2026-10-08,* [#113](https://github.com/didi-code0980/calechip/pull/113).
 
 **The window displaced `CAL-12` at EVT-14's ship** — *CAL-12, An admin chooses which team the three calendar screens and the sidebar roster show, read-only, shipped 2026-10-01,* [#108](https://github.com/didi-code0980/calechip/pull/108), merged — corrected from `PENDING_PR` at EVT-03's ship.
 
