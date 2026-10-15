@@ -5,7 +5,7 @@ id: UIE-12
 title: "The way to join an event stays in view while its page scrolls, on `/events/:id` and on `/guest/:token`"
 feature_ids: [UIE-12]
 group: UIE
-state: REVIEW
+state: DONE
 owner: ""
 branch: ""
 size_estimate: "S"    # S|M - set by tech-lead-design at PLAN; gates DoR
