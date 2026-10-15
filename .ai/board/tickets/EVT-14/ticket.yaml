@@ -5,7 +5,7 @@ id: EVT-14
 title: "A signed-out reader of a guest link is offered sign-in and sign-up, and signing in returns them to the event"
 feature_ids: [EVT-14]
 group: EVT
-state: READY
+state: REVIEW
 owner: ""
 branch: ""
 size_estimate: S     # set by tech-lead-design at PLAN; gates DoR
