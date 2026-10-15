@@ -5,7 +5,7 @@ id: EVT-13
 title: "A signed-in member who opens a guest link to an event they can read is taken to the event in the app"
 feature_ids: [EVT-13]
 group: EVT
-state: REVIEW
+state: DONE
 owner: ""
 branch: ""
 size_estimate: "S"    # S|M - set by tech-lead-design at PLAN; gates DoR
