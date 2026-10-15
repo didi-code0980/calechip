@@ -13,6 +13,8 @@ import type { PostgrestError } from "@supabase/supabase-js";
 import { clashingDates, overlapMessage, type OverlapCandidate } from "./overlap";
 // EVT-03. The admin's other-team narrowing (Q4-A) — one rule, shared with mock.ts.
 import { eventsRelevantToTeam } from "@/lib/event-layer";
+// TSK-01. "Today" for the date floor — one clock with EVT-02 (01-plan.md § 1 decision 1).
+import { eventToday } from "@/lib/event-registration";
 import type {
   AddHolidayInput,
   ChangePasswordInput,
@@ -31,6 +33,9 @@ import type {
   UpdateOwnProfileInput,
   // EVT-01, 01-plan.md section 4.2.
   SaveEventInput,
+  // TSK-01, 01-plan.md section 4.2.
+  CreateTaskInput,
+  UpdateTaskInput,
 } from "./index";
 import type {
   // EVT-01, 01-plan.md section 4.1.
@@ -78,6 +83,8 @@ import type {
   // EVT-08, 01-plan.md section 4.1.
   EmailInvitationOutcome,
   EventEmailInvitation,
+  // TSK-01, 01-plan.md section 4.1.
+  Task,
 } from "../domain/types";
 // TEA-03, CAL-01 for the second constant, CAL-04 for the fourth. RUNTIME imports, not type ones:
 // each is needed as a value at the call. They come from ../domain/types and not from ./index, which
@@ -111,6 +118,9 @@ import {
   TEAM_ENTRY_LIMIT,
   TEAM_ENTRY_MAX_PAGES,
   TEAM_ENTRY_PAGE_SIZE,
+  // TSK-01 AC-8. The bounds, checked before the round trip.
+  TASK_NOTE_MAX,
+  TASK_TITLE_MAX,
 } from "../domain/types";
 
 // ---------------------------------------------------------------------------
@@ -580,6 +590,109 @@ function toInvitationFailure(error: PostgrestError): Failure {
     default:
       return { code: "unknown", message: "Something went wrong. Please try again." };
   }
+}
+
+// ---------------------------------------------------------------------------
+// TSK-01 — tasks. The row, its mapper, the sentences and the SQLSTATEs.
+// 01-plan.md sections 4.2 to 4.4; `supabase/migrations/20261015120000_tsk01_task.sql`. ADR-057.
+// ---------------------------------------------------------------------------
+
+interface TaskRow {
+  id: string;
+  member_id: string;
+  date: string;
+  title: string;
+  note: string | null;
+  done: boolean;
+  created_at: string;
+}
+
+// Named explicitly rather than `*`, the shape this file uses everywhere. Seven columns, none a time.
+const TASK_COLUMNS = "id, member_id, date, title, note, done, created_at";
+
+function toTask(row: TaskRow): Task {
+  return {
+    id: row.id,
+    memberId: row.member_id,
+    date: row.date,
+    title: row.title,
+    note: row.note,
+    done: row.done,
+    createdAt: row.created_at,
+  };
+}
+
+// 01-plan.md § 4.2. Repeated verbatim in src/lib/data/mock.ts. `TASK_NOT_PERMITTED` never confirms
+// that the task exists (AC-17).
+const TASK_TITLE_INVALID = "Give the task a title of at most 200 characters.";
+const TASK_NOTE_INVALID = "Keep the note to at most 1000 characters.";
+const TASK_DATE_PAST = "A task can be dated today or later.";
+const TASK_NOT_PERMITTED = "This task could not be changed. It may have been deleted.";
+const TASK_SAVE_FAILED = "This task could not be saved.";
+
+/** AC-8. Trims title and note (an empty note becomes null) and refuses in the order title, note.
+ *  AFFORDANCES: `task_title_shape` and `task_note_shape` are the controls. Repeated in mock.ts. */
+function taskText(
+  title: string,
+  note: string | null,
+): { ok: true; title: string; note: string | null } | { ok: false; error: Failure } {
+  const t = title.trim();
+  if (t === "" || [...t].length > TASK_TITLE_MAX) {
+    return { ok: false, error: { code: "invalid_task_title", message: TASK_TITLE_INVALID } };
+  }
+  const n = note === null ? "" : note.trim();
+  if ([...n].length > TASK_NOTE_MAX) {
+    return { ok: false, error: { code: "invalid_task_note", message: TASK_NOTE_INVALID } };
+  }
+  return { ok: true, title: t, note: n === "" ? null : n };
+}
+
+/** AC-7, AC-11. The date floor, held HERE AND ON THE PAGE ONLY — the database holds none (01-plan.md
+ *  § 1 decision 2). `yyyy-MM-dd` compares correctly as a string. */
+const taskDatePast = (date: string): boolean => date < eventToday();
+
+/** MATCHED ON THE SQLSTATE, NEVER ON THE MESSAGE. A policy refusal (42501), no session (PGRST301) and
+ *  an id that is not a uuid (22P02) are ONE answer, so none of them says whether the task exists. */
+function toTaskFailure(error: PostgrestError): Failure {
+  switch (error.code) {
+    case "42501":
+    case "PGRST301":
+    case "22P02":
+      return { code: "task_not_permitted", message: TASK_NOT_PERMITTED };
+    default:
+      // 23514 lands here and is unreachable: `taskText` refuses both shapes first.
+      return { code: "unknown", message: TASK_SAVE_FAILED };
+  }
+}
+
+/** The three writes that return one row. ZERO ROWS BACK IS A REFUSAL: an UPDATE that
+ *  `task_update_own` filters answers 200 with an empty body. */
+async function updateTaskRow(
+  taskId: string,
+  values: { title?: string; note?: string | null; date?: string; done?: boolean },
+): Promise<Result<Task>> {
+  const { data, error } = await client()
+    .from("task")
+    .update(values)
+    .eq("id", taskId)
+    .select(TASK_COLUMNS)
+    .returns<TaskRow[]>();
+  if (error) return { ok: false, error: toTaskFailure(error) };
+  const row = (data ?? [])[0];
+  if (!row) return { ok: false, error: { code: "task_not_permitted", message: TASK_NOT_PERMITTED } };
+  return { ok: true, value: toTask(row) };
+}
+
+/** `listTasks` and `listOverdueTasks`' shared bound. Throws at DATASTORE_MAX_ROWS, `listEventGuests`'
+ *  sentence shape. */
+function boundedTasks(name: string, rows: TaskRow[]): Task[] {
+  if (rows.length >= DATASTORE_MAX_ROWS) {
+    throw new Error(
+      `${name} returned ${rows.length} rows at the ${DATASTORE_MAX_ROWS} limit: ` +
+        `the list may be truncated and must not be shown as complete`,
+    );
+  }
+  return rows.map(toTask);
 }
 
 // ---------------------------------------------------------------------------
@@ -4006,5 +4119,98 @@ export const seam: DataSeam = {
       );
     }
     return rows.map(toEmailInvitation);
+  },
+
+  // -------------------------------------------------------------------------
+  // TSK-01 — a member's own tasks. 01-plan.md § 4.4. ADR-057.
+  //
+  // EVERY CALL IS A TABLE CALL ON `task` UNDER ROW-LEVEL SECURITY, AND NONE FILTERS ON `member_id`.
+  // The four policies are the filter; a client-side `.eq("member_id", …)` would make the test of
+  // AC-16 pass whatever the policy said. The refusals before each request are affordances.
+  // -------------------------------------------------------------------------
+
+  async listTasks(from: string, to: string): Promise<Task[]> {
+    if (from > to) return [];
+    const { data, error } = await client()
+      .from("task")
+      .select(TASK_COLUMNS)
+      .gte("date", from)
+      .lte("date", to)
+      .order("date")
+      .order("created_at")
+      .order("id")
+      .limit(DATASTORE_MAX_ROWS)
+      .returns<TaskRow[]>();
+    if (error) {
+      if (error.code === "42501" || error.code === "PGRST301") return [];
+      throw new Error(`listTasks failed: ${error.message}`);
+    }
+    return boundedTasks("listTasks", data ?? []);
+  },
+
+  async listOverdueTasks(today: string): Promise<Task[]> {
+    const { data, error } = await client()
+      .from("task")
+      .select(TASK_COLUMNS)
+      .eq("done", false)
+      .lt("date", today)
+      .order("date")
+      .order("created_at")
+      .order("id")
+      .limit(DATASTORE_MAX_ROWS)
+      .returns<TaskRow[]>();
+    if (error) {
+      if (error.code === "42501" || error.code === "PGRST301") return [];
+      throw new Error(`listOverdueTasks failed: ${error.message}`);
+    }
+    return boundedTasks("listOverdueTasks", data ?? []);
+  },
+
+  // NO `member_id` IN THE INSERT: the column is not in the insert grant and takes `auth.uid()`.
+  async createTask(input: CreateTaskInput): Promise<Result<Task>> {
+    const text = taskText(input.title, input.note);
+    if (!text.ok) return { ok: false, error: text.error };
+    if (taskDatePast(input.date)) {
+      return { ok: false, error: { code: "task_date_past", message: TASK_DATE_PAST } };
+    }
+    const { data, error } = await client()
+      .from("task")
+      .insert({ date: input.date, title: text.title, note: text.note })
+      .select(TASK_COLUMNS)
+      .single<TaskRow>();
+    if (error) return { ok: false, error: toTaskFailure(error) };
+    return { ok: true, value: toTask(data) };
+  },
+
+  async updateTask(taskId: string, input: UpdateTaskInput): Promise<Result<Task>> {
+    const text = taskText(input.title, input.note);
+    if (!text.ok) return { ok: false, error: text.error };
+    return updateTaskRow(taskId, { title: text.title, note: text.note });
+  },
+
+  async moveTask(taskId: string, date: string): Promise<Result<Task>> {
+    if (taskDatePast(date)) {
+      return { ok: false, error: { code: "task_date_past", message: TASK_DATE_PAST } };
+    }
+    return updateTaskRow(taskId, { date });
+  },
+
+  async setTaskDone(taskId: string, done: boolean): Promise<Result<Task>> {
+    return updateTaskRow(taskId, { done });
+  },
+
+  // ZERO ROWS BACK IS A REFUSAL, `deleteEvent`'s shape.
+  async deleteTask(taskId: string): Promise<Result<void>> {
+    const { data, error } = await client()
+      .from("task")
+      .delete()
+      .eq("id", taskId)
+      .select("id")
+      .returns<{ id: string }[]>();
+    if (error) return { ok: false, error: toTaskFailure(error) };
+    if (!(data ?? [])[0]) {
+      return { ok: false, error: { code: "task_not_permitted", message: TASK_NOT_PERMITTED } };
+    }
+    return { ok: true, value: undefined };
   },
 };

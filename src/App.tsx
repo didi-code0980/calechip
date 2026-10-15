@@ -35,6 +35,8 @@ import IssueReports from "./routes/IssueReports";
 import Events from "./routes/Events";
 import EventDetail from "./routes/EventDetail";
 import EventEditor from "./routes/EventEditor";
+// TSK-01 — a member's own tasks for a day.
+import Tasks from "./routes/Tasks";
 // EVT-06. The guest page — 01-plan.md § 4.4.
 import GuestEvent from "./routes/GuestEvent";
 // EVT-07. The manage page — 01-plan.md § 4.4. A named export of the guest page's file.
@@ -594,6 +596,20 @@ export default function App() {
               <Route
                 path="/events/:id/edit"
                 element={membership.state === "member" ? <EventEditor /> : <Navigate to="/" replace />}
+              />
+
+              {/* TSK-01, 01-plan.md § 4.6. Two addresses, guarded as the events routes are and inside
+                  the shell, not under `AdminLayout`: every role keeps its own list.
+
+                  The guard is an affordance. `task_select_own` and its three siblings are the
+                  controls, and they have no admin, manager or team arm (ADR-057). */}
+              <Route
+                path="/tasks"
+                element={membership.state === "member" ? <Tasks /> : <Navigate to="/" replace />}
+              />
+              <Route
+                path="/tasks/:day"
+                element={membership.state === "member" ? <Tasks /> : <Navigate to="/" replace />}
               />
 
               {/* **SOLO, 2026-09-10 — the personal profile screen.** No ticket and no plan;

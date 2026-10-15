@@ -46,6 +46,8 @@ import type {
   // EVT-08, 01-plan.md section 4.2.
   EmailInvitationOutcome,
   EventEmailInvitation,
+  // TSK-01, 01-plan.md section 4.2.
+  Task,
 } from "../domain/types";
 import { seam as mockSeam } from "./mock";
 import { seam as supabaseSeam } from "./supabase";
@@ -252,6 +254,22 @@ export interface SaveEventInput {
   requiresApproval?: boolean;
   /** EVT-02. Absent or null: registration runs to `endDate`. */
   registrationDeadline?: string | null;
+}
+
+/** TSK-01. A new task's three fields. NO `memberId`: the row is the caller's, by the column default
+ *  and the policy, and a parameter would imply a caller could name someone else (CreateEntryInput's
+ *  reasoning). NO `done`: a task is created not done. */
+export interface CreateTaskInput {
+  date: string; // yyyy-MM-dd, today or later in Asia/Ho_Chi_Minh
+  title: string;
+  note: string | null;
+}
+
+/** TSK-01. A full replacement of title and note, never the date — re-dating is `moveTask`, because it
+ *  carries a refusal (`task_date_past`) an edit of a past task's title must not meet. */
+export interface UpdateTaskInput {
+  title: string;
+  note: string | null;
 }
 
 export interface SignUpOutcome {
@@ -1525,6 +1543,44 @@ export interface DataSeam {
    *  creator and admins; empty to everyone else and signed out. Bounded by DATASTORE_MAX_ROWS and
    *  throws at the bound. */
   listEventEmailInvitations(eventId: string): Promise<EventEmailInvitation[]>;
+
+  // -------------------------------------------------------------------------
+  // TSK-01 — a member's own tasks. 01-plan.md section 4.2. ADR-057.
+  //
+  // Seven functions. Every read and write is the CALLER'S OWN ROWS ONLY — the four policies on
+  // `public.task` have no admin, manager or team arm. "Today" is `eventToday()`, Asia/Ho_Chi_Minh.
+  // -------------------------------------------------------------------------
+
+  /** TSK-01 AC-1, AC-22. The caller's tasks with from <= date <= to, ordered `date`, `createdAt`,
+   *  `id` ascending. Empty when from > to (no round trip), signed out, or not an approved member.
+   *  Bounded by DATASTORE_MAX_ROWS and throws at the bound. Throws on any other read failure. */
+  listTasks(from: string, to: string): Promise<Task[]>;
+
+  /** TSK-01 AC-13, AC-14. The caller's tasks with done = false and date < today, ordered `date`,
+   *  `createdAt`, `id` ascending. `today` is the caller's `eventToday()`, passed in so the screen and
+   *  the read agree on one instant. Empty signed out. Bounded and throwing as `listTasks`. */
+  listOverdueTasks(today: string): Promise<Task[]>;
+
+  /** TSK-01 AC-6, AC-7, AC-8. Trims title and note (an empty note becomes null), then refuses
+   *  `invalid_task_title`, `invalid_task_note`, or `task_date_past` (date < eventToday()) before the
+   *  request. Returns the saved row. 42501 or no session is `task_not_permitted`. */
+  createTask(input: CreateTaskInput): Promise<Result<Task>>;
+
+  /** TSK-01 AC-8, AC-10. Trims and refuses as `createTask` does for title and note; the date is not
+   *  written. Zero rows updated is `task_not_permitted`. Returns the saved row. */
+  updateTask(taskId: string, input: UpdateTaskInput): Promise<Result<Task>>;
+
+  /** TSK-01 AC-11. Refuses `task_date_past` when date < eventToday(), before the request. Writes the
+   *  date only. Zero rows updated is `task_not_permitted`. Returns the saved row. */
+  moveTask(taskId: string, date: string): Promise<Result<Task>>;
+
+  /** TSK-01 AC-9. Writes `done` only. Zero rows updated is `task_not_permitted`. Returns the saved
+   *  row. */
+  setTaskDone(taskId: string, done: boolean): Promise<Result<Task>>;
+
+  /** TSK-01 AC-12. Deletes and reads back what it removed; zero rows is `task_not_permitted`, not
+   *  success — `deleteEvent`'s shape. */
+  deleteTask(taskId: string): Promise<Result<void>>;
 }
 
 export type { DataSeam as Seam };

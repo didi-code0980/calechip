@@ -23,6 +23,9 @@ import type {
   UpdateOwnProfileInput,
   // EVT-01, 01-plan.md section 4.2.
   SaveEventInput,
+  // TSK-01, 01-plan.md section 4.2.
+  CreateTaskInput,
+  UpdateTaskInput,
 } from "./index";
 // SOLO 2026-09-12, ADR-035. The role predicates, above the seam and shared with the screens so
 // the mock and the interface cannot disagree about who may decide.
@@ -71,6 +74,8 @@ import type {
   // EVT-08, 01-plan.md section 4.1.
   EmailInvitationOutcome,
   EventEmailInvitation,
+  // TSK-01, 01-plan.md section 4.1.
+  Task,
 } from "../domain/types";
 // EVT-04. The panel's window — AC-16. A runtime import.
 import { NOTIFICATION_LIMIT } from "../domain/types";
@@ -80,6 +85,8 @@ import { GUEST_LINK_TOKEN_PATTERN } from "../domain/types";
 import { GUEST_EMAIL_MAX, GUEST_EMAIL_PATTERN, GUEST_NAME_MAX } from "../domain/types";
 // EVT-11 AC-6. The cap, counted as `octet_length` counts it — runtime imports.
 import { DESCRIPTION_MAX_BYTES, descriptionBytes } from "../domain/types";
+// TSK-01 AC-8. The bounds, checked before the write as the real seam checks them.
+import { TASK_NOTE_MAX, TASK_TITLE_MAX } from "../domain/types";
 // TEA-03, and CAL-04 for the third. RUNTIME imports, not type ones - 02-design.md section 1.1.
 // ADM-04 adds PENDING_PAGE_SIZE, which is a WINDOW and not a ceiling - see its own comment there.
 // CAL-09 adds TEAM_ENTRY_PAGE_SIZE and TEAM_ENTRY_MAX_PAGES, which are a window and a bound on work
@@ -1391,6 +1398,96 @@ function applyDecision(
   // the datastore's clock in the real seam, and here the only clock there is.
   row.updatedAt = new Date().toISOString();
 
+  return { ok: true, value: { ...row } };
+}
+
+// ---------------------------------------------------------------------------
+// TSK-01 — tasks. 01-plan.md § 4.5. ADR-057.
+//
+// `public.task` and its four policies, reproduced CLAUSE FOR CLAUSE (ADR-057 § Consequences). The
+// table starts EMPTY: a task a test needs, a test creates, because every approved member can.
+// ---------------------------------------------------------------------------
+
+const tasks: Task[] = [];
+
+/**
+ * Test-only. Empties the task table.
+ *
+ * A NAMED EXPORT BESIDE `seam`, `__resetEvents`' shape, so seam parity is untouched. Nothing under
+ * `src/` may call it, and nothing does.
+ */
+export function __resetTasks(): void {
+  tasks.length = 0;
+}
+
+// Padded so `id` ascending is creation order, the tie-break the real seam's third `order` makes.
+let nextTaskId = 0;
+const newTaskId = (): string => `7a000000-0000-4000-8000-${String(++nextTaskId).padStart(12, "0")}`;
+
+/**
+ * § 3's predicate, the one expression in all four policies:
+ * `member_id = auth.uid() and member_team_id(auth.uid()) is not null`.
+ *
+ * **NO ROLE CLAUSE, AND THERE MUST NEVER BE ONE.** Every other ownership helper in this file has an
+ * admin arm; this one does not, by ADR-057 decisions 1 and 4.
+ */
+const ownsTask = (row: Task): boolean =>
+  currentMemberId !== null && row.memberId === currentMemberId && memberTeamId(currentMemberId) !== null;
+
+// Repeated verbatim from src/lib/data/supabase.ts.
+const TASK_TITLE_INVALID = "Give the task a title of at most 200 characters.";
+const TASK_NOTE_INVALID = "Keep the note to at most 1000 characters.";
+const TASK_DATE_PAST = "A task can be dated today or later.";
+const TASK_NOT_PERMITTED = "This task could not be changed. It may have been deleted.";
+const TASK_SAVE_FAILED = "This task could not be saved.";
+
+/** supabase.ts's `taskText`, repeated: trims, refuses title then note. */
+function taskText(
+  title: string,
+  note: string | null,
+): { ok: true; title: string; note: string | null } | { ok: false; error: Failure } {
+  const t = title.trim();
+  if (t === "" || [...t].length > TASK_TITLE_MAX) {
+    return { ok: false, error: { code: "invalid_task_title", message: TASK_TITLE_INVALID } };
+  }
+  const n = note === null ? "" : note.trim();
+  if ([...n].length > TASK_NOTE_MAX) {
+    return { ok: false, error: { code: "invalid_task_note", message: TASK_NOTE_INVALID } };
+  }
+  return { ok: true, title: t, note: n === "" ? null : n };
+}
+
+const taskDatePast = (date: string): boolean => date < eventToday();
+
+// A `date` column refuses anything that is not a calendar date (22007/22008), which the real seam
+// maps to `unknown`. Reproduced so a malformed date cannot be stored here and read back.
+const isTaskDate = (date: string): boolean => {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) return false;
+  const d = new Date(`${date}T00:00:00Z`);
+  return !Number.isNaN(d.getTime()) && d.toISOString().slice(0, 10) === date;
+};
+
+const byTaskOrder = (a: Task, b: Task): number =>
+  a.date !== b.date
+    ? a.date < b.date ? -1 : 1
+    : a.createdAt !== b.createdAt
+      ? a.createdAt < b.createdAt ? -1 : 1
+      : a.id < b.id ? -1 : a.id > b.id ? 1 : 0;
+
+const taskNotPermitted = (): { ok: false; error: Failure } => ({
+  ok: false,
+  error: { code: "task_not_permitted", message: TASK_NOT_PERMITTED },
+});
+
+/** `task_update_own`: `using` and `with check` are the same predicate and `member_id` is not in the
+ *  update grant, so the row stays the caller's. Zero rows is `task_not_permitted`. */
+function updateOwnTask(
+  taskId: string,
+  values: { title?: string; note?: string | null; date?: string; done?: boolean },
+): Result<Task> {
+  const row = tasks.find((t) => t.id === taskId && ownsTask(t));
+  if (!row) return taskNotPermitted();
+  Object.assign(row, values);
   return { ok: true, value: { ...row } };
 }
 
@@ -3913,5 +4010,74 @@ export const seam: DataSeam = {
         invitedBy: i.invitedBy,
         createdAt: i.createdAt,
       }));
+  },
+
+  // -------------------------------------------------------------------------
+  // TSK-01 — a member's own tasks. 01-plan.md § 4.5. Every read filters on `ownsTask` and every
+  // write finds its row through it — the four policies, and nothing else.
+  // -------------------------------------------------------------------------
+
+  async listTasks(from: string, to: string): Promise<Task[]> {
+    if (from > to) return [];
+    return tasks
+      .filter((t) => ownsTask(t) && t.date >= from && t.date <= to)
+      .sort(byTaskOrder)
+      .map((t) => ({ ...t }));
+  },
+
+  async listOverdueTasks(today: string): Promise<Task[]> {
+    return tasks
+      .filter((t) => ownsTask(t) && !t.done && t.date < today)
+      .sort(byTaskOrder)
+      .map((t) => ({ ...t }));
+  },
+
+  // `task_insert_own`: `member_id` takes `auth.uid()` and the `with check` holds the predicate.
+  async createTask(input: CreateTaskInput): Promise<Result<Task>> {
+    const text = taskText(input.title, input.note);
+    if (!text.ok) return { ok: false, error: text.error };
+    if (taskDatePast(input.date)) {
+      return { ok: false, error: { code: "task_date_past", message: TASK_DATE_PAST } };
+    }
+    if (currentMemberId === null || memberTeamId(currentMemberId) === null) return taskNotPermitted();
+    if (!isTaskDate(input.date)) return { ok: false, error: { code: "unknown", message: TASK_SAVE_FAILED } };
+    const row: Task = {
+      id: newTaskId(),
+      memberId: currentMemberId,
+      date: input.date,
+      title: text.title,
+      note: text.note,
+      done: false,
+      createdAt: new Date().toISOString(),
+    };
+    tasks.push(row);
+    return { ok: true, value: { ...row } };
+  },
+
+  async updateTask(taskId: string, input: UpdateTaskInput): Promise<Result<Task>> {
+    const text = taskText(input.title, input.note);
+    if (!text.ok) return { ok: false, error: text.error };
+    return updateOwnTask(taskId, { title: text.title, note: text.note });
+  },
+
+  async moveTask(taskId: string, date: string): Promise<Result<Task>> {
+    if (taskDatePast(date)) {
+      return { ok: false, error: { code: "task_date_past", message: TASK_DATE_PAST } };
+    }
+    if (!tasks.some((t) => t.id === taskId && ownsTask(t))) return taskNotPermitted();
+    if (!isTaskDate(date)) return { ok: false, error: { code: "unknown", message: TASK_SAVE_FAILED } };
+    return updateOwnTask(taskId, { date });
+  },
+
+  async setTaskDone(taskId: string, done: boolean): Promise<Result<Task>> {
+    return updateOwnTask(taskId, { done });
+  },
+
+  // `task_delete_own`. Zero rows is `task_not_permitted`, not success.
+  async deleteTask(taskId: string): Promise<Result<void>> {
+    const index = tasks.findIndex((t) => t.id === taskId && ownsTask(t));
+    if (index === -1) return taskNotPermitted();
+    tasks.splice(index, 1);
+    return { ok: true, value: undefined };
   },
 };
