@@ -22,6 +22,9 @@ planned, sized, and safe to build** — the next stage for a row here is IN_PROG
 
 | # | Ticket | Title | Size | Depends on |
 |---|--------|-------|------|------------|
+| 1 | TSK-05 | Ticking a task done or not done changes on screen at once, and the server's answer confirms or undoes it | S | TSK-01 (DONE, #149) |
+
+**`TSK-05` moved here from `## BACKLOG` at /advance on 2026-10-15**, from `01-plan.md` gate PASS with all six Definition of Ready items passing. It was row 5 and was planned ahead of `CICD-08` and `TSK-02` to `TSK-04` on the operator's choice. Bookkeeping, not a reordering of the rest. The paragraphs below were written while this table was empty and are left standing.
 
 **Empty again — `TSK-01` left this section for `## ARCHIVE` at its own ship on 2026-10-15.** `CICD-08` is the top of `## BACKLOG`.
 
@@ -180,6 +183,8 @@ Under the current gate placement a ticket sits here until it has been planned �
 | 2 | TSK-02 | Each time the app opens, a member is shown their overdue tasks and can tick them or move them all to today | BACKLOG | TSK-01 |
 | 3 | TSK-03 | A member declaring PTO is warned about their own tasks on those days, without being stopped | BACKLOG | TSK-01 |
 | 4 | TSK-04 | The week view shows, in each day's header, how many of the viewer's own tasks are done out of the total | BACKLOG | TSK-01 |
+
+**Row 5 was appended by `product` at /triage on 2026-10-15**, from `.ai/board/ideas/2026-10-15-ticking-a-task-done-waits-two-round-trips-and-locks-the-box.md`. Appended, not placed. Its `depends_on` names `TSK-01`, which is `DONE`, so *Blocked on* is `—`.
 
 **Reordered by the operator on 2026-10-14** (*"back về làm EVT"*): `EVT-12` and `EVT-13` to rows 1 and 2, ahead of `CICD-08` and `TSK-01` to `TSK-04`, whose order among themselves is unchanged. Recorded by `orchestrator`, not decided by it. `BUG-003` to `BUG-005` still have no row; placing them is the operator's.
 
