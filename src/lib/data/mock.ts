@@ -1034,9 +1034,14 @@ const EVENT_EMAIL_SAVE_FAILED = "Your email setting could not be saved.";
 //
 // **THESE REPRODUCE `20261012100000_evt08_event_email_invitation.sql`'S FUNCTION, TRIGGER AND
 // POLICY.** `inviteToEvent` is `invite_to_event` then `email_invitation()` per new row, in one
-// synchronous block. The function half NEVER READS `members` — the outcome is decided from
-// `emailInvitations` alone (AC-7); only the trigger half looks an address up, and its only effect is
-// the outbox, which no seam function reads.
+// synchronous block. On a public event the function half NEVER READS `members` — the outcome is
+// decided from `emailInvitations` alone (AC-7); only the trigger half looks an address up, and its
+// only effect is the outbox, which no seam function reads.
+//
+// EVT-12 (`20261014090000_evt12_invite_every_scope.sql`, ADR-061). On an Own team or Limited people
+// event the function half resolves each address to a member, adds a member who cannot read the event
+// to `eventInvitees` — converting an Own team event to named, silently — and still answers only
+// `sent` or `ignored` (EVT-12 AC-10).
 // ---------------------------------------------------------------------------
 
 /** `public.event_email_invitation`, reproduced. Never spliced by a seam function (AC-14); `eventId` is
@@ -1058,7 +1063,6 @@ const newInvitationId = (): string =>
 // Repeated verbatim in src/lib/data/supabase.ts.
 const INVITATION_EMAIL_INVALID =
   "Each address must look like name@example.com, in 254 characters or fewer.";
-const INVITATION_NOT_PUBLIC = "Invitations can only be sent for public events.";
 const INVITATION_REFUSED = "Invitations could not be sent for this event.";
 
 /** § 4.1's checks, made before the round trip in both implementations — AFFORDANCES; the function's
@@ -1084,18 +1088,27 @@ export interface MockInvitationEmail {
 
 const invitationEmailOutbox: MockInvitationEmail[] = [];
 
-/** `public.email_invitation()`. The member is looked up by `Member.email` — the mock's substitute for
- *  `auth.users.email`, as EVT-05's is — approved and not removed. A member: nothing when they are the
- *  inviter or their event email is off. Anyone else: the event's guest token. */
+/** The approved, not removed member whose `Member.email` — the mock's substitute for
+ *  `auth.users.email`, as EVT-05's is — equals the address ignoring case; null for an outsider. The
+ *  lookup `email_invitation()` and, on an Own team or Limited people event, `invite_to_event` share. */
+const approvedMemberByEmail = (email: string): Member | null => {
+  const address = email.toLowerCase();
+  return (
+    members.find(
+      (m) => (m.email ?? "").toLowerCase() === address && m.status === "approved" && m.removedAt === null,
+    ) ?? null
+  );
+};
+
+/** `public.email_invitation()`. A member who cannot read the event: nothing — `inviteToEvent` adds
+ *  them next, and EVT-05 mails them (EVT-12 AC-6). A member: nothing when they are the inviter or their
+ *  event email is off. Anyone else: the event's guest token. */
 function emailInvitation(row: (typeof emailInvitations)[number], event: CalEvent): void {
   const inviterName = members.find((m) => m.id === row.invitedBy)?.displayName ?? null;
   if (inviterName === null) return;
-  const address = row.email.toLowerCase();
-  const member =
-    members.find(
-      (m) => (m.email ?? "").toLowerCase() === address && m.status === "approved" && m.removedAt === null,
-    ) ?? null;
+  const member = approvedMemberByEmail(row.email);
   if (member !== null) {
+    if (!mayReadEvent(event, member.id)) return;
     if (member.id === row.invitedBy || !eventEmailOn(member.id) || !member.email) return;
     invitationEmailOutbox.push({
       invitationId: row.id,
@@ -3785,14 +3798,30 @@ export const seam: DataSeam = {
   },
 
   // -------------------------------------------------------------------------
+  // EVT-13 — a signed-in reader leaves the guest page. 01-plan.md § 4.2. ADR-061 decision 8.
+  // -------------------------------------------------------------------------
+
+  // `guest_link_event_id`: the open link's event, through `may_read_event` for the caller. Null for
+  // "no such open link" and "not a reader" alike. Lookup and check with no `await` between them.
+  async getGuestLinkEventId(token: string): Promise<string | null> {
+    if (!GUEST_LINK_TOKEN_PATTERN.test(token)) return null;
+    const eventId = guestEventId(token);
+    const event = eventId === null ? undefined : events.find((e) => e.id === eventId);
+    if (!event) return null;
+    return mayReadEvent(event, currentMemberId) ? event.id : null;
+  },
+
+  // -------------------------------------------------------------------------
   // EVT-08 — email invitations. The two functions of 01-plan.md § 4.2, each reproducing the definer
   // function, trigger or policy named beside it rather than the screen.
   // -------------------------------------------------------------------------
 
   // The seam's affordance, then `invite_to_event` in its order — may manage (one answer for missing
-  // and not permitted, AC-3), public scope (AC-4), open the link (AC-5), each distinct address
-  // inserted or found (AC-6) — then `email_invitation()` for each new row. NO `await`: check and
-  // write are one block, as the function is one statement.
+  // and not permitted, AC-3), then by scope (EVT-12 § 4.1): public opens the link and inserts each
+  // distinct address (EVT-08 AC-5, AC-6); Own team or Limited people resolves each address to a
+  // member, opens the link only for an outsider, and adds a member who cannot read (EVT-12 AC-4..AC-9).
+  // `email_invitation()` runs for each row AS IT IS INSERTED — before the add, as the trigger fires
+  // per statement. NO `await`: check and write are one block, as the function is one statement.
   async inviteToEvent(eventId: string, emails: string[]): Promise<Result<EmailInvitationOutcome[]>> {
     const addresses = invitationAddresses(emails);
     if (addresses === null) return eventFailure("invalid_invitation_email", INVITATION_EMAIL_INVALID);
@@ -3801,38 +3830,69 @@ export const seam: DataSeam = {
     if (!event || uid === null || !mayManageEvent(event, uid)) {
       return eventFailure("event_not_permitted", INVITATION_REFUSED);
     }
-    if (event.scope !== "public") return eventFailure("invitation_not_public", INVITATION_NOT_PUBLIC);
 
-    openGuestLink(eventId);
-
+    // Distinct by `lower()`, the first spelling kept, in first-entered order.
     const seen = new Set<string>();
-    const outcomes: EmailInvitationOutcome[] = [];
-    const inserted: (typeof emailInvitations)[number][] = [];
+    const distinct: string[] = [];
     for (const email of addresses) {
       const key = email.toLowerCase();
       if (seen.has(key)) continue;
       seen.add(key);
-      // The unique index on `(event_id, lower(email))`, and `on conflict do nothing`.
-      const exists = emailInvitations.some(
-        (i) => i.eventId === eventId && i.email.toLowerCase() === key,
-      );
-      if (exists) {
-        outcomes.push({ email, outcome: "ignored" });
-        continue;
-      }
-      const row = {
-        id: newInvitationId(),
-        eventId,
-        email,
-        invitedBy: uid,
-        createdAt: new Date().toISOString(),
-      };
-      emailInvitations.push(row);
-      inserted.push(row);
-      outcomes.push({ email, outcome: "sent" });
+      distinct.push(email);
     }
-    // `after insert … for each row`. Returns nothing to the caller.
-    for (const row of inserted) emailInvitation(row, event);
+
+    // The unique index on `(event_id, lower(email))`, and `on conflict do nothing`: the row, or null.
+    const insert = (email: string): (typeof emailInvitations)[number] | null => {
+      const key = email.toLowerCase();
+      if (emailInvitations.some((i) => i.eventId === eventId && i.email.toLowerCase() === key)) return null;
+      const row = { id: newInvitationId(), eventId, email, invitedBy: uid, createdAt: new Date().toISOString() };
+      emailInvitations.push(row);
+      // `after insert … for each row`. Returns nothing to the caller.
+      emailInvitation(row, event);
+      return row;
+    };
+
+    const outcomes: EmailInvitationOutcome[] = [];
+
+    if (event.scope === "public") {
+      // EVT-08, unchanged. NO READ OF `members` IN THIS BRANCH (EVT-12 AC-12).
+      openGuestLink(eventId);
+      for (const email of distinct) outcomes.push({ email, outcome: insert(email) ? "sent" : "ignored" });
+      return { ok: true, value: outcomes };
+    }
+
+    // EVT-12 step 5.1, 5.2. An outsider's address, invited now or before, opens the event to guests.
+    const resolved = distinct.map((email) => approvedMemberByEmail(email));
+    if (resolved.some((m) => m === null)) openGuestLink(eventId);
+
+    // Step 5.3. One address after another, each seeing what the earlier ones left (AC-8).
+    distinct.forEach((email, i) => {
+      if (!insert(email)) {
+        outcomes.push({ email, outcome: "ignored" }); // AC-9
+        return;
+      }
+      outcomes.push({ email, outcome: "sent" });
+      const member = resolved[i] ?? null;
+      if (member === null || mayReadEvent(event, member.id)) return; // AC-4, AC-5
+
+      if (event.scope === "team") {
+        // AC-7. Convert, naming the team as it stands without the creator — `event_stamp` moves
+        // `updatedAt`; `notify_event_updated` and `notify_event_invited` are silent for it (Q6-A).
+        event.scope = "named";
+        event.updatedAt = new Date().toISOString();
+        const now = new Date().toISOString();
+        for (const m of members) {
+          if (m.id === event.creatorId || memberTeamId(m.id) !== event.teamId) continue;
+          if (!isEventInvitee(eventId, m.id)) eventInvitees.push({ eventId, memberId: m.id, createdAt: now });
+        }
+      }
+
+      // AC-6. `notify_event_invited` for this row; EVT-05's mail follows the notification (Q3-A).
+      if (!isEventInvitee(eventId, member.id)) {
+        eventInvitees.push({ eventId, memberId: member.id, createdAt: new Date().toISOString() });
+        notify([member.id], "event_invited", event);
+      }
+    });
     return { ok: true, value: outcomes };
   },
 

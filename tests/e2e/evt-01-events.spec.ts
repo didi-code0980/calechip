@@ -96,7 +96,7 @@ test.describe("EVT-01 — events", () => {
     // AC-3 (Q11): dates only — no time of day anywhere on the form.
     await expect(page.locator('[data-testid="event-form"] input[type="time"]')).toHaveCount(0);
     await expect(page.locator('[data-testid="event-form"] input[type="datetime-local"]')).toHaveCount(0);
-    // AC-23: the picker is drawn only while Named people is chosen.
+    // AC-23: the picker is drawn only while Limited people is chosen.
     await expect(page.getByTestId("event-picker")).toHaveCount(0);
 
     await fillEvent(page, {
@@ -198,14 +198,15 @@ test.describe("EVT-01 — events", () => {
     await picker.getByTestId("event-picker-option").filter({ hasText: OTHER_TEAM.name }).click();
     await page.getByTestId("event-picker-filter").fill("");
 
-    // Scope away and back: the picker is drawn only while Named people is chosen.
+    // Scope away and back: the picker is drawn only while Limited people is chosen.
     await page.getByTestId("event-scope-team").check();
     await expect(page.getByTestId("event-picker")).toHaveCount(0);
     await page.getByTestId("event-scope-named").check();
     await expect(page.getByTestId("event-picker")).toBeVisible();
 
     await page.getByTestId("event-save").click();
-    await expect(page.getByTestId("event-scope")).toHaveText("Named people");
+    // EVT-12 AC-14. The label only; the value stays `named`.
+    await expect(page.getByTestId("event-scope")).toHaveText("Limited people");
     await expect(page.getByTestId("event-invitees")).toContainText(OTHER_TEAM.name);
 
     // AC-13: the named person sees the event, and not who else is named.

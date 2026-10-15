@@ -3942,6 +3942,20 @@ export const seam: DataSeam = {
   },
 
   // -------------------------------------------------------------------------
+  // EVT-13 — a signed-in reader leaves the guest page. 01-plan.md § 4.2. ADR-061 decision 8.
+  // `guest_link_event_id` is granted to `authenticated` only and answers null for "no such open
+  // link" and "not a reader" alike; the control is the function, never this method.
+  // -------------------------------------------------------------------------
+
+  // A malformed token makes no round trip; a null answer is null.
+  async getGuestLinkEventId(token: string): Promise<string | null> {
+    if (!GUEST_LINK_TOKEN_PATTERN.test(token)) return null;
+    const { data, error } = await client().rpc("guest_link_event_id", { p_token: token });
+    if (error) throw new Error(`getGuestLinkEventId failed: ${error.message}`);
+    return typeof data === "string" ? data : null;
+  },
+
+  // -------------------------------------------------------------------------
   // EVT-08 — email invitations. 01-plan.md § 4.2. One definer function writes; the table's select
   // policy reads. NOTHING HERE SENDS, AND NOTHING HERE SAYS WHICH ADDRESSES ARE MEMBERS' (AC-7) — the
   // function's two columns are the address and `sent` or `ignored`.

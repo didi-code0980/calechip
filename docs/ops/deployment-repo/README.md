@@ -21,6 +21,9 @@ The drafts in this folder make merging that pull request the whole deploy:
   if it is not healthy.
 - `.github/workflows/pr-scope.yml`: a pull request from `release/<app>-v…` may change only
   `apps/<app>/`.
+- `.github/workflows/runner-check.yml`: run by hand from the Actions tab, it proves the self-hosted
+  runner picks up a job, runs it as `gh-runner` and not as root, and reaches Docker.
+- `runner-setup.md`: the runbook that sets up that runner, run by hand on the server.
 - `.github/CODEOWNERS`: the owner of the workflows and of CaleChip's folder.
 
 **This folder maps to the deployment repository's root.** `docs/ops/deployment-repo/apps/calechip/`
@@ -54,8 +57,8 @@ Work through these in order. Each one stops the apply until it is true.
    restore pushes one revert commit to `main`. If protection refuses it, the server is restored but
    the run ends `restore-unpushed`, and the repository and the server disagree until someone pushes
    the revert by hand.
-9. **Register the runner** as described in *The runner*, before the first merge that touches
-   `apps/calechip/`.
+9. **Set up the runner with [runner-setup.md](runner-setup.md)** and pass its three verifications
+   before the first merge that touches `apps/calechip/`.
 10. **Change `@didi-code0980` in `.github/CODEOWNERS`** if the deployment repository belongs to
     another account.
 11. Optionally, make `pr-scope` a required check on the deployment repository's `main`, once it has
@@ -76,6 +79,8 @@ apps/
   workflows/
     deploy-calechip.yml
     pr-scope.yml
+    runner-check.yml
+runner-setup.md        # the runner's setup runbook
 ```
 
 Every app has its own folder under `apps/`, and its own deploy workflow that triggers on that folder
@@ -144,14 +149,17 @@ path, and there is deliberately no "redeploy version X" button: only merged conf
 
 ## The runner
 
-`deploy-calechip` runs on a self-hosted GitHub Actions runner on the WSL server, selected by the
-labels `self-hosted`, `linux` and `home-wsl`. Set it up so that:
+`deploy-calechip` and `runner-check` run on a self-hosted GitHub Actions runner on the WSL server.
+Its name and its one added label are both `mmlabs-server`, and the workflows select it with
+`runs-on: [self-hosted, mmlabs-server]`. **Set it up with [runner-setup.md](runner-setup.md)**, which
+leaves it so that:
 
-- **it runs as a dedicated non-root user**, not as root and not as the operator's own account;
+- **it runs as a dedicated non-root user**, `gh-runner`, not as root and not as the operator's own
+  account;
 - **it is registered to the deployment repository only**, never to an organisation or to this
   repository;
-- **it carries the label `home-wsl`**, which is the only label the workflow selects it by beyond the
-  defaults;
+- **it carries the label `mmlabs-server`**, which is the only label the workflows select it by beyond
+  `self-hosted`;
 - **it connects outbound only.** The runner polls GitHub; nothing reaches into the server, so it
   works behind the tunnel with no port opened.
 

@@ -1,6 +1,7 @@
 import { expect, test, type Page } from "@playwright/test";
 
 // EVT-08 — email invitations to a public event. 01-plan.md § 2 AC-1..AC-12, § 2b, § 4.5, § 4.6.
+// EVT-12 — on every scope. Its 01-plan.md § 2 AC-1, AC-4, AC-6, AC-7, AC-10, AC-11, AC-13.
 //
 // THE SUITE DRIVES THE MOCK SEAM (BUG-001 pins it). Every refusal straight to the datastore, which
 // mail goes to whom, and the membership-blindness of every answer are asserted in
@@ -16,6 +17,8 @@ const PASSWORD = "password123";
 const MEMBER = { email: "thanh@example.com", name: "Thành viên" };
 const TEAMMATE = { email: "linh@example.com" };
 const ADMIN = { email: "quan@example.com" };
+// EVT-12. FIXTURE_OTHER_TEAM_MEMBER, on the other team.
+const OTHER_TEAM = { email: "chi@other.example.com", name: "Người nhóm khác" };
 
 async function fillSignIn(page: Page, email: string): Promise<void> {
   await expect(page.getByTestId("sign-in-submit")).toBeVisible();
@@ -149,15 +152,46 @@ test.describe("EVT-08 — email invitations", () => {
     await expect(page.getByTestId("event-invited-row")).toHaveCount(1);
   });
 
-  test("AC-4: a team event shows no field and no panel", async ({ page }) => {
+  // EVT-08 AC-4 ("public events only") is replaced by EVT-12 — the cases below.
+});
+
+test.describe("EVT-12 — invitations on every scope", () => {
+  test("AC-1, AC-11: a team event shows the panel, and its hint names the conversion", async ({ page }) => {
     await signIn(page, MEMBER.email);
     await createEvent(page, "Invite team only", "team");
-    await expect(page.getByTestId("event-invite-input")).toHaveCount(0);
-    await expect(page.getByTestId("event-invite-submit")).toHaveCount(0);
-    await expect(page.getByTestId("event-invite-panel")).toHaveCount(0);
+    await expect(page.getByTestId("event-invite-panel")).toBeVisible();
+    await expect(page.getByTestId("event-invite-input")).toBeVisible();
+    await expect(page.getByTestId("event-invite-hint")).toContainText("then becomes Limited people");
+    await expect(page.getByTestId("event-invite-hint")).toContainText("won't see it");
+    await expect(page.getByTestId("event-invite-not-public")).toHaveCount(0);
   });
 
-  test("AC-4, AC-12: moved off public, the list stays and the field gives way to one line", async ({ page }) => {
+  test("AC-4: an outsider on a team event opens it to guests and leaves the scope alone", async ({ page }) => {
+    await signIn(page, MEMBER.email);
+    await createEvent(page, "Invite team guest", "team");
+    await send(page, "friend@outside.example");
+    expect(await emailsIn(page, "event-invite-sent")).toEqual(["friend@outside.example"]);
+    await expect(page.getByTestId("event-guest-link")).toBeVisible();
+    await expect(page.getByTestId("event-scope")).toHaveText("Own team");
+  });
+
+  test("AC-6, AC-7, AC-10: a member of another team converts the event in place, and can read it", async ({ page }) => {
+    await signIn(page, MEMBER.email);
+    await createEvent(page, "Invite team convert", "team");
+    await send(page, OTHER_TEAM.email);
+    expect(await emailsIn(page, "event-invite-sent")).toEqual([OTHER_TEAM.email]);
+    await expect(page.getByTestId("event-scope")).toHaveText("Limited people");
+    await expect(page.getByTestId("event-invitees")).toContainText(OTHER_TEAM.name);
+    await expect(page.getByTestId("event-invitees")).toContainText("Đã duyệt");
+    await expect(page.getByTestId("event-invite-hint")).toContainText("added to its people");
+    // No guest link: the only address was a member's.
+    await expect(page.getByTestId("event-guest-link")).toHaveCount(0);
+
+    await switchTo(page, OTHER_TEAM.email);
+    await openEvent(page, "Invite team convert");
+  });
+
+  test("AC-13: moved off public, invitations go on under the new scope, and the list stays", async ({ page }) => {
     await signIn(page, MEMBER.email);
     await createEvent(page, "Invite moved");
     await send(page, "kept@outside.example");
@@ -169,11 +203,9 @@ test.describe("EVT-08 — email invitations", () => {
     await page.getByTestId("event-save").click();
     await expect(page.getByTestId("event-detail")).toBeVisible();
 
-    await expect(page.getByTestId("event-invite-panel")).toBeVisible();
-    await expect(page.getByTestId("event-invite-not-public")).toHaveText(
-      "Invitations can only be sent for public events.",
-    );
-    await expect(page.getByTestId("event-invite-input")).toHaveCount(0);
-    await expect(page.getByTestId("event-invited-row")).toHaveCount(1);
+    await expect(page.getByTestId("event-invite-input")).toBeVisible();
+    await send(page, "another@outside.example");
+    await expect(page.getByTestId("event-invited-row")).toHaveCount(2);
+    await expect(page.getByTestId("event-scope")).toHaveText("Own team");
   });
 });

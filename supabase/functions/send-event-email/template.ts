@@ -17,7 +17,7 @@
 // **SOLO 2026-10-09 — RESTYLED TO THE OPERATOR'S MOCKUP, IN ENGLISH.** Header with the logo avatar,
 // the product name and a per-kind badge; a detail panel of labelled rows with white chips; a full-width
 // button; the opt-out sentence; a footer strip (MMLabs, CaleChip, Contact). The one image is the logo,
-// `${appUrl}/logo.png` (`public/logo.png`), with alt text and the name beside it in text, so the mail
+// `${appUrl}/logo.png?v=2` (`public/logo.png`), with alt text and the name beside it in text, so the mail
 // still reads with images blocked. There is no time of day in the request, so the date chip carries
 // the weekday instead.
 
@@ -301,7 +301,7 @@ function renderLayout(layout: Layout, appUrl: string): RenderedEmail {
   const dates = formatEventDates(event.startDate, event.endDate);
   const weekdays = formatEventWeekdays(event.startDate, event.endDate);
   const location = event.location !== null && event.location.trim() !== "" ? event.location : null;
-  const logoUrl = `${appUrl}/logo.png`;
+  const logoUrl = `${appUrl}/logo.png?v=2`;
 
   const textLines = [
     greeting,
@@ -374,7 +374,7 @@ function renderLayout(layout: Layout, appUrl: string): RenderedEmail {
     `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"><tr>` +
     `<td width="44" style="width:44px;vertical-align:middle;">` +
     `<table role="presentation" cellpadding="0" cellspacing="0" border="0"><tr>` +
-    `<td width="44" height="44" align="center" valign="middle" style="width:44px;height:44px;background-color:${PRIMARY};border-radius:50%;text-align:center;vertical-align:middle;">` +
+    `<td width="44" height="44" align="center" valign="middle" style="width:44px;height:44px;background-color: #ffffff;border-radius:50%;text-align:center;vertical-align:middle;border: 1px solid black;">` +
     `<img src="${e(logoUrl)}" width="32" height="32" alt="${PRODUCT_NAME}" style="display:block;margin:0 auto;width:32px;height:32px;border:0;outline:none;text-decoration:none;font-family:${FONT};font-size:9px;color:#FFFFFF;">` +
     `</td></tr></table>` +
     `</td>` +

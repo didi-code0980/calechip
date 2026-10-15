@@ -147,10 +147,11 @@ export default function App() {
                   not signed up can use, and it ends on its own notice (AC-13) rather than routing. */}
               <Route path="/signup" element={<SignUp />} />
 
-              {/* EVT-06, AC-9, AC-16. Reachable in EVERY membership state and signed out, with no
-                  guard and no redirect: the token is the whole address, and a signed-in member sees
-                  exactly what a guest sees. */}
-              <Route path="/guest/:token" element={<GuestEvent />} />
+              {/* EVT-06, AC-9. Reachable in EVERY membership state and signed out, with no guard: the
+                  token is the whole address. EVT-13, AC-1 to AC-5 (ADR-061 decision 8): an approved
+                  member is asked about, and a reader of the event is sent on to `/events/<id>` by
+                  the page itself; everyone else sees exactly what a guest sees. */}
+              <Route path="/guest/:token" element={<GuestEvent signedInMember={membership.state === "member"} />} />
 
               {/* EVT-07, AC-11, AC-13. The manage page: the same bare card, no guard, any state —
                   the manage token is the whole address. */}
