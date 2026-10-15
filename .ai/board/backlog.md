@@ -163,10 +163,14 @@ Under the current gate placement a ticket sits here until it has been planned �
 | 3 | TSK-02 | Each time the app opens, a member is shown their overdue tasks and can tick them or move them all to today | BACKLOG | TSK-01 |
 | 4 | TSK-03 | A member declaring PTO is warned about their own tasks on those days, without being stopped | BACKLOG | TSK-01 |
 | 5 | TSK-04 | The week view shows, in each day's header, how many of the viewer's own tasks are done out of the total | BACKLOG | TSK-01 |
+| 6 | UIE-12 | The way to join an event stays in view while its page scrolls, on `/events/:id` and on `/guest/:token` | BACKLOG | — |
+| 7 | EVT-14 | A signed-out reader of a guest link is offered sign-in and sign-up, and signing in returns them to the event | BACKLOG | — |
 
 **Reordered by the operator on 2026-10-14** (*"back về làm EVT"*): `EVT-12` and `EVT-13` to rows 1 and 2, ahead of `CICD-08` and `TSK-01` to `TSK-04`, whose order among themselves is unchanged. Recorded by `orchestrator`, not decided by it. `BUG-003` to `BUG-005` still have no row; placing them is the operator's.
 
 **Rows 7 and 8 were appended by `product` at /triage on 2026-10-14**, from `.ai/board/ideas/2026-10-14-a-team-or-named-event-cannot-invite-anyone-by-email.md`. Split at triage: the invitation pipe and its two surfaces, then the guest-link redirect, which touches neither. Both rest on [ADR-061](../registry/decisions/ADR-061-invitations-reach-every-event-scope-and-a-signed-in-reader-leaves-the-guest-page.md). Appended, not placed; the operator said *"ignore the CICD back to EVT"* the same afternoon, so they may want these above `CICD-07`.
+
+**Rows 6 and 7 (numbered 9 and 10 before the merge with main) were appended by `product` at /triage on 2026-10-14**, from `.ai/board/ideas/2026-10-14-the-way-to-join-an-event-scrolls-out-of-sight-and-a-guest-cannot-sign-in-from-it.md`. Split at triage: the sticky join block on both event pages, then the guest sign-in prompt with its return-to. Both edit `src/routes/GuestEvent.tsx`, so they run one after the other. Appended, not placed.
 
 **Rows 1 and 2 were added at triage on 2026-10-14**, from a gap check of the CI/CD request against what `CICD-01` to `CICD-06` shipped. They are placed above the `TSK` rows because the request is one piece of work and these close it; the operator may reorder. `TSK-01` to `TSK-04` each moved down two rows.
 
