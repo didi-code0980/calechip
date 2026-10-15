@@ -24,7 +24,7 @@ planned, sized, and safe to build** — the next stage for a row here is IN_PROG
 |---|--------|-------|------|------------|
 | 1 | EVT-13 | A signed-in member who opens a guest link to an event they can read is taken to the event in the app | M | EVT-06 (DONE) |
 
-**`EVT-13` is at `REVIEW` in `ticket.yaml`** — set by `/implement`, confirmed at /advance on 2026-10-15 from `03-impl-log.md` gate PASS. `allowed_paths` grew from ten to twelve at the developer's Q1, answered by `tech-lead-design` (`99-questions.md`, `01-plan.md` amendment). The row stays here until `/ship` moves it to `## ARCHIVE`.
+**`EVT-13` is at `REVIEW` in `ticket.yaml`, `gates.review` passed** — recorded at /advance on 2026-10-15 from `04-review.md` verdict PASS, after `03-impl-log.md` gate PASS. `allowed_paths` grew from ten to twelve at the developer's Q1, answered by `tech-lead-design` (`99-questions.md`, `01-plan.md` amendment). The row stays here until `/ship` moves it to `## ARCHIVE`.
 
 **`EVT-13` moved here from `## BACKLOG` at /advance on 2026-10-15**, from `01-plan.md` gate PASS with all six Definition of Ready items passing. `CICD-08` to `TSK-04` each moved up one row in `## BACKLOG`; bookkeeping, not a reordering. The paragraphs below were written while this table was empty and are left standing.
 
