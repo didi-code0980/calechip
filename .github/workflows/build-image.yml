@@ -31,6 +31,7 @@ env:
 jobs:
   build-image:
     runs-on: ubuntu-latest
+    environment: prod
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@v7

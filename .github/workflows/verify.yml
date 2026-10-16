@@ -27,6 +27,7 @@ concurrency:
 jobs:
   static:
     runs-on: ubuntu-latest
+    environment: prod
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@v7
@@ -57,6 +58,7 @@ jobs:
 
   scripts:
     runs-on: ubuntu-latest
+    environment: prod
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@v7
@@ -76,6 +78,7 @@ jobs:
   e2e:
     name: e2e (${{ matrix.shard }}/2)
     runs-on: ubuntu-latest
+    environment: prod
     timeout-minutes: 30
     strategy:
       fail-fast: false
@@ -123,6 +126,7 @@ jobs:
     needs: [static, scripts, e2e]
     if: ${{ !cancelled() }}
     runs-on: ubuntu-latest
+    environment: prod
     timeout-minutes: 5
     permissions: {}
     steps:
