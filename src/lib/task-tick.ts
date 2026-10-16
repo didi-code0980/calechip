@@ -53,7 +53,24 @@ interface Run {
   inFlight: boolean;
 }
 
-const THREW: Result<Task> = { ok: false, error: { code: "unknown", message: TICK_FAILED } };
+/** AC-2, AC-3, AC-4. `list` with the outcome's server value written into the task it names: `saved`
+ *  replaces the task with `outcome.task`; `failed` and `settled` replace only `done` with
+ *  `outcome.done`. A task the list does not hold is left alone; the same array is returned when
+ *  nothing changed. Once a run closes `shown` falls back to the page's lists, so they must hold the
+ *  server's value — not the last load's, which a successful write earlier in the run has replaced. */
+export function applyOutcome(list: Task[], outcome: TickOutcome): Task[] {
+  const id = outcome.kind === "saved" ? outcome.task.id : outcome.taskId;
+  const i = list.findIndex((t) => t.id === id);
+  if (i === -1) return list;
+  const before = list[i]!;
+  const after = outcome.kind === "saved" ? outcome.task : { ...before, done: outcome.done };
+  if (after === before || (outcome.kind !== "saved" && before.done === outcome.done)) return list;
+  const next = list.slice();
+  next[i] = after;
+  return next;
+}
+
+const THREW: Result<Task> ={ ok: false, error: { code: "unknown", message: TICK_FAILED } };
 
 export function createTaskTicker(
   write: TickWrite,

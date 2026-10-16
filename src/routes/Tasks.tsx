@@ -19,7 +19,7 @@ import { addDays, format, parseISO } from "date-fns";
 import { seam } from "@/lib/data";
 import type { Failure, Result, Task } from "@/lib/domain/types";
 import { eventToday } from "@/lib/event-registration";
-import { createTaskTicker, type TaskTicker, type TickOutcome } from "@/lib/task-tick";
+import { applyOutcome, createTaskTicker, type TaskTicker, type TickOutcome } from "@/lib/task-tick";
 import Loader from "@/components/Loader";
 import Modal from "@/components/Modal";
 import { PILL_OUTLINE } from "@/components/TopBar";
@@ -411,11 +411,16 @@ export default function Tasks(): JSX.Element {
       (id, done) => seam.setTaskDone(id, done),
       () => setRenders((n) => n + 1),
       (outcome: TickOutcome) => {
+        // The run is closed, so `shown` now reads the lists: every outcome writes the server's value
+        // into them, not only `saved` (REVIEW FAIL of 2026-10-15).
+        setState((s) =>
+          s.phase === "ready"
+            ? { ...s, tasks: applyOutcome(s.tasks, outcome), overdue: applyOutcome(s.overdue, outcome) }
+            : s,
+        );
         if (outcome.kind === "saved") {
-          const saved = outcome.task;
-          const swap = (list: Task[]): Task[] => list.map((t) => (t.id === saved.id ? saved : t));
-          setState((s) => (s.phase === "ready" ? { ...s, tasks: swap(s.tasks), overdue: swap(s.overdue) } : s));
-          setTickErrors((e) => withoutKey(e, saved.id));
+          const savedId = outcome.task.id;
+          setTickErrors((e) => withoutKey(e, savedId));
         } else if (outcome.kind === "failed") {
           setTickErrors((e) => ({ ...e, [outcome.taskId]: outcome.failure.message }));
         }

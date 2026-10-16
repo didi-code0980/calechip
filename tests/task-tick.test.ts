@@ -6,7 +6,7 @@
 // `createTaskTicker` alone.
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { Failure, Result, Task } from "@/lib/domain/types";
-import { TICK_FAILED, createTaskTicker, type TickOutcome } from "@/lib/task-tick";
+import { TICK_FAILED, applyOutcome, createTaskTicker, type TickOutcome } from "@/lib/task-tick";
 
 const task = (id: string, done = false): Task => ({
   id,
@@ -294,5 +294,73 @@ describe("TSK-05 — createTaskTicker", () => {
     const t = task("z");
     expect(h.ticker.reconcile(t, h.ticker.mark())).toBe(t);
     expect(h.ticker.shown(t)).toBe(t);
+  });
+
+  // The REVIEW FAIL of 2026-10-15 (04-review.md Finding 1): a success earlier in the run moves the
+  // server's value, so the outcome's `done` must reach the page's list, which `shown` reads once closed.
+  it("AC-3, AC-4: tap, tap, write 1 succeeds, write 2 fails — failed carries the server's value, and the list takes it", async () => {
+    const h = harness();
+    const loaded = task("a", false);
+    h.ticker.tap(loaded);
+    h.ticker.tap(loaded);
+    h.call(0).resolve(ok({ ...loaded, done: true }));
+    await flush();
+    expect(h.write).toHaveBeenCalledTimes(2);
+    expect(h.write).toHaveBeenLastCalledWith("a", false);
+
+    h.call(1).resolve({ ok: false, error: NOT_PERMITTED });
+    await flush();
+    expect(h.outcomes).toEqual([{ kind: "failed", taskId: "a", done: true, failure: NOT_PERMITTED }]);
+
+    const [outcome] = h.outcomes;
+    const [row] = applyOutcome([loaded], outcome!);
+    expect(h.ticker.shown(row!).done).toBe(true);
+  });
+
+  it("AC-4, AC-5: tap, tap, write 1 succeeds, tap, write 2 fails superseded — settled carries the server's value, and the list takes it", async () => {
+    vi.spyOn(console, "error").mockImplementation(() => {});
+    const h = harness();
+    const loaded = task("a", false);
+    h.ticker.tap(loaded);
+    h.ticker.tap(loaded);
+    h.call(0).resolve(ok({ ...loaded, done: true }));
+    await flush();
+    h.ticker.tap(loaded);
+    h.call(1).resolve({ ok: false, error: NOT_PERMITTED });
+    await flush();
+
+    expect(h.write).toHaveBeenCalledTimes(2);
+    expect(h.outcomes).toEqual([{ kind: "settled", taskId: "a", done: true }]);
+
+    const [outcome] = h.outcomes;
+    const [row] = applyOutcome([loaded], outcome!);
+    expect(h.ticker.shown(row!).done).toBe(true);
+  });
+});
+
+describe("TSK-05 — applyOutcome", () => {
+  const a = task("a", false);
+  const b = task("b", true);
+
+  it("saved replaces the whole task", () => {
+    const returned = { ...a, done: true, title: "Renamed elsewhere" };
+    const next = applyOutcome([a, b], { kind: "saved", task: returned });
+    expect(next).toEqual([returned, b]);
+    expect(next[0]).toBe(returned);
+    expect(next[1]).toBe(b);
+  });
+
+  it("failed and settled change done only", () => {
+    const failed = applyOutcome([a, b], { kind: "failed", taskId: "a", done: true, failure: NOT_PERMITTED });
+    expect(failed).toEqual([{ ...a, done: true }, b]);
+    const settled = applyOutcome([a, b], { kind: "settled", taskId: "b", done: false });
+    expect(settled).toEqual([a, { ...b, done: false }]);
+  });
+
+  it("a list without the task, or already holding the value, is returned unchanged", () => {
+    const list = [b];
+    expect(applyOutcome(list, { kind: "saved", task: { ...a, done: true } })).toBe(list);
+    expect(applyOutcome(list, { kind: "failed", taskId: "a", done: true, failure: NOT_PERMITTED })).toBe(list);
+    expect(applyOutcome(list, { kind: "settled", taskId: "b", done: true })).toBe(list);
   });
 });

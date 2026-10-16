@@ -2,10 +2,11 @@
 ticket: TSK-05
 stage: IN_PROGRESS
 agent: developer
-produced_at: 2026-10-15T20:22:11+0700
+produced_at: 2026-10-16T07:50:33+0700
 inputs_read:
   - .ai/board/tickets/TSK-05/01-plan.md
   - .ai/board/tickets/TSK-05/ticket.yaml
+  - .ai/board/tickets/TSK-05/04-review.md
   - .ai/templates/impl-log.md
   - .ai/standards/testing-standards.md
   - .ai/steward/context.md
@@ -24,6 +25,31 @@ next_state: REVIEW
 ---
 
 # TSK-05 — implementation log
+
+## Rework cycle — 2026-10-16, after the REVIEW FAIL of 2026-10-15
+
+`04-review.md` Finding 1 (R5, routed to `tech-lead-design`); `01-plan.md` amended § 4.1 and § 4.2 on
+2026-10-16 (Changelog). This cycle implements the amendment and nothing else.
+
+| file | change | contract item |
+|------|--------|---------------|
+| `src/lib/task-tick.ts` | added `applyOutcome(list, outcome)` at `:61`; `createTaskTicker` unchanged | § 4.1 `applyOutcome` |
+| `src/routes/Tasks.tsx` | `onOutcome` (`:413-426`) writes every outcome into both lists with `applyOutcome`, then clears the error on `saved` and sets it on `failed`; the `saved`-only `swap` is gone | § 4.2 `onOutcome` |
+| `tests/task-tick.test.ts` | two tests for Finding 1's shapes — (a) tap, tap, write 1 succeeds, write 2 fails → `failed`, `done: true`; (b) tap, tap, write 1 succeeds, tap, write 2 fails superseded → `settled`, `done: true` — each asserting `shown(applyOutcome([loaded], outcome)).done` is `true`; three `applyOutcome` tests | § 5 Tests, rework bullets |
+
+Shape (b) interleaves the third tap after write 1 answers: with three taps before any answer the run
+wants `true`, write 1's `true` closes it as `saved`, and no write 2 exists. The plan's "tap ×3" is
+read as three taps in the run, which is the only order that produces the superseded failure it names.
+
+Verification, this cycle: `pnpm exec tsc --noEmit` 0; `pnpm exec eslint .` 0;
+`pnpm exec vitest run tests/task-tick.test.ts` 0 (19 passed); `pnpm exec playwright test
+tests/e2e/tsk-05-optimistic-tick.spec.ts tests/e2e/tsk-01-tasks.spec.ts` 0 (13 passed);
+`pnpm exec vitest run` 1 — 820 passed, the same single `tests/event-email.test.ts` failure as the
+first cycle, not this ticket's.
+
+`ticket.yaml` is not touched; `/advance` records the gate and the state (ADR-036).
+
+## First cycle — 2026-10-15
 
 ## Files touched
 
