@@ -1486,7 +1486,7 @@ các tính năng mới và đưa vào backlog"*. The four solo rows registered e
 | 17 | UIE-12 | The way to join an event stays in view while its page scrolls, on `/events/:id` and on `/guest/:token` | 2026-10-15 | [#145](https://github.com/didi-code0980/calechip/pull/145) |
 | 18 | EVT-14 | A signed-out reader of a guest link is offered sign-in and sign-up, and signing in returns them to the event | 2026-10-15 | [#146](https://github.com/didi-code0980/calechip/pull/146) |
 | 19 | TSK-01 | A member keeps a private list of tasks for each day, and only they can read or change it | 2026-10-15 | [#149](https://github.com/didi-code0980/calechip/pull/149) |
-| 20 | TSK-05 | Ticking a task done or not done changes on screen at once, and the server's answer confirms or undoes it | 2026-10-16 | PENDING_PR |
+| 20 | TSK-05 | Ticking a task done or not done changes on screen at once, and the server's answer confirms or undoes it | 2026-10-16 | [#150](https://github.com/didi-code0980/calechip/pull/150) |
 
 **The window displaced `EVT-04` at TSK-05's ship** — *EVT-04, A person is notified in the app when an event concerns them, shipped 2026-10-08,* [#114](https://github.com/didi-code0980/calechip/pull/114).
 
