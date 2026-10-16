@@ -35,6 +35,7 @@ env:
 jobs:
   release:
     runs-on: ubuntu-latest
+    environment: prod
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@v7

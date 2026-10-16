@@ -15,6 +15,7 @@ permissions:
 jobs:
   mir-tracking:
     runs-on: ubuntu-latest
+    environment: prod
     steps:
       - uses: actions/checkout@v7
         with:

@@ -20,6 +20,7 @@ concurrency:
 jobs:
   ci-fast:
     runs-on: ubuntu-latest
+    environment: prod
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@v7
