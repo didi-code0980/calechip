@@ -5,7 +5,7 @@ id: TSK-05
 title: "Ticking a task done or not done changes on screen at once, and the server's answer confirms or undoes it"
 feature_ids: [TSK-05]
 group: TSK
-state: REWORK
+state: READY
 owner: ""
 branch: ""
 size_estimate: S     # S|M - set by tech-lead-design at PLAN; gates DoR
@@ -29,7 +29,7 @@ chat_budget:
   # ADR-022 removed the QA stage, and the `qa->tech-lead-design` edge with it.
 tracker: { provider: "", external_id: "", sync_enabled: false }
 gates:
-  plan:   { passed: true, at: "2026-10-15T20:11:49+07:00" }   # ADR-019 merged the `spec` and `design` gates into one
+  plan:   { passed: true, at: "2026-10-16T07:47:24+07:00" }   # ADR-019 merged the `spec` and `design` gates into one
   review: { passed: false, at: null }
   # There is no `qa` gate. ADR-017 waived it on 2026-09-01, ADR-021 reverted that the same
   # afternoon, and ADR-022 removed the stage outright. Tickets planned before that date carry a

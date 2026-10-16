@@ -2,7 +2,7 @@
 ticket: TSK-05
 stage: PLAN
 agent: tech-lead-design
-produced_at: 2026-10-15T19:58:58+0700
+produced_at: 2026-10-16T07:43:16+0700
 inputs_read:
   - .ai/board/tickets/TSK-05/ticket.yaml
   - .ai/board/ideas/2026-10-15-ticking-a-task-done-waits-two-round-trips-and-locks-the-box.md
@@ -12,6 +12,8 @@ inputs_read:
   - .ai/01-operating-model.md
   - .ai/steward/context.md
   - .ai/board/tickets/TSK-01/01-plan.md
+  - .ai/board/tickets/TSK-05/04-review.md
+  - src/lib/task-tick.ts
   - src/routes/Tasks.tsx
   - src/lib/domain/types.ts
   - src/lib/data/mock.ts
@@ -244,6 +246,12 @@ export function createTaskTicker(
   onChange: () => void,
   onOutcome: (outcome: TickOutcome) => void,
 ): TaskTicker;
+
+/** AC-2, AC-3, AC-4. `list` with the outcome's server value written into the task it names: `saved`
+ *  replaces the task with `outcome.task`; `failed` and `settled` replace only `done` with
+ *  `outcome.done`. A task the list does not hold is left alone; the same array is returned when
+ *  nothing changed. Added at the REVIEW FAIL of 2026-10-15 — see the Changelog. */
+export function applyOutcome(list: Task[], outcome: TickOutcome): Task[];
 ```
 
 **Behaviour the Developer implements, and the test asserts:**
@@ -269,11 +277,16 @@ export function createTaskTicker(
 
 - **The page owns one ticker** for its lifetime (`useRef`, created once), with
   `write = (id, done) => seam.setTaskDone(id, done)`, `onChange` bumping a render counter, and
-  `onOutcome`:
-  - `saved` → replace the task with that `id` in `state.tasks` and `state.overdue` (no-op where absent),
-    and clear that task's tick error;
-  - `failed` → set that task's tick error to `failure.message`;
-  - `settled` → nothing beyond the re-render.
+  `onOutcome`, which **for every kind first writes the outcome into both lists** —
+  `tasks: applyOutcome(s.tasks, outcome), overdue: applyOutcome(s.overdue, outcome)` — because the run
+  is closed by then and `shown` falls back to the lists, so they must hold the server's value:
+  - `saved` → also clear that task's tick error;
+  - `failed` → also set that task's tick error to `failure.message`;
+  - `settled` → nothing further.
+
+  *Was, until the REVIEW FAIL of 2026-10-15: `saved` replaced the task in both lists; `failed` set the
+  error only; `settled` did nothing. That left the lists on the last load's value whenever a run had a
+  successful write before its final failure — Changelog.*
 - **Tick errors** are page state, `Record<string, string>` keyed by task id. A tap clears the tapped
   task's entry before calling `ticker.tap`.
 - **`load`** reads `const mark = ticker.mark()` before its two requests, and stores
@@ -325,6 +338,13 @@ is untouched. No type in `src/lib/domain/types.ts` changes.
     success yields `saved`.
   - AC-6: `mark()` before a tap's run closes, `reconcile` of a stale task after it closes returns the
     run's value; `mark()` after it closes returns the task unchanged.
+  - **AC-3, AC-4 — a success before the final failure** (the REVIEW finding, both shapes): task loaded
+    `done: false`; (a) tap, tap, write 1 (`true`) succeeds, write 2 (`false`) fails → the outcome is
+    `failed` with `done: true`; (b) tap ×3, write 1 (`true`) succeeds, write 2 (`false`) fails while
+    superseded → `settled` with `done: true`. In each, `applyOutcome([loadedTask], outcome)` then
+    `shown(...)` reads `done: true` — the value the fake server holds — and not the loaded `false`.
+  - `applyOutcome`: `saved` replaces the whole task; `failed` and `settled` change `done` only; a list
+    without the task is returned unchanged (the same array).
 - **`tests/e2e/tsk-05-optimistic-tick.spec.ts`**, through the screen against the mock seam, TSK-01's
   helpers and fixtures copied as that spec defines them:
   - AC-1: after a click the box is enabled, `aria-checked` and `data-done` have flipped, no
@@ -395,3 +415,12 @@ the row remounts.
   repeated press request item 5 is about), and AC-6 (edit, move, add and delete still reload, request
   item 6, and such a load is an older answer that request item 5 says must not overwrite a newer
   state). No AC was narrowed. Raised by `tech-lead-design`.
+- `2026-10-16T07:43:16+0700` — § 4.1 gains `applyOutcome`; § 4.2's `onOutcome` writes every outcome
+  into both lists, not only `saved`; § 5 names the two tests that would have caught it. **Raised by
+  `tech-lead-review`** (`04-review.md` Finding 1, R5 *impossible as specified*): a run whose earlier
+  write succeeded and whose final write failed, or was superseded and failed, closed with the correct
+  `done` in its outcome, but the page discarded it, so the row fell back to the last load's value
+  while the server held the other one, and the next load flipped it by itself. The defect was this
+  plan's wiring, not the Developer's reading of it. No AC changes: AC-3 and AC-4 already required the
+  right behaviour. `src/lib/task-tick.ts` gains one exported function and its existing behaviour is
+  unchanged; `allowed_paths` and `size` are unchanged. Amended by `tech-lead-design`.
