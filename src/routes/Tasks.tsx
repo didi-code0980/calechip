@@ -9,12 +9,17 @@
 // and handed to the overdue read, so the screen and the read agree on one instant.
 //
 // **NO TIME OF ANY KIND IS SHOWN** (AC-20): a task's date, and nothing finer.
-import { useCallback, useEffect, useState, type JSX } from "react";
+//
+// **THE TICK IS OPTIMISTIC** (TSK-05, its 01-plan.md § 4.2). A press shows at once and writes behind
+// it through `src/lib/task-tick.ts`; it never disables the box, never reloads a list, and a refusal
+// puts the row back. Edit, move, add and delete keep the write-then-reload flow below unchanged.
+import { useCallback, useEffect, useRef, useState, type JSX } from "react";
 import { Link, Navigate, useNavigate, useParams } from "react-router-dom";
 import { addDays, format, parseISO } from "date-fns";
 import { seam } from "@/lib/data";
 import type { Failure, Result, Task } from "@/lib/domain/types";
 import { eventToday } from "@/lib/event-registration";
+import { applyOutcome, createTaskTicker, type TaskTicker, type TickOutcome } from "@/lib/task-tick";
 import Loader from "@/components/Loader";
 import Modal from "@/components/Modal";
 import { PILL_OUTLINE } from "@/components/TopBar";
@@ -112,9 +117,13 @@ interface TaskRowProps {
   showDate: boolean;
   onChanged(): Promise<void>;
   onDelete(task: Task): void;
+  /** TSK-05 AC-1. The page's ticker flips the shown value and writes behind it. */
+  onTick(): void;
+  /** TSK-05 AC-3. The last tick's refusal, shown in the row's general message. */
+  tickError: string | undefined;
 }
 
-function TaskRow({ task, today, showDate, onChanged, onDelete }: TaskRowProps): JSX.Element {
+function TaskRow({ task, today, showDate, onChanged, onDelete, onTick, tickError }: TaskRowProps): JSX.Element {
   const [mode, setMode] = useState<"view" | "edit" | "move">("view");
   const [title, setTitle] = useState(task.title);
   const [note, setNote] = useState(task.note ?? "");
@@ -201,15 +210,15 @@ function TaskRow({ task, today, showDate, onChanged, onDelete }: TaskRowProps): 
       ) : (
         <div className="flex items-start gap-3">
           {/* AC-9. A round box, mint when ticked. A button with the checkbox role, so it carries
-              `aria-checked` and is reached by the keyboard. */}
+              `aria-checked` and is reached by the keyboard. TSK-05 AC-1: never disabled, so a second
+              press acts at once. */}
           <button
             data-testid="task-done"
             type="button"
             role="checkbox"
             aria-checked={task.done}
             aria-label={task.done ? `Mark "${task.title}" not done` : `Mark "${task.title}" done`}
-            disabled={busy}
-            onClick={() => void run(() => seam.setTaskDone(task.id, !task.done))}
+            onClick={onTick}
             className={
               "mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-pill border-2 transition-colors " +
               "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink " +
@@ -295,7 +304,7 @@ function TaskRow({ task, today, showDate, onChanged, onDelete }: TaskRowProps): 
         </form>
       ) : null}
 
-      {mode !== "edit" ? <GeneralError message={errors.general} /> : null}
+      {mode !== "edit" ? <GeneralError message={errors.general ?? tickError} /> : null}
     </li>
   );
 }
@@ -362,6 +371,14 @@ function AddTaskForm({ day, onAdded }: { day: string; onAdded(): Promise<void> }
   );
 }
 
+/** `record` without `key`; the same object when the key is absent, so React skips the render. */
+function withoutKey(record: Record<string, string>, key: string): Record<string, string> {
+  if (!(key in record)) return record;
+  const next = { ...record };
+  delete next[key];
+  return next;
+}
+
 // ---------------------------------------------------------------------------
 // The page.
 // ---------------------------------------------------------------------------
@@ -383,18 +400,53 @@ export default function Tasks(): JSX.Element {
   const [confirming, setConfirming] = useState<Task | null>(null);
   const [deleteError, setDeleteError] = useState<string | null>(null);
   const [deleting, setDeleting] = useState(false);
+  /** TSK-05 AC-3. Each task's last tick refusal, by task id. */
+  const [tickErrors, setTickErrors] = useState<Record<string, string>>({});
+  const [, setRenders] = useState(0);
+
+  // TSK-05 § 4.2. One ticker for the page's lifetime; every callback it holds is a stable setter.
+  const tickerRef = useRef<TaskTicker | null>(null);
+  if (tickerRef.current === null) {
+    tickerRef.current = createTaskTicker(
+      (id, done) => seam.setTaskDone(id, done),
+      () => setRenders((n) => n + 1),
+      (outcome: TickOutcome) => {
+        // The run is closed, so `shown` now reads the lists: every outcome writes the server's value
+        // into them, not only `saved` (REVIEW FAIL of 2026-10-15).
+        setState((s) =>
+          s.phase === "ready"
+            ? { ...s, tasks: applyOutcome(s.tasks, outcome), overdue: applyOutcome(s.overdue, outcome) }
+            : s,
+        );
+        if (outcome.kind === "saved") {
+          const savedId = outcome.task.id;
+          setTickErrors((e) => withoutKey(e, savedId));
+        } else if (outcome.kind === "failed") {
+          setTickErrors((e) => ({ ...e, [outcome.taskId]: outcome.failure.message }));
+        }
+      },
+    );
+  }
+  const ticker = tickerRef.current;
 
   const load = useCallback(async (): Promise<void> => {
+    // TSK-05 AC-6. A tick that ends while this load is out wins over what the load read.
+    const mark = ticker.mark();
     try {
       const [tasks, overdue] = await Promise.all([
         seam.listTasks(day, day),
         isToday ? seam.listOverdueTasks(today) : Promise.resolve([]),
       ]);
-      setState({ phase: "ready", day, tasks, overdue });
+      setState({
+        phase: "ready",
+        day,
+        tasks: tasks.map((t) => ticker.reconcile(t, mark)),
+        overdue: overdue.map((t) => ticker.reconcile(t, mark)),
+      });
     } catch {
       setState({ phase: "failed" });
     }
-  }, [day, isToday, today]);
+  }, [day, isToday, today, ticker]);
 
   useEffect(() => {
     if (valid) void load();
@@ -425,6 +477,15 @@ export default function Tasks(): JSX.Element {
     setConfirming(null);
     setDeleteError(null);
   };
+
+  /** TSK-05 AC-1, AC-3. `task` is the row as the server last gave it, not as shown. */
+  const tick = (task: Task): void => {
+    setTickErrors((e) => withoutKey(e, task.id));
+    ticker.tap(task);
+  };
+
+  // TSK-05. The key leaves out `done`, so a press does not remount the row and the box keeps focus.
+  const rowKey = (task: Task): string => `${task.id}:${task.date}:${task.title}:${task.note ?? ""}`;
 
   // A stale list from the previous day is not shown under the new day's heading.
   const ready = state.phase === "ready" && state.day === day ? state : null;
@@ -482,17 +543,23 @@ export default function Tasks(): JSX.Element {
           {isToday && ready.overdue.length > 0 ? (
             <div data-testid="tasks-overdue" className="rounded-card bg-overload px-4 py-3">
               <h2 className="text-sm font-extrabold text-ink">
-                Overdue · <span data-testid="tasks-overdue-count">{ready.overdue.length}</span>
+                {/* TSK-05 AC-7. The rows shown not done; a ticked row stays until the next load. */}
+                Overdue ·{" "}
+                <span data-testid="tasks-overdue-count">
+                  {ready.overdue.filter((t) => !ticker.shown(t).done).length}
+                </span>
               </h2>
               <ul className="mt-1">
                 {ready.overdue.map((task) => (
                   <TaskRow
-                    key={`${task.id}:${task.date}:${task.done}:${task.title}:${task.note ?? ""}`}
-                    task={task}
+                    key={rowKey(task)}
+                    task={ticker.shown(task)}
                     today={today}
                     showDate
                     onChanged={load}
                     onDelete={setConfirming}
+                    onTick={() => tick(task)}
+                    tickError={tickErrors[task.id]}
                   />
                 ))}
               </ul>
@@ -503,12 +570,14 @@ export default function Tasks(): JSX.Element {
             <ul data-testid="tasks-list">
               {ready.tasks.map((task) => (
                 <TaskRow
-                  key={`${task.id}:${task.date}:${task.done}:${task.title}:${task.note ?? ""}`}
-                  task={task}
+                  key={rowKey(task)}
+                  task={ticker.shown(task)}
                   today={today}
                   showDate={false}
                   onChanged={load}
                   onDelete={setConfirming}
+                  onTick={() => tick(task)}
+                  tickError={tickErrors[task.id]}
                 />
               ))}
             </ul>
