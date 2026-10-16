@@ -434,7 +434,7 @@ describe("what the email says (AC-8 to AC-11)", () => {
     expect(html).toContain('role="presentation"');
     expect(html).not.toMatch(/<style/i);
     expect(html.match(/<img/gi)).toHaveLength(1);
-    expect(html).toContain('<img src="https://calechip.example/logo.png" width="32" height="32" alt="CaleChip"');
+    expect(html).toContain('<img src="https://calechip.example/logo.png?v=2" width="32" height="32" alt="CaleChip"');
     expect(html).not.toMatch(/quicksand/i);
     expect(html).toContain("'Nunito', 'Baloo 2'");
   });
