@@ -5,7 +5,7 @@ id: TSK-03
 title: "A member declaring PTO is warned about their own tasks on those days, without being stopped"
 feature_ids: [TSK-03]
 group: TSK
-state: REVIEW       # /implement 2026-10-17, 03-impl-log.md gate PASS
+state: DONE         # `orchestrator` at /ship, 2026-10-17, on 04-review.md `gate: PASS` / `verdict: PASS`
 owner: ""
 branch: ""
 size_estimate: "S"    # S|M - set by tech-lead-design at PLAN; gates DoR
