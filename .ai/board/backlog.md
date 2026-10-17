@@ -24,6 +24,8 @@ planned, sized, and safe to build** — the next stage for a row here is IN_PROG
 |---|--------|-------|------|------------|
 | 1 | TSK-02 | Each time the app opens, a member is shown their overdue tasks and can tick them or move them all to today | S | TSK-01 (DONE) |
 
+**`TSK-02` is at `REVIEW` in `ticket.yaml`, `gates.review` passed** — recorded at /advance on 2026-10-17 from `04-review.md` verdict PASS, after `03-impl-log.md` gate PASS. The row stays here until `/ship` moves it to `## ARCHIVE`.
+
 **`TSK-02` moved here from `## BACKLOG` at /advance on 2026-10-17**, from `01-plan.md` gate PASS with all six Definition of Ready items passing. It was row 2, planned ahead of `CICD-08` on the operator's choice (*"move to feature TSK"*); `TSK-03` and `TSK-04` each moved up one row. Bookkeeping, not a reordering.
 
 **Empty again — `TSK-05` left this section for `## ARCHIVE` at its own ship on 2026-10-16.** `CICD-08` is the top of `## BACKLOG`.
