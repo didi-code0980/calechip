@@ -24,6 +24,8 @@ planned, sized, and safe to build** — the next stage for a row here is IN_PROG
 |---|--------|-------|------|------------|
 | 1 | TSK-03 | A member declaring PTO is warned about their own tasks on those days, without being stopped | S | TSK-01 (DONE) |
 
+**`TSK-03` is at `REVIEW` in `ticket.yaml`, `gates.review` passed** — recorded at /advance on 2026-10-17 from `04-review.md` verdict PASS, after `03-impl-log.md` gate PASS. The row stays here until `/ship` moves it to `## ARCHIVE`.
+
 **`TSK-03` moved here from `## BACKLOG` at /advance on 2026-10-17**, from `01-plan.md` gate PASS with all six Definition of Ready items passing. It was row 2, planned ahead of `CICD-08` on the operator's choice; `TSK-04` moved up one row. Bookkeeping, not a reordering.
 
 **Empty again — `TSK-02` left this section for `## ARCHIVE` at its own ship on 2026-10-17.** `TSK-03` is the next TSK row of `## BACKLOG`; `CICD-08` is in `## BLOCKED`.
