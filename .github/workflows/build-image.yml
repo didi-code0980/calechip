@@ -13,9 +13,11 @@ name: build-image
 #                                                   build (see the Dockerfile header): one image
 #                                                   serves one Supabase project.
 
+# TEMPORARY, operator 2026-10-17: Actions run on release branches only. Branch protection on main is
+# the operator's to lift, since its required checks no longer report there.
 on:
   push:
-    branches: [main]
+    branches: ["release/**"]
 
 permissions:
   contents: read

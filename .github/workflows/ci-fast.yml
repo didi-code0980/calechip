@@ -6,9 +6,11 @@ name: ci-fast
 # The three commands are named by role in .ai/standards/testing-standards.md. Keep them in step with
 # that table and with the `static` job in verify.yml.
 
+# TEMPORARY, operator 2026-10-17: Actions run on release branches only. Branch protection on main is
+# the operator's to lift, since its required checks no longer report there.
 on:
   push:
-    branches: ["feat/**"]
+    branches: ["release/**"]
 
 permissions:
   contents: read
