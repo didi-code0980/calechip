@@ -5,7 +5,7 @@ id: TSK-02
 title: "Each time the app opens, a member is shown their overdue tasks and can tick them or move them all to today"
 feature_ids: [TSK-02]
 group: TSK
-state: READY        # /advance 2026-10-17, from 01-plan.md gate PASS, all six DoR items pass
+state: REVIEW       # /implement 2026-10-17, 03-impl-log.md gate PASS
 owner: ""
 branch: ""
 size_estimate: "S"     # S|M - set by tech-lead-design at PLAN; gates DoR

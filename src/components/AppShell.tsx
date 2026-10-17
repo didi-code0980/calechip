@@ -23,6 +23,12 @@ import TopBar from "./TopBar";
 // by hand every time a route is added. It makes no seam call until it is pressed, so
 // `IT RE-READS NOTHING` above is unchanged.
 import ReportIssueButton from "./ReportIssueButton";
+// TSK-02. The overdue prompt, mounted HERE for the reason the report bubble is: the shell IS every
+// screen a signed-in member sees, so "when the app opens" is one line in it (01-plan.md § 4.3, § 8
+// alternative 2). Its one read is the opener's own overdue tasks, made once per opening.
+import OverduePrompt from "./OverduePrompt";
+import { forgetOverduePrompt } from "@/lib/overdue-prompt";
+import { useCallback, useState } from "react";
 import type { Member, Result } from "@/lib/domain/types";
 // CAL-12. The viewed-team resolution, made ONCE here so the sidebar, the top bar and the outlet
 // cannot disagree about which team is on screen (01-plan.md § 4.2, § 4.3).
@@ -67,6 +73,9 @@ export interface ShellContext {
    */
   member: Member;
   refreshMembership(): void;
+  /** TSK-02 AC-10. Rises by one each time the overdue prompt closes having changed a task. A screen
+   *  that shows tasks reloads when it changes. A number, so it is safe in a dependency list. */
+  tasksRevision: number;
 }
 
 /** The typed reader. Screens call this rather than `useOutletContext` directly, so the shape is
@@ -100,6 +109,18 @@ function ViewingOtherTeamNotice() {
 }
 
 export default function AppShell({ member, signOut, refreshMembership }: AppShellProps) {
+  // TSK-02 AC-10. Raised by the overdue prompt when it closes having changed a task.
+  const [tasksRevision, setTasksRevision] = useState(0);
+  const onTasksChanged = useCallback(() => setTasksRevision((n) => n + 1), []);
+
+  // TSK-02 AC-3. A sign-out that succeeded makes the next sign-in an opening. ON `ok` ONLY: a failed
+  // sign-out leaves the session alive and the prompt already shown for it.
+  const signOutAndForget = useCallback(async () => {
+    const result = await signOut();
+    if (result.ok) forgetOverduePrompt();
+    return result;
+  }, [signOut]);
+
   // § 4.9. Two panes, full bleed, no page margin. `min-h-0` on the row is what makes the content
   // pane the ONLY scrolling region: without it a flex child's default `min-height: auto` lets the
   // pane grow to its content and the whole page scrolls instead, which takes the sidebar's legend
@@ -115,7 +136,7 @@ export default function AppShell({ member, signOut, refreshMembership }: AppShel
   return (
     <ViewedTeamProvider member={member}>
     <div className="flex min-h-0 flex-[1_1_0px]">
-      <Sidebar member={member} signOut={signOut} />
+      <Sidebar member={member} signOut={signOutAndForget} />
 
       {/* The content pane. `min-w-0` is AC-21: without it a flex child refuses to shrink below its
           content's intrinsic width, so a wide grid inside the pane widens the PAGE and the document
@@ -139,7 +160,7 @@ export default function AppShell({ member, signOut, refreshMembership }: AppShel
               NOTE for whoever adds the second entry: this reasoning stops holding the moment a
               consumer puts the context object in a `useEffect` dependency list. */}
           <ViewingOtherTeamNotice />
-          <Outlet context={{ member, refreshMembership } satisfies ShellContext} />
+          <Outlet context={{ member, refreshMembership, tasksRevision } satisfies ShellContext} />
         </div>
       </div>
 
@@ -149,6 +170,8 @@ export default function AppShell({ member, signOut, refreshMembership }: AppShel
           container is the arrangement that breaks the moment somebody adds a transform or a filter
           to that container. Here it is a sibling of both panes and belongs to the frame. */}
       <ReportIssueButton />
+      {/* TSK-02. Outside the scrolling pane for the same reason: the dialog is `position: fixed`. */}
+      <OverduePrompt memberId={member.id} onTasksChanged={onTasksChanged} />
     </div>
     </ViewedTeamProvider>
   );
