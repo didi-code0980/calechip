@@ -59,6 +59,7 @@
 import { useState, type JSX } from "react";
 import DayPicker from "@/components/DayPicker";
 import OverloadWarning from "@/components/OverloadWarning";
+import PtoTaskWarning from "@/components/PtoTaskWarning";
 import { dateRuns } from "@/lib/date-selection";
 import type { EntryPortion, EntryType, Failure } from "@/lib/domain/types";
 // OPS-002. The two label sets moved to src/lib/labels.ts, which is now their ONE declaration
@@ -303,6 +304,12 @@ export default function EntryForm({
           testIdPrefix={testIdPrefix}
         />
       ))}
+
+      {/* TSK-03, 01-plan.md § 4.3. The viewer's own open tasks on the chosen days, beside the overload
+          warning. ONE FOR THE WHOLE SELECTION and fed `dates`, not a run: a task in the gap of a gapped
+          selection is on a day nobody chose (AC-2). Like the block above it is given nothing that
+          reaches the submit control — a notice, never a gate (AC-5, charter refusal 6). */}
+      <PtoTaskWarning ownerId={ownerId} type={type} dates={dates} testIdPrefix={testIdPrefix} />
 
       {/* SOLO. The edit route updates ONE row. This says so, and the submit control is disabled
           while it is true — an affordance about what this screen can save, never a rule about what a

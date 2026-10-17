@@ -17,9 +17,11 @@ import { useCallback, useEffect, useRef, useState, type JSX } from "react";
 import { Link, Navigate, useNavigate, useParams } from "react-router-dom";
 import { addDays, format, parseISO } from "date-fns";
 import { seam } from "@/lib/data";
-import type { Failure, Result, Task } from "@/lib/domain/types";
+import type { Entry, Failure, Result, Task } from "@/lib/domain/types";
 import { eventToday } from "@/lib/event-registration";
+import { ptoCovering, ptoFlagSuffix } from "@/lib/pto-tasks";
 import { applyOutcome, createTaskTicker, type TaskTicker, type TickOutcome } from "@/lib/task-tick";
+import { Sun } from "lucide-react";
 import Loader from "@/components/Loader";
 import Modal from "@/components/Modal";
 import { PILL_OUTLINE } from "@/components/TopBar";
@@ -393,7 +395,7 @@ export default function Tasks(): JSX.Element {
   const { day: param } = useParams();
   const navigate = useNavigate();
   // TSK-02 AC-10. Rises when the overdue prompt closes having changed a task; the page reloads.
-  const { tasksRevision } = useShellContext();
+  const { tasksRevision, member } = useShellContext();
   const today = eventToday();
   const valid = param === undefined || isCalendarDay(param);
   const day = param !== undefined && valid ? param : today;
@@ -406,6 +408,25 @@ export default function Tasks(): JSX.Element {
   /** TSK-05 AC-3. Each task's last tick refusal, by task id. */
   const [tickErrors, setTickErrors] = useState<Record<string, string>>({});
   const [, setRenders] = useState(0);
+  /** TSK-03 AC-10, AC-13. The member's own entries, for the PTO flag; null until read or when the read
+   *  failed. Read once, apart from `load()`: a failed entries read never fails the task list, and a
+   *  task change never re-reads entries. */
+  const [ownEntries, setOwnEntries] = useState<Entry[] | null>(null);
+
+  useEffect(() => {
+    let live = true;
+    void (async () => {
+      try {
+        const entries = await seam.listOwnEntries();
+        if (live) setOwnEntries(entries);
+      } catch {
+        if (live) setOwnEntries(null);
+      }
+    })();
+    return () => {
+      live = false;
+    };
+  }, []);
 
   // TSK-05 § 4.2. One ticker for the page's lifetime; every callback it holds is a stable setter.
   const tickerRef = useRef<TaskTicker | null>(null);
@@ -493,6 +514,10 @@ export default function Tasks(): JSX.Element {
   // A stale list from the previous day is not shown under the new day's heading.
   const ready = state.phase === "ready" && state.day === day ? state : null;
 
+  // TSK-03 AC-10 to AC-12. The count is the day's list as SHOWN, so a tick moves it at once.
+  const pto = ownEntries ? ptoCovering(ownEntries, member.id, day) : null;
+  const openCount = ready ? ready.tasks.filter((t) => !ticker.shown(t).done).length : 0;
+
   return (
     <section
       data-testid="tasks-page"
@@ -501,9 +526,29 @@ export default function Tasks(): JSX.Element {
       <header className="flex items-start gap-3">
         <div className="min-w-0 flex-1">
           <h1 className="text-xl font-extrabold text-ink">My tasks</h1>
-          <p data-testid="tasks-day-heading" data-day={day} className="mt-0.5 text-sm font-semibold text-ink-2">
-            {headingLabel(day)}
-          </p>
+          <div className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-1">
+            <p data-testid="tasks-day-heading" data-day={day} className="text-sm font-semibold text-ink-2">
+              {headingLabel(day)}
+            </p>
+            {/* TSK-03 AC-10. A pill beside the heading, never a banner or a row: it changes nothing
+                the page does (AC-12). Tentative is the palette's dashed border at reduced opacity. */}
+            {pto ? (
+              <span
+                data-testid="tasks-pto-flag"
+                data-entry-id={pto.id}
+                data-portion={pto.portion}
+                data-tentative={pto.tentative}
+                data-open-count={openCount}
+                className={[
+                  "inline-flex items-center gap-1 rounded-full bg-pto px-2 py-0.5 text-xs font-bold text-pto-ink",
+                  pto.tentative ? "border border-dashed border-current opacity-60" : "",
+                ].join(" ")}
+              >
+                <Sun aria-hidden="true" className="h-3 w-3" />
+                On PTO{ptoFlagSuffix(pto.portion, pto.tentative, openCount)}
+              </span>
+            ) : null}
+          </div>
         </div>
         <div className="flex shrink-0 items-center gap-1">
           <button
