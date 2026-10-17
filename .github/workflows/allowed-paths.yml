@@ -8,8 +8,11 @@ name: allowed-paths
 # the fact. It diffs origin/main...HEAD, the whole branch, which is why ticket work and chore work
 # must live on separate branches.
 
+# TEMPORARY, operator 2026-10-17: Actions run on release branches only. Branch protection on main is
+# the operator's to lift, since its required checks no longer report there.
 on:
   pull_request:
+    branches: ["release/**"]
 
 permissions:
   contents: read
