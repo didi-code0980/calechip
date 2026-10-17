@@ -22,6 +22,9 @@ planned, sized, and safe to build** — the next stage for a row here is IN_PROG
 
 | # | Ticket | Title | Size | Depends on |
 |---|--------|-------|------|------------|
+| 1 | TSK-03 | A member declaring PTO is warned about their own tasks on those days, without being stopped | S | TSK-01 (DONE) |
+
+**`TSK-03` moved here from `## BACKLOG` at /advance on 2026-10-17**, from `01-plan.md` gate PASS with all six Definition of Ready items passing. It was row 2, planned ahead of `CICD-08` on the operator's choice; `TSK-04` moved up one row. Bookkeeping, not a reordering.
 
 **Empty again — `TSK-02` left this section for `## ARCHIVE` at its own ship on 2026-10-17.** `TSK-03` is the next TSK row of `## BACKLOG`; `CICD-08` is in `## BLOCKED`.
 
@@ -189,8 +192,7 @@ Under the current gate placement a ticket sits here until it has been planned �
 | # | Ticket | Title | State | Blocked on |
 |---|--------|-------|-------|------------|
 | 1 | CICD-08 | Every stage of the pipeline has run once for real — a pull request, a merge, a pre-release tag and a forced failed health check — and the evidence is recorded | BACKLOG | CICD-07; operator: Actions secrets, deployment repo applied, runner registered, branch protection |
-| 2 | TSK-03 | A member declaring PTO is warned about their own tasks on those days, without being stopped | BACKLOG | TSK-01 |
-| 3 | TSK-04 | The week view shows, in each day's header, how many of the viewer's own tasks are done out of the total | BACKLOG | TSK-01 |
+| 2 | TSK-04 | The week view shows, in each day's header, how many of the viewer's own tasks are done out of the total | BACKLOG | TSK-01 |
 
 **Row 5 was appended by `product` at /triage on 2026-10-15**, from `.ai/board/ideas/2026-10-15-ticking-a-task-done-waits-two-round-trips-and-locks-the-box.md`. Appended, not placed. Its `depends_on` names `TSK-01`, which is `DONE`, so *Blocked on* is `—`.
 
