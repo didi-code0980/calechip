@@ -23,6 +23,7 @@ import { applyOutcome, createTaskTicker, type TaskTicker, type TickOutcome } fro
 import Loader from "@/components/Loader";
 import Modal from "@/components/Modal";
 import { PILL_OUTLINE } from "@/components/TopBar";
+import { useShellContext } from "@/components/AppShell";
 
 // TopBar's `ICON_BUTTON`, repeated as NotificationBell repeats it: the same 32-pixel round arrows the
 // period navigation uses (§ 2b).
@@ -391,6 +392,8 @@ type LoadState =
 export default function Tasks(): JSX.Element {
   const { day: param } = useParams();
   const navigate = useNavigate();
+  // TSK-02 AC-10. Rises when the overdue prompt closes having changed a task; the page reloads.
+  const { tasksRevision } = useShellContext();
   const today = eventToday();
   const valid = param === undefined || isCalendarDay(param);
   const day = param !== undefined && valid ? param : today;
@@ -450,7 +453,7 @@ export default function Tasks(): JSX.Element {
 
   useEffect(() => {
     if (valid) void load();
-  }, [load, valid]);
+  }, [load, valid, tasksRevision]);
 
   // AC-3. Anything that is not a calendar day lands on today.
   if (!valid) return <Navigate to="/tasks" replace />;

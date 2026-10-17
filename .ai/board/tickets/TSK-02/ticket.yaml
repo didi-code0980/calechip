@@ -5,14 +5,20 @@ id: TSK-02
 title: "Each time the app opens, a member is shown their overdue tasks and can tick them or move them all to today"
 feature_ids: [TSK-02]
 group: TSK
-state: BACKLOG
+state: DONE         # `orchestrator` at /ship, 2026-10-17, on 04-review.md `gate: PASS` / `verdict: PASS`
 owner: ""
 branch: ""
-size_estimate: ""     # S|M - set by tech-lead-design at PLAN; gates DoR
-size: ""              # S|M|L|XL - set by tech-lead-design at PLAN; decides splitting
+size_estimate: "S"     # S|M - set by tech-lead-design at PLAN; gates DoR
+size: "S"              # S|M|L|XL - set by tech-lead-design at PLAN; decides splitting
 depends_on: [TSK-01]
-invariants_touched: []
-allowed_paths: []
+invariants_touched: []   # considered at PLAN, 01-plan.md § 2
+allowed_paths:
+  - "src/lib/overdue-prompt.ts"
+  - "src/components/OverduePrompt.tsx"
+  - "src/components/AppShell.tsx"
+  - "src/routes/Tasks.tsx"
+  - "tests/overdue-prompt.test.ts"
+  - "tests/e2e/tsk-02-overdue-prompt.spec.ts"
 glossary_owed: []     # considered; "Task" and "Overdue" are owed by TSK-01
 schema_delta: none
 requires_adr: true    # ADR-057, ACCEPTED by the operator 2026-10-12
@@ -21,5 +27,5 @@ chat_budget:
   developer->tech-lead-design: { used: 0, max: 6 }
 tracker: { provider: "", external_id: "", sync_enabled: false }
 gates:
-  plan:   { passed: false, at: null }
-  review: { passed: false, at: null }
+  plan:   { passed: true, at: "2026-10-17T22:38:41+07:00" }
+  review: { passed: true, at: "2026-10-17T22:51:44+07:00" }
