@@ -5,7 +5,7 @@ id: TSK-04
 title: "The week view shows, in each day's header, how many of the viewer's own tasks are done out of the total"
 feature_ids: [TSK-04]
 group: TSK
-state: REVIEW       # /implement 2026-10-17, 03-impl-log.md gate PASS
+state: DONE         # `orchestrator` at /ship, 2026-10-18, on 04-review.md `gate: PASS` / `verdict: PASS`
 owner: ""
 branch: ""
 size_estimate: "S"    # S|M - set by tech-lead-design at PLAN; gates DoR
