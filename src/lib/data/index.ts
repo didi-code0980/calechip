@@ -263,13 +263,18 @@ export interface CreateTaskInput {
   date: string; // yyyy-MM-dd, today or later in Asia/Ho_Chi_Minh
   title: string;
   note: string | null;
+  /** TSK-06. Absent, null or "" = no time. Otherwise "HH:MM". */
+  timeOfDay?: string | null;
 }
 
-/** TSK-01. A full replacement of title and note, never the date — re-dating is `moveTask`, because it
- *  carries a refusal (`task_date_past`) an edit of a past task's title must not meet. */
+/** TSK-01, TSK-06. A full replacement of title, note and time, never the date — re-dating is
+ *  `moveTask`, because it carries a refusal (`task_date_past`) an edit of a past task's title must
+ *  not meet. */
 export interface UpdateTaskInput {
   title: string;
   note: string | null;
+  /** TSK-06. Required: null or "" clears the time. */
+  timeOfDay: string | null;
 }
 
 export interface SignUpOutcome {
@@ -1551,27 +1556,29 @@ export interface DataSeam {
   // `public.task` have no admin, manager or team arm. "Today" is `eventToday()`, Asia/Ho_Chi_Minh.
   // -------------------------------------------------------------------------
 
-  /** TSK-01 AC-1, AC-22. The caller's tasks with from <= date <= to, ordered `date`, `createdAt`,
-   *  `id` ascending. Empty when from > to (no round trip), signed out, or not an approved member.
+  /** TSK-01 AC-1, AC-22; TSK-06 AC-8. The caller's tasks with from <= date <= to, ordered `date`,
+   *  then `done` (false first), then `timeOfDay` ascending with null last, then `createdAt`, then
+   *  `id` (ADR-062 decision 5). Empty when from > to (no round trip), signed out, or not an approved member.
    *  Bounded by DATASTORE_MAX_ROWS and throws at the bound. Throws on any other read failure. */
   listTasks(from: string, to: string): Promise<Task[]>;
 
   /** TSK-01 AC-13, AC-14. The caller's tasks with done = false and date < today, ordered `date`,
    *  `createdAt`, `id` ascending. `today` is the caller's `eventToday()`, passed in so the screen and
-   *  the read agree on one instant. Empty signed out. Bounded and throwing as `listTasks`. */
+   *  the read agree on one instant. Empty signed out. Bounded and throwing as `listTasks`. TSK-06
+   *  AC-10: this order is NOT `listTasks`' — the time does not enter it. */
   listOverdueTasks(today: string): Promise<Task[]>;
 
-  /** TSK-01 AC-6, AC-7, AC-8. Trims title and note (an empty note becomes null), then refuses
-   *  `invalid_task_title`, `invalid_task_note`, or `task_date_past` (date < eventToday()) before the
-   *  request. Returns the saved row. 42501 or no session is `task_not_permitted`. */
+  /** TSK-01 AC-6, AC-7, AC-8; TSK-06 AC-1, AC-4. Trims title and note (an empty note becomes
+   *  null), then refuses `invalid_task_title`, `invalid_task_note`, `invalid_task_time`, or
+   *  `task_date_past` (date < eventToday()) before the request; "" or null time is no time. Returns the saved row. 42501 or no session is `task_not_permitted`. */
   createTask(input: CreateTaskInput): Promise<Result<Task>>;
 
-  /** TSK-01 AC-8, AC-10. Trims and refuses as `createTask` does for title and note; the date is not
-   *  written. Zero rows updated is `task_not_permitted`. Returns the saved row. */
+  /** TSK-01 AC-8, AC-10; TSK-06 AC-2, AC-4. Trims and refuses as `createTask` does for title, note
+   *  and time; the date is not written. Zero rows updated is `task_not_permitted`. Returns the saved row. */
   updateTask(taskId: string, input: UpdateTaskInput): Promise<Result<Task>>;
 
   /** TSK-01 AC-11. Refuses `task_date_past` when date < eventToday(), before the request. Writes the
-   *  date only. Zero rows updated is `task_not_permitted`. Returns the saved row. */
+   *  date only — TSK-06 AC-3: the time is kept. Zero rows updated is `task_not_permitted`. Returns the saved row. */
   moveTask(taskId: string, date: string): Promise<Result<Task>>;
 
   /** TSK-01 AC-9. Writes `done` only. Zero rows updated is `task_not_permitted`. Returns the saved

@@ -14,6 +14,7 @@ const task = (id: string, done = false): Task => ({
   date: "2030-03-12",
   title: `Task ${id}`,
   note: null,
+  timeOfDay: null,
   done,
   createdAt: "2030-03-12T03:00:00.000Z",
 });

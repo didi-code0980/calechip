@@ -45,6 +45,7 @@ const fake = (id: string): Task => ({
   date: YESTERDAY,
   title: id,
   note: null,
+  timeOfDay: null,
   done: false,
   createdAt: "2030-03-11T03:00:00Z",
 });

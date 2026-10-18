@@ -291,6 +291,9 @@ export type FailureCode =
   | "invalid_task_title"
   // TSK-01. Note over TASK_NOTE_MAX once trimmed — AC-8. `task_note_shape` (23514) is the control.
   | "invalid_task_note"
+  // TSK-06. A time that is not "HH:MM" on a 24-hour clock — AC-4. Refused in the SEAM before the
+  // request; the `time` type and `task_time_of_day_shape` (23514) are the control.
+  | "invalid_task_time"
   // TSK-01. A create or a move to a date before today in Asia/Ho_Chi_Minh — AC-7, AC-11. Refused in
   // the SEAM only; the database holds no date floor (01-plan.md § 1 decision 2).
   | "task_date_past"
@@ -1232,14 +1235,17 @@ export interface EmailInvitationOutcome {
 // TSK-01, 01-plan.md section 4.1. ADR-057.
 // ---------------------------------------------------------------------------
 
-/** TSK-01. One task: the caller's own, always — no other person's task ever reaches the browser.
- *  NO TIME FIELD OF ANY KIND, and there must never be one (ADR-057 decision 6, charter refusal 3). */
+/** TSK-01, TSK-06. One task: the caller's own, always — no other person's task ever reaches the
+ *  browser. ADR-062: one optional time of day, as extra information only; NO OTHER TIME-BEARING
+ *  FIELD (end time, duration, estimate, hours, lead time). *Until TSK-06: "NO TIME FIELD OF ANY KIND"
+ *  (ADR-057 decision 6), superseded as to a time of day by ADR-062.* */
 export interface Task {
   id: string;
   memberId: string;
   date: string; // yyyy-MM-dd
   title: string; // trimmed, 1..TASK_TITLE_MAX characters
   note: string | null; // trimmed, 1..TASK_NOTE_MAX characters, or null
+  timeOfDay: string | null; // "HH:MM", 24-hour, wall-clock Asia/Ho_Chi_Minh; null = no time (ADR-062)
   done: boolean;
   createdAt: string; // ISO 8601 instant; ordering only, never displayed
 }

@@ -603,12 +603,14 @@ interface TaskRow {
   date: string;
   title: string;
   note: string | null;
+  time_of_day: string | null; // TSK-06. Postgres returns "HH:MM:SS"
   done: boolean;
   created_at: string;
 }
 
-// Named explicitly rather than `*`, the shape this file uses everywhere. Seven columns, none a time.
-const TASK_COLUMNS = "id, member_id, date, title, note, done, created_at";
+// Named explicitly rather than `*`, the shape this file uses everywhere. Eight columns; TSK-06's
+// `time_of_day` is the only one holding a time (ADR-062). *Until TSK-06: "Seven columns, none a time."*
+const TASK_COLUMNS = "id, member_id, date, title, note, time_of_day, done, created_at";
 
 function toTask(row: TaskRow): Task {
   return {
@@ -617,6 +619,7 @@ function toTask(row: TaskRow): Task {
     date: row.date,
     title: row.title,
     note: row.note,
+    timeOfDay: row.time_of_day === null ? null : row.time_of_day.slice(0, 5),
     done: row.done,
     createdAt: row.created_at,
   };
@@ -629,6 +632,7 @@ const TASK_NOTE_INVALID = "Keep the note to at most 1000 characters.";
 const TASK_DATE_PAST = "A task can be dated today or later.";
 const TASK_NOT_PERMITTED = "This task could not be changed. It may have been deleted.";
 const TASK_SAVE_FAILED = "This task could not be saved.";
+const TASK_TIME_INVALID = "Pick a time as HH:MM, or leave it empty.";
 
 /** AC-8. Trims title and note (an empty note becomes null) and refuses in the order title, note.
  *  AFFORDANCES: `task_title_shape` and `task_note_shape` are the controls. Repeated in mock.ts. */
@@ -645,6 +649,18 @@ function taskText(
     return { ok: false, error: { code: "invalid_task_note", message: TASK_NOTE_INVALID } };
   }
   return { ok: true, title: t, note: n === "" ? null : n };
+}
+
+/** TSK-06 AC-4. "" and null are no time; "HH:MM" 00:00..23:59 is a time; anything else refuses.
+ *  AFFORDANCE: the `time` type and `task_time_of_day_shape` are the control. Repeated in mock.ts. */
+function taskTime(
+  value: string | null | undefined,
+): { ok: true; timeOfDay: string | null } | { ok: false; error: Failure } {
+  if (value === undefined || value === null || value === "") return { ok: true, timeOfDay: null };
+  if (!/^([01]\d|2[0-3]):[0-5]\d$/.test(value)) {
+    return { ok: false, error: { code: "invalid_task_time", message: TASK_TIME_INVALID } };
+  }
+  return { ok: true, timeOfDay: value };
 }
 
 /** AC-7, AC-11. The date floor, held HERE AND ON THE PAGE ONLY — the database holds none (01-plan.md
@@ -669,7 +685,7 @@ function toTaskFailure(error: PostgrestError): Failure {
  *  `task_update_own` filters answers 200 with an empty body. */
 async function updateTaskRow(
   taskId: string,
-  values: { title?: string; note?: string | null; date?: string; done?: boolean },
+  values: { title?: string; note?: string | null; time_of_day?: string | null; date?: string; done?: boolean },
 ): Promise<Result<Task>> {
   const { data, error } = await client()
     .from("task")
@@ -4136,7 +4152,10 @@ export const seam: DataSeam = {
       .select(TASK_COLUMNS)
       .gte("date", from)
       .lte("date", to)
+      // TSK-06 AC-8, ADR-062 decision 5. Reproduced clause for clause by mock.ts's `byDayOrder`.
       .order("date")
+      .order("done")
+      .order("time_of_day", { nullsFirst: false })
       .order("created_at")
       .order("id")
       .limit(DATASTORE_MAX_ROWS)
@@ -4170,12 +4189,14 @@ export const seam: DataSeam = {
   async createTask(input: CreateTaskInput): Promise<Result<Task>> {
     const text = taskText(input.title, input.note);
     if (!text.ok) return { ok: false, error: text.error };
+    const time = taskTime(input.timeOfDay);
+    if (!time.ok) return { ok: false, error: time.error };
     if (taskDatePast(input.date)) {
       return { ok: false, error: { code: "task_date_past", message: TASK_DATE_PAST } };
     }
     const { data, error } = await client()
       .from("task")
-      .insert({ date: input.date, title: text.title, note: text.note })
+      .insert({ date: input.date, title: text.title, note: text.note, time_of_day: time.timeOfDay })
       .select(TASK_COLUMNS)
       .single<TaskRow>();
     if (error) return { ok: false, error: toTaskFailure(error) };
@@ -4185,7 +4206,9 @@ export const seam: DataSeam = {
   async updateTask(taskId: string, input: UpdateTaskInput): Promise<Result<Task>> {
     const text = taskText(input.title, input.note);
     if (!text.ok) return { ok: false, error: text.error };
-    return updateTaskRow(taskId, { title: text.title, note: text.note });
+    const time = taskTime(input.timeOfDay);
+    if (!time.ok) return { ok: false, error: time.error };
+    return updateTaskRow(taskId, { title: text.title, note: text.note, time_of_day: time.timeOfDay });
   },
 
   async moveTask(taskId: string, date: string): Promise<Result<Task>> {

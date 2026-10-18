@@ -93,7 +93,8 @@ test.describe("TSK-01 — my tasks", () => {
     await openTasks(page);
 
     await expect(heading(page)).toHaveAttribute("data-day", TODAY);
-    await expect(heading(page)).toHaveText("Tuesday, 12 March 2030");
+    // TSK-06 AC-15: prefixed "Today · " when the day is today.
+    await expect(heading(page)).toHaveText("Today · Tuesday, 12 March 2030");
     await expect(page.getByTestId("tasks-today")).toHaveCount(0);
     await expect(page.getByTestId("tasks-empty")).toHaveText("Nothing planned yet. Add the first task below.");
 
