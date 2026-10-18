@@ -22,7 +22,9 @@ planned, sized, and safe to build** — the next stage for a row here is IN_PROG
 
 | # | Ticket | Title | Size | Depends on |
 |---|--------|-------|------|------------|
-| 1 | TSK-06 | The task page shows the week around the selected day, with progress, and a task may carry an optional time of day | M | TSK-01, TSK-02, TSK-03, TSK-05 (all DONE) |
+| 1 | TSK-06 | The task page shows the week around the selected day, with progress, and a task may carry an optional time of day | L | TSK-01, TSK-02, TSK-03, TSK-05 (all DONE) |
+
+**`TSK-06` is at `REVIEW` in `ticket.yaml`, `gates.review` passed** — recorded at /advance on 2026-10-18 from `04-review.md` verdict PASS, after `03-impl-log.md` gate PASS. The row stays here until `/ship` moves it to `## ARCHIVE`. Its size column now reads `L`, transcribed from `ticket.yaml` (`size: "L"`, seventeen paths, amended at IN_PROGRESS); it read `M`.
 
 **`TSK-06` moved here from `## BACKLOG` at /advance on 2026-10-18**, from `01-plan.md` gate PASS with all six Definition of Ready items passing; `schema_delta` cites ADR-062, `ACCEPTED by the operator`. It was row 2, planned ahead of `CICD-08` on the operator's choice. Bookkeeping, not a reordering.
 
