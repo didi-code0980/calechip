@@ -9,7 +9,7 @@ state: READY        # /advance 2026-10-18, from 01-plan.md gate PASS, all six Do
 owner: ""
 branch: ""
 size_estimate: "M"    # Set by tech-lead-design at /plan, 2026-10-18, from 01-plan.md section 1. Gates DoR.
-size: "M"             # Thirteen paths, counted from allowed_paths below - 01-plan.md section 7. Agrees
+size: "M"             # Fourteen paths (thirteen until 2026-10-18T20:06, + ADR-062), counted from allowed_paths below - 01-plan.md section 7. Agrees
                       # with size_estimate. No seam method added or renamed; shapes change (section 5).
 depends_on: [TSK-01, TSK-02, TSK-03, TSK-05]   # the page, the overdue list, the PTO flag and the tick it rearranges; all DONE
 invariants_touched: []   # Written explicitly at /plan, 01-plan.md section 2: a task is in no count and the time enters none
@@ -27,6 +27,7 @@ allowed_paths:
   - "tests/task-time.test.ts"
   - "tests/e2e/tsk-06-task-week.spec.ts"
   - "tests/e2e/tsk-01-tasks.spec.ts"
+  - ".ai/registry/decisions/ADR-062-a-task-may-carry-an-optional-time-of-day.md"   # schema ADR, ACCEPTED at /triage, ships in this PR (plan amended 2026-10-18T20:06)
 # ^ 01-plan.md section 7. ADR-057's Status note, data-model.md, rbac-and-security.md and the charter
 #   are NOT here: human and standards plane, owed to /thuki with their text in 01-plan.md section 6.
 glossary_owed: [Task, Time of day]     # Task's row says it "carries no time of day", reversed by ADR-062; Time of day has no row. PLAN writes both (ADR-047)

@@ -2,7 +2,7 @@
 ticket: TSK-06
 stage: PLAN
 agent: tech-lead-design
-produced_at: 2026-10-18T19:54:57+0700
+produced_at: 2026-10-18T20:06:00+0700
 inputs_read:
   - .ai/board/tickets/TSK-06/ticket.yaml
   - .ai/board/ideas/2026-10-18-the-task-page-shows-one-day-at-a-time-and-a-task-has-no-time.md
@@ -535,7 +535,11 @@ allowed_paths:
   - "tests/task-time.test.ts"
   - "tests/e2e/tsk-06-task-week.spec.ts"
   - "tests/e2e/tsk-01-tasks.spec.ts"
+  - ".ai/registry/decisions/ADR-062-a-task-may-carry-an-optional-time-of-day.md"
 ```
+
+**ADR-062:** listed because it is this ticket's schema ADR, drafted at /triage and ACCEPTED by the
+operator, and it ships in this ticket's PR; the Developer does not edit it.
 
 **Glossary:** rows written for *Task* (amended: the "carries no time of day" clause, reversed by
 ADR-062, with the old wording kept as the file does) and *Time of day* (new).
@@ -547,7 +551,10 @@ lead-time column; the `Task` key list gains `timeOfDay`. Its `updateTask` calls 
 null`. **`tests/e2e/tsk-01-tasks.spec.ts`** is listed only for AC-9's amendment, should a check of the
 row order after a reload need it.
 
-**Thirteen paths: `size: M`, agreeing with `size_estimate: M`.**
+**Fourteen paths: `size: M`, agreeing with `size_estimate: M`.** *Until 2026-10-18T20:06: "Thirteen
+paths".* The fourteenth is an already-written, ACCEPTED ADR carried into the PR, not a file the
+Developer writes, so it changes neither the size nor the split answer: twelve source and test files
+remain the build.
 
 ## 8. Rejected alternatives
 
@@ -572,3 +579,7 @@ row order after a reload need it.
   idea and ADR-062 before the source was read; reading `Tasks.tsx` and `tests/e2e/` added § 1 decisions
   4 and 6 and AC-9, AC-14 (kept day arrows, no reorder on tick), and nothing was narrowed. Raised by
   `tech-lead-design`. Amended by `tech-lead-design`.
+- `2026-10-18T20:06:00+0700` — § 7 gains `.ai/registry/decisions/ADR-062-a-task-may-carry-an-optional-time-of-day.md`.
+  Reason: the `/advance` checkpoint `8d7f0c7` carries that ADR (drafted at /triage, ACCEPTED by the
+  operator) and `check-allowed-paths.mjs` failed on it; the operator chose to list it. Thirteen paths
+  become fourteen; `size` stays M. Raised by the operator. Amended by `tech-lead-design`.
