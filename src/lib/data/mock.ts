@@ -1440,6 +1440,7 @@ const TASK_NOTE_INVALID = "Keep the note to at most 1000 characters.";
 const TASK_DATE_PAST = "A task can be dated today or later.";
 const TASK_NOT_PERMITTED = "This task could not be changed. It may have been deleted.";
 const TASK_SAVE_FAILED = "This task could not be saved.";
+const TASK_TIME_INVALID = "Pick a time as HH:MM, or leave it empty.";
 
 /** supabase.ts's `taskText`, repeated: trims, refuses title then note. */
 function taskText(
@@ -1455,6 +1456,18 @@ function taskText(
     return { ok: false, error: { code: "invalid_task_note", message: TASK_NOTE_INVALID } };
   }
   return { ok: true, title: t, note: n === "" ? null : n };
+}
+
+/** supabase.ts's `taskTime`, repeated. TSK-06 AC-4: "" and null are no time; "HH:MM" 00:00..23:59
+ *  is a time; anything else refuses `invalid_task_time`. */
+function taskTime(
+  value: string | null | undefined,
+): { ok: true; timeOfDay: string | null } | { ok: false; error: Failure } {
+  if (value === undefined || value === null || value === "") return { ok: true, timeOfDay: null };
+  if (!/^([01]\d|2[0-3]):[0-5]\d$/.test(value)) {
+    return { ok: false, error: { code: "invalid_task_time", message: TASK_TIME_INVALID } };
+  }
+  return { ok: true, timeOfDay: value };
 }
 
 const taskDatePast = (date: string): boolean => date < eventToday();
@@ -1474,6 +1487,18 @@ const byTaskOrder = (a: Task, b: Task): number =>
       ? a.createdAt < b.createdAt ? -1 : 1
       : a.id < b.id ? -1 : a.id > b.id ? 1 : 0;
 
+/** TSK-06 AC-8, ADR-062 decision 5. `listTasks`' order, supabase.ts's `order by` clause for clause:
+ *  date, done (false first), time of day ascending with null last, then `byTaskOrder`'s tail.
+ *  `listOverdueTasks` keeps `byTaskOrder` (AC-10). "HH:MM" compares correctly as a string. */
+const byDayOrder = (a: Task, b: Task): number =>
+  a.date !== b.date
+    ? a.date < b.date ? -1 : 1
+    : a.done !== b.done
+      ? a.done ? 1 : -1
+      : a.timeOfDay !== b.timeOfDay
+        ? a.timeOfDay === null ? 1 : b.timeOfDay === null ? -1 : a.timeOfDay < b.timeOfDay ? -1 : 1
+        : byTaskOrder(a, b);
+
 const taskNotPermitted = (): { ok: false; error: Failure } => ({
   ok: false,
   error: { code: "task_not_permitted", message: TASK_NOT_PERMITTED },
@@ -1483,7 +1508,7 @@ const taskNotPermitted = (): { ok: false; error: Failure } => ({
  *  update grant, so the row stays the caller's. Zero rows is `task_not_permitted`. */
 function updateOwnTask(
   taskId: string,
-  values: { title?: string; note?: string | null; date?: string; done?: boolean },
+  values: { title?: string; note?: string | null; timeOfDay?: string | null; date?: string; done?: boolean },
 ): Result<Task> {
   const row = tasks.find((t) => t.id === taskId && ownsTask(t));
   if (!row) return taskNotPermitted();
@@ -4021,7 +4046,7 @@ export const seam: DataSeam = {
     if (from > to) return [];
     return tasks
       .filter((t) => ownsTask(t) && t.date >= from && t.date <= to)
-      .sort(byTaskOrder)
+      .sort(byDayOrder)
       .map((t) => ({ ...t }));
   },
 
@@ -4036,6 +4061,8 @@ export const seam: DataSeam = {
   async createTask(input: CreateTaskInput): Promise<Result<Task>> {
     const text = taskText(input.title, input.note);
     if (!text.ok) return { ok: false, error: text.error };
+    const time = taskTime(input.timeOfDay);
+    if (!time.ok) return { ok: false, error: time.error };
     if (taskDatePast(input.date)) {
       return { ok: false, error: { code: "task_date_past", message: TASK_DATE_PAST } };
     }
@@ -4047,6 +4074,7 @@ export const seam: DataSeam = {
       date: input.date,
       title: text.title,
       note: text.note,
+      timeOfDay: time.timeOfDay,
       done: false,
       createdAt: new Date().toISOString(),
     };
@@ -4057,7 +4085,9 @@ export const seam: DataSeam = {
   async updateTask(taskId: string, input: UpdateTaskInput): Promise<Result<Task>> {
     const text = taskText(input.title, input.note);
     if (!text.ok) return { ok: false, error: text.error };
-    return updateOwnTask(taskId, { title: text.title, note: text.note });
+    const time = taskTime(input.timeOfDay);
+    if (!time.ok) return { ok: false, error: time.error };
+    return updateOwnTask(taskId, { title: text.title, note: text.note, timeOfDay: time.timeOfDay });
   },
 
   async moveTask(taskId: string, date: string): Promise<Result<Task>> {

@@ -7,7 +7,15 @@
 // tests/pto-tasks.test.ts carries: they are the arguments of a pure function. The member id is
 // imported, as there.
 import { describe, expect, it } from "vitest";
-import { tallyLabel, tallyText, taskTalliesFor } from "@/lib/week-tasks";
+import {
+  stripCellLabel,
+  stripMark,
+  tallyLabel,
+  tallyText,
+  taskTalliesFor,
+  weekDaysOf,
+  weekTotals,
+} from "@/lib/week-tasks";
 import type { DateRange, Task } from "@/lib/domain/types";
 import { FIXTURE_MEMBER } from "@/lib/fixtures";
 
@@ -20,6 +28,7 @@ function task(id: string, date: string, done = false): Task {
     date,
     title: `Task ${id}`,
     note: null,
+    timeOfDay: null,
     done,
     createdAt: "2030-03-01T00:00:00.000Z",
   };
@@ -95,5 +104,54 @@ describe("tallyText and tallyLabel", () => {
     expect(tallyText({ done: 0, total: 1 })).toBe("0/1");
     expect(tallyLabel({ done: 0, total: 1 })).toBe("0 of 1 task done");
     expect(tallyLabel({ done: 1, total: 1 })).toBe("1 of 1 task done");
+  });
+});
+
+// ---------------------------------------------------------------------------
+// TSK-06 — the task page's strip and summary. Its 01-plan.md § 4.6.
+// ---------------------------------------------------------------------------
+
+describe("TSK-06 AC-11 — weekDaysOf", () => {
+  it("is Monday to Sunday holding the day, wherever in the week the day falls", () => {
+    const week = ["2026-04-27", "2026-04-28", "2026-04-29", "2026-04-30", "2026-05-01", "2026-05-02", "2026-05-03"];
+    for (const day of week) expect(weekDaysOf(day)).toEqual(week);
+  });
+
+  it("crosses a year", () => {
+    expect(weekDaysOf("2026-01-01")).toEqual([
+      "2025-12-29",
+      "2025-12-30",
+      "2025-12-31",
+      "2026-01-01",
+      "2026-01-02",
+      "2026-01-03",
+      "2026-01-04",
+    ]);
+  });
+});
+
+describe("TSK-06 AC-12 — stripMark and stripCellLabel", () => {
+  it("✓ when all are done, done/total when some are not, – when there are none", () => {
+    expect(stripMark({ done: 2, total: 2 })).toBe("✓");
+    expect(stripMark({ done: 1, total: 3 })).toBe("1/3");
+    expect(stripMark({ done: 0, total: 1 })).toBe("0/1");
+    expect(stripMark(undefined)).toBe("\u2013");
+  });
+
+  it("says the same in words", () => {
+    expect(stripCellLabel("2026-04-27", { done: 2, total: 2 })).toBe("Monday 27 April, 2 of 2 tasks done");
+    expect(stripCellLabel("2026-04-29", { done: 1, total: 3 })).toBe("Wednesday 29 April, 1 of 3 tasks done");
+    expect(stripCellLabel("2026-05-03", undefined)).toBe("Sunday 3 May, no tasks");
+  });
+});
+
+describe("TSK-06 AC-21 — weekTotals", () => {
+  it("sums the days, and is 0/0 for an empty week", () => {
+    const tallies = taskTalliesFor(
+      [task("a", "2030-03-11", true), task("b", "2030-03-11", true), task("c", "2030-03-13"), task("d", "2030-03-17")],
+      WEEK,
+    );
+    expect(weekTotals(tallies)).toEqual({ done: 2, total: 4 });
+    expect(weekTotals(new Map())).toEqual({ done: 0, total: 0 });
   });
 });

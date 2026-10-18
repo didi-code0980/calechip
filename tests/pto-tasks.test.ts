@@ -23,6 +23,7 @@ function task(id: string, date: string, over: Partial<Task> = {}): Task {
     date,
     title: `Task ${id}`,
     note: null,
+    timeOfDay: null,
     done: false,
     createdAt: "2030-03-01T00:00:00.000Z",
     ...over,

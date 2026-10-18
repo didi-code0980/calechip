@@ -42,6 +42,12 @@ const MIGRATION = readFileSync(
  *  not used; the assertions below are about the statements. */
 const SQL = MIGRATION.replace(/--[^\n]*/g, "");
 
+/** TSK-06 AC-6. ADR-062's migration, comments removed the same way. */
+const TSK06_SQL = readFileSync(
+  fileURLToPath(new URL("../supabase/migrations/20261018120000_tsk06_task_time_of_day.sql", import.meta.url)),
+  "utf8",
+).replace(/--[^\n]*/g, "");
+
 // ---------------------------------------------------------------------------
 // The clock. 03:00Z is 10:00 in Asia/Ho_Chi_Minh, well inside the day either side.
 // ---------------------------------------------------------------------------
@@ -231,8 +237,8 @@ describe("TSK-01 AC-8 — title and note bounds", () => {
 
   it("holds the same bounds on an edit", async () => {
     const task = await createAs(OWNER);
-    const title = await mock.updateTask(task.id, { title: "", note: null });
-    const note = await mock.updateTask(task.id, { title: "ok", note: "y".repeat(TASK_NOTE_MAX + 1) });
+    const title = await mock.updateTask(task.id, { title: "", note: null, timeOfDay: null });
+    const note = await mock.updateTask(task.id, { title: "ok", note: "y".repeat(TASK_NOTE_MAX + 1), timeOfDay: null });
     expect(title.ok ? null : title.error.code).toBe("invalid_task_title");
     expect(note.ok ? null : note.error.code).toBe("invalid_task_note");
     expect(await readBack(task.id)).toEqual(task);
@@ -260,9 +266,11 @@ describe("TSK-01 AC-9 — tick and untick", () => {
     as(OWNER);
     const ticked = await mock.setTaskDone(a.id, true);
     expect(ticked.ok && ticked.value.done).toBe(true);
+    // TSK-06 AC-8, AC-9 amend "keeps the task in place" for the NEXT READ: a done task now reads after
+    // the not-done ones. The page still keeps a ticked row where it is until it reads again.
     expect((await mock.listTasks(TODAY, TODAY)).map((t) => [t.title, t.done])).toEqual([
-      ["A", true],
       ["B", false],
+      ["A", true],
     ]);
     const unticked = await mock.setTaskDone(a.id, false);
     expect(unticked.ok && unticked.value.done).toBe(false);
@@ -279,12 +287,12 @@ describe("TSK-01 AC-10 — edit title and note", () => {
     const past = await createdOn(OWNER, TWO_DAYS_AGO, "Old");
     as(OWNER);
     await mock.setTaskDone(past.id, true);
-    const edited = await mock.updateTask(past.id, { title: " New ", note: " with a note " });
+    const edited = await mock.updateTask(past.id, { title: " New ", note: " with a note ", timeOfDay: null });
     expect(edited.ok).toBe(true);
     const back = await readBack(past.id);
     expect(back).toMatchObject({ title: "New", note: "with a note", date: TWO_DAYS_AGO, done: true });
 
-    const cleared = await mock.updateTask(past.id, { title: "New", note: "" });
+    const cleared = await mock.updateTask(past.id, { title: "New", note: "", timeOfDay: null });
     expect(cleared.ok && cleared.value.note).toBeNull();
   });
 });
@@ -293,7 +301,7 @@ describe("TSK-01 AC-11 — re-date (move)", () => {
   it("moves a past task to today or later, keeping title, note and done", async () => {
     const past = await createdOn(OWNER, YESTERDAY, "Slipped");
     as(OWNER);
-    await mock.updateTask(past.id, { title: "Slipped", note: "n" });
+    await mock.updateTask(past.id, { title: "Slipped", note: "n", timeOfDay: null });
     await mock.setTaskDone(past.id, true);
 
     const moved = await mock.moveTask(past.id, TOMORROW);
@@ -395,7 +403,7 @@ describe("TSK-01 AC-17 — nobody else writes a task", () => {
       as(who);
       for (const id of [task.id, missing]) {
         const writes = [
-          await mock.updateTask(id, { title: "Hijacked", note: null }),
+          await mock.updateTask(id, { title: "Hijacked", note: null, timeOfDay: null }),
           await mock.moveTask(id, TOMORROW),
           await mock.setTaskDone(id, true),
           await mock.setTaskDone(id, false),
@@ -435,7 +443,7 @@ describe("TSK-01 AC-18 — no session, no standing", () => {
       expect(await mock.listOverdueTasks(TODAY), String(who)).toEqual([]);
       const writes = [
         await mock.createTask(input()),
-        await mock.updateTask(task.id, { title: "x", note: null }),
+        await mock.updateTask(task.id, { title: "x", note: null, timeOfDay: null }),
         await mock.moveTask(task.id, TOMORROW),
         await mock.setTaskDone(task.id, true),
         await mock.deleteTask(task.id),
@@ -512,8 +520,10 @@ describe("TSK-01 AC-19 — no other path reaches a task", () => {
   });
 });
 
-describe("TSK-01 AC-20 — a task carries no time", () => {
-  it("the table has no column holding a time of day, an estimate, a duration or hours", () => {
+// TSK-06 AC-6 NARROWS this criterion (ADR-062): the TSK-01 table still holds no time, and the TSK-06
+// migration adds exactly one, `time_of_day time`. Asserted in both files.
+describe("TSK-01 AC-20, as narrowed by TSK-06 AC-6 — one time of day and nothing else", () => {
+  it("the TSK-01 table has no column holding a time of day, an estimate, a duration or hours", () => {
     const table = SQL.match(/create table if not exists public\.task \(([\s\S]*?)\n\);/);
     if (!table) throw new Error("no task table in the migration");
     const columns = (table[1] ?? "")
@@ -528,9 +538,28 @@ describe("TSK-01 AC-20 — a task carries no time", () => {
     }
   });
 
-  it("a Task from the seam has exactly the seven fields of § 4.1", async () => {
+  it("the TSK-06 migration adds exactly one time-bearing column, time_of_day time, and nothing else", () => {
+    const added = [...TSK06_SQL.matchAll(/add column if not exists (\w+) ([\w ]+?)(?: null)?;/g)].map((m) => [
+      m[1],
+      m[2],
+    ]);
+    expect(added).toEqual([["time_of_day", "time without time zone"]]);
+    expect(TSK06_SQL).not.toMatch(/\b(interval|timetz|duration|estimate|hours?|lead_time|end_time)\b/i);
+    expect(TSK06_SQL).toMatch(/check \(time_of_day is null or extract\(second from time_of_day\) = 0\)/);
+  });
+
+  it("a Task from the seam has exactly the eight fields of TSK-06 § 4.1", async () => {
     const task = await createAs(OWNER);
-    expect(Object.keys(task).sort()).toEqual(["createdAt", "date", "done", "id", "memberId", "note", "title"]);
+    expect(Object.keys(task).sort()).toEqual([
+      "createdAt",
+      "date",
+      "done",
+      "id",
+      "memberId",
+      "note",
+      "timeOfDay",
+      "title",
+    ]);
   });
 });
 
@@ -566,6 +595,8 @@ describe("TSK-01 AC-21 — tasks change nothing else", () => {
 // The range read — AC-22.
 // ---------------------------------------------------------------------------
 
+// TSK-06 AC-8 amends the order within a day (not-done first, then by time); with every task untimed
+// and not done, as here, it is creation order still. The amended order is in tests/task-time.test.ts.
 describe("TSK-01 AC-22 — a read by date range", () => {
   it("returns exactly F <= date <= T, ordered by date then creation", async () => {
     const d = await createdOn(OWNER, TWO_DAYS_AGO, "D");

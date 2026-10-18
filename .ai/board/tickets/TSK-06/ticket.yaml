@@ -5,12 +5,12 @@ id: TSK-06
 title: "The task page shows the week around the selected day, with progress, and a task may carry an optional time of day"
 feature_ids: [TSK-06]
 group: TSK
-state: READY        # /advance 2026-10-18, from 01-plan.md gate PASS, all six DoR items pass
+state: REVIEW       # /implement 2026-10-18, 03-impl-log.md gate PASS. Was READY (/advance 2026-10-18, from 01-plan.md gate PASS)
 owner: ""
 branch: ""
 size_estimate: "M"    # Set by tech-lead-design at /plan, 2026-10-18, from 01-plan.md section 1. Gates DoR.
-size: "M"             # Fourteen paths (thirteen until 2026-10-18T20:06, + ADR-062), counted from allowed_paths below - 01-plan.md section 7. Agrees
-                      # with size_estimate. No seam method added or renamed; shapes change (section 5).
+size: "L"             # Seventeen paths, counted from allowed_paths below - 01-plan.md section 7. Until 2026-10-18T20:09: "M", fourteen paths;
+                      # it was L from the thirteenth. Disagrees with size_estimate M; proceed-or-split is put to the operator.
 depends_on: [TSK-01, TSK-02, TSK-03, TSK-05]   # the page, the overdue list, the PTO flag and the tick it rearranges; all DONE
 invariants_touched: []   # Written explicitly at /plan, 01-plan.md section 2: a task is in no count and the time enters none
 allowed_paths:
@@ -30,6 +30,10 @@ allowed_paths:
   # schema ADR, ACCEPTED at /triage, ships in this PR (plan amended 2026-10-18T20:06). Comment on its own
   # line: check-allowed-paths.mjs reads an inline comment as part of the path.
   - ".ai/registry/decisions/ADR-062-a-task-may-carry-an-optional-time-of-day.md"
+  # Task fixture builders, one line each (timeOfDay: null). Added 2026-10-18T20:09 - 99-questions.md.
+  - "tests/overdue-prompt.test.ts"
+  - "tests/pto-tasks.test.ts"
+  - "tests/task-tick.test.ts"
 # ^ 01-plan.md section 7. ADR-057's Status note, data-model.md, rbac-and-security.md and the charter
 #   are NOT here: human and standards plane, owed to /thuki with their text in 01-plan.md section 6.
 glossary_owed: [Task, Time of day]     # Task's row says it "carries no time of day", reversed by ADR-062; Time of day has no row. PLAN writes both (ADR-047)
@@ -39,7 +43,7 @@ rework_count: 0
 chat_budget:
   # ADR-019 retired `ba` from the loop, so the two `->ba` edges are gone. They are not listed as
   # zeroes: an edge nobody can walk is not a budget, it is a row that invites someone to try.
-  developer->tech-lead-design: { used: 0, max: 6 }
+  developer->tech-lead-design: { used: 1, max: 6 }
   # ADR-022 removed the QA stage, and the `qa->tech-lead-design` edge with it.
 tracker: { provider: "", external_id: "", sync_enabled: false }
 gates:

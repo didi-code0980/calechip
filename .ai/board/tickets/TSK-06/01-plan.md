@@ -485,6 +485,13 @@ Callers of `listTasks` outside the page — `WeekView.tsx` (TSK-04 badge) and `P
 (TSK-03) — only count, so the new order changes nothing they show. Callers of `updateTask` outside
 the page are tests only (`tests/tasks.test.ts`), which pass `timeOfDay: null`.
 
+**Constructors of `Task`** — *added 2026-10-18T20:09, missed at first writing (99-questions.md).*
+A required field on a shared interface reaches every object literal typed as it, not only the seam's
+callers. Three test fixture builders outside the files above build `Task` literals for pure
+functions: `fake` in `tests/overdue-prompt.test.ts`, `task` in `tests/pto-tasks.test.ts` and `task`
+in `tests/task-tick.test.ts`. Each gains exactly one line, `timeOfDay: null,` after `note`, and
+nothing else in them changes.
+
 ## 6. Schema delta
 
 **Not `none`.** ADR-062, `ACCEPTED by the operator`. New file
@@ -536,7 +543,15 @@ allowed_paths:
   - "tests/e2e/tsk-06-task-week.spec.ts"
   - "tests/e2e/tsk-01-tasks.spec.ts"
   - ".ai/registry/decisions/ADR-062-a-task-may-carry-an-optional-time-of-day.md"
+  - "tests/overdue-prompt.test.ts"
+  - "tests/pto-tasks.test.ts"
+  - "tests/task-tick.test.ts"
 ```
+
+**`tests/overdue-prompt.test.ts`, `tests/pto-tasks.test.ts`, `tests/task-tick.test.ts`** — *added
+2026-10-18T20:09.* One line each, `timeOfDay: null,` in the fixture builder's `Task` literal (§ 5,
+*Constructors of `Task`*). No assertion, import or comment changes; in `pto-tasks.test.ts` the line
+sits before `...over`.
 
 **ADR-062:** listed because it is this ticket's schema ADR, drafted at /triage and ACCEPTED by the
 operator, and it ships in this ticket's PR; the Developer does not edit it.
@@ -551,7 +566,16 @@ lead-time column; the `Task` key list gains `timeOfDay`. Its `updateTask` calls 
 null`. **`tests/e2e/tsk-01-tasks.spec.ts`** is listed only for AC-9's amendment, should a check of the
 row order after a reload need it.
 
-**Fourteen paths: `size: M`, agreeing with `size_estimate: M`.** *Until 2026-10-18T20:06: "Thirteen
+**Seventeen paths: `size: L`, disagreeing with `size_estimate: M`.** *Until 2026-10-18T20:09:
+"Fourteen paths: `size: M`, agreeing with `size_estimate: M`", and the paragraph below.* By the
+operating model's table and the EVT-03 to EVT-12 precedent ("a thirteenth path makes this L") this
+ticket was `L` from its thirteenth path; the paragraph below counted only the files the Developer
+writes, a convention no other plan uses, and it excused the count rather than measuring it. The gap
+against the estimate is the shared-type ripple (§ 5) and the ADR carried into the PR. A split would
+not remove the three fixture lines — they follow `types.ts` into whichever half carries the type.
+Whether TSK-06 proceeds as `L` or splits is put to the operator.
+
+*Superseded:* **Fourteen paths: `size: M`, agreeing with `size_estimate: M`.** *Until 2026-10-18T20:06: "Thirteen
 paths".* The fourteenth is an already-written, ACCEPTED ADR carried into the PR, not a file the
 Developer writes, so it changes neither the size nor the split answer: twelve source and test files
 remain the build.
@@ -583,3 +607,10 @@ remain the build.
   Reason: the `/advance` checkpoint `8d7f0c7` carries that ADR (drafted at /triage, ACCEPTED by the
   operator) and `check-allowed-paths.mjs` failed on it; the operator chose to list it. Thirteen paths
   become fourteen; `size` stays M. Raised by the operator. Amended by `tech-lead-design`.
+- `2026-10-18T20:09:49+0700` — § 5 gains *Constructors of `Task`*; § 7 gains
+  `tests/overdue-prompt.test.ts`, `tests/pto-tasks.test.ts` and `tests/task-tick.test.ts`, one line
+  each (`timeOfDay: null,`). Reason: § 4.1's required `timeOfDay` fails `tsc --noEmit` in all three
+  fixture builders (reproduced); § 5 had checked seam callers, not type constructors. Making the field
+  optional was rejected (99-questions.md). Fourteen paths become seventeen and `size` is corrected
+  M → L: it was already L at thirteen by the table, and § 7's prose had counted around it. Raised by
+  `developer`. Amended by `tech-lead-design`.
