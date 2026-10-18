@@ -160,7 +160,11 @@ import { dayStatusesFor, holidayReadRange } from "@/lib/data/day-status";
 // as the two above. **IT IS NOT INV-04 AND THE TWO NUMBERS ARE NEVER ADDED** — `busy.ts`'s header
 // carries that at length. A busy person is at work; the strip below draws the two facts separately.
 import { busyCountsFor, busyDatesOf, busyMembersFor, withOwnBusyMark } from "@/lib/data/busy";
-import type { AbsenceCounts, AbsenceDetail, BusyCounts, BusyDay, CalEvent, DateRange, DayStatus, Entry, EventAttendance, Holiday, Member } from "@/lib/domain/types";
+import type { AbsenceCounts, AbsenceDetail, BusyCounts, BusyDay, CalEvent, DateRange, DayStatus, Entry, EventAttendance, Holiday, Member, Task } from "@/lib/domain/types";
+// TSK-04 § 4.1. The viewer's own done/total per day — pure, and importing nothing from absence,
+// day-status or busy. `ListChecks` is the task icon PtoTaskWarning.tsx already uses.
+import { taskTalliesFor, tallyLabel, tallyText, type DayTaskTally } from "@/lib/week-tasks";
+import { ListChecks } from "lucide-react";
 // EVT-03. The event layer — pure, and importing nothing from absence, day-status or busy.
 import { eventsByDate, eventsOverlapping, takingPartIds } from "@/lib/event-layer";
 import EventChip from "@/components/EventChip";
@@ -251,6 +255,10 @@ type View =
       events: CalEvent[];
       ownAttendance: EventAttendance[];
       eventsFailed: boolean;
+      // TSK-04 § 4.2. `[]` until read, and always `[]` when viewed.kind !== "own"; `tasksFailed`
+      // is AC-12's notice and is true only when the task read threw.
+      tasks: Task[];
+      tasksFailed: boolean;
     };
 
 interface WeekViewProps {
@@ -375,25 +383,48 @@ export default function WeekView({ landing = false }: WeekViewProps) {
         events: [],
         ownAttendance: [],
         eventsFailed: false,
+        tasks: [],
+        tasksFailed: false,
       });
 
       // EVT-03 § 4.6, AC-19. THE EVENT LAYER IS READ AFTER THE GRID IS STORED, AND ITS FAILURE NEVER
       // REACHES THE `unavailable` PHASE: the reads above are inputs to the absence count and a partial
       // one would make a count wrong, but no event feeds any count (ADR-049 decision 6), so a missing
       // layer says nothing false about absence — provided the screen says it is missing.
-      try {
-        const [events, ownAttendance] = await Promise.all([
-          reads.events(),
-          seam.listOwnEventAttendance(),
-        ]);
-        if (stale()) return;
-        setView((current) =>
-          current.phase === "ready" ? { ...current, events, ownAttendance } : current,
-        );
-      } catch {
-        if (stale()) return;
-        setView((current) => (current.phase === "ready" ? { ...current, eventsFailed: true } : current));
-      }
+      const eventLayer = async (): Promise<void> => {
+        try {
+          const [events, ownAttendance] = await Promise.all([
+            reads.events(),
+            seam.listOwnEventAttendance(),
+          ]);
+          if (stale()) return;
+          setView((current) =>
+            current.phase === "ready" ? { ...current, events, ownAttendance } : current,
+          );
+        } catch {
+          if (stale()) return;
+          setView((current) => (current.phase === "ready" ? { ...current, eventsFailed: true } : current));
+        }
+      };
+
+      // TSK-04 § 4.2, AC-7, AC-12. The viewer's own tasks, in the same post-grid block as the event
+      // layer, IN PARALLEL WITH IT BUT CAUGHT SEPARATELY, so neither layer's failure hides the other
+      // and neither reaches `unavailable` — no task feeds any count (AC-11). **NOT ISSUED AT ALL on
+      // another team's calendar (ADR-040)**: RLS would still return only the caller's rows, so this
+      // is the feature row's display rule, not a privacy gate — that one is `task_select_own`.
+      const taskLayer = async (): Promise<void> => {
+        if (viewed.kind !== "own") return;
+        try {
+          const tasks = await seam.listTasks(range.start, range.end);
+          if (stale()) return;
+          setView((current) => (current.phase === "ready" ? { ...current, tasks } : current));
+        } catch {
+          if (stale()) return;
+          setView((current) => (current.phase === "ready" ? { ...current, tasksFailed: true } : current));
+        }
+      };
+
+      await Promise.all([eventLayer(), taskLayer()]);
     } catch {
       if (stale()) return;
       // AC-15. All three reads throw on a transport failure and on a possibly-truncated answer
@@ -557,6 +588,13 @@ export default function WeekView({ landing = false }: WeekViewProps) {
 
   // CAL-08 AC-6 and AC-11. The day status of the seven days, from the same module the month grid
   // reads — which is what makes the two screens unable to disagree about a date (CAL-08 AC-11).
+  // TSK-04 § 4.2, AC-1..AC-4. The viewer's own tally per date. `view.tasks` is `[]` on another
+  // team's calendar and on a failed read, so this map is empty there and no badge is drawn.
+  const tallies = useMemo<ReadonlyMap<string, DayTaskTally>>(
+    () => (view.phase === "ready" && range ? taskTalliesFor(view.tasks, range) : new Map()),
+    [view, range],
+  );
+
   const dayStatuses = useMemo(
     () =>
       view.phase === "ready" && range
@@ -699,6 +737,14 @@ export default function WeekView({ landing = false }: WeekViewProps) {
           Events could not be loaded.
         </p>
       ) : null}
+      {/* TSK-04 AC-12. Where the event notice sits, and for the same reason: the grid is drawn, and
+          the screen says which layer is missing rather than drawing a week with no badges as if the
+          viewer had no tasks. */}
+      {view.phase === "ready" && view.tasksFailed ? (
+        <p data-testid="week-tasks-unavailable" role="status" className="text-xs text-ink-3">
+          Your task counts could not be loaded.
+        </p>
+      ) : null}
 
       <div className="relative xl:h-full">
         <div className="flex flex-col gap-3 xl:grid xl:min-h-full xl:grid-cols-7 xl:gap-2">
@@ -725,6 +771,8 @@ export default function WeekView({ landing = false }: WeekViewProps) {
             const iAmBusy = myBusy.has(date);
             // EVT-03 AC-18. Every event of the day, in AC-17's order — the week column has the room.
             const dayEvents = eventDays.get(date) ?? [];
+            // TSK-04 AC-1, AC-2. Absent on a day without the viewer's own tasks — no badge, not `0/0`.
+            const tally = tallies.get(date);
 
             return (
               <section
@@ -830,6 +878,25 @@ export default function WeekView({ landing = false }: WeekViewProps) {
                     <span className="font-normal opacity-60">
                       {`${date.slice(8, 10)}/${date.slice(5, 7)}`}
                     </span>
+                    {/* TSK-04 § 2b, AC-1, AC-9. **ON THE DATE LINE, AFTER THE DATE** — this row is
+                        already `flex`, so the badge adds no child to the label's stack and costs no
+                        line (the SOLO 2026-09-11 note above is why that matters). Neutral ink at the
+                        date's own opacity: peach, mint, lavender and pink each already mean something
+                        about a day, and a personal count is none of them. Not recoloured when all are
+                        done — the ratio says it. Read-only and not a link (§ 8, alternative 3). */}
+                    {tally ? (
+                      <span
+                        data-testid="week-day-tasks"
+                        data-done={tally.done}
+                        data-total={tally.total}
+                        aria-label={tallyLabel(tally)}
+                        title={tallyLabel(tally)}
+                        className="inline-flex items-center gap-0.5 text-[11px] font-normal tabular-nums leading-none opacity-60"
+                      >
+                        <ListChecks aria-hidden="true" className="h-3 w-3 shrink-0" />
+                        {tallyText(tally)}
+                      </span>
+                    ) : null}
                   </span>
 
                   {/* CAL-08 AC-6. Named whenever a row exists, of EITHER kind, and the badge is
