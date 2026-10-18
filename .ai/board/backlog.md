@@ -22,6 +22,9 @@ planned, sized, and safe to build** — the next stage for a row here is IN_PROG
 
 | # | Ticket | Title | Size | Depends on |
 |---|--------|-------|------|------------|
+| 1 | TSK-06 | The task page shows the week around the selected day, with progress, and a task may carry an optional time of day | M | TSK-01, TSK-02, TSK-03, TSK-05 (all DONE) |
+
+**`TSK-06` moved here from `## BACKLOG` at /advance on 2026-10-18**, from `01-plan.md` gate PASS with all six Definition of Ready items passing; `schema_delta` cites ADR-062, `ACCEPTED by the operator`. It was row 2, planned ahead of `CICD-08` on the operator's choice. Bookkeeping, not a reordering.
 
 **Empty again — `TSK-04` left this section for `## ARCHIVE` at its own ship on 2026-10-18.** The `TSK` group in `## BACKLOG` is empty; `CICD-08` is the top row.
 
@@ -201,6 +204,8 @@ Under the current gate placement a ticket sits here until it has been planned �
 | # | Ticket | Title | State | Blocked on |
 |---|--------|-------|-------|------------|
 | 1 | CICD-08 | Every stage of the pipeline has run once for real — a pull request, a merge, a pre-release tag and a forced failed health check — and the evidence is recorded | BACKLOG | CICD-07; operator: Actions secrets, deployment repo applied, runner registered, branch protection |
+
+**Row 2 was appended by `product` at /triage on 2026-10-18**, from `.ai/board/ideas/2026-10-18-the-task-page-shows-one-day-at-a-time-and-a-task-has-no-time.md`. Appended, not placed. Its `depends_on` names `TSK-01`, `TSK-02`, `TSK-03` and `TSK-05`, all `DONE`, so *Blocked on* is `—`. It rests on [ADR-062](../registry/decisions/ADR-062-a-task-may-carry-an-optional-time-of-day.md), `ACCEPTED by the operator`; the migration it brings is applied by a human (RULE-09).
 
 **Row 5 was appended by `product` at /triage on 2026-10-15**, from `.ai/board/ideas/2026-10-15-ticking-a-task-done-waits-two-round-trips-and-locks-the-box.md`. Appended, not placed. Its `depends_on` names `TSK-01`, which is `DONE`, so *Blocked on* is `—`.
 
