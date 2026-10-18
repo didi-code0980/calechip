@@ -27,7 +27,9 @@ allowed_paths:
   - "tests/task-time.test.ts"
   - "tests/e2e/tsk-06-task-week.spec.ts"
   - "tests/e2e/tsk-01-tasks.spec.ts"
-  - ".ai/registry/decisions/ADR-062-a-task-may-carry-an-optional-time-of-day.md"   # schema ADR, ACCEPTED at /triage, ships in this PR (plan amended 2026-10-18T20:06)
+  # schema ADR, ACCEPTED at /triage, ships in this PR (plan amended 2026-10-18T20:06). Comment on its own
+  # line: check-allowed-paths.mjs reads an inline comment as part of the path.
+  - ".ai/registry/decisions/ADR-062-a-task-may-carry-an-optional-time-of-day.md"
 # ^ 01-plan.md section 7. ADR-057's Status note, data-model.md, rbac-and-security.md and the charter
 #   are NOT here: human and standards plane, owed to /thuki with their text in 01-plan.md section 6.
 glossary_owed: [Task, Time of day]     # Task's row says it "carries no time of day", reversed by ADR-062; Time of day has no row. PLAN writes both (ADR-047)
