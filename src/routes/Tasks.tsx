@@ -65,6 +65,11 @@ const PANEL_FIELD =
   "w-full rounded-pill bg-card px-4 py-2 text-sm text-ink placeholder:text-ink-3 " +
   "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink";
 
+/** The add form's time field: a compact pill, so it fits beside Add in the week view's dialog too. */
+const PANEL_TIME =
+  "w-auto shrink-0 rounded-pill bg-card px-2.5 py-1 text-xs tabular-nums text-ink " +
+  "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink";
+
 /** TSK-06 AC-18. A row action: a 28-pixel round icon button. `peer` drives its tooltip. */
 const ROW_ACTION =
   "peer flex h-7 w-7 items-center justify-center rounded-pill text-ink-3 transition-colors " +
@@ -84,8 +89,8 @@ function isCalendarDay(value: string): boolean {
 
 const shiftDay = (day: string, by: number): string => format(addDays(parseISO(day), by), "yyyy-MM-dd");
 
-/** § 2b. *Thursday, 15 October 2026*. */
-const headingLabel = (day: string): string => format(parseISO(day), "EEEE, d MMMM yyyy");
+/** § 2b. *Thursday, 15 October 2026*. Exported for the week view's task dialog. */
+export const headingLabel = (day: string): string => format(parseISO(day), "EEEE, d MMMM yyyy");
 
 /** § 2b. The overdue row's chip, *Mon 12 Oct*. */
 const chipLabel = (day: string): string => format(parseISO(day), "EEE d MMM");
@@ -143,8 +148,8 @@ function GeneralError({ message }: { message: string | undefined }): JSX.Element
 }
 
 /** TSK-06 AC-16, AC-21. A rounded bar filled to done ÷ total, mint on the `field` track, with the
- *  text `done/total` at its right. An empty bar at 0/0. */
-function ProgressBar({ tally }: { tally: DayTaskTally }): JSX.Element {
+ *  text `done/total` at its right. An empty bar at 0/0. Exported for the week view's task dialog. */
+export function ProgressBar({ tally }: { tally: DayTaskTally }): JSX.Element {
   const ratio = tally.total === 0 ? 0 : tally.done / tally.total;
   return (
     <div className="flex items-center gap-3">
@@ -241,9 +246,21 @@ interface TaskRowProps {
   onTick(): void;
   /** TSK-05 AC-3. The last tick's refusal, shown in the row's general message. */
   tickError: string | undefined;
+  /** Whether the row offers "Move to a date". The week view's one-day dialog turns it off. */
+  canMove?: boolean;
 }
 
-function TaskRow({ task, today, showDate, onChanged, onDelete, onTick, tickError }: TaskRowProps): JSX.Element {
+// Exported, with `AddTaskForm`, `ProgressBar` and `headingLabel`, for `TaskDayDialog`.
+export function TaskRow({
+  task,
+  today,
+  showDate,
+  onChanged,
+  onDelete,
+  onTick,
+  tickError,
+  canMove = true,
+}: TaskRowProps): JSX.Element {
   const [mode, setMode] = useState<"view" | "edit" | "move">("view");
   const [title, setTitle] = useState(task.title);
   const [note, setNote] = useState(task.note ?? "");
@@ -273,9 +290,10 @@ function TaskRow({ task, today, showDate, onChanged, onDelete, onTick, tickError
     setMode("edit");
   };
 
-  // AC-11. The field opens on the task's own date, or on today when that date is already past.
+  // AC-11. The field opens on the day after the task's date, or on today when that is already past.
   const startMove = (): void => {
-    setDate(task.date < today ? today : task.date);
+    const next = shiftDay(task.date, 1);
+    setDate(next < today ? today : next);
     setErrors({});
     setMode("move");
   };
@@ -398,9 +416,11 @@ function TaskRow({ task, today, showDate, onChanged, onDelete, onTick, tickError
             <RowAction testId="task-edit" label="Edit task" onClick={startEdit} hoverClass="hover:bg-field hover:text-ink">
               <Pencil aria-hidden="true" className="h-3.5 w-3.5" />
             </RowAction>
-            <RowAction testId="task-move" label="Move to a date" onClick={startMove} hoverClass="hover:bg-field hover:text-ink">
-              <ArrowRight aria-hidden="true" className="h-3.5 w-3.5" />
-            </RowAction>
+            {canMove ? (
+              <RowAction testId="task-move" label="Move to a date" onClick={startMove} hoverClass="hover:bg-field hover:text-ink">
+                <ArrowRight aria-hidden="true" className="h-3.5 w-3.5" />
+              </RowAction>
+            ) : null}
             <RowAction
               testId="task-delete"
               label="Delete task"
@@ -455,7 +475,7 @@ function TaskRow({ task, today, showDate, onChanged, onDelete, onTick, tickError
 // The add form. AC-6 to AC-8; present on today and later days only.
 // ---------------------------------------------------------------------------
 
-function AddTaskForm({ day, onAdded }: { day: string; onAdded(): Promise<void> }): JSX.Element {
+export function AddTaskForm({ day, onAdded }: { day: string; onAdded(): Promise<void> }): JSX.Element {
   const [title, setTitle] = useState("");
   const [note, setNote] = useState("");
   const [time, setTime] = useState("");
@@ -508,7 +528,7 @@ function AddTaskForm({ day, onAdded }: { day: string; onAdded(): Promise<void> }
       <GeneralError message={errors.general} />
       {/* TSK-06 AC-19. One line: the time on the left, empty by default; Add on the right. */}
       <div className="flex items-center justify-between gap-2">
-        <TimeInput testId="task-add-time" value={time} onChange={setTime} className={`${PANEL_FIELD} w-auto`} />
+        <TimeInput testId="task-add-time" value={time} onChange={setTime} className={PANEL_TIME} />
         <button
           data-testid="task-add-submit"
           type="submit"
@@ -693,18 +713,12 @@ export default function Tasks(): JSX.Element {
 
   return (
     <section data-testid="tasks-page" className="mx-auto flex w-full max-w-[1040px] flex-col gap-4">
-      {/* TSK-06 § 2b. The header row: title and subtitle, Today as the outline pill at its right. */}
+      {/* TSK-06 § 2b. The header row: title and subtitle. `Today` moved to the week strip's nav row. */}
       <header className="flex items-start gap-3">
         <div className="min-w-0 flex-1">
           <h1 className="text-xl font-extrabold text-ink">My tasks</h1>
           <p className="mt-0.5 text-sm text-ink-2">Plan your tasks by day and tick them off.</p>
         </div>
-        {/* TSK-01 AC-2, TSK-06 AC-14. Absent while viewing today. */}
-        {isToday ? null : (
-          <Link data-testid="tasks-today" to="/tasks" className={`${PILL_OUTLINE} shrink-0`}>
-            Today
-          </Link>
-        )}
       </header>
 
       {/* TSK-06 AC-11 to AC-13. The week strip. */}
@@ -722,6 +736,12 @@ export default function Tasks(): JSX.Element {
           <p data-testid="tasks-week-label" className="flex-1 text-center text-sm font-extrabold text-ink">
             Week {weekLabel(weekStart)}
           </p>
+          {/* TSK-01 AC-2, TSK-06 AC-14. Absent while viewing today; beside the week it moves within. */}
+          {isToday ? null : (
+            <Link data-testid="tasks-today" to="/tasks" className={`${PILL_OUTLINE} shrink-0`}>
+              Today
+            </Link>
+          )}
           <button
             data-testid="tasks-next-week"
             type="button"
@@ -736,24 +756,36 @@ export default function Tasks(): JSX.Element {
           {weekDays.map((d) => {
             const tally = tallies?.get(d);
             const selected = d === day;
+            const isTodayCell = d === today;
             return (
               <Link
                 key={d}
                 data-testid="tasks-week-day"
                 data-day={d}
-                data-today={d === today ? "true" : undefined}
+                data-today={isTodayCell ? "true" : undefined}
                 aria-current={selected ? "date" : undefined}
                 aria-label={stripCellLabel(d, tally)}
                 to={`/tasks/${d}`}
                 className={
                   "flex min-w-0 flex-col items-center gap-0.5 rounded-xl px-0.5 py-2 transition-colors " +
                   "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink " +
-                  (selected ? "bg-ink text-white" : "bg-bg text-ink hover:bg-field")
+                  (selected ? "bg-ink text-white" : "bg-bg text-ink hover:bg-field") +
+                  // Today is ringed whichever day is selected, and its weekday becomes a `Today` pill.
+                  (isTodayCell ? " ring-2 ring-inset ring-primary" : "")
                 }
               >
-                <span className={`text-[10px] font-bold uppercase ${selected ? "text-white/80" : "text-ink-3"}`}>
-                  {weekdayAbbr(d)}
-                </span>
+                {isTodayCell ? (
+                  <span
+                    data-testid="tasks-week-day-today"
+                    className="rounded-pill bg-primary px-1.5 py-0.5 text-[10px] font-bold uppercase leading-none tracking-wide text-white"
+                  >
+                    Today
+                  </span>
+                ) : (
+                  <span className={`text-[10px] font-bold uppercase ${selected ? "text-white/80" : "text-ink-3"}`}>
+                    {weekdayAbbr(d)}
+                  </span>
+                )}
                 <span className="text-sm font-extrabold tabular-nums">{Number(d.slice(8, 10))}</span>
                 <span
                   data-testid="tasks-week-day-mark"
@@ -771,9 +803,6 @@ export default function Tasks(): JSX.Element {
                   {/* Nothing while the week is read, rather than a "–" that would be a claim. */}
                   {tallies ? stripMark(tally) : "\u00a0"}
                 </span>
-                {d === today ? (
-                  <span aria-hidden="true" className={`h-1 w-1 rounded-pill ${selected ? "bg-white" : "bg-ink"}`} />
-                ) : null}
               </Link>
             );
           })}

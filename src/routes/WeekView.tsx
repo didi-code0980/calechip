@@ -189,6 +189,8 @@ import BusySpinner from "@/components/BusySpinner";
 import Loader from "@/components/Loader";
 import Avatar from "@/components/Avatar";
 import EntryTooltip from "@/components/EntryTooltip";
+// One day's own tasks in a dialog, opened from the task footer at the foot of each column.
+import TaskDayDialog from "@/components/TaskDayDialog";
 
 // ---------------------------------------------------------------------------
 // The week vocabulary. `yyyy-MM-dd` in the URL and everywhere below it.
@@ -435,6 +437,21 @@ export default function WeekView({ landing = false }: WeekViewProps) {
       // a dropped Thursday row removes FRIDAY's bridge mark (ADR-015 Consequences), so a week drawn
       // without its holidays is a believable wrong answer about a day whose own row arrived intact.
       setView({ phase: "unavailable" });
+    }
+  }, [range, viewed]);
+
+  // The day whose task dialog is open, or null. Own calendar only: the footer that opens it is too.
+  const [taskDay, setTaskDay] = useState<string | null>(null);
+
+  // A re-read of the task layer alone, after the dialog writes — the same read and the same
+  // own-calendar rule as `taskLayer` above, so the footers' tallies follow the dialog.
+  const reloadTasks = useCallback(async (): Promise<void> => {
+    if (!range || viewed.kind !== "own") return;
+    try {
+      const tasks = await seam.listTasks(range.start, range.end);
+      setView((current) => (current.phase === "ready" ? { ...current, tasks, tasksFailed: false } : current));
+    } catch {
+      setView((current) => (current.phase === "ready" ? { ...current, tasksFailed: true } : current));
     }
   }, [range, viewed]);
 
@@ -771,7 +788,8 @@ export default function WeekView({ landing = false }: WeekViewProps) {
             const iAmBusy = myBusy.has(date);
             // EVT-03 AC-18. Every event of the day, in AC-17's order — the week column has the room.
             const dayEvents = eventDays.get(date) ?? [];
-            // TSK-04 AC-1, AC-2. Absent on a day without the viewer's own tasks — no badge, not `0/0`.
+            // TSK-04 AC-1, AC-2. The viewer's own tally, for the task footer; undefined on a day
+            // without tasks, which the footer draws as `0/0`.
             const tally = tallies.get(date);
 
             return (
@@ -878,25 +896,8 @@ export default function WeekView({ landing = false }: WeekViewProps) {
                     <span className="font-normal opacity-60">
                       {`${date.slice(8, 10)}/${date.slice(5, 7)}`}
                     </span>
-                    {/* TSK-04 § 2b, AC-1, AC-9. **ON THE DATE LINE, AFTER THE DATE** — this row is
-                        already `flex`, so the badge adds no child to the label's stack and costs no
-                        line (the SOLO 2026-09-11 note above is why that matters). Neutral ink at the
-                        date's own opacity: peach, mint, lavender and pink each already mean something
-                        about a day, and a personal count is none of them. Not recoloured when all are
-                        done — the ratio says it. Read-only and not a link (§ 8, alternative 3). */}
-                    {tally ? (
-                      <span
-                        data-testid="week-day-tasks"
-                        data-done={tally.done}
-                        data-total={tally.total}
-                        aria-label={tallyLabel(tally)}
-                        title={tallyLabel(tally)}
-                        className="inline-flex items-center gap-0.5 text-[11px] font-normal tabular-nums leading-none opacity-60"
-                      >
-                        <ListChecks aria-hidden="true" className="h-3 w-3 shrink-0" />
-                        {tallyText(tally)}
-                      </span>
-                    ) : null}
+                    {/* TSK-04's task badge (`week-day-tasks`) STOOD HERE, on the date line. It moved
+                        to the column's foot as `week-day-task-panel`, which opens the day's tasks. */}
                   </span>
 
                   {/* CAL-08 AC-6. Named whenever a row exists, of EITHER kind, and the badge is
@@ -1240,6 +1241,45 @@ export default function WeekView({ landing = false }: WeekViewProps) {
                 </div>
                 )}
 
+                {/* The viewer's own tasks for the day, at the column's foot, above the count strip.
+                    Own calendar only, as the task read is (ADR-040). A button and not a link: it
+                    opens the day in a dialog rather than leaving the week. The count is neutral
+                    ink, and mint only when every task is done. */}
+                {viewed.kind === "own" ? (
+                  <button
+                    type="button"
+                    data-testid="week-day-task-panel"
+                    data-date={date}
+                    data-done={tally?.done ?? 0}
+                    data-total={tally?.total ?? 0}
+                    aria-label={`Tasks: ${tally ? tallyLabel(tally) : "none"}. Open`}
+                    onClick={() => setTaskDay(date)}
+                    className={
+                      "mt-2 flex items-center justify-between gap-1 rounded-xl border border-dashed border-line " +
+                      "px-2 py-1.5 text-[10px] font-bold uppercase tracking-wide text-ink-3 transition-colors " +
+                      "hover:border-ink-3 hover:text-ink " +
+                      "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
+                    }
+                  >
+                    <span className="inline-flex items-center gap-1">
+                      <ListChecks aria-hidden="true" className="h-3 w-3 shrink-0" />
+                      Tasks
+                    </span>
+                    <span
+                      className={
+                        "tabular-nums " +
+                        (tally && tally.total > 0 && tally.done === tally.total
+                          ? "text-wfh-ink"
+                          : tally && tally.total > 0
+                            ? "text-ink"
+                            : "")
+                      }
+                    >
+                      {tally ? tallyText(tally) : "0/0"}
+                    </span>
+                  </button>
+                ) : null}
+
                 {/* UIE-07 AC-1, AC-7, AC-8, AC-10, AC-11. THE MIRROR OF THE HEADER STRIP above —
                     same full-bleed negative margin, same hairline token, same centred small type,
                     `border-t` and `rounded-b-2xl` where the header has `border-b` and
@@ -1339,6 +1379,10 @@ export default function WeekView({ landing = false }: WeekViewProps) {
           </div>
         ) : null}
       </div>
+
+      {taskDay !== null ? (
+        <TaskDayDialog day={taskDay} onClose={() => setTaskDay(null)} onChanged={() => void reloadTasks()} />
+      ) : null}
     </section>
   );
 }

@@ -40,6 +40,7 @@
 // EVT-04 § 4.5. This bar still makes no seam call; `<NotificationBell />` is a child that does, as
 // `ReportIssueButton` does beside the shell.
 import { Link, useLocation } from "react-router-dom";
+import { ListTodo } from "lucide-react";
 import NotificationBell from "./NotificationBell";
 import type { MemberRole } from "@/lib/domain/types";
 import { mayAdminister, mayDecide } from "@/lib/roles";
@@ -77,6 +78,16 @@ const SEGMENT_OFF = "font-semibold text-ink-3 hover:text-ink-2";
 const segmentClass = (on: boolean): string =>
   `${SEGMENT_BASE} ${on ? SEGMENT_ON : SEGMENT_OFF}`;
 
+// The nav pills — Tasks, Admin, Events. The one for the current area is FILLED and carries
+// `aria-current="page"`; the others keep `PILL_OUTLINE`, so the active one is told by fill and by
+// the attribute, never by colour alone.
+const NAV_PILL_ON =
+  "rounded-pill border border-ink bg-ink px-3 py-1.5 text-xs font-bold text-white " +
+  "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink";
+
+const navPillClass = (on: boolean): string =>
+  `inline-flex items-center gap-1.5 ${on ? NAV_PILL_ON : PILL_OUTLINE}`;
+
 export interface TopBarProps {
   /** The signed-in member's rank. The bar has no session and no seam call of its own, so the answer
    *  arrives from `AppShell`, which already holds the member row — UIE-09 § 4.3.
@@ -101,6 +112,7 @@ export default function TopBar({ role }: TopBarProps) {
   // why the router cannot.
   const onAdmin = isAdminAddress(pathname);
   const onEvents = pathname === "/events" || pathname.startsWith("/events/");
+  const onTasks = pathname === "/tasks" || pathname.startsWith("/tasks/");
 
   // UIE-03 § 4.3. No `testId` field any more: a segment's name depends on WHERE IT GOES *and*
   // WHERE IT IS — `week-month` from a week, `month-week` from a month — so it is `<nav.kind>-<kind>`
@@ -109,18 +121,19 @@ export default function TopBar({ role }: TopBarProps) {
   // segment pointing at the view you are already on — plus `year-week`, which UIE-02 § 4.8 declined
   // to create and which the rule yields anyway, are referenced by nothing. § 2 *Open questions* 1
   // and 2 accept those four as the price of a rule with no special case for the active segment.
+  //
+  // **THE GROUP NOW RENDERS ON EVERY SHELL SCREEN.** Off a period screen there is no `nav`, so the
+  // targets fall back to the anchorless addresses — which resolve to today — no segment is active,
+  // and the name is `shell-<kind>`.
   const segments: readonly {
     kind: PeriodKind;
     label: string;
     to: string;
-  }[] =
-    nav === null
-      ? []
-      : [
-          { kind: "week", label: "Week", to: nav.weekTo },
-          { kind: "month", label: "Month", to: nav.monthTo },
-          { kind: "year", label: "Year", to: nav.yearTo },
-        ];
+  }[] = [
+    { kind: "week", label: "Week", to: nav?.weekTo ?? "/week" },
+    { kind: "month", label: "Month", to: nav?.monthTo ?? "/month" },
+    { kind: "year", label: "Year", to: nav?.yearTo ?? "/year" },
+  ];
 
   return (
     // § 4.9. Spans the CONTENT PANE only and not the sidebar — it is rendered inside that pane —
@@ -130,7 +143,7 @@ export default function TopBar({ role }: TopBarProps) {
       data-testid="shell-topbar"
       className="flex h-[70px] shrink-0 flex-wrap items-center gap-3 px-6"
     >
-      {/* AC-15. The whole left cluster and the whole switcher are ABSENT on a route that has no
+      {/* AC-15. The whole left cluster is ABSENT on a route that has no
           period — `/allow-list`, `/entries/new`, `/setting` and the rest. Absent, not disabled:
           a disabled previous-period control on a screen with no period asserts that a period exists
           and is merely unavailable. `shell-topbar` and `home-new-entry-link` still render. */}
@@ -203,26 +216,35 @@ export default function TopBar({ role }: TopBarProps) {
             `week-year`, `year-month` all keep the date, and the `month-week` case was the one where
             "the date" had to be invented anyway: a month has no week and a year has no week, so the
             old values picked the 1st. */}
-        {/* `nav !== null` and not `segments.length > 0`, which is the same condition one inference
-            away: the segment name below reads `nav.kind`, and only the null test narrows it. */}
-        {nav !== null ? (
-          <div className="flex items-center gap-0.5 rounded-pill bg-track p-0.5">
-            {segments.map((segment) => {
-              const on = segment.kind === nav.kind;
-              return (
-                <Link
-                  key={segment.kind}
-                  data-testid={`${nav.kind}-${segment.kind}`}
-                  to={withTeamParam(segment.to, search)}
-                  aria-current={on ? "page" : undefined}
-                  className={segmentClass(on)}
-                >
-                  {segment.label}
-                </Link>
-              );
-            })}
-          </div>
-        ) : null}
+        {/* Always drawn. On a period screen the name is `<nav.kind>-<kind>` as before; elsewhere
+            it is `shell-<kind>` and no segment is active. */}
+        <div className="flex items-center gap-0.5 rounded-pill bg-track p-0.5">
+          {segments.map((segment) => {
+            const on = segment.kind === nav?.kind;
+            return (
+              <Link
+                key={segment.kind}
+                data-testid={`${nav?.kind ?? "shell"}-${segment.kind}`}
+                to={withTeamParam(segment.to, search)}
+                aria-current={on ? "page" : undefined}
+                className={segmentClass(on)}
+              >
+                {segment.label}
+              </Link>
+            );
+          })}
+        </div>
+
+        {/* Tasks, for every role on every shell screen, filled while on `/tasks*`. */}
+        <Link
+          data-testid="shell-tasks-link"
+          to="/tasks"
+          aria-current={onTasks ? "page" : undefined}
+          className={navPillClass(onTasks)}
+        >
+          <ListTodo aria-hidden="true" className="h-3.5 w-3.5" />
+          Tasks
+        </Link>
 
         {/* AC-19. The twelfth relocated id, and the one that does NOT go to the sidebar. It is the
             screen's primary action and the transcription puts it in this cluster; the binding
@@ -234,15 +256,8 @@ export default function TopBar({ role }: TopBarProps) {
             link, `home-pending-entries-link`, and that link is in the sidebar. A second control to
             one address would either duplicate an id — the strict-mode failure AC-6 exists to
             prevent — or give the product two names for one screen. */}
-        {/* SOLO 2026-10-14. **Calendar, on the events screens only, immediately left of `Admin`.**
-            The events screens carry no period cluster and the sidebar's period links are commented
-            out, so nothing in the shell led back to the calendar from `/events*`. `/` is the week
-            landing, as the admin face's `Calendar` uses. */}
-        {onEvents ? (
-          <Link data-testid="shell-calendar-link" to="/" className={PILL_OUTLINE}>
-            Calendar
-          </Link>
-        ) : null}
+        {/* SOLO 2026-10-14's `shell-calendar-link`, on the events screens only, STOOD HERE. The
+            Week/Month/Year group above is now drawn on every shell screen, and it is the way back. */}
 
         {/* UIE-09 AC-1, AC-2 and AC-11. An OUTLINE PILL WITH NO CARET, reusing `PILL_OUTLINE` so it
             is the same object as `Today` rather than a new one that looks like it — the shape the
@@ -282,14 +297,19 @@ export default function TopBar({ role }: TopBarProps) {
             manager there would be handing them a door that shuts in their face. Their whole admin
             area is one screen, so the control goes straight to it — `data-state` still says which
             face is showing, and `/` is still the way back for both. */}
+        {/* **ONE FACE AGAIN.** With the period group drawn on every shell screen, the way back to the
+            calendar is always there, so this control no longer flips to `Calendar` on an admin
+            address. It always reads `Admin` with `data-state="admin"`, and is filled, with
+            `aria-current`, while on one. `data-state` stays so the specs that read it keep a value. */}
         {mayDecide(role) ? (
           <Link
             data-testid="shell-admin-link"
-            data-state={onAdmin ? "calendar" : "admin"}
-            to={onAdmin ? "/" : mayAdminister(role) ? "/admin" : "/entries/pending"}
-            className={PILL_OUTLINE}
+            data-state="admin"
+            to={mayAdminister(role) ? "/admin" : "/entries/pending"}
+            aria-current={onAdmin ? "page" : undefined}
+            className={navPillClass(onAdmin)}
           >
-            {onAdmin ? "Calendar" : "Admin"}
+            Admin
           </Link>
         ) : null}
 
@@ -300,7 +320,7 @@ export default function TopBar({ role }: TopBarProps) {
           data-testid="nav-events-link"
           to="/events"
           aria-current={onEvents ? "page" : undefined}
-          className={PILL_OUTLINE}
+          className={navPillClass(onEvents)}
         >
           Events
         </Link>

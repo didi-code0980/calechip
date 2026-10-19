@@ -88,6 +88,36 @@ test.describe("TSK-01 — my tasks", () => {
     }
   });
 
+  test("the top bar's Tasks pill: every role, every shell screen, filled on /tasks only", async ({ page }) => {
+    // Added 2026-10-19 with the top bar's Tasks link. The sidebar's `My tasks` above is unchanged.
+    for (const who of [MEMBER, ADMIN]) {
+      await signIn(page, who);
+      const pill = page.getByTestId("shell-tasks-link");
+      await expect(pill).toHaveCount(1);
+      await expect(pill).toHaveText("Tasks");
+      await expect(pill).toHaveAttribute("href", "/tasks");
+      await expect(pill).not.toHaveAttribute("aria-current", "page");
+
+      await pill.click();
+      await expect(page).toHaveURL(/\/tasks$/);
+      await expect(page.getByTestId("tasks-page")).toBeVisible();
+      await expect(pill).toHaveAttribute("aria-current", "page");
+      await page.getByTestId("tasks-next-day").click();
+      await expect(page).toHaveURL(new RegExp(`/tasks/${TOMORROW}$`));
+      await expect(pill).toHaveAttribute("aria-current", "page");
+
+      // The period group is drawn here too, off a period screen, named `shell-<kind>`.
+      await expect(page.getByTestId("shell-week")).toHaveAttribute("href", "/week");
+      await expect(page.getByTestId("shell-week")).not.toHaveAttribute("aria-current", "page");
+
+      // And on a screen with no period at all.
+      await page.goto("/entries/new");
+      await expect(pill).toHaveCount(1);
+      await expect(pill).not.toHaveAttribute("aria-current", "page");
+      await page.getByTestId("home-sign-out").click();
+    }
+  });
+
   test("AC-1, AC-2, AC-4: opens on today, moves a day at a time, and Today comes back", async ({ page }) => {
     await signIn(page, MEMBER);
     await openTasks(page);

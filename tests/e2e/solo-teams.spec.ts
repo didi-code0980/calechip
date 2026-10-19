@@ -92,9 +92,10 @@ test.describe("SOLO — the Teams tab", () => {
     await expect(teamRow(page, OWN_TEAM).getByTestId("team-row-removed")).toBeVisible();
     await expect(teamRow(page, OTHER_TEAM)).toHaveAttribute("data-member-count", "1");
 
-    // The top bar's Calendar face reaches this address too — `ADMIN_ADDRESSES` derives from the
-    // tab list, so no second list had to be told about `/teams`.
-    await expect(page.getByTestId("shell-admin-link")).toHaveAttribute("data-state", "calendar");
+    // The top bar's admin control is current on this address too — `ADMIN_ADDRESSES` derives from
+    // the tab list, so no second list had to be told about `/teams`. *Until 2026-10-19 it asserted
+    // the control's `Calendar` face, which no longer exists.*
+    await expect(page.getByTestId("shell-admin-link")).toHaveAttribute("aria-current", "page");
   });
 
   test("2: an admin creates a team, and it starts empty with every default", async ({ page }) => {

@@ -133,8 +133,9 @@ async function signInAt(
 }
 
 /**
- * SOLO 2026-09-11. Stand on the calendar, pressing the top-bar control only if it is currently
- * showing its `Calendar` face — which it is on the six admin addresses and nowhere else.
+ * SOLO 2026-09-11. Stand on the calendar, pressing the way back only when off a period screen.
+ * *Until 2026-10-19: "pressing the top-bar control only if it is currently showing its `Calendar`
+ * face — which it is on the six admin addresses and nowhere else."*
  *
  * **IT PRESSES A CONTROL RATHER THAN CALLING `page.goto("/")`**, which would be one line shorter and
  * would reload the document: the mock seam keeps its state in module scope, so a reload inside a
@@ -142,12 +143,14 @@ async function signInAt(
  * mid-test helpers for exactly this reason.
  */
 async function returnToCalendar(page: Page): Promise<void> {
-  const control = page.getByTestId("shell-admin-link");
-  if ((await control.getAttribute("data-state")) === "calendar") {
-    await control.click();
-    await expect(page).toHaveURL(/\/$/);
+  // AMENDED 2026-10-19. The control no longer has a `Calendar` face; the period group is drawn on
+  // every shell screen, so off a period screen its Week segment (`shell-week`) is the way back.
+  const back = page.getByTestId("shell-week");
+  if ((await back.count()) > 0) {
+    await back.click();
+    await expect(page).toHaveURL(/\/week\/\d{4}-\d{2}-\d{2}$/);
   }
-  await expect(control).toHaveAttribute("data-state", "admin");
+  await expect(page.getByTestId("shell-admin-link")).toHaveAttribute("data-state", "admin");
 }
 
 test.describe("UIE-10 — the sidebar after the migration", () => {

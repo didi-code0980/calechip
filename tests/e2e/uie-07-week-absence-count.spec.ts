@@ -302,12 +302,16 @@ test.describe("UIE-07 — the week view's per-day absence count", () => {
     // only button in the column is the busy toggle — one per day, touching no entry and no
     // threshold. An overload control, an approve button or an edit link added to this column later
     // still fails here, which a bare `toHaveCount(7)` would not.
+    //
+    // **NARROWED AGAIN 2026-10-19, WITH CAL-05 AC-8.** The column's foot now carries the viewer's
+    // own task panel too, which opens their tasks and touches no entry and no threshold — so two
+    // buttons per day, the busy toggle and then the task panel, and nothing else.
     const dayButtons = page.locator('[data-testid="week-day"] button');
-    await expect(dayButtons).toHaveCount(7);
+    await expect(dayButtons).toHaveCount(14);
     expect(
       await dayButtons.evaluateAll((nodes) =>
         nodes.map((node) => node.getAttribute("data-testid")),
       ),
-    ).toEqual(Array.from({ length: 7 }, () => "week-day-busy"));
+    ).toEqual(Array.from({ length: 7 }, () => ["week-day-busy", "week-day-task-panel"]).flat());
   });
 });
