@@ -7,11 +7,16 @@ and no agent writes to the deployment repository.** Written by CICD-05.
 ## What this is
 
 CICD-04's `release` workflow ends with a pull request in the deployment repository. That pull request
-changes one file, `apps/calechip/release.env`, to one line:
+changes one file, `apps/calechip/release.env`, to two lines:
 
 ```
 CALECHIP_IMAGE=mingming21400/calechip:vX.Y.Z@sha256:<64 hex>
+CALECHIP_VERSION=vX.Y.Z
 ```
+
+`CALECHIP_VERSION` is the version the sidebar footer shows. `compose.yml` passes it to the
+container, which serves it as `/version.json`. The image cannot carry it: it is built before the tag
+exists and promoted by digest without rebuilding.
 
 The drafts in this folder make merging that pull request the whole deploy:
 
@@ -86,8 +91,9 @@ runner-setup.md        # the runner's setup runbook
 Every app has its own folder under `apps/`, and its own deploy workflow that triggers on that folder
 only. `pr-scope` already covers any `apps/<app>/`.
 
-`release.env` holds no secret: an image name, a tag and a digest. CaleChip reads no environment at
-runtime, because every `VITE_*` value is baked into the image at build and nginx's port is fixed.
+`release.env` holds no secret: an image name, a tag and a digest. The only environment CaleChip
+reads at runtime is `CALECHIP_VERSION`, the label in the sidebar footer. Every `VITE_*` value is
+baked into the image at build, and nginx's port is fixed.
 
 ## How a deploy runs
 

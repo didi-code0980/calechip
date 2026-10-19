@@ -2,7 +2,8 @@ import { defineConfig } from "vitest/config";
 import react from "@vitejs/plugin-react";
 import tailwindcss from "@tailwindcss/vite";
 import { fileURLToPath } from "node:url";
-import { readdirSync } from "node:fs";
+import { readdirSync, readFileSync } from "node:fs";
+import { execSync } from "node:child_process";
 import path from "node:path";
 import type { Plugin } from "vite";
 import { orderAvatarFiles } from "./src/lib/avatars";
@@ -62,11 +63,43 @@ function avatarImages(): Plugin {
   };
 }
 
+// THE APP VERSION IS THE NEWEST GIT TAG, served to the code as `__APP_VERSION__` and shown in the
+// sidebar footer. Tags, not `package.json`: a release is cut by tagging, and `package.json`'s
+// `version` is never bumped, so it would show the same number forever. Order:
+//   1. `VITE_APP_VERSION` — for builds with no `.git` (a Docker build context).
+//   2. `git describe --tags --abbrev=0` — the newest tag reachable from HEAD.
+//   3. `v` + `package.json` `version`, or `v0.0.0`.
+// It never fails the build: every step that can throw falls through to the next.
+function readAppVersion(): string {
+  const fromEnv = process.env.VITE_APP_VERSION?.trim();
+  if (fromEnv) return fromEnv;
+  try {
+    const tag = execSync("git describe --tags --abbrev=0", {
+      stdio: ["ignore", "pipe", "ignore"],
+    })
+      .toString()
+      .trim();
+    if (tag) return tag;
+  } catch {
+    // No git, no repository, or no tag yet — fall through.
+  }
+  try {
+    const pkg = JSON.parse(
+      readFileSync(fileURLToPath(new URL("./package.json", import.meta.url)), "utf8"),
+    ) as { version?: unknown };
+    if (typeof pkg.version === "string" && pkg.version) return `v${pkg.version}`;
+  } catch {
+    // Unreadable package.json — fall through.
+  }
+  return "v0.0.0";
+}
+
 // `defineConfig` comes from vitest/config, not from vite. Vite's own export does not carry the
 // `test` key, and vitest 4 was verified against the installed package rather than recalled —
 // see "Versions the model cannot recall" in .ai/standards/tech-stack.md.
 export default defineConfig({
   plugins: [react(), tailwindcss(), avatarImages()],
+  define: { __APP_VERSION__: JSON.stringify(readAppVersion()) },
   resolve: {
     alias: { "@": fileURLToPath(new URL("./src", import.meta.url)) },
   },
