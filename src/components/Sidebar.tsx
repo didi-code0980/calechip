@@ -323,7 +323,7 @@ export default function Sidebar({ member, signOut }: SidebarProps) {
     // legend and the footer off the bottom.
     <aside
       data-testid="shell-sidebar"
-      className="flex w-[216px] shrink-0 flex-col gap-5 overflow-y-auto bg-card px-4 py-5"
+      className="flex w-[216px] shrink-0 flex-col gap-5 overflow-y-auto bg-card px-4 pt-5 pb-1"
     >
       <div data-testid="shell-brand">
         <BrandLogo testId="shell-brand-logo" />
@@ -612,6 +612,14 @@ export default function Sidebar({ member, signOut }: SidebarProps) {
         >
           {signingOut ? "Signing out…" : "Sign out"}
         </button>
+      </div>
+      <div className="flex items-center justify-between gap-2 px-1 text-[10px] text-ink-3">
+        <span data-testid="shell-copyright" className="truncate">
+          © {new Date().getFullYear()} mmlabs.online
+        </span>
+        <span data-testid="shell-version" className="shrink-0 tabular-nums">
+          {__APP_VERSION__}
+        </span>
       </div>
     </aside>
   );

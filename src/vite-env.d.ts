@@ -19,3 +19,6 @@ declare module "virtual:avatar-images" {
   const names: readonly string[];
   export default names;
 }
+
+/** The deployed version (newest git tag), injected at build time — `readAppVersion` in `vite.config.ts`. */
+declare const __APP_VERSION__: string;
