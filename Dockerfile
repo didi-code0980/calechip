@@ -39,6 +39,9 @@ ARG VITE_SUPABASE_URL=""
 ARG VITE_SUPABASE_ANON_KEY=""
 ARG VITE_DATA_SEAM=""
 ARG VITE_REQUIRE_EMAIL_CONFIRMATION=""
+# The build-time fallback for the sidebar version, e.g. sha-1a2b3c4 (build-image.yml). The release tag
+# is NOT known here — it is set at container start, see CALECHIP_VERSION below.
+ARG VITE_APP_VERSION=""
 
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
@@ -49,7 +52,7 @@ COPY . .
 #
 # `sed` strips CR so a file saved on Windows with CRLF does not put `\r` at the end of every value.
 RUN --mount=type=secret,id=env,required=false \
-    export VITE_SUPABASE_URL VITE_SUPABASE_ANON_KEY VITE_DATA_SEAM VITE_REQUIRE_EMAIL_CONFIRMATION; \
+    export VITE_SUPABASE_URL VITE_SUPABASE_ANON_KEY VITE_DATA_SEAM VITE_REQUIRE_EMAIL_CONFIRMATION VITE_APP_VERSION; \
     if [ -f /run/secrets/env ]; then \
       set -a; eval "$(sed 's/\r$//' /run/secrets/env)"; set +a; \
     fi; \
@@ -83,4 +86,10 @@ EXPOSE 3000
 HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
   CMD wget -q --spider http://127.0.0.1:3000/healthz || exit 1
 
-CMD ["nginx", "-g", "daemon off;"]
+# THE RELEASE VERSION IS SET AT START, NOT AT BUILD. The image is built before its tag exists and is
+# promoted to :vX.Y.Z by digest without rebuilding (CICD-04), so the tag can only reach the page at
+# runtime. The deployment passes CALECHIP_VERSION (from release.env); this writes it to
+# /tmp/nginx/version.json, which nginx serves as /version.json and the sidebar footer reads. Anything
+# but [0-9A-Za-z.+-] is dropped, so the value can never break the JSON. Unset or dropped: the footer
+# shows the build-time VITE_APP_VERSION instead.
+CMD ["sh", "-c", "v=\"${CALECHIP_VERSION:-}\"; case \"$v\" in *[!0-9A-Za-z.+-]*) v='' ;; esac; printf '{\"version\":\"%s\"}\\n' \"$v\" > /tmp/nginx/version.json && exec nginx -g 'daemon off;'"]

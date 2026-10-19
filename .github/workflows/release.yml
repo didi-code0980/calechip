@@ -167,6 +167,7 @@ jobs:
           {
             echo "# Written by the calechip release workflow for ${TAG} (commit ${COMMIT}). Do not edit by hand."
             echo "CALECHIP_IMAGE=${TARGET}@${DIGEST}"
+            echo "CALECHIP_VERSION=${TAG}"
           } > "$DEPLOY_FILE"
           changed="$(git status --porcelain --untracked-files=all | awk '{print $2}')"
           if [ "$changed" != "$DEPLOY_FILE" ]; then

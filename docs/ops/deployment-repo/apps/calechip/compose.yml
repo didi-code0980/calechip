@@ -3,10 +3,13 @@
 #
 # The image comes only from release.env, which calechip's release workflow writes (CICD-04) as
 #   CALECHIP_IMAGE=mingming21400/calechip:vX.Y.Z@sha256:<digest>
+#   CALECHIP_VERSION=vX.Y.Z
 # Deploy with: docker compose -p calechip -f apps/calechip/compose.yml --env-file apps/calechip/release.env up -d --wait
 #
-# No ports, no environment, no secrets, no volumes: the container is static nginx on :3000, every
-# VITE_* value is baked into the image, and cloudflared reaches it by service name on the network.
+# No ports, no secrets, no volumes: the container is static nginx on :3000, every VITE_* value is
+# baked into the image, and cloudflared reaches it by service name on the network. The one
+# environment value is CALECHIP_VERSION, the release tag the sidebar footer shows; it is not a secret,
+# and when it is missing the footer shows the image's build commit instead.
 
 name: calechip
 
@@ -14,6 +17,8 @@ services:
   calechip:
     image: ${CALECHIP_IMAGE:?CALECHIP_IMAGE is unset - pass --env-file apps/calechip/release.env}
     restart: unless-stopped
+    environment:
+      CALECHIP_VERSION: ${CALECHIP_VERSION:-}
     healthcheck:
       test: ["CMD", "wget", "-q", "--spider", "http://127.0.0.1:3000/healthz"]
       interval: 5s

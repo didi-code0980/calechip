@@ -79,6 +79,7 @@ import { ROLE_LABELS } from "@/lib/roles";
 import Loader from "@/components/Loader";
 import Avatar from "@/components/Avatar";
 import BrandLogo from "@/components/BrandLogo";
+import { useAppVersion } from "@/hooks/useAppVersion";
 
 export interface SidebarProps {
   member: Member;
@@ -254,6 +255,7 @@ export default function Sidebar({ member, signOut }: SidebarProps) {
   const { pathname } = useLocation();
   const onTasks = pathname === "/tasks" || pathname.startsWith("/tasks/");
   const [signingOut, setSigningOut] = useState(false);
+  const appVersion = useAppVersion();
 
   // SOLO 2026-09-13. The team's NAME for the roster header, in place of the word `Team`. One read
   // through the seam (RULE-02), re-run when the caller's team changes. It fails to `null`, and the
@@ -618,7 +620,7 @@ export default function Sidebar({ member, signOut }: SidebarProps) {
           © {new Date().getFullYear()} mmlabs.online
         </span>
         <span data-testid="shell-version" className="shrink-0 tabular-nums">
-          {__APP_VERSION__}
+          {appVersion}
         </span>
       </div>
     </aside>
