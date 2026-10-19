@@ -20,6 +20,13 @@ import { expect, test, type Locator, type Page } from "@playwright/test";
 // assertion is therefore made only after a positive one on the same load where the AC allows it,
 // and otherwise after `PAST_THE_TASK_READ`, as TSK-03 waits out its debounce.
 //
+// **AMENDED 2026-10-19 — THE BADGE MOVED TO THE COLUMN'S FOOT AND OPENS THE DAY.** The date-line
+// badge `week-day-tasks` was replaced by `week-day-task-panel`, a button at the foot of each column on
+// the viewer's own calendar that opens `TaskDayDialog`. It is drawn on EVERY day of the own week,
+// `0/0` included, so "nothing on days without" became "0/0 on days without", and AC-9's "shares the
+// date's line" became "sits at the foot, above the count strip". Every other criterion reads the
+// same through the panel's `data-done` / `data-total`. The last test is new and covers the dialog.
+//
 // AC-12's failure path is not driven here: the mock has no fault switch and adding one is a seam-file
 // change (01-plan.md § 5). It is held by WeekView's separately-caught task layer, and its empty-map
 // half by `tests/week-tasks.test.ts`.
@@ -104,12 +111,26 @@ async function openWeek(page: Page): Promise<void> {
 }
 
 const weekDay = (page: Page, date: string): Locator => page.locator(`[data-testid="week-day"][data-date="${date}"]`);
-const badge = (page: Page, date: string): Locator =>
-  weekDay(page, date).getByTestId("week-day-label").getByTestId("week-day-tasks");
-const anyBadge = (page: Page): Locator => page.getByTestId("week-day-tasks");
+const badge = (page: Page, date: string): Locator => weekDay(page, date).getByTestId("week-day-task-panel");
+const anyBadge = (page: Page): Locator => page.getByTestId("week-day-task-panel");
+
+/** The panel's tally, read off its attributes and its visible `done/total`. */
+async function expectTally(page: Page, date: string, done: number, total: number): Promise<void> {
+  await expect(badge(page, date)).toHaveAttribute("data-done", String(done));
+  await expect(badge(page, date)).toHaveAttribute("data-total", String(total));
+  await expect(badge(page, date)).toContainText(`${done}/${total}`);
+}
+
+/** Every panel of the shown week reads `0/0`. */
+async function expectNoTasksAnywhere(page: Page): Promise<void> {
+  await expect(anyBadge(page)).toHaveCount(7);
+  for (const panel of await anyBadge(page).all()) {
+    await expect(panel).toHaveAttribute("data-total", "0");
+  }
+}
 
 test.describe("TSK-04 — my task tally on the week view", () => {
-  test("AC-1, AC-2, AC-3: icon and done/total on days with tasks, nothing on days without", async ({ page }) => {
+  test("AC-1, AC-2, AC-3: icon and done/total on days with tasks, 0/0 on days without", async ({ page }) => {
     await signIn(page, MEMBER);
     // The trailing dot keeps "Item 1." from matching "Item 10." in `hasText`, a substring match.
     await seedDay(page, TODAY, Array.from({ length: 10 }, (_, i) => `Item ${i + 1}.`), 5);
@@ -117,18 +138,17 @@ test.describe("TSK-04 — my task tally on the week view", () => {
     await seedDay(page, DAY_AFTER, ["C1", "C2"], 0);
 
     await openWeek(page);
-    await expect(badge(page, TODAY)).toHaveText("5/10");
-    await expect(badge(page, TODAY)).toHaveAttribute("aria-label", "5 of 10 tasks done");
-    await expect(badge(page, TODAY)).toHaveAttribute("data-done", "5");
-    await expect(badge(page, TODAY)).toHaveAttribute("data-total", "10");
+    await expectTally(page, TODAY, 5, 10);
+    await expect(badge(page, TODAY)).toHaveAttribute("aria-label", "Tasks: 5 of 10 tasks done. Open");
     await expect(badge(page, TODAY).locator("svg")).toHaveCount(1);
-    await expect(badge(page, TOMORROW)).toHaveText("3/3");
-    await expect(badge(page, DAY_AFTER)).toHaveText("0/2");
+    await expectTally(page, TOMORROW, 3, 3);
+    await expectTally(page, DAY_AFTER, 0, 2);
 
     for (const empty of ["2030-03-11", "2030-03-15", "2030-03-16", "2030-03-17"]) {
-      await expect(weekDay(page, empty).getByTestId("week-day-tasks")).toHaveCount(0);
+      await expectTally(page, empty, 0, 0);
+      await expect(badge(page, empty)).toHaveAttribute("aria-label", "Tasks: none. Open");
     }
-    await expect(anyBadge(page)).toHaveCount(3);
+    await expect(anyBadge(page)).toHaveCount(7);
   });
 
   test("AC-4: each day counts only its own date; next Monday's task is not in this week", async ({ page }) => {
@@ -137,14 +157,15 @@ test.describe("TSK-04 — my task tally on the week view", () => {
     await seedDay(page, NEXT_MONDAY, ["Next Monday one", "Next Monday two"]);
 
     await openWeek(page);
-    await expect(badge(page, TOMORROW)).toHaveText("0/1");
-    await expect(badge(page, TOMORROW)).toHaveAttribute("aria-label", "0 of 1 task done");
-    await expect(anyBadge(page)).toHaveCount(1);
+    await expectTally(page, TOMORROW, 0, 1);
+    await expect(badge(page, TOMORROW)).toHaveAttribute("aria-label", "Tasks: 0 of 1 task done. Open");
+    // Next Monday's two are not in this week: the week's totals sum to 1.
+    await expectTally(page, "2030-03-17", 0, 0);
 
     await page.getByTestId("week-next").click();
     await expect(page.getByTestId("week-anchor")).toHaveAttribute("data-week-start", NEXT_MONDAY);
-    await expect(badge(page, NEXT_MONDAY)).toHaveText("0/2");
-    await expect(anyBadge(page)).toHaveCount(1);
+    await expectTally(page, NEXT_MONDAY, 0, 2);
+    await expectTally(page, "2030-03-19", 0, 0);
   });
 
   test("AC-5: another member's tasks are never counted", async ({ page }) => {
@@ -154,17 +175,17 @@ test.describe("TSK-04 — my task tally on the week view", () => {
     await seedDay(page, TOMORROW, ["Theirs one", "Theirs two", "Theirs three", "Theirs four"]);
 
     await openWeek(page);
-    await expect(badge(page, TOMORROW)).toHaveText("0/4");
+    await expectTally(page, TOMORROW, 0, 4);
 
     await switchTo(page, MEMBER);
     await openWeek(page);
-    await expect(badge(page, TOMORROW)).toHaveText("1/2");
+    await expectTally(page, TOMORROW, 1, 2);
 
     // A member who owns no tasks, whatever their teammates own.
     await switchTo(page, ADMIN);
     await openWeek(page);
     await page.waitForTimeout(PAST_THE_TASK_READ);
-    await expect(anyBadge(page)).toHaveCount(0);
+    await expectNoTasksAnywhere(page);
   });
 
   test("AC-6: an admin and a manager see only their own", async ({ page }) => {
@@ -182,15 +203,15 @@ test.describe("TSK-04 — my task tally on the week view", () => {
       await switchTo(page, who);
       await openWeek(page);
       await page.waitForTimeout(PAST_THE_TASK_READ);
-      await expect(weekDay(page, TOMORROW).getByTestId("week-day-tasks")).toHaveCount(0);
+      await expectTally(page, TOMORROW, 0, 0);
     }
   });
 
-  test("AC-7: no badge on another team's calendar, and it returns on the admin's own", async ({ page }) => {
+  test("AC-7: no panel on another team's calendar, and it returns on the admin's own", async ({ page }) => {
     await signIn(page, ADMIN);
     await seedDay(page, TOMORROW, ["Admin's task"]);
     await openWeek(page);
-    await expect(badge(page, TOMORROW)).toHaveText("0/1");
+    await expectTally(page, TOMORROW, 0, 1);
 
     await page.locator(`[data-testid="shell-team-option"][data-team-id="${OTHER_TEAM}"]`).click();
     await expect(page.getByTestId("shell-viewing-other-team")).toBeVisible();
@@ -201,14 +222,14 @@ test.describe("TSK-04 — my task tally on the week view", () => {
 
     await page.getByTestId("shell-back-to-own-team").click();
     await expect(page.getByTestId("shell-viewing-other-team")).toHaveCount(0);
-    await expect(badge(page, TOMORROW)).toHaveText("0/1");
+    await expectTally(page, TOMORROW, 0, 1);
   });
 
   test("AC-8: the month and year views show no count", async ({ page }) => {
     await signIn(page, MEMBER);
     await seedDay(page, TOMORROW, ["Somewhere in March"]);
     await openWeek(page);
-    await expect(badge(page, TOMORROW)).toHaveText("0/1");
+    await expectTally(page, TOMORROW, 0, 1);
 
     await page.getByTestId("week-month").click();
     await expect(page.getByTestId("month-anchor")).toBeVisible();
@@ -224,39 +245,34 @@ test.describe("TSK-04 — my task tally on the week view", () => {
     await expect(page.locator("main")).not.toContainText("0/1");
   });
 
-  test("AC-9: the badge costs no row and shares the date's line", async ({ page }) => {
+  test("AC-9 (amended): the panel sits at the column's foot, just above the count strip", async ({ page }) => {
     await signIn(page, MEMBER);
     await seedDay(page, TOMORROW, ["Height check"]);
     await openWeek(page);
-    await expect(badge(page, TOMORROW)).toHaveText("0/1");
+    await expectTally(page, TOMORROW, 0, 1);
 
-    // Precondition of the AC: neither day is a holiday or a bridge day, whose badge line differs.
-    for (const d of [TOMORROW, DAY_AFTER]) {
-      await expect(weekDay(page, d)).toHaveAttribute("data-day-status", "working");
-      await expect(weekDay(page, d)).toHaveAttribute("data-bridge", "false");
-    }
-
+    // The date line no longer carries a count: tasks or not, the label has the same height.
     const withTasks = await weekDay(page, TOMORROW).getByTestId("week-day-label").boundingBox();
     const without = await weekDay(page, DAY_AFTER).getByTestId("week-day-label").boundingBox();
     expect(withTasks?.height).toBe(without?.height);
 
-    const sameParent = await badge(page, TOMORROW).evaluate((el) => {
-      const parent = el.parentElement;
-      return parent !== null && Array.from(parent.children).some((c) => c !== el && /^\d{2}\/\d{2}$/.test(c.textContent ?? ""));
-    });
-    expect(sameParent).toBe(true);
+    // The panel's next sibling is the column's count strip.
+    const nextIsCount = await badge(page, TOMORROW).evaluate(
+      (el) => el.nextElementSibling?.getAttribute("data-testid") === "week-day-count",
+    );
+    expect(nextIsCount).toBe(true);
   });
 
   test("AC-10: the count reflects a tick made on the task page", async ({ page }) => {
     await signIn(page, MEMBER);
     await seedDay(page, TOMORROW, ["Tick me", "Leave me"]);
     await openWeek(page);
-    await expect(badge(page, TOMORROW)).toHaveText("0/2");
+    await expectTally(page, TOMORROW, 0, 2);
 
     await openTasksOn(page, TOMORROW);
     await tick(page, "Tick me");
     await openWeek(page);
-    await expect(badge(page, TOMORROW)).toHaveText("1/2");
+    await expectTally(page, TOMORROW, 1, 2);
   });
 
   test("AC-11: the absence count is unchanged by tasks", async ({ page }) => {
@@ -268,7 +284,7 @@ test.describe("TSK-04 — my task tally on the week view", () => {
 
     await seedDay(page, TOMORROW, ["One", "Two", "Three"], 1);
     await openWeek(page);
-    await expect(badge(page, TOMORROW)).toHaveText("1/3");
+    await expectTally(page, TOMORROW, 1, 3);
     await expect(weekDay(page, TOMORROW)).toHaveAttribute("data-count", before ?? "");
     await expect(weekDay(page, TOMORROW).getByTestId("week-day-count")).toHaveText(beforeText ?? "");
   });
@@ -277,15 +293,67 @@ test.describe("TSK-04 — my task tally on the week view", () => {
     await signIn(page, MEMBER);
     await seedDay(page, TOMORROW, ["Present"]);
     await openWeek(page);
-    await expect(badge(page, TOMORROW)).toHaveText("0/1");
+    await expectTally(page, TOMORROW, 0, 1);
     await expect(page.getByTestId("week-tasks-unavailable")).toHaveCount(0);
   });
 
-  test("AC-13: a signed-out visitor sees no badge and no notice", async ({ page }) => {
+  test("AC-13: a signed-out visitor sees no panel and no notice", async ({ page }) => {
     await page.clock.setFixedTime(at(TODAY));
     await page.goto(`/week/${TODAY}`);
     await page.waitForTimeout(PAST_THE_TASK_READ);
     await expect(anyBadge(page)).toHaveCount(0);
     await expect(page.getByTestId("week-tasks-unavailable")).toHaveCount(0);
+  });
+
+  test("the panel opens the day's tasks in a dialog; writes there move the panel", async ({ page }) => {
+    await signIn(page, MEMBER);
+    await seedDay(page, TODAY, ["Dialog one", "Dialog two"]);
+    await openWeek(page);
+    await expectTally(page, TODAY, 0, 2);
+
+    // Today: heading prefixed, rows without a move action, the add form present.
+    await badge(page, TODAY).click();
+    const dialog = page.getByTestId("task-day-dialog");
+    await expect(dialog).toBeVisible();
+    await expect(dialog).toHaveAttribute("data-day", TODAY);
+    await expect(page.getByTestId("task-day-heading")).toHaveText("Today · Tuesday, 12 March 2030");
+    await expect(dialog.getByTestId("task-day-list").getByTestId("task-row")).toHaveCount(2);
+    await expect(dialog.getByTestId("task-move")).toHaveCount(0);
+    await expect(dialog.getByTestId("task-add-form")).toBeVisible();
+    await expect(page.getByTestId("task-day-open-page")).toHaveAttribute("href", `/tasks/${TODAY}`);
+
+    // A tick in the dialog moves the panel behind it.
+    await dialog.getByTestId("task-row").filter({ hasText: "Dialog one" }).getByTestId("task-done").click();
+    await expect(dialog.getByTestId("task-row").filter({ hasText: "Dialog one" })).toHaveAttribute("data-done", "true");
+    await expectTally(page, TODAY, 1, 2);
+
+    // An add in the dialog too.
+    await dialog.getByTestId("task-add-title").fill("Dialog three");
+    await dialog.getByTestId("task-add-submit").click();
+    await expect(dialog.getByTestId("task-row")).toHaveCount(3);
+    await expectTally(page, TODAY, 1, 3);
+
+    // A delete, behind its confirmation, which replaces the content while open.
+    await dialog.getByTestId("task-row").filter({ hasText: "Dialog two" }).getByTestId("task-delete").click();
+    await expect(dialog.getByTestId("task-delete-confirm")).toBeVisible();
+    await expect(dialog.getByTestId("task-day-list")).toHaveCount(0);
+    await dialog.getByTestId("task-delete-confirm-yes").click();
+    await expect(dialog.getByTestId("task-row")).toHaveCount(2);
+    await expectTally(page, TODAY, 1, 2);
+
+    await page.getByTestId("task-day-close").click();
+    await expect(dialog).toHaveCount(0);
+
+    // A past day with nothing on it: the empty state's past wording, and no add form.
+    await badge(page, "2030-03-11").click();
+    await expect(page.getByTestId("task-day-heading")).toHaveText("Monday, 11 March 2030");
+    await expect(page.getByTestId("task-day-empty")).toContainText("No tasks yet");
+    await expect(page.getByTestId("task-day-empty")).toContainText("Nothing was planned for this day.");
+    await expect(dialog.getByTestId("task-add-form")).toHaveCount(0);
+
+    // The footer link opens the task page on that day.
+    await page.getByTestId("task-day-open-page").click();
+    await expect(page.getByTestId("tasks-page")).toBeVisible();
+    await expect(page.getByTestId("tasks-day-heading")).toHaveAttribute("data-day", "2030-03-11");
   });
 });

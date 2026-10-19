@@ -141,6 +141,10 @@ test.describe("TSK-06 — the task week", () => {
     await expect(cell(page, TODAY)).toHaveAttribute("aria-current", "date");
     await expect(cell(page, TODAY)).toHaveAttribute("data-today", "true");
     await expect(page.locator('[data-testid="tasks-week-day"][data-today="true"]')).toHaveCount(1);
+    // 2026-10-19: today's weekday is a `Today` pill, on today's cell only.
+    await expect(cell(page, TODAY).getByTestId("tasks-week-day-today")).toHaveText("Today");
+    await expect(cell(page, TODAY)).not.toContainText("Tue");
+    await expect(page.getByTestId("tasks-week-day-today")).toHaveCount(1);
 
     await addTask(page, "One");
     await addTask(page, "Two");
@@ -177,6 +181,8 @@ test.describe("TSK-06 — the task week", () => {
 
     await page.getByTestId("tasks-next-day").click();
     await expect(page).toHaveURL(/\/tasks\/2030-03-09$/);
+    // 2026-10-19: `Today` sits in the week strip's nav row, no longer in the page header.
+    await expect(page.getByTestId("tasks-week-strip").getByTestId("tasks-today")).toBeVisible();
     await page.getByTestId("tasks-today").click();
     await expect(page).toHaveURL(/\/tasks$/);
     await expect(page.getByTestId("tasks-today")).toHaveCount(0);

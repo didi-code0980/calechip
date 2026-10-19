@@ -23,6 +23,13 @@ import { expect, test, type Page } from "@playwright/test";
 // The strip carries no hub tab, so there is no third way. The operator was shown that cost — with
 // the alternative of confining the toggle to `/admin` alone — and chose all six addresses.
 //
+// **AMENDED 2026-10-19 — THE CONTROL HAS ONE FACE AGAIN.** The Week/Month/Year group is now drawn on
+// every shell screen, admin addresses included, so the way back to the calendar is always one press
+// of `shell-week` (or `-month`, `-year`). `shell-admin-link` no longer flips to `Calendar`: it reads
+// `Admin` with `data-state="admin"` everywhere, and carries `aria-current="page"` on an admin
+// address. Tests 1, 3, 4 and 6 are rewritten to that; the cost paragraph above no longer holds —
+// the hub is one press of the control from any destination.
+//
 // THE SUITE DRIVES THE MOCK SEAM (BUG-001 pins it, `tests/e2e/seam.setup.ts` refuses the run
 // otherwise). Fixtures (`src/lib/fixtures.ts`): FIXTURE_TEAM carries two admins and two members.
 
@@ -66,7 +73,7 @@ async function signIn(page: Page, email: string): Promise<void> {
 const control = (page: Page) => page.getByTestId("shell-admin-link");
 
 test.describe("SOLO — the Admin control goes back to the calendar", () => {
-  test("1: on every admin address it reads Calendar and points at the calendar", async ({
+  test("1: on every admin address it still reads Admin, is current, and the period group leads back", async ({
     page,
   }) => {
     await signIn(page, ADMIN_EMAIL);
@@ -74,13 +81,17 @@ test.describe("SOLO — the Admin control goes back to the calendar", () => {
     for (const address of ADMIN_ADDRESSES) {
       await page.goto(address);
 
-      // ONE NODE, and it is still `shell-admin-link`. The count is asserted because a second face
-      // built as a second element — rather than as two states of one — would put two controls in
-      // this cluster on exactly these six screens and nowhere else.
+      // ONE NODE, one face. It no longer flips to `Calendar` here.
       await expect(control(page)).toHaveCount(1);
-      await expect(control(page)).toHaveAttribute("data-state", "calendar");
-      await expect(control(page)).toHaveAttribute("href", "/");
-      await expect(control(page)).toHaveText("Calendar");
+      await expect(control(page)).toHaveAttribute("data-state", "admin");
+      await expect(control(page)).toHaveAttribute("href", "/admin");
+      await expect(control(page)).toHaveText("Admin");
+      await expect(control(page)).toHaveAttribute("aria-current", "page");
+
+      // The way back is the always-drawn period group, named `shell-<kind>` off a period screen.
+      await expect(page.getByTestId("shell-week")).toHaveAttribute("href", "/week");
+      await expect(page.getByTestId("shell-month")).toHaveAttribute("href", "/month");
+      await expect(page.getByTestId("shell-year")).toHaveAttribute("href", "/year");
     }
   });
 
@@ -95,10 +106,11 @@ test.describe("SOLO — the Admin control goes back to the calendar", () => {
       await expect(control(page)).toHaveAttribute("data-state", "admin");
       await expect(control(page)).toHaveAttribute("href", "/admin");
       await expect(control(page)).toHaveText("Admin");
+      await expect(control(page)).not.toHaveAttribute("aria-current", "page");
     }
   });
 
-  test("3: the round trip is two presses of the same control, with no address typed", async ({
+  test("3: the round trip is the control in and the Week segment out, with no address typed", async ({
     page,
   }) => {
     await signIn(page, ADMIN_EMAIL);
@@ -109,28 +121,25 @@ test.describe("SOLO — the Admin control goes back to the calendar", () => {
     await expect(page).toHaveURL(/\/admin$/);
     await expect(page.getByTestId("admin-hub")).toBeVisible();
 
-    // Out, from the hub.
-    await expect(control(page)).toHaveAttribute("data-state", "calendar");
-    await control(page).click();
-    await expect(page).toHaveURL(/\/$/);
+    // Out, from the hub, through the Week segment — which resolves to today's week.
+    await page.getByTestId("shell-week").click();
+    await expect(page).toHaveURL(/\/week\/\d{4}-\d{2}-\d{2}$/);
     await expect(page.getByTestId("admin-hub")).toHaveCount(0);
 
-    // **AND OUT FROM A DESTINATION AND NOT ONLY FROM THE HUB**, which is the half that makes this a
-    // change to the ADMIN AREA rather than to one screen. In through the control and the strip, out
-    // through the control alone.
+    // **AND OUT FROM A DESTINATION AND NOT ONLY FROM THE HUB.** In through the control and the
+    // strip, out through the segment.
     await control(page).click();
     await page.getByTestId("admin-hub-threshold-link").click();
     await expect(page).toHaveURL(/\/setting$/);
 
-    await expect(control(page)).toHaveAttribute("data-state", "calendar");
-    await control(page).click();
-    await expect(page).toHaveURL(/\/$/);
+    await page.getByTestId("shell-week").click();
+    await expect(page).toHaveURL(/\/week\/\d{4}-\d{2}-\d{2}$/);
 
     // No `page.goto` anywhere above: the whole trip is one document and one session, so the mock
     // seam's module state is the same at the end as at the start.
   });
 
-  test("4: the hub is still reachable from a destination — two presses, not one", async ({
+  test("4: the hub is one press of the control from a destination", async ({
     page,
   }) => {
     await signIn(page, ADMIN_EMAIL);
@@ -138,15 +147,12 @@ test.describe("SOLO — the Admin control goes back to the calendar", () => {
     await page.getByTestId("admin-hub-members-link").click();
     await expect(page).toHaveURL(/\/members$/);
 
-    // THE COST, ASSERTED RATHER THAN LEFT AS A COMMENT. There is no hub tab in the strip, so this
-    // is the route back to it: out to the calendar, then in again.
+    // The control no longer changes face on an admin address, so it goes straight to the hub.
     await control(page).click();
-    await expect(page).toHaveURL(/\/$/);
-    await control(page).click();
+    await expect(page).toHaveURL(/\/admin$/);
     await expect(page.getByTestId("admin-hub")).toBeVisible();
 
-    // And the strip is not on the calendar — the screen the first press lands on is the week grid,
-    // not an admin screen wearing a calendar label.
+    // And the strip is not on the calendar.
     await page.goto("/");
     await expect(page.getByTestId("admin-tabs")).toHaveCount(0);
   });
@@ -166,12 +172,12 @@ test.describe("SOLO — the Admin control goes back to the calendar", () => {
     }
   });
 
-  test("6: both labels are English", async ({ page }) => {
+  test("6: the label is English, on and off an admin address", async ({ page }) => {
     await signIn(page, ADMIN_EMAIL);
 
-    // The control as PAINTED, in both states — the half the lint rule cannot check, since eslint
-    // reads the source and a diacritic could still arrive through a fixture or a seam message. It is
-    // the same criterion UIE-09 AC-12 states, extended to the face that did not exist then.
+    // The control as PAINTED, off and on an admin address — the half the lint rule cannot check,
+    // since eslint reads the source and a diacritic could still arrive through a fixture or a seam
+    // message. It is the same criterion UIE-09 AC-12 states.
     expect(await control(page).innerText()).not.toMatch(DIACRITIC);
     await control(page).click();
     await expect(page).toHaveURL(/\/admin$/);

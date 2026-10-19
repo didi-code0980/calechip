@@ -263,10 +263,7 @@ test.describe("UIE-09 — the admin hub", () => {
       // what the two lines still buy — the whole loop is one page lifetime and one session, with no
       // address typed, so the next destination is followed from a freshly rendered list rather than
       // from a page that was reloaded out from under the mock seam's module state.
-      await expect(page.getByTestId("shell-admin-link")).toHaveAttribute("data-state", "calendar");
-      await page.getByTestId("shell-admin-link").click();
-      await expect(page).toHaveURL(/\/$/);
-
+      // AMENDED 2026-10-19: the control has one face again, so the way back to the hub is one press.
       await expect(page.getByTestId("shell-admin-link")).toHaveAttribute("data-state", "admin");
       await page.getByTestId("shell-admin-link").click();
       await expect(page.getByTestId("admin-hub")).toBeVisible();

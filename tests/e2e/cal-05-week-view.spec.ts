@@ -299,13 +299,17 @@ test.describe("CAL-05 — week view", () => {
     // button inside a week day is the busy toggle, and there are exactly seven of them* — one per
     // day, none of them touching an entry. An approve, reject, edit or delete control added here
     // later still fails this test, which a bare `toHaveCount(7)` would not.
+    //
+    // **NARROWED AGAIN 2026-10-19.** Each day's foot now also carries `week-day-task-panel`, which
+    // opens the viewer's OWN tasks for the day — not an entry, and not approval. So each day holds
+    // exactly two buttons, the busy toggle and then the task panel, and anything else still fails.
     const dayButtons = page.locator('[data-testid="week-day"] button');
-    await expect(dayButtons).toHaveCount(7);
+    await expect(dayButtons).toHaveCount(14);
     expect(
       await dayButtons.evaluateAll((nodes) =>
         nodes.map((node) => node.getAttribute("data-testid")),
       ),
-    ).toEqual(Array.from({ length: 7 }, () => "week-day-busy"));
+    ).toEqual(Array.from({ length: 7 }, () => ["week-day-busy", "week-day-task-panel"]).flat());
     // No edit or delete route is offered either: the only links on this screen are the four in the
     // header, which are navigation and not action.
     await expect(page.locator('[data-testid="week-day"] a')).toHaveCount(0);
