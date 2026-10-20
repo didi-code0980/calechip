@@ -135,9 +135,12 @@ beforeAll(async () => {
   as(FIXTURE_ADMIN.id);
   if (!(await mock.setMemberRole(MANAGER_A, "manager")).ok) throw new Error("could not make a manager");
   MEMBER_B2 = await approved("Notify B Two", FIXTURE_OTHER_TEAM.id);
-  ADMIN_B = await approved("Notify B Admin", FIXTURE_OTHER_TEAM.id);
+  // MIR-03 — ADR-065: promotion is own-team, so the other team's admin is approved onto the
+  // admin's own team, promoted there, and then moved. Same end state as before.
+  ADMIN_B = await approved("Notify B Admin", FIXTURE_TEAM.id);
   as(FIXTURE_ADMIN.id);
-  if (!(await mock.setMemberRole(ADMIN_B, "admin")).ok) throw new Error("could not make an admin");
+  if (!(await mock.promoteMember(ADMIN_B)).ok) throw new Error("could not make an admin");
+  if (!(await mock.moveMember(ADMIN_B, FIXTURE_OTHER_TEAM.id)).ok) throw new Error("could not move the admin");
   PENDING = await signUp("Notify Waiting");
   REJECTED = await signUp("Notify Turned Away");
   as(FIXTURE_ADMIN.id);

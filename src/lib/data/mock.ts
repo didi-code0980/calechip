@@ -410,11 +410,14 @@ const MEMBER_RANK_REFUSED = "That person's role could not be changed.";
  * SOLO, 2026-09-24 — ADR-044. `public.set_member_role` reproduced, and `promoteMember` and
  * `setMemberRole` are both it.
  *
- * **THE OWN-TEAM FILTER IS GONE AND THAT IS THE CHANGE.** Until now this read
- * `m.id === memberId && m.teamId === me.teamId`, which reproduced `member_update_admin` — correctly,
- * while the rank write was a table update. It is now a `security definer` function that tests
- * `is_admin` and nothing about teams, so a mock that kept the team comparison would refuse what the
- * datastore admits, and every cross-team test would pass against the wrong thing.
+ * **MIR-03, 2026-10-20 — ADR-065: THE OWN-TEAM FILTER IS BACK.** `public.set_member_role` and
+ * `public.promote_member_to_admin` both carry `m.team_id = member_team_id(auth.uid())`, so this
+ * predicate carries `m.teamId === me.teamId`. It replaces `m.teamId !== null`: the caller is an admin
+ * and has a team, so the equality cannot match a pending sign-up. `promoteMember` reaches this
+ * directly; `setMemberRole` refuses `"admin"` before it gets here, as the function does.
+ *
+ * **NO `member_role_change` RECORD IS KEPT HERE.** No seam function reads it, so a mock copy would be
+ * untested state. The record is verified in `.ai/board/tickets/MIR-03/verification.md`.
  *
  * **THE FOUR CONDITIONS ARE THE FUNCTION'S `where`, IN ITS ORDER**, and the function's header is the
  * authority for each. They collapse to ONE sentence here exactly as the function collapses them to
@@ -433,7 +436,7 @@ const setRank = (
   const target = members.find(
     (m) =>
       m.id === memberId &&
-      m.teamId !== null &&
+      m.teamId === me.teamId &&
       m.status === "approved" &&
       m.removedAt === null &&
       m.role !== "admin",
@@ -1797,6 +1800,9 @@ export const seam: DataSeam = {
     return { ok: true, value: { ...target } };
   },
 
+  // MIR-03, 2026-10-20 — ADR-065. `public.promote_member_to_admin` reproduced: `setRank`'s own-team
+  // predicate, and it does not go through `setMemberRole`, so that one's `admin` refusal never
+  // touches it.
   async promoteMember(memberId: string): Promise<Result<Member>> {
     return setRank(memberId, "admin", "Only an admin can promote a member.", MEMBER_PROMOTE_REFUSED);
   },
@@ -1804,7 +1810,12 @@ export const seam: DataSeam = {
   // SOLO 2026-09-12, ADR-035. The general form of the function above. **IT REPRODUCES THE FUNCTION,
   // NOT THE SCREEN**, which is this file's standing contract: the acceptance suite drives this seam,
   // so a mock that let a manager set a role would make the refusal pass against nothing.
+  //
+  // MIR-03, 2026-10-20 — ADR-065 decision 2. `"admin"` is refused after the admin check and before
+  // any row lookup, the order `public.set_member_role` uses.
   async setMemberRole(memberId: string, role: MemberRole): Promise<Result<Member>> {
+    if (!currentAdmin()) return refused("not_permitted", "Only an admin can change a role.");
+    if (role === "admin") return refused("not_permitted", MEMBER_RANK_REFUSED);
     return setRank(memberId, role, "Only an admin can change a role.", MEMBER_RANK_REFUSED);
   },
 

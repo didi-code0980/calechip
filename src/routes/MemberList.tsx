@@ -91,6 +91,9 @@ export default function MemberList() {
   // TEA-04, 01-plan.md section 4.3. Three pieces of local state, following AllowList.tsx: the row
   // awaiting confirmation, whether a write is in flight, and the typed failure from either write.
   const [pending, setPending] = useState<Member | null>(null);
+  // MIR-03, 01-plan.md section 4.5. The row awaiting the promotion confirmation. Never set together
+  // with `pending`: the row controls are disabled while either dialog is open.
+  const [promoting, setPromoting] = useState<Member | null>(null);
   const [busy, setBusy] = useState(false);
   const [actionError, setActionError] = useState<Failure | null>(null);
 
@@ -167,20 +170,22 @@ export default function MemberList() {
     void load();
   }, [load]);
 
-  // TEA-04 AC-4. No confirmation, and that is a decision rather than an omission (01-plan.md
-  // section 2, Open questions): promotion destroys nothing, and the destructive-action rule in
-  // .ai/standards/ui-design-system.md is about what is lost. Removal, below, is the one that
-  // changes a number every calendar view divides by.
-  async function onPromote(member: Member) {
-    if (busy) return;
+  // MIR-03 AC-4, AC-5 — ADR-065 decision 3. Reached only from
+  // `member-list-promote-confirm-accept`. TEA-04 chose no confirmation because promotion destroys
+  // nothing; ADR-065 adds one because it cannot be undone — an admin cannot be demoted, so a
+  // mis-click here has no way back from this screen.
+  async function onConfirmPromote() {
+    if (!promoting || busy) return;
 
     setBusy(true);
     setActionError(null);
     try {
-      const result = await seam.promoteMember(member.id);
+      const result = await seam.promoteMember(promoting.id);
       if (result.ok) {
+        setPromoting(null);
         await load();
       } else {
+        // The dialog stays open on a refusal, with the sentence inside it, as removal does.
         setActionError(result.error);
       }
     } catch {
@@ -334,36 +339,30 @@ export default function MemberList() {
 
   // TEA-04 AC-13, AC-14, and they are the conditions exactly.
   //
-  // `m.removedAt === null` is deliberately NOT in either predicate: the screen only ever draws
-  // active members — `current` below runs first — and re-testing it here would imply the list might
+  // `m.removedAt === null` is deliberately NOT in any predicate: the screen only ever draws active
+  // members — `current` below runs first — and re-testing it here would imply the list might
   // contain one.
   //
-  // SOLO, 2026-09-24 — ADR-044. `m.teamId === me.teamId` ON `canRemove` AND ON NEITHER OF THE OTHER
-  // TWO, which reads like an inconsistency and is the opposite. The rank write moved to
-  // `public.set_member_role` and reaches every team; removal is still `member_update_admin`, whose
-  // `using` is the caller's own team — ADR-039 § Decision 1 lists three cross-team powers and
-  // removing somebody is not one of them. So this line is what stops the screen offering a control
-  // the datastore refuses, which is the defect that produced ADR-044 in the first place. It is an
-  // AFFORDANCE (ADR-005): the policy refuses the statement whoever issues it, and the day removal is
-  // decided for every team, this conjunct comes out and nothing else here changes.
+  // MIR-03 AC-11 — ADR-065. **ALL THREE COMPARE TEAMS NOW, BECAUSE ALL THREE CONTROLS ARE OWN-TEAM.**
+  // Removal is `member_update_admin`, whose `using` is the caller's own team (ADR-044 Decision 3);
+  // the rank write is `public.set_member_role` and promotion is `public.promote_member_to_admin`, and
+  // both carry `team_id = member_team_id(auth.uid())` since ADR-065 decision 1. These are AFFORDANCES
+  // (ADR-005): each function refuses another team's row whoever issues the call.
   const canRemove = (m: Member): boolean =>
     me.role === "admin" && m.id !== me.id && m.teamId === me.teamId;
   const canPromote = (m: Member): boolean =>
-    me.role === "admin" && m.id !== me.id && m.role === "member";
+    me.role === "admin" && m.id !== me.id && m.role === "member" && m.teamId === me.teamId;
 
   // SOLO 2026-09-12, ADR-035. **THE MANAGER RANK TOGGLES; THE ADMIN RANK DOES NOT.** `member` and
   // `manager` move both ways because ADR-035 § Decision item 6 settled that pair; an admin's row
   // draws neither control, because *Demote an admin to member* is NOT DECIDED in
   // `.ai/standards/rbac-and-security.md` and the member trigger refuses the write either way.
-  //
-  // AN AFFORDANCE (ADR-005). **SOLO, 2026-09-24 — ADR-044 moved the control**: it is now
-  // `public.set_member_role`, a `security definer` function that tests `is_admin` and says nothing
-  // about teams, so this predicate's silence about `teamId` is finally true rather than the mismatch
-  // that produced that ADR. `member_update_admin` and the `grant update (role, removed_at)` column
-  // list no longer govern this write; they still govern `canRemove` above, which is why that one
-  // compares teams and this one does not.
   const canSetManager = (m: Member): boolean =>
-    me.role === "admin" && m.id !== me.id && m.role !== "admin";
+    me.role === "admin" && m.id !== me.id && m.role !== "admin" && m.teamId === me.teamId;
+
+  // MIR-03, 01-plan.md section 4.5. Only one confirmation is open at a time: while either dialog is
+  // open, the row write controls are disabled.
+  const rowLocked = busy || pending !== null || promoting !== null;
 
   // AC-4, second half. The READ deliberately returns removed members carrying `removedAt` — ADR-013
   // and the INV-04 note require the counting function to be given the roster with `removedAt` per
@@ -423,10 +422,11 @@ export default function MemberList() {
         </p>
       </header>
 
-      {/* AC-13. The failure from a PROMOTION renders here, above the table; the failure from a
-          removal renders inside the dialog, where the row it is about is named. One selector, and
-          never both at once — `pending` is what decides which of the two is on screen. */}
-      {!pending && actionError ? (
+      {/* AC-13. The failure from a RANK CHANGE renders here, above the table; the failure from a
+          removal or a promotion renders inside its dialog, where the row it is about is named. One
+          selector, and never two at once — `pending` and `promoting` decide which is on screen
+          (MIR-03, 01-plan.md section 4.5). */}
+      {!pending && !promoting && actionError ? (
         <p
           data-testid="member-list-action-error"
           role="alert"
@@ -613,9 +613,11 @@ export default function MemberList() {
                       <button
                         data-testid="member-list-row-promote"
                         type="button"
-                        disabled={busy}
+                        disabled={rowLocked}
                         onClick={() => {
-                          void onPromote(member);
+                          // MIR-03 AC-4. Opens the confirmation; nothing is written yet.
+                          setActionError(null);
+                          setPromoting(member);
                         }}
                         className={ROW_ACTION}
                       >
@@ -632,7 +634,7 @@ export default function MemberList() {
                         data-testid="member-list-row-manager"
                         data-role={member.role}
                         type="button"
-                        disabled={busy}
+                        disabled={rowLocked}
                         onClick={() => {
                           void onSetManager(member);
                         }}
@@ -652,7 +654,7 @@ export default function MemberList() {
                       <button
                         data-testid="member-list-row-remove"
                         type="button"
-                        disabled={busy}
+                        disabled={rowLocked}
                         onClick={() => {
                           setActionError(null);
                           setPending(member);
@@ -811,6 +813,58 @@ export default function MemberList() {
               onClick={() => {
                 setActionError(null);
                 setPending(null);
+              }}
+              className="rounded-xl border border-slate-200 px-4 py-2 disabled:opacity-40"
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      ) : null}
+
+      {/* MIR-03 AC-4, AC-5 — ADR-065 decision 3. The removal dialog's shape, in the same place and
+          order: the sentence, any error, the confirm button, Cancel. The confirm button is a filled
+          primary button and NOT the rose danger fill, because nothing is lost; what it guards
+          against is that an admin cannot be demoted. Layout is the Tech Lead's own (01-plan.md
+          section 2b). */}
+      {promoting ? (
+        <div
+          data-testid="member-list-promote-confirm"
+          role="dialog"
+          aria-modal="true"
+          aria-label="Confirm promoting the member"
+          className="rounded-2xl bg-white p-6 shadow-sm"
+        >
+          <p className="text-sm">
+            Make <strong>{promoting.displayName}</strong> an admin? An admin cannot be demoted, so this
+            cannot be undone here.
+          </p>
+
+          {actionError ? (
+            <p data-testid="member-list-action-error" role="alert" className="mt-2 text-sm text-rose-600">
+              {actionError.message}
+            </p>
+          ) : null}
+
+          <div className="mt-4 flex gap-2">
+            <button
+              data-testid="member-list-promote-confirm-accept"
+              type="button"
+              disabled={busy}
+              onClick={() => {
+                void onConfirmPromote();
+              }}
+              className="rounded-xl bg-wfh px-4 py-2 font-semibold text-ink transition-colors hover:brightness-95 disabled:opacity-40 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
+            >
+              {busy ? "Promoting…" : "Make admin"}
+            </button>
+            <button
+              data-testid="member-list-promote-confirm-cancel"
+              type="button"
+              disabled={busy}
+              onClick={() => {
+                setActionError(null);
+                setPromoting(null);
               }}
               className="rounded-xl border border-slate-200 px-4 py-2 disabled:opacity-40"
             >

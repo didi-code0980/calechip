@@ -1157,9 +1157,10 @@ const isTeamRow = (value: unknown): value is TeamRow =>
   !Array.isArray(value) &&
   typeof (value as TeamRow).id === "string";
 
-/** SOLO, 2026-09-24. `isTeamRow`'s twin, and the same reason: `public.set_member_role` returns ONE
- *  `public.member`, which PostgREST answers as an OBJECT and not a one-element array. Anything else
- *  is a contract violation and is reported as one, never cast and trusted. */
+/** SOLO, 2026-09-24. `isTeamRow`'s twin, and the same reason: `public.set_member_role` (and, since
+ *  MIR-03, `public.promote_member_to_admin`) returns ONE `public.member`, which PostgREST answers as
+ *  an OBJECT and not a one-element array. Anything else is a contract violation and is reported as
+ *  one, never cast and trusted. */
 const isMemberRow = (value: unknown): value is MemberRow =>
   typeof value === "object" &&
   value !== null &&
@@ -1167,8 +1168,12 @@ const isMemberRow = (value: unknown): value is MemberRow =>
   typeof (value as MemberRow).id === "string";
 
 /**
- * SOLO, 2026-09-24 — ADR-044. The one rank write, which `promoteMember` and `setMemberRole` both
- * reach and neither duplicates.
+ * SOLO, 2026-09-24 — ADR-044. The rank write, which `setMemberRole` reaches.
+ *
+ * **MIR-03, 2026-10-20 — ADR-065: OWN TEAM ONLY, AND NOT `admin`.** `public.set_member_role` now
+ * carries `team_id = member_team_id(auth.uid())` and refuses `p_role = 'admin'` with a `42501`.
+ * Promotion has its own RPC, `promote_member_to_admin`, and `promoteMember` no longer comes here.
+ * The paragraphs below are ADR-044's and still describe why this is an RPC.
  *
  * **IT IS AN RPC AND NOT A TABLE UPDATE, WHICH IS THE WHOLE CHANGE.** `member_update_admin` carries
  * `team_id = member_team_id(auth.uid())`, so the update it admits is the caller's OWN team's — while
@@ -1202,7 +1207,8 @@ async function setRankThroughRpc(
 }
 
 /**
- * SOLO, 2026-09-24. The SQLSTATEs `public.set_member_role` can answer with, and a FIFTH mapper for
+ * SOLO, 2026-09-24. The SQLSTATEs `public.set_member_role` (and, since MIR-03,
+ * `public.promote_member_to_admin`) can answer with, and a FIFTH mapper for
  * the reason `toTeamFailure` and `toEntryFailure` both record: the sentence differs per screen even
  * where the code does not.
  *
@@ -1829,16 +1835,23 @@ export const seam: DataSeam = {
     return { ok: true, value: toMember(data) };
   },
 
-  // SOLO, 2026-09-24 — ADR-044. `setMemberRole(id, "admin")`, and the narrower sentence is the whole
-  // difference. It was a table update of its own until the rank write moved to
-  // `public.set_member_role`; keeping it as a separate seam function keeps TEA-04's contract and the
-  // sixty-odd assertions that address it, and routing it through the one RPC keeps there from being
-  // two answers to *may this rank move*.
+  // MIR-03, 2026-10-20 — ADR-065 decision 3. Promotion has its own RPC, own team only, and no longer
+  // goes through `set_member_role`, which now refuses `admin`. A `42501` is the refusal, the same as
+  // the rank write's, so `toRankFailure` maps it with the promotion sentence.
   async promoteMember(memberId: string): Promise<Result<Member>> {
-    return setRankThroughRpc(memberId, "admin", MEMBER_PROMOTE_REFUSED);
+    const { data, error } = await client().rpc("promote_member_to_admin", { p_member_id: memberId });
+
+    if (error) return { ok: false, error: toRankFailure(error, MEMBER_PROMOTE_REFUSED) };
+    if (!isMemberRow(data)) {
+      return { ok: false, error: { code: "unknown", message: MEMBER_PROMOTE_REFUSED } };
+    }
+
+    return { ok: true, value: toMember(data) };
   },
 
   // SOLO 2026-09-12, ADR-035; the write moved off the table on 2026-09-24 by ADR-044.
+  // MIR-03, 2026-10-20 — ADR-065: own team only. An `"admin"` argument reaches the function and comes
+  // back as a `42501`, which `toRankFailure` maps to `not_permitted` with the rank sentence.
   async setMemberRole(memberId: string, role: MemberRole): Promise<Result<Member>> {
     return setRankThroughRpc(memberId, role, MEMBER_RANK_REFUSED);
   },

@@ -397,6 +397,12 @@ ANOTHER team's member to admin"`) into the refusal, renaming those two `it`s to 
 test in the file keeps its name and assertion. If one starts failing because of the own-team bound,
 re-aim it at a member of the admin's own team and say so in `03-impl-log.md`.
 
+**`tests/notifications.test.ts` and `tests/tasks.test.ts` (edit, fixture setup only).** Each seeds
+an admin of `FIXTURE_OTHER_TEAM` in `beforeAll` through `setMemberRole(id, "admin")`, which ADR-065
+now refuses. Seed that person instead by approving onto `FIXTURE_TEAM`, `promoteMember` as
+`FIXTURE_ADMIN`, then `moveMember(id, FIXTURE_OTHER_TEAM.id)` (ADR-065 *Consequences*), and re-cite
+the ADR-044 comment in `tasks.test.ts` to ADR-065. No `it`, name or assertion changes.
+
 **The whole existing suite must stay green**, including `tests/e2e/`. `tsk-01-tasks.spec.ts:72` and
 `tsk-04-week-task-badge.spec.ts:196` press *Make manager* on a teammate's row and must still pass.
 No e2e spec presses *Promote* today (`solo-member-admin.spec.ts:251` asserts it is absent).
@@ -458,6 +464,8 @@ allowed_paths:
   - "src/routes/MemberList.tsx"
   - "tests/role-change-bounds.test.ts"
   - "tests/cross-team-role.test.ts"
+  - "tests/notifications.test.ts"   # beforeAll fixture setup only (other team's admin seeded via own-team promote + move)
+  - "tests/tasks.test.ts"           # beforeAll fixture setup only, same seeding; ADR-044 comment re-cited to ADR-065
   - ".ai/registry/decisions/ADR-065-role-changes-are-own-team-promotion-is-its-own-action-and-every-change-is-recorded.md"
   - ".ai/registry/decisions/ADR-044-an-admin-sets-a-rank-on-any-team.md"   # supersession note under § Status only
   - ".ai/board/tickets/MIR-03/**"
@@ -465,7 +473,7 @@ allowed_paths:
 
 `glossary_owed` is `[]`. No glossary row is written and `.ai/registry/glossary.md` is not listed.
 
-Seven source and test files plus two ADRs: **`size: M`**, which agrees with `size_estimate: M`.
+Nine source and test files plus two ADRs (seven at PLAN; two test files added by the 2026-10-20 amendment below): **`size: M`**, which agrees with `size_estimate: M`.
 
 **Not XL.** `.ai/01-operating-model.md:449` lists a schema change under XL, and the next paragraph
 gives the test: *"whether existing callers must change"*. No seam signature or shared type changes
@@ -508,3 +516,10 @@ function, which later work can re-point at a different role on its own (MIR-16, 
   revert it. Reading `20260911180000_solo_many_teams.sql` confirmed that `admit_member` does not
   write `role`, so the trigger in § 4.1(b) is the only actor mechanism needed. No AC was narrowed to
   fit the code.
+- `2026-10-20` — `tests/notifications.test.ts` and `tests/tasks.test.ts` added to § 7 and named in
+  § 4.6, for `beforeAll` fixture setup only. Raised by `developer` (`99-questions.md` round 1).
+  Amended by `tech-lead-design`. Both seeded another team's admin through
+  `setMemberRole(id, "admin")`, which ADR-065 decisions 1 and 2 refuse; § 4.6 had named only
+  `tests/cross-team-role.test.ts`. The replacement seeding (own-team promote, then move) is the path
+  ADR-065 *Consequences* records as still open and ends in the same state. `size` stays `M`: nine
+  files is within M, and no AC changed.

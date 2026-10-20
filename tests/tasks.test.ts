@@ -99,11 +99,14 @@ beforeAll(async () => {
   const promoted = await mock.setMemberRole(MANAGER, "manager");
   if (!promoted.ok) throw new Error("could not make a manager");
 
-  // (d) An admin of another team. `set_member_role` is any-team for an admin (ADR-044).
-  ADMIN_OTHER_TEAM = await approved("Other Admin", FIXTURE_OTHER_TEAM.id);
+  // (d) An admin of another team. Promotion is own-team since ADR-065 (MIR-03), so they are
+  // approved onto the admin's own team, promoted there, and then moved.
+  ADMIN_OTHER_TEAM = await approved("Other Admin", FIXTURE_TEAM.id);
   as(FIXTURE_ADMIN.id);
-  const otherAdmin = await mock.setMemberRole(ADMIN_OTHER_TEAM, "admin");
+  const otherAdmin = await mock.promoteMember(ADMIN_OTHER_TEAM);
   if (!otherAdmin.ok) throw new Error("could not make the other team's admin");
+  const moved = await mock.moveMember(ADMIN_OTHER_TEAM, FIXTURE_OTHER_TEAM.id);
+  if (!moved.ok) throw new Error("could not move the other team's admin");
 
   PENDING = await signUp("Task Pending");
   REJECTED = await signUp("Task Rejected");

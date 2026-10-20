@@ -1,3 +1,9 @@
+// MIR-03, 2026-10-20 — ADR-065 SUPERSEDES ADR-044 DECISION 1. An admin sets a rank on their OWN TEAM
+// only, and promotion to admin is `public.promote_member_to_admin`, also own-team. The two tests that
+// asserted cross-team success now assert the refusal and are renamed to say so; every other test
+// keeps its name and assertion. The header below is ADR-044's and is kept as the history of this
+// file. `tests/role-change-bounds.test.ts` carries MIR-03's own acceptance criteria.
+//
 // SOLO, 2026-09-24 — ADR-044. An admin sets any member's rank, on any team.
 //
 // **THIS WORK CARRIES NO TICKET AND NO ACCEPTANCE CRITERIA**, so nothing here is numbered `AC-n`:
@@ -42,25 +48,19 @@ async function restore(memberId: string): Promise<void> {
 }
 
 describe("ADR-044 — the rank write reaches every team", () => {
-  it("an admin makes ANOTHER team's member a manager, and puts them back", async () => {
-    // FIXTURE_ADMIN is on FIXTURE_TEAM; this person is not. Before ADR-044 this was the refusal.
+  it("an admin can NOT make ANOTHER team's member a manager — ADR-065 superseded this", async () => {
+    // FIXTURE_ADMIN is on FIXTURE_TEAM; this person is not. ADR-044 admitted this; ADR-065 refuses it.
     expect(FIXTURE_OTHER_TEAM_MEMBER.teamId).not.toBe(FIXTURE_ADMIN.teamId);
 
     as(FIXTURE_ADMIN.id);
     const promoted = await seam.setMemberRole(FIXTURE_OTHER_TEAM_MEMBER.id, "manager");
 
-    expect(promoted.ok).toBe(true);
-    if (promoted.ok) {
-      expect(promoted.value.role).toBe("manager");
-      // INV-07: the rank moved and the team did not. `set_member_role` writes one column.
-      expect(promoted.value.teamId).toBe(FIXTURE_OTHER_TEAM_MEMBER.teamId);
-    }
+    expect(promoted.ok).toBe(false);
+    if (!promoted.ok) expect(promoted.error.code).toBe("not_permitted");
 
-    // And it is readable back through the cross-team read, which is where a screen would find it.
+    // And the cross-team read shows the rank unchanged.
     const roster = await seam.listMembersForTeam(FIXTURE_OTHER_TEAM_MEMBER.teamId ?? "");
-    expect(roster.find((m) => m.id === FIXTURE_OTHER_TEAM_MEMBER.id)?.role).toBe("manager");
-
-    await restore(FIXTURE_OTHER_TEAM_MEMBER.id);
+    expect(roster.find((m) => m.id === FIXTURE_OTHER_TEAM_MEMBER.id)?.role).toBe("member");
   });
 
   it("the caller's own team still works, which is the half that was never broken", async () => {
@@ -151,15 +151,14 @@ describe("ADR-044 — promotion to admin takes the same road", () => {
   // `set_member_role` refuses any row that is already `admin`, so this test cannot put back what it
   // writes. Every test above runs against a roster this one has not touched yet. A test added after
   // this line inherits an other-team member who is an admin.
-  it("an admin promotes ANOTHER team's member to admin", async () => {
+  it("an admin can NOT promote ANOTHER team's member to admin — ADR-065 superseded this", async () => {
     as(FIXTURE_ADMIN.id);
     const result = await seam.promoteMember(FIXTURE_OTHER_TEAM_MEMBER.id);
 
-    expect(result.ok).toBe(true);
-    if (result.ok) expect(result.value.role).toBe("admin");
+    expect(result.ok).toBe(false);
+    if (!result.ok) expect(result.error.code).toBe("not_permitted");
 
-    // And it is now irreversible, which is the same sentence TEA-04 AC-5 has always carried.
-    const back = await seam.setMemberRole(FIXTURE_OTHER_TEAM_MEMBER.id, "member");
-    expect(back.ok).toBe(false);
+    const roster = await seam.listMembersForTeam(FIXTURE_OTHER_TEAM_MEMBER.teamId ?? "");
+    expect(roster.find((m) => m.id === FIXTURE_OTHER_TEAM_MEMBER.id)?.role).toBe("member");
   });
 });
