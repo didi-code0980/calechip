@@ -22,6 +22,9 @@ planned, sized, and safe to build** — the next stage for a row here is IN_PROG
 
 | # | Ticket | Title | Size | Depends on |
 |---|--------|-------|------|------------|
+| 1 | MIR-04 | The member directory returns only members of the caller's own teams, and the event-invitee check is audited | M | — |
+
+**`MIR-04` moved here at /advance on 2026-10-20**, from `01-plan.md` gate PASS with all six Definition of Ready items passing; `schema_delta` cites [ADR-066](../registry/decisions/ADR-066-the-member-directory-is-own-team-plus-people-the-caller-already-shares-an-event-with.md), `ACCEPTED by the operator`. Cut from `main` after PR #166; the `MIR` rows of `## BACKLOG` are still only on `feat/MIR-01`, so no row left that table on this branch. `MIR-01` stays parked at `READY` on `feat/MIR-01`.
 
 **Empty again — `MIR-03` left this section for `## ARCHIVE` at its own ship on 2026-10-20.**
 
