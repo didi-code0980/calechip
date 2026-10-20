@@ -2835,3 +2835,23 @@ uncommitted `.ai/board/backlog.md` note the same day.
   (`ADR-059-calechip-becomes-multi-tenant-system-org-team.md`, `ADR-059-delivery-work-is-a-seventh-feature-group.md`).
   Renaming either breaks every citation; left for the operator.
 - `node scripts/check-docs.mjs`: 0 errors. Test suite: 376 pass, 0 fail. No ticket in flight.
+
+### 2026-10-20 — `feature_ids` and `group` written into the 21 MIR tickets; ADR-063 question closed
+
+Operator's decision, relayed by the launching session: asked in the orchestrator session who writes
+`feature_ids: [MIR-01]` and `group: MIR` (MIR-01's plan had passed and `/advance` would fail DoR 1
+and 6), with the options re-run `/plan`, steward for all 21, or a hand edit, they chose *"/thuki ghi
+cả 21 ticket"*. That is the authority for this run's exception to "the steward does not write
+`.ai/board/tickets/**`".
+
+- **Board write, 21 `ticket.yaml`:** `feature_ids: [MIR-NN]` and `group: MIR`, each ID verified
+  against a row in `features.md` (MIR-01..21 present). The two stale comments replaced by one citing
+  ADR-063 and the decision. Nothing else in those files touched.
+- **MIR-01 is not in the ops commit.** Its `ticket.yaml` carries uncommitted PLAN work and is in
+  MIR-01's ship set, so the two lines were written in place on `feat/MIR-01` and left there.
+  MIR-02..21 landed on `ops/mir-ticket-feature-ids`.
+- **Registry write, ADR-063** 2 → 3, diff printed before writing: the *Not decided here* bullet keeps
+  its original wording and gains the decision with its date; additive notes on the *Consequences*
+  line "Every MIR ticket is still blocked" and the `ticket.yaml` row of *Affected documents*.
+- Exception is scoped to these two fields in these 21 files; it does not say who writes them for a
+  MIR item appended later.
