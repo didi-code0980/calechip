@@ -22,6 +22,9 @@ planned, sized, and safe to build** — the next stage for a row here is IN_PROG
 
 | # | Ticket | Title | Size | Depends on |
 |---|--------|-------|------|------------|
+| 1 | MIR-02 | A member's own role, status and team can be changed only through bounded, definer-checked paths | M | — |
+
+**`MIR-02` moved here at /advance on 2026-10-20**, from `01-plan.md` gate PASS with all six Definition of Ready items passing; `schema_delta` cites [ADR-064](../registry/decisions/ADR-064-a-person-cannot-change-their-own-role-status-or-team.md), `ACCEPTED by the operator`. **This branch was cut from `main` while `MIR-01` was parked on `feat/MIR-01`** (operator, 2026-10-20: *"ignore MIR-01 bắt đầu MIR-02 trước"*), so the `MIR` rows of `## BACKLOG` and `MIR-01`'s `READY` row are not in this copy; they are on `feat/MIR-01`. Whichever of the two pull requests merges second reconciles this file. WIP is 2 against a limit of 1, by the operator's decision.
 
 **Empty again — `TSK-06` left this section for `## ARCHIVE` at its own ship on 2026-10-18.** The `TSK` group in `## BACKLOG` is empty.
 
