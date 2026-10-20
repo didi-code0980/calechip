@@ -206,7 +206,30 @@ Under the current gate placement a ticket sits here until it has been planned �
 
 | # | Ticket | Title | State | Blocked on |
 |---|--------|-------|-------|------------|
-| 1 | CICD-08 | Every stage of the pipeline has run once for real — a pull request, a merge, a pre-release tag and a forced failed health check — and the evidence is recorded | BACKLOG | CICD-07; operator: Actions secrets, deployment repo applied, runner registered, branch protection |
+| 1 | MIR-01 | The service role key and the anon key are rotated, and the rotation is recorded | BACKLOG | operator: rotate both keys in Supabase, update every environment and CI secret, confirm the old key is rejected |
+| 2 | MIR-02 | A member's own role, status and team can be changed only through bounded, definer-checked paths | BACKLOG | — |
+| 3 | MIR-03 | Role changes are bounded to members the admin administers, promotion to admin is a separately gated action, and every role change records its actor | BACKLOG | — |
+| 4 | MIR-04 | The member directory returns only members of the caller's own teams, and the event-invitee check is audited | BACKLOG | — |
+| 5 | MIR-05 | pgTAP runs locally and in CI against a real Postgres with every migration applied | BACKLOG | MIR-01, MIR-02, MIR-03, MIR-04 |
+| 6 | MIR-06 | An SQL isolation suite proves each boundary as a real authenticated role against real policies | BACKLOG | MIR-01, MIR-02, MIR-03, MIR-04 |
+| 7 | MIR-07 | The mock is no looser than SQL on any permission decision, and a parity test enforces it | BACKLOG | MIR-01, MIR-02, MIR-03, MIR-04 |
+| 8 | MIR-08 | `supabase/db.sql` is regenerated from the applied migrations or retired, and CI fails on drift | BACKLOG | MIR-01, MIR-02, MIR-03, MIR-04 |
+| 9 | MIR-09 | Known schema inconsistencies are cleaned up: transaction wrapping, allow-list references, an index on `member.team_id`, a check on the overload threshold | BACKLOG | MIR-01, MIR-02, MIR-03, MIR-04 |
+| 10 | MIR-10 | The org and multi-team membership schema is designed and approved before any migration | BACKLOG | MIR-01, MIR-02, MIR-03, MIR-04, MIR-05, MIR-06, MIR-07, MIR-08, MIR-09 |
+| 11 | MIR-11 | Composite foreign keys make a cross-org insert impossible at the database | BACKLOG | MIR-01, MIR-02, MIR-03, MIR-04, MIR-05, MIR-06, MIR-07, MIR-08, MIR-09, MIR-10 |
+| 12 | MIR-12 | `org_id` is added and backfilled into Org public, `membership` is backfilled from `member.team_id`, and `member.team_id` is dropped last | BACKLOG | MIR-01, MIR-02, MIR-03, MIR-04, MIR-05, MIR-06, MIR-07, MIR-08, MIR-09, MIR-10 |
+| 13 | MIR-13 | The policy layer is rewritten against `membership` and `org_id`, and no definer function trusts a client-supplied team id alone | BACKLOG | MIR-01, MIR-02, MIR-03, MIR-04, MIR-05, MIR-06, MIR-07, MIR-08, MIR-09, MIR-10, MIR-12 |
+| 14 | MIR-14 | A multi-team member's entry needs approval if any of their teams requires it, the first decision wins, any rejection rejects, and both approver and rejecter are recorded | BACKLOG | MIR-01, MIR-02, MIR-03, MIR-04, MIR-05, MIR-06, MIR-07, MIR-08, MIR-09, MIR-10 |
+| 15 | MIR-18 | A separate system admin panel, unindexed, with its own account store, 2FA and org management | BACKLOG | MIR-01, MIR-02, MIR-03, MIR-04, MIR-05, MIR-06, MIR-07, MIR-08, MIR-09, MIR-10, MIR-12 |
+| 16 | MIR-15 | In Org public, the directory, public events and event notifications stay within the team, only system_admin sets its holidays, and a team can be moved to another org | BACKLOG | MIR-01, MIR-02, MIR-03, MIR-04, MIR-05, MIR-06, MIR-07, MIR-08, MIR-09, MIR-10, MIR-18 |
+| 17 | MIR-21 | `member.team_id` is dropped once every reader has moved to `membership` | BACKLOG | MIR-01, MIR-02, MIR-03, MIR-04, MIR-05, MIR-06, MIR-07, MIR-08, MIR-09, MIR-10, MIR-12, MIR-13 |
+| 18 | MIR-16 | The database splits admin into system_admin, org_admin and a per-team manager | BACKLOG | MIR-01, MIR-02, MIR-03, MIR-04, MIR-10, MIR-11, MIR-12, MIR-13, MIR-14, MIR-15, MIR-18, MIR-21 |
+| 19 | MIR-17 | Client role checks take a team or org, every admin-only guard is replaced, and the router gains role guards | BACKLOG | MIR-01, MIR-02, MIR-03, MIR-04, MIR-10, MIR-11, MIR-12, MIR-13, MIR-14, MIR-15, MIR-18, MIR-21 |
+| 20 | MIR-19 | Every authenticated page is served under `/{org_code}` | BACKLOG | MIR-01, MIR-02, MIR-03, MIR-04, MIR-10, MIR-11, MIR-12, MIR-13, MIR-14, MIR-15, MIR-18, MIR-21 |
+| 21 | MIR-20 | system_admin impersonation is read-only, time-boxed, reasoned and logged, and visible to the org it touched | BACKLOG | MIR-01, MIR-02, MIR-03, MIR-04, MIR-10, MIR-11, MIR-12, MIR-13, MIR-14, MIR-15, MIR-18, MIR-21, MIR-16, MIR-17 |
+| 22 | CICD-08 | Every stage of the pipeline has run once for real — a pull request, a merge, a pre-release tag and a forced failed health check — and the evidence is recorded | BACKLOG | CICD-07; operator: Actions secrets, deployment repo applied, runner registered, branch protection |
+
+**Reordered by the operator on 2026-10-20** (*"tôi muốn bắt đầu với MIR"*): `MIR-01` to `MIR-21` placed at rows 1 to 21, ahead of `CICD-08`, which moves to row 22 unchanged. Recorded by `claude`, not decided by it. The order among the MIR rows is not a priority: it is the topological order of each `ticket.yaml` `depends_on`, numeric where the dependencies allow — `MIR-18` comes before `MIR-15`, and `MIR-21` before `MIR-16`, `MIR-17` and `MIR-19`, because they block them. *Blocked on* is copied from `depends_on`. `MIR-01` to `MIR-04` depend on nothing; `MIR-01` is an operator action in Supabase with no code (`calechip-multi-tenancy-plan.md:67-74`). Plan status stays in `.ai/board/plans/multi-tenancy-status.md`. `BUG-003` to `BUG-005` still have no row; placing them is the operator's.
 
 **Row 2 was appended by `product` at /triage on 2026-10-18**, from `.ai/board/ideas/2026-10-18-the-task-page-shows-one-day-at-a-time-and-a-task-has-no-time.md`. Appended, not placed. Its `depends_on` names `TSK-01`, `TSK-02`, `TSK-03` and `TSK-05`, all `DONE`, so *Blocked on* is `—`. It rests on [ADR-062](../registry/decisions/ADR-062-a-task-may-carry-an-optional-time-of-day.md), `ACCEPTED by the operator`; the migration it brings is applied by a human (RULE-09).
 
