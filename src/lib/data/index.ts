@@ -421,9 +421,13 @@ export interface DataSeam {
    * **SOLO, 2026-09-24 — ADR-044: "of the caller's own team" WAS TRUE HERE UNTIL THIS DATE AND IS
    * NOT ANY MORE.** Any team, and the reason it had to change is in `setMemberRole` below.
    *
-   * Returns the updated row. A refusal now arrives as a 42501 from `public.set_member_role` rather
-   * than as zero rows from a filtered update; the seam maps both to `not_permitted` and no caller
-   * branches on the difference.
+   * **MIR-03, 2026-10-20 — ADR-065: OWN TEAM AGAIN, AND ITS OWN FUNCTION.** Promotion is
+   * `public.promote_member_to_admin`, admin-only and own-team, and no longer goes through
+   * `public.set_member_role`, which now refuses `admin`. The screen asks for a confirmation first
+   * because the action is one-way.
+   *
+   * Returns the updated row. A refusal arrives as a 42501 from `public.promote_member_to_admin`; the
+   * seam maps it to `not_permitted` and no caller branches on the difference.
    */
   promoteMember(memberId: string): Promise<Result<Member>>;
 
@@ -435,6 +439,11 @@ export interface DataSeam {
    * parameter would edit a shipped contract to add a rank. This is the general form, and the two
    * agree because both end in the same `update { role }` against the same policy and the same
    * trigger. `promoteMember(id)` is `setMemberRole(id, "admin")` with a narrower refusal message.
+   *
+   * **MIR-03, 2026-10-20 — ADR-065: THE PARAGRAPH ABOVE IS NO LONGER TRUE.** This refuses `"admin"`
+   * as `not_permitted`; promotion is `promoteMember` alone, through its own function. And an admin
+   * sets a rank on their OWN TEAM only — ADR-065 supersedes the "any team" paragraph below, which is
+   * kept as the history of why this became a definer function.
    *
    * **ADMIN-ONLY, AND THE DATASTORE IS WHAT SAYS SO** — `public.set_member_role`, which tests
    * `public.is_admin` as its first statement. A manager calling this is refused by the function, not
