@@ -9,14 +9,19 @@ group: ""             # MIR is a plan family, not a registry group — features.
 state: BACKLOG
 owner: ""
 branch: ""
-size_estimate: ""     # S|M - set by tech-lead-design at PLAN; gates DoR
-size: ""              # S|M|L|XL - set by tech-lead-design at PLAN; decides splitting
+size_estimate: M     # S|M - set by tech-lead-design at PLAN; gates DoR
+size: M              # S|M|L|XL - set by tech-lead-design at PLAN; decides splitting
 depends_on: []   # "Blocked by" — the MIR IDs that must be DONE first
-invariants_touched: []
-allowed_paths: []
+invariants_touched: [INV-07]
+allowed_paths:
+  - ".ai/board/tickets/MIR-02/**"
+  - "supabase/migrations/20261020120000_mir02_member_bounded_writes.sql"
+  - "src/lib/data/supabase.ts"
+  - "src/lib/data/index.ts"
+  - "tests/mir02-member-bounded-writes.test.ts"
 glossary_owed: []
-schema_delta: "TODO(plan): set at PLAN — the plan item changes the schema"
-requires_adr: false
+schema_delta: "one migration — revoke update (role, status, team_id), two definer functions, drop member_decide_admin, trigger clauses; ADR-063"
+requires_adr: true
 rework_count: 0
 chat_budget:
   developer->tech-lead-design: { used: 0, max: 6 }
