@@ -2811,3 +2811,27 @@ then *"chuyển sang thuki r tự ghi"*.
   corrected file"*) and `.claude/agents/solo.md:92` (*"the complete corrected file"*). Out of this
   run's scope — the operator asked for this file only. Left for a follow-up `/thuki` run.
 - No registry write. No ticket in flight.
+
+### 2026-10-20 — ADR-063: `MIR` is an eighth feature group, rows MIR-01..21
+
+Operator, as the `/thuki` argument relayed verbatim by the launching session: *"ADR: MIR là group
+prefix + features.md rows MIR-01..21"* (it ended in a trailing *"—"* and may have been cut short).
+The remedy for DoR items 1 and 6 on all 21 MIR tickets, as recorded by `orchestrator` in the
+uncommitted `.ai/board/backlog.md` note the same day.
+
+- **Registry write, `.ai/registry/decisions/ADR-063-mir-is-an-eighth-feature-group.md`** (new),
+  `ACCEPTED by the operator` on the words above. Records what they settle and, under *Not decided
+  here*, what they do not.
+- **Registry write, `.ai/registry/features.md`** 6 → 7: `MIR` on the `id-prefixes` line, a prefix
+  table row, a paragraph recording the eighth group, `## MIR — Multi-tenancy` with 21 `PLANNED`
+  rows whose titles are transcribed from each `ticket.yaml`, and `MIR-23` under `## Unissued IDs`.
+  Diff printed before writing.
+- **Two steward choices, said so in the ADR:** the expansion text (nothing on disk says what the
+  letters stand for), and `MIR-23` listed as unissued, because two board plan files use it as a
+  worked example and D1 would otherwise fail on them.
+- **Not done, not mine:** `feature_ids` and `group` in the 21 `ticket.yaml`. No command writes them
+  for a ticket with no idea file. Every MIR ticket stays blocked on DoR 1 and 6 until they are set.
+- **Found, not fixed:** two ADRs carry the number 059
+  (`ADR-059-calechip-becomes-multi-tenant-system-org-team.md`, `ADR-059-delivery-work-is-a-seventh-feature-group.md`).
+  Renaming either breaks every citation; left for the operator.
+- `node scripts/check-docs.mjs`: 0 errors. Test suite: 376 pass, 0 fail. No ticket in flight.
