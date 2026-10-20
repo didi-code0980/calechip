@@ -27,7 +27,7 @@ chat_budget:
   developer->tech-lead-design: { used: 0, max: 6 }
 tracker: { provider: "", external_id: "", sync_enabled: false }
 gates:
-  plan:   { passed: false, at: null }
+  plan:   { passed: true, at: 2026-10-20T04:11:32Z }
   review: { passed: false, at: null }
 
 # --- MIR extra fields ---------------------------------------------------------------------------
