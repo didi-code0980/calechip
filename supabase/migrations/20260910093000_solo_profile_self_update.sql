@@ -16,6 +16,11 @@
 -- comes near it. TEA-04's other permanent prohibitions also stand: no `insert` policy and no
 -- `delete` policy on `public.member`, now or by any later edit.
 --
+-- *Corrected 2026-10-20 by MIR-02 (ADR-064).* The sentence above stopped being true at
+-- `20260910100000_solo_member_approval.sql:173`, which granted `update (status, team_id)` to
+-- `authenticated` the same day. `20261020120000_mir02_member_self_writes.sql` revokes it again,
+-- with `role`, and adds the trigger clause that refuses a person changing their own `team_id`.
+--
 -- **THE RISK THIS FILE CREATES, NAMED BEFORE IT IS FENCED.** `member_update_admin` already lets an
 -- admin UPDATE any row in their own team — it exists for promotion and removal. A bare column grant
 -- would therefore hand every admin the ability to rename any member and change their face, silently,
