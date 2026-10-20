@@ -1,0 +1,54 @@
+# Copied from .ai/templates/ticket.yaml by `claude` on 2026-10-20, recording item S-7 of
+# .ai/board/plans/calechip-multi-tenancy-plan.md (§ Solo users). Not produced by /triage: no idea file promotes it.
+# ticket.yaml is authoritative; backlog.md is a view (see .ai/01-operating-model.md).
+# state enum: TRIAGE BACKLOG PLAN READY IN_PROGRESS REVIEW REWORK ESCALATED DONE
+id: MIR-28
+title: "A personal team is absent from the Org public team listing, and its owner from every member directory"
+feature_ids: []       # a MIR item implements no registry feature; the features it affects are in expected_impact
+group: ""             # MIR is a plan family, not a registry group — features.md: extending the prefixes needs an ADR
+state: BACKLOG
+owner: ""
+branch: ""
+size_estimate: ""     # S|M - set by tech-lead-design at PLAN; gates DoR
+size: ""              # S|M|L|XL - set by tech-lead-design at PLAN; decides splitting
+depends_on: [MIR-01, MIR-02, MIR-03, MIR-04, MIR-05, MIR-06, MIR-07, MIR-08, MIR-09, MIR-10, MIR-12, MIR-15, MIR-25]   # "Blocked by" — the MIR IDs that must be DONE first
+invariants_touched: []
+allowed_paths: []
+glossary_owed: []
+schema_delta: "TODO(plan): set at PLAN — the plan item changes the schema"
+requires_adr: false
+rework_count: 0
+chat_budget:
+  developer->tech-lead-design: { used: 0, max: 6 }
+tracker: { provider: "", external_id: "", sync_enabled: false }
+gates:
+  plan:   { passed: false, at: null }
+  review: { passed: false, at: null }
+
+# --- MIR extra fields ---------------------------------------------------------------------------
+# Not in .ai/templates/ticket.yaml. Added for the multi-tenancy plan; nothing in scripts/ reads them.
+# Plan status lives only in .ai/board/plans/multi-tenancy-status.md. `state` above is the loop's.
+mir_phase: 3
+mir_plan_item: "S-7"             # .ai/board/plans/calechip-multi-tenancy-plan.md:395-396
+verification_required: true   # phase 0 and phase 3 — a passing mock test is not verification
+expected_impact:
+  - { feature: TEA-03, tag: CHANGED, why: "a solo user appears in no member list but their own" }
+  - { feature: TEA-11, tag: CHANGED, why: "the teams screen does not list personal teams" }
+  - { feature: EVT-01, tag: CHANGED, why: "the named-people picker never offers a solo user" }
+# [predicted] at plan time. Corrected at ship in .ai/board/plans/feature-change-log.md.
+mir_detail: |
+  Short names (tea04, cal11, …) are migrations, per the File legend in
+  .ai/board/audits/multi-tenancy-audit-2026-10-12.md:38-77. "A:n" is a line of that audit;
+  "plan:n" a line of .ai/board/plans/calechip-multi-tenancy-plan.md.
+  Plan S-7 (plan:395-396), from the solo-user section (plan:329-441):
+  - Personal teams excluded from the Org public team listing
+  - Personal teams (their owners) excluded from any member directory
+
+  Blocked by MIR-10, MIR-12, MIR-15 (Org public special cases — directory and `public` events stay
+  within the team) and MIR-25.
+
+  OPEN QUESTION — plan Q1: excluding solo users from every directory removes the obvious way to invite
+  them (rule 5). The answer may need an exception here.
+
+  Today's listing and directory: `list_member_directory` `evt01:154-163` (A:394); team list
+  `many_teams` (TEA-11).

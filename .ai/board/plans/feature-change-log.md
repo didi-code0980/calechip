@@ -43,15 +43,27 @@ the MIR items themselves lives only in [multi-tenancy-status.md](multi-tenancy-s
 
 - [predicted] MIR-13 CHANGED — entries are readable for every team the caller belongs to (`entry_select_team`, `cal01:203-207`)
 - [predicted] MIR-19 CHANGED — `/month` moves under `/{org_code}` (`MonthView.tsx:512`, `src/lib/period.ts`)
+- [predicted] MIR-27 CHANGED — a personal team's days are never shaded overloaded
+- [predicted] MIR-33 CHANGED — the month view has a personal-space route
+- [predicted] MIR-34 CHANGED — a one-person variant of the month view
 
 ## CAL-05 — Week view — per-person detail for one week, with half-days, notes and who approved
 
 - [predicted] MIR-13 CHANGED — entries are readable for every team the caller belongs to (`entry_select_team`, `cal01:203-207`)
 - [predicted] MIR-19 CHANGED — `/week` moves under `/{org_code}` (`WeekView.tsx:577`)
+- [predicted] MIR-27 CHANGED — a personal team's notes are visible only to its owner
+- [predicted] MIR-33 CHANGED — the week view has a personal-space route
+- [predicted] MIR-34 CHANGED — a one-person variant of the week view
+
+## CAL-06 — Year view — one row per member across 365 days
+
+- [predicted] MIR-34 CHANGED — a one-person variant of the year view
 
 ## CAL-07 — Overload warning shown while choosing dates, before the entry is saved
 
 - [predicted] MIR-13 CHANGED — `getTeam()` no longer assumes one team (`supabase.ts:2092-2095`; warning source `usePageOverload.ts:118-135`)
+- [predicted] MIR-27 CHANGED — the overload warning is not shown for a personal team
+- [predicted] MIR-34 CHANGED — no overload warning is shown in a personal space
 
 ## CAL-08 — Holidays and bridge days shown in the calendar views
 
@@ -61,6 +73,8 @@ the MIR items themselves lives only in [multi-tenancy-status.md](multi-tenancy-s
 
 - [predicted] MIR-13 CHANGED — entries are readable for every team the caller belongs to (`entry_select_team`, `cal01:203-207`)
 - [predicted] MIR-19 CHANGED — `/year` moves under `/{org_code}`
+- [predicted] MIR-33 CHANGED — the year overview has a personal-space route
+- [predicted] MIR-34 CHANGED — a one-person variant of the year overview
 
 ## CAL-11 — An admin reads any team's entries and roster through the seam
 
@@ -82,6 +96,7 @@ the MIR items themselves lives only in [multi-tenancy-status.md](multi-tenancy-s
 - [predicted] MIR-09 CHANGED — a threshold outside the new check constraint is refused by the database
 - [predicted] MIR-13 CHANGED — the threshold is set for one named team, not every admitted row (`supabase.ts:2135-2140`)
 - [predicted] MIR-17 CHANGED — the threshold screen guard is replaced (`Threshold.tsx:125`)
+- [predicted] MIR-27 CHANGED — a personal team's overload warning is suppressed, so its threshold has no effect
 
 ## ADM-02 — The national holiday calendar, seeded and readable
 
@@ -98,11 +113,14 @@ the MIR items themselves lives only in [multi-tenancy-status.md](multi-tenancy-s
 
 - [predicted] MIR-14 CHANGED — an entry appears in the queue of every relevant team's manager and clears from the others once one decides; the UI shows which teams it affects
 - [predicted] MIR-17 CHANGED — `mayDecide` / `mayDecideEntriesOf` take a team (`roles.ts:36-49`, `PendingEntries.tsx:245`, `:621`)
+- [predicted] MIR-27 CHANGED — no entry of a personal team ever enters a worklist — approval is forced off
+- [predicted] MIR-34 CHANGED — no approval worklist is shown in a personal space
 
 ## ADM-05 — Approve or reject an entry, with a reason on rejection
 
 - [predicted] MIR-14 CHANGED — one manager's decision is sufficient for a multi-team member; a rejection records `rejected_by`; a team with no manager falls back to `org_admin`
 - [predicted] MIR-16 CHANGED — `may_decide` gains a team parameter (`manager_role:62`)
+- [predicted] MIR-27 CHANGED — no one approves or rejects a personal team's entry, and MIR-14's fallback to `org_admin` never applies to it
 
 ## ADM-06 — Reject several entries at once, with one reason for the batch
 
@@ -119,18 +137,23 @@ the MIR items themselves lives only in [multi-tenancy-status.md](multi-tenancy-s
 - [predicted] MIR-12 CHANGED — `entry_apply_approval_setting` stops joining through `m.team_id` (`approval_settings:111-118`)
 - [predicted] MIR-13 CHANGED — approval switches are set for one named team (`supabase.ts:2374-2379`)
 - [predicted] MIR-14 CHANGED — the approval switches are OR-ed across every team the owner belongs to (`approval_settings:111-118`)
+- [predicted] MIR-27 CHANGED — a personal team's approval switches are fixed off; setting them is refused by the database
 
 ## TEA-01 — Sign up and establish the member record
 
 - [predicted] MIR-12 CHANGED — the admission trigger must write `org_id` (`avatar_images:63-79`)
+- [predicted] MIR-26 CHANGED — a signup without an invitation creates the member row in Org public with a personal team and its one membership, in one transaction
+- [predicted] MIR-31 CHANGED — a signup is rate-limited and needs a verified email before it creates a solo user
 
 ## TEA-02 — Manage the allow-list
 
 - [predicted] MIR-09 SUPERSEDED — the allow-list table was already dropped at `member_approval:185`; this item removes the last references to it. Replaced by: sign-up followed by an admin decision (TEA-09, ADR-033)
+- [predicted] MIR-26 SUPERSEDED — the gate an uninvited signup crosses is no longer an admin decision. Replaced by: an uninvited signup becomes a solo user at once; its gate is MIR-31's rate limit and email verification
 
 ## TEA-03 — Team member list
 
 - [predicted] MIR-13 CHANGED — the member list spans every team the caller belongs to (`member_select_team`, `tea03:34-36`)
+- [predicted] MIR-28 CHANGED — a solo user appears in no member list but their own
 
 ## TEA-04 — Remove a member, and promote a member to admin
 
@@ -141,6 +164,8 @@ the MIR items themselves lives only in [multi-tenancy-status.md](multi-tenancy-s
 ## TEA-05 — Sign in, sign out, and the member-less landing state
 
 - [predicted] MIR-19 CHANGED — signing in resolves the user's org and redirects there (`AuthCard.tsx:60`, `:68`)
+- [predicted] MIR-26 CHANGED — an uninvited signup never reaches the member-less landing state; it lands in its personal space
+- [predicted] MIR-33 CHANGED — signing in takes a solo user to their personal space
 
 ## TEA-06 — The member tab shows team and last sign-in, and carries view, edit and delete per row
 
@@ -158,6 +183,8 @@ the MIR items themselves lives only in [multi-tenancy-status.md](multi-tenancy-s
 - [predicted] MIR-13 CHANGED — `admit_member` gains an org condition (`many_teams:151-170`)
 - [predicted] MIR-16 CHANGED — the sign-up queue is decided by `org_admin` (operator, 2026-10-12) — today's admin, bounded to their org — instead of by any admin across the system
 - [predicted] MIR-17 CHANGED — the sign-up screen guard is replaced (`NewSignups.tsx:76`)
+- [predicted] MIR-26 CHANGED — an uninvited signup no longer waits for an admin to admit it (operator, 2026-10-20)
+- [predicted] MIR-29 CHANGED — admitting a solo user onto a team in another org moves the user and their data to that org — Assumption: org-transfer model (a), not confirmed
 
 ## TEA-10 — A member edits their own display name, avatar and password from a profile screen
 
@@ -169,6 +196,10 @@ the MIR items themselves lives only in [multi-tenancy-status.md](multi-tenancy-s
 - [predicted] MIR-12 CHANGED — `create_team` must write `org_id` (`many_teams:93`)
 - [predicted] MIR-13 SUPERSEDED — an admin no longer admits a sign-up onto, or moves a member to, *any* team. Replaced by: team management bounded by the admin's org, with membership rows instead of a single `member.team_id`
 - [predicted] MIR-17 CHANGED — the Teams guard is replaced (`Teams.tsx:81`) and managers stop being labelled "Member" (`Teams.tsx:337`)
+- [predicted] MIR-25 CHANGED — admitting a sign-up onto, or moving a member into, a personal team is refused by the database
+- [predicted] MIR-28 CHANGED — the teams screen does not list personal teams
+- [predicted] MIR-29 CHANGED — moving a member onto a team in another org moves the member and their rows across the org boundary — Assumption: org-transfer model (a), not confirmed
+- [predicted] MIR-30 CHANGED — creating a team, or admitting a solo user onto one, inside Org public clears the owner's personal-team flag
 
 ## TEA-12 — A third role, manager, decides entries and nothing else
 
@@ -179,11 +210,18 @@ the MIR items themselves lives only in [multi-tenancy-status.md](multi-tenancy-s
 ## UIE-02 — The application shell — a persistent sidebar and top bar
 
 - [predicted] MIR-19 CHANGED — shell links and `navigate()` calls become org-relative (`Sidebar.tsx:293`, `TopBar.tsx:278-307`, `BrandLogo.tsx:31`)
+- [predicted] MIR-33 CHANGED — shell links resolve to the personal space for a solo user
+- [predicted] MIR-34 CHANGED — the sidebar shows no roster in a personal space
 
 ## UIE-09 — An admin hub screen at `/admin`, reachable from one control in the top bar
 
 - [predicted] MIR-17 CHANGED — the hub's guard `me.role !== "admin"` is replaced (`AdminHub.tsx:72`)
 - [predicted] MIR-19 CHANGED — `/admin` and `isAdminAddress` / `ADMIN_ADDRESSES` move under the org (`AdminTabs.tsx:251-271`)
+
+## UIE-10 — The sidebar gives up its admin links and restyles its roster; the specs route through the hub
+
+- [predicted] MIR-27 CHANGED — a personal team's roster is hidden
+- [predicted] MIR-34 CHANGED — the restyled roster is not shown in a personal space
 
 ## EVT-01 — A member announces an event to their own team, to named people, or to every team, and those it is for can read it
 
@@ -193,12 +231,15 @@ the MIR items themselves lives only in [multi-tenancy-status.md](multi-tenancy-s
 - [predicted] MIR-15 SUPERSEDED — in Org public an event with scope `public` no longer reaches every team, and the directory no longer spans teams. Replaced by: when `is_shared_tenant`, a `public` event and the directory stay within the team. Every existing team is backfilled into Org public by MIR-12, so this applies to all of today's data
 - [predicted] MIR-16 CHANGED — the admin override over every event is re-pointed (`evt01:134-142`, `evt02:332-346`)
 - [predicted] MIR-17 CHANGED — `mayEditEvent` gains a team comparison (`EventDetail.tsx:51-53`)
+- [predicted] MIR-27 CHANGED — a solo user cannot create an event that names invitees or reaches anyone but themselves
+- [predicted] MIR-28 CHANGED — the named-people picker never offers a solo user
 
 ## EVT-02 — A member joins an event they can read, within its capacity, approval mode and deadline, and everyone who can read it sees who is coming
 
 - [predicted] MIR-12 CHANGED — joining an event carries `org_id`; the grant is `insert (event_id)` only (`evt02:406`)
 - [predicted] MIR-15 CHANGED — in Org public a member can no longer join another team's `public` event (`is_event_audience`, `evt02:112-125`)
 - [predicted] MIR-16 CHANGED — an admin's decision on any event's attendance is re-pointed (`may_manage_event`)
+- [predicted] MIR-27 CHANGED — a solo user may join an event they were invited to although no one shares their team; how they are invited is open (plan Q1)
 
 ## EVT-04 — A person is notified in the app when an event concerns them
 

@@ -324,3 +324,118 @@ The audit counted the current `admin` checks: 4 mean *team*, 3 groups mean *org*
 2. **Org public will keep generating special cases.** Three are already known (directory, public events, notifications). Expect more.
 3. **The production database has never been tested against its own policies.** Phase 1 may uncover further holes; budget for that rather than treating it as scope creep.
 4. **No audit trail exists.** If any of the Phase 0 holes was exploited, there is no way to tell.
+---
+
+## Solo users — added 2026-10-20
+
+**Source:** the operator's design discussion of 2026-10-20, recorded here so the reasoning survives
+without that conversation. Items S-1…S-13 are tracked as MIR-22…MIR-34 in
+`multi-tenancy-status.md`; each item's detail is in its `ticket.yaml`.
+
+### The model
+
+- **A solo user is one person with no colleagues in the system.**
+- **A solo user is NOT a user without an org.** That configuration is forbidden by `org_id NOT NULL`
+  (P3-3).
+- **A solo user is a member of Org public who owns a personal team containing only themselves.**
+
+### Rules (decided)
+
+1. Signup without an invitation creates a member row in Org public, a team flagged
+   `is_personal = true`, and exactly one membership joining them.
+2. A personal team forces: approval off, overload warning suppressed, notes visible only to the
+   owner, roster hidden. These are enforced in the database, not by application code.
+3. A personal team can never gain a second membership.
+4. A personal team is hidden from the Org public team listing.
+5. A solo user CAN be invited to events and accept. They cannot create events that invite others.
+6. A solo user has no manager. `role_in_team = 'member'` on their own personal team.
+
+### Decided by the operator, 2026-10-20
+
+- **How a solo user is invited to an event is left open** (Q1 below) — recorded, not decided.
+- **An uninvited signup does not wait in the admission queue** (TEA-09, ADR-033). The signup item
+  carries `requires_adr: true`, because it changes what ADR-033 decided.
+- **The abuse surface is Phase 3**, and the signup item waits for it: open signup without a rate
+  limit would be a production hole the day it ships.
+- **The reduced interface is Phase 5**, after the role split, with the personal-space route.
+
+### Assumption — not approved
+
+Assumption: org-transfer model (a), not confirmed
+
+When a solo user joins a team in a different org, they change org, and their data migrates across
+the isolation boundary. This preserves the one-user-one-org invariant (P3-1: "`member` keeps `org_id`
+(one org per user)"). The alternative — (b), one identity holding member records in several orgs —
+was not chosen. **S-8 depends on this assumption.** If (b) is chosen instead, S-8 is withdrawn
+(`WONTDO`) and its replacement is appended with the next free number.
+
+### Items
+
+#### S-1 · pgTAP: a personal team cannot gain a second membership (Phase 1)
+- The refusal comes from the database, whichever path attempts the insert.
+
+#### S-2 · pgTAP: a solo user reads nothing outside their own personal team (Phase 1)
+- The exceptions the rules imply are listed in Q6 and confirmed at PLAN.
+
+#### S-3 · pgTAP: forced config on a personal team cannot be overridden through any path (Phase 1)
+- Including a `security definer` function.
+
+#### S-4 · `team.is_personal`, and a personal team has exactly one membership (Phase 3)
+- A database constraint, not application code.
+
+#### S-5 · Signup without an invitation (Phase 3)
+- Member, personal team and membership created in a single transaction.
+- Waits for S-10.
+
+#### S-6 · Forced config on personal teams (Phase 3)
+- Approval off, overload suppressed, notes self-only, roster hidden — by trigger or check constraint.
+- Rule 5's restriction (a solo user cannot create an event that invites others) is carried here,
+  because no item of its own was listed for it.
+
+#### S-7 · Personal teams excluded from the Org public team listing and from any member directory (Phase 3)
+
+#### S-8 · User-level org transfer (Phase 3)
+- Move a member and all their dependent rows to another org in one transaction, in dependency order
+  so the composite foreign keys (P3-2) do not reject it.
+- The same function the team-level transfer needs — MIR-15 ("move a team to another org", built in
+  the system panel, MIR-18).
+- Assumption: org-transfer model (a), not confirmed
+
+#### S-9 · Clearing `is_personal` when the owner creates or joins a real team inside Org public (Phase 3)
+
+#### S-10 · Abuse surface of open signup (Phase 3)
+- Rate limiting, email verification, and a policy for inactive solo accounts.
+- Open question recorded, not resolved: Q3.
+
+#### S-11 · No code path assumes a team has a manager (Phase 4)
+- A personal team has none.
+
+#### S-12 · A route for the personal space (Phase 5)
+- `/public/...` is a poor URL for one person's own calendar. The ticket proposes alternatives and
+  does not decide.
+
+#### S-13 · Reduced interface for a personal space (Phase 5)
+- No roster, no approval UI, no overload warning; one-person variants of the week, month and year
+  views.
+
+### Open questions
+
+| # | Question | Raised by |
+|---|---|---|
+| Q1 | **How is a solo user invited to an event?** MIR-04 limits the named-people picker to the caller's own teams, and MIR-15 keeps the directory and `public` events within the team in Org public — so nobody shares a team with a solo user and nobody can name them. Candidates: invitation by email; the guest path (EVT-06, EVT-07); an exception to MIR-04 / MIR-15. | rule 5 |
+| Q2 | **What is the "invitation" that separates a solo signup from any other?** This plan defines no org invitation; today every signup is uninvited and waits for an admin (TEA-09, ADR-033). Until an invitation exists, every new signup becomes a solo user and the admission queue receives nothing new. | rule 1 |
+| Q3 | **Do solo users count toward Org public's member cap (`org.max_members`)?** Related: *Deferred — Member counting* ("count distinct users, not memberships"). | S-10 |
+| Q4 | **What does clearing `is_personal` leave behind** — the former personal team as an ordinary one-person team (listed, config no longer forced), or its rows moved into the real team? And who may create a team in Org public? | S-9 |
+| Q5 | **Where does note visibility live?** *Config ownership* lists "Note visibility" as team config, but no MIR item creates it, and S-6 forces it. | S-6 |
+| Q6 | **Which reads outside the personal team are expected?** At least the holidays of Org public (org-level, P3-1) and an event the solo user was invited to (rule 5, Q1). | S-2 |
+| Q7 | **What is the inactive-account policy** — after how long, and what happens: warning, read-only, deletion? | S-10 |
+
+### Existing items this work touches — recorded, not edited
+
+- **MIR-10** — the schema design to approve must include `team.is_personal` and S-4's constraint.
+- **MIR-04** and **MIR-15** — directory scope and Org public special cases; personal teams are one more
+  special case (S-7), and Q1 sits across both.
+- **MIR-14** — its fallback to `org_admin` when a team has no manager never applies to a personal team,
+  whose approval is forced off (S-6).
+- **MIR-16** / **MIR-17** — a personal team has no manager (rule 6, S-11).
+- **MIR-19** — the personal space needs a route outside `/{org_code}` or an exception inside it (S-12).

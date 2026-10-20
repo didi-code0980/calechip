@@ -1,0 +1,64 @@
+# Copied from .ai/templates/ticket.yaml by `claude` on 2026-10-20, recording item S-5 of
+# .ai/board/plans/calechip-multi-tenancy-plan.md (§ Solo users). Not produced by /triage: no idea file promotes it.
+# ticket.yaml is authoritative; backlog.md is a view (see .ai/01-operating-model.md).
+# state enum: TRIAGE BACKLOG PLAN READY IN_PROGRESS REVIEW REWORK ESCALATED DONE
+id: MIR-26
+title: "A signup without an invitation creates a member in Org public, a personal team and one membership, in a single transaction"
+feature_ids: []       # a MIR item implements no registry feature; the features it affects are in expected_impact
+group: ""             # MIR is a plan family, not a registry group — features.md: extending the prefixes needs an ADR
+state: BACKLOG
+owner: ""
+branch: ""
+size_estimate: ""     # S|M - set by tech-lead-design at PLAN; gates DoR
+size: ""              # S|M|L|XL - set by tech-lead-design at PLAN; decides splitting
+depends_on: [MIR-01, MIR-02, MIR-03, MIR-04, MIR-05, MIR-06, MIR-07, MIR-08, MIR-09, MIR-10, MIR-12, MIR-25, MIR-27, MIR-31]   # "Blocked by" — the MIR IDs that must be DONE first
+invariants_touched: []
+allowed_paths: []
+glossary_owed: []
+schema_delta: "TODO(plan): set at PLAN — the plan item changes the schema"
+requires_adr: true    # changes what ADR-033 decided — operator, 2026-10-20
+rework_count: 0
+chat_budget:
+  developer->tech-lead-design: { used: 0, max: 6 }
+tracker: { provider: "", external_id: "", sync_enabled: false }
+gates:
+  plan:   { passed: false, at: null }
+  review: { passed: false, at: null }
+
+# --- MIR extra fields ---------------------------------------------------------------------------
+# Not in .ai/templates/ticket.yaml. Added for the multi-tenancy plan; nothing in scripts/ reads them.
+# Plan status lives only in .ai/board/plans/multi-tenancy-status.md. `state` above is the loop's.
+mir_phase: 3
+mir_plan_item: "S-5"             # .ai/board/plans/calechip-multi-tenancy-plan.md:386-389
+verification_required: true   # phase 0 and phase 3 — a passing mock test is not verification
+expected_impact:
+  - { feature: TEA-01, tag: CHANGED, why: "a signup without an invitation creates the member row in Org public with a personal team and its one membership, in one transaction" }
+  - { feature: TEA-02, tag: SUPERSEDED, why: "the gate an uninvited signup crosses is no longer an admin decision. Replaced by: an uninvited signup becomes a solo user at once; its gate is MIR-31's rate limit and email verification" }
+  - { feature: TEA-05, tag: CHANGED, why: "an uninvited signup never reaches the member-less landing state; it lands in its personal space" }
+  - { feature: TEA-09, tag: CHANGED, why: "an uninvited signup no longer waits for an admin to admit it (operator, 2026-10-20)" }
+# [predicted] at plan time. Corrected at ship in .ai/board/plans/feature-change-log.md.
+mir_detail: |
+  Short names (tea04, cal11, …) are migrations, per the File legend in
+  .ai/board/audits/multi-tenancy-audit-2026-10-12.md:38-77. "A:n" is a line of that audit;
+  "plan:n" a line of .ai/board/plans/calechip-multi-tenancy-plan.md.
+  Plan S-5 (plan:386-389), from the solo-user section (plan:329-441):
+  - Create the member row (in Org public), the personal team (`is_personal = true`) and the one
+    membership joining them, in a single transaction
+  - `role_in_team = 'member'` on the personal team; there is no manager (rule 6)
+
+  DECIDED by the operator, 2026-10-20: an uninvited signup does not wait in the admission queue.
+  That changes what ADR-033 ("A person joins by signing up; an admin decides afterwards") decided, so
+  this item requires an ADR — `requires_adr: true`.
+
+  DECIDED by the operator, 2026-10-20: this item waits for MIR-31 (abuse surface) — open signup without
+  a rate limit would be a production hole the day it ships.
+
+  Blocked by MIR-10, MIR-12, MIR-25 (`is_personal`), MIR-27 (the team is born with its forced config)
+  and MIR-31.
+
+  OPEN QUESTION — plan Q2: what is the "invitation" that separates a solo signup from any other? The
+  plan defines no org invitation; today every signup is uninvited (TEA-09). Until one exists, every new
+  signup becomes a solo user.
+
+  Today's signup path, which this item replaces for the uninvited case: the admission trigger
+  `avatar_images:63-79` (MIR-12 adds `org_id` to it) and `member_approval:50`.

@@ -1,0 +1,68 @@
+# Copied from .ai/templates/ticket.yaml by `claude` on 2026-10-20, recording item S-6 of
+# .ai/board/plans/calechip-multi-tenancy-plan.md (§ Solo users). Not produced by /triage: no idea file promotes it.
+# ticket.yaml is authoritative; backlog.md is a view (see .ai/01-operating-model.md).
+# state enum: TRIAGE BACKLOG PLAN READY IN_PROGRESS REVIEW REWORK ESCALATED DONE
+id: MIR-27
+title: "A personal team's config is forced by the database — approval off, overload suppressed, notes self-only, roster hidden — and a solo user cannot create an event that invites others"
+feature_ids: []       # a MIR item implements no registry feature; the features it affects are in expected_impact
+group: ""             # MIR is a plan family, not a registry group — features.md: extending the prefixes needs an ADR
+state: BACKLOG
+owner: ""
+branch: ""
+size_estimate: ""     # S|M - set by tech-lead-design at PLAN; gates DoR
+size: ""              # S|M|L|XL - set by tech-lead-design at PLAN; decides splitting
+depends_on: [MIR-01, MIR-02, MIR-03, MIR-04, MIR-05, MIR-06, MIR-07, MIR-08, MIR-09, MIR-10, MIR-12, MIR-25]   # "Blocked by" — the MIR IDs that must be DONE first
+invariants_touched: []
+allowed_paths: []
+glossary_owed: []
+schema_delta: "TODO(plan): set at PLAN — the plan item changes the schema"
+requires_adr: false
+rework_count: 0
+chat_budget:
+  developer->tech-lead-design: { used: 0, max: 6 }
+tracker: { provider: "", external_id: "", sync_enabled: false }
+gates:
+  plan:   { passed: false, at: null }
+  review: { passed: false, at: null }
+
+# --- MIR extra fields ---------------------------------------------------------------------------
+# Not in .ai/templates/ticket.yaml. Added for the multi-tenancy plan; nothing in scripts/ reads them.
+# Plan status lives only in .ai/board/plans/multi-tenancy-status.md. `state` above is the loop's.
+mir_phase: 3
+mir_plan_item: "S-6"             # .ai/board/plans/calechip-multi-tenancy-plan.md:390-394
+verification_required: true   # phase 0 and phase 3 — a passing mock test is not verification
+expected_impact:
+  - { feature: ADM-01, tag: CHANGED, why: "a personal team's overload warning is suppressed, so its threshold has no effect" }
+  - { feature: ADM-04, tag: CHANGED, why: "no entry of a personal team ever enters a worklist — approval is forced off" }
+  - { feature: ADM-05, tag: CHANGED, why: "no one approves or rejects a personal team's entry, and MIR-14's fallback to `org_admin` never applies to it" }
+  - { feature: ADM-08, tag: CHANGED, why: "a personal team's approval switches are fixed off; setting them is refused by the database" }
+  - { feature: CAL-04, tag: CHANGED, why: "a personal team's days are never shaded overloaded" }
+  - { feature: CAL-05, tag: CHANGED, why: "a personal team's notes are visible only to its owner" }
+  - { feature: CAL-07, tag: CHANGED, why: "the overload warning is not shown for a personal team" }
+  - { feature: UIE-10, tag: CHANGED, why: "a personal team's roster is hidden" }
+  - { feature: EVT-01, tag: CHANGED, why: "a solo user cannot create an event that names invitees or reaches anyone but themselves" }
+  - { feature: EVT-02, tag: CHANGED, why: "a solo user may join an event they were invited to although no one shares their team; how they are invited is open (plan Q1)" }
+# [predicted] at plan time. Corrected at ship in .ai/board/plans/feature-change-log.md.
+mir_detail: |
+  Short names (tea04, cal11, …) are migrations, per the File legend in
+  .ai/board/audits/multi-tenancy-audit-2026-10-12.md:38-77. "A:n" is a line of that audit;
+  "plan:n" a line of .ai/board/plans/calechip-multi-tenancy-plan.md.
+  Plan S-6 (plan:390-394), from the solo-user section (plan:329-441):
+  - A personal team forces: approval off, overload warning suppressed, notes visible only to the owner,
+    roster hidden
+  - Enforced by trigger or check constraint, not application code
+  - Rule 5 is carried here because no item of its own was listed for it: a solo user CAN be invited to
+    events and accept; they cannot create events that invite others. Split it out (next free number)
+    if PLAN finds it does not belong with team config.
+
+  Blocked by MIR-10, MIR-12 and MIR-25 (`is_personal`).
+
+  OPEN QUESTION — plan Q5: where does note visibility live? The plan's *Config ownership* table lists
+  "Note visibility" as team config, but no MIR item creates it.
+  OPEN QUESTION — plan Q1: how a solo user is invited (affects the EVT-02 half of rule 5).
+
+  Today's sources of the values forced here: approval switches `approval_settings:111-118`
+  (`entry_apply_approval_setting`); overload threshold `supabase.ts:2135-2140`; overload warning
+  `usePageOverload.ts:118-135`.
+
+  Related: MIR-24 tests this item.

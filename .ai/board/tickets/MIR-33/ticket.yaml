@@ -1,0 +1,57 @@
+# Copied from .ai/templates/ticket.yaml by `claude` on 2026-10-20, recording item S-12 of
+# .ai/board/plans/calechip-multi-tenancy-plan.md (§ Solo users). Not produced by /triage: no idea file promotes it.
+# ticket.yaml is authoritative; backlog.md is a view (see .ai/01-operating-model.md).
+# state enum: TRIAGE BACKLOG PLAN READY IN_PROGRESS REVIEW REWORK ESCALATED DONE
+id: MIR-33
+title: "The personal space has a route of its own — alternatives proposed, not decided"
+feature_ids: []       # a MIR item implements no registry feature; the features it affects are in expected_impact
+group: ""             # MIR is a plan family, not a registry group — features.md: extending the prefixes needs an ADR
+state: BACKLOG
+owner: ""
+branch: ""
+size_estimate: ""     # S|M - set by tech-lead-design at PLAN; gates DoR
+size: ""              # S|M|L|XL - set by tech-lead-design at PLAN; decides splitting
+depends_on: [MIR-01, MIR-02, MIR-03, MIR-04, MIR-10, MIR-11, MIR-12, MIR-13, MIR-14, MIR-15, MIR-18, MIR-21, MIR-19, MIR-25]   # "Blocked by" — the MIR IDs that must be DONE first
+invariants_touched: []
+allowed_paths: []
+glossary_owed: []
+schema_delta: none
+requires_adr: false
+rework_count: 0
+chat_budget:
+  developer->tech-lead-design: { used: 0, max: 6 }
+tracker: { provider: "", external_id: "", sync_enabled: false }
+gates:
+  plan:   { passed: false, at: null }
+  review: { passed: false, at: null }
+
+# --- MIR extra fields ---------------------------------------------------------------------------
+# Not in .ai/templates/ticket.yaml. Added for the multi-tenancy plan; nothing in scripts/ reads them.
+# Plan status lives only in .ai/board/plans/multi-tenancy-status.md. `state` above is the loop's.
+mir_phase: 5
+mir_plan_item: "S-12"             # .ai/board/plans/calechip-multi-tenancy-plan.md:413-416
+verification_required: false   # phase 0 and phase 3 — a passing mock test is not verification
+expected_impact:
+  - { feature: TEA-05, tag: CHANGED, why: "signing in takes a solo user to their personal space" }
+  - { feature: UIE-02, tag: CHANGED, why: "shell links resolve to the personal space for a solo user" }
+  - { feature: CAL-04, tag: CHANGED, why: "the month view has a personal-space route" }
+  - { feature: CAL-05, tag: CHANGED, why: "the week view has a personal-space route" }
+  - { feature: CAL-10, tag: CHANGED, why: "the year overview has a personal-space route" }
+# [predicted] at plan time. Corrected at ship in .ai/board/plans/feature-change-log.md.
+mir_detail: |
+  Short names (tea04, cal11, …) are migrations, per the File legend in
+  .ai/board/audits/multi-tenancy-audit-2026-10-12.md:38-77. "A:n" is a line of that audit;
+  "plan:n" a line of .ai/board/plans/calechip-multi-tenancy-plan.md.
+  Plan S-12 (plan:413-416), from the solo-user section (plan:329-441):
+  - A route for the personal space. `/public/...` (MIR-19's `/{org_code}` for Org public) is a poor
+    URL for one person's own calendar.
+
+  PROPOSED, NOT DECIDED — for the operator at PLAN:
+  - (a) `/me/week`, `/me/month`, `/me/year` — short, says whose it is; `me` joins the reserved
+    `org_code` list (P3-1, plan:172)
+  - (b) `/~/week` — shortest; unusual, and awkward to type on some keyboards
+  - (c) `/u/{handle}/week` — addressable, but exposes a per-user handle nobody else can open
+  - (d) unprefixed `/week` for a solo user, org-prefixed for everyone else — no new segment, but one
+    path means two things depending on who is signed in
+
+  Blocked by MIR-19 (org-scoped routing, which this extends) and MIR-25.
