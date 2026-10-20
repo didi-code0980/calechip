@@ -1,5 +1,5 @@
 ---
-doc_version: 2
+doc_version: 3
 last_updated: 2026-10-20
 governed_by: [RULE-01, RULE-09]
 ---
@@ -83,10 +83,19 @@ listed under *Not decided here*. Two choices below are the steward's, not the op
 - **Whether `MIR` is a triage-time choice.** ADR-028 step 2 reads *"`CAL`, `ADM`, `TEA`, `EVT` or
   `TSK`, by area"* and is **not** extended by this ADR. A new multi-tenancy request arriving through
   `/idea` and `/triage` is filed by area as before, unless the operator decides otherwise.
-- **Who writes `feature_ids` and `group` into the 21 `ticket.yaml`.** DoR items 1 and 6 name
+- **Who writes `feature_ids` and `group` into the 21 `ticket.yaml`.** *Decided 2026-10-20 — see the
+  paragraph after this one; the question as written at acceptance is kept.* DoR items 1 and 6 name
   `product` at BACKLOG, through `/triage` on PROMOTE of an idea file. No MIR ticket has one, so no
   command currently writes those two fields, and the steward does not write `.ai/board/tickets/**`.
   The rows this ADR lands are necessary for DoR and not sufficient.
+
+  **Decided by the operator, 2026-10-20: the steward writes both fields into all 21 `ticket.yaml`,
+  in one change** — `feature_ids: [MIR-NN]` and `group: MIR`, each ID the ticket's own. Asked in the
+  orchestrator session who should write them, with three options — `tech-lead-design` by re-running
+  `/plan`, the steward for all 21, or the operator by hand — the operator chose **"/thuki ghi cả 21
+  ticket"** (relayed to the steward by the launching session, not quoted from a file). It is a
+  deliberate, one-time exception to *"the steward does not write `.ai/board/tickets/**`"*, scoped to
+  these two fields in these 21 files. It does not say who writes them for a MIR item appended later.
 - **Whether a MIR row is `DONE` on merge like every other row.** `multi-tenancy-status.md` adds a
   `Verified` requirement for phases 0 and 3 before an item is `DONE` there. `features.md` `DONE`
   means merged into `main`. The two may disagree for a phase 0 or phase 3 item; which governs the
@@ -110,7 +119,9 @@ per item would be two names for one thing.
 - **The rows are `PLANNED` and stay so until the ship that merges each item.** `/ship` writes the
   status, per ADR-023, as for every other row.
 - **Every MIR ticket is still blocked** until its `feature_ids` and `group` are written — see *Not
-  decided here*.
+  decided here*. *Resolved 2026-10-20: the steward wrote both fields into all 21 on the operator's
+  decision recorded there. MIR-01's copy travels with that ticket's own uncommitted PLAN work on
+  `feat/MIR-01`; the other twenty landed on `ops/mir-ticket-feature-ids`.*
 
 ## Revert condition
 
@@ -125,4 +136,4 @@ prefix, as for every group.
 |------|---------------|
 | `.ai/registry/features.md` | 6 → 7 — prefix line, prefix table row, a paragraph recording the eighth group, `## MIR — Multi-tenancy` with 21 rows, and `MIR-23` under `## Unissued IDs` |
 | `.ai/registry/decisions/ADR-028-uie-is-a-fourth-feature-group.md` | none — its step 2 list is deliberately not extended |
-| each MIR `ticket.yaml` under `.ai/board/tickets/` | none — not the steward's to write; owed, see *Not decided here* |
+| each MIR `ticket.yaml` under `.ai/board/tickets/` | none — not the steward's to write; owed, see *Not decided here*. *2026-10-20: `feature_ids` and `group` written by the steward on the operator's decision recorded there* |
