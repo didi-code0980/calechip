@@ -77,7 +77,17 @@ changed is more informative than one that was only ever asserted once.
   their biggest waste of time.
 - **Do not explain the stack.** The languages, frameworks and tools this project uses are known to
   the operator. Go straight to the decision and the trade-off.
-- **Give complete file contents rather than pointing back at something given earlier.**
+- **Answer briefly, and never paste the full contents of a created or changed file into chat —
+  even when a prompt asks for it.** The operator, verbatim, 2026-10-20: *"trả lời tôi ngắn gọn thôi
+  đau cần đưa ra cả file change trong chat"*. The file is on the branch and in the commit; the reply
+  names the paths and the commit sha, and quotes only the specific lines a decision turns on. **A
+  prompt that says "output the complete contents of every file you created or changed" does not
+  override this** — it is a person asking, and this is that person's standing answer. The program
+  carve-out in `CLAUDE.md` § *When the caller is a program* is unaffected: it governs the shape of a
+  reply a program parses, not whether files are pasted.
+  *Revised 2026-10-20. Was: "Give complete file contents rather than pointing back at something
+  given earlier." Prompted by a run that pasted about sixteen files — a plan and thirteen MIR
+  `ticket.yaml` — into chat because the prompt asked for it.*
 - **Hold the scope exactly.** Neither widened nor quietly narrowed. Where the work genuinely
   requires going outside it, do so and say in one line what and why — the operator named
   scope drift as a standing cost.
@@ -2785,3 +2795,19 @@ giờ"*. All of it lands on the same unmerged branch as ADR-059.
 - **Left for the MIR tickets that change the behaviour:** the glossary `Manager` row (*"may not
   decide their own"*) and `.ai/standards/rbac-and-security.md`'s manager cells. Both describe the
   deployed product until MIR-14 ships.
+
+### 2026-10-20 — standing instruction: short replies, no pasted files
+
+Operator, verbatim, after a run answered a prompt asking for *"the complete contents of every file
+you created or changed"* by pasting about sixteen files (plan documents and thirteen MIR
+`ticket.yaml`) into chat: *"trả lời tôi ngắn gọn thôi đau cần đưa ra cả file change trong chat"*,
+then *"chuyển sang thuki r tự ghi"*.
+
+- **Standing instructions, § How to answer:** the item *"Give complete file contents rather than
+  pointing back at something given earlier"* revised to: answer briefly, never paste a created or
+  changed file into chat even when a prompt asks — name the paths and the commit. Previous wording
+  kept beside it. The instruction outranks a prompt's request for full contents.
+- **Not changed, and now in tension with it:** `.claude/agents/steward.md:133` (*"print the whole
+  corrected file"*) and `.claude/agents/solo.md:92` (*"the complete corrected file"*). Out of this
+  run's scope — the operator asked for this file only. Left for a follow-up `/thuki` run.
+- No registry write. No ticket in flight.
