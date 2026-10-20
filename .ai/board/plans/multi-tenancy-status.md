@@ -129,8 +129,9 @@ that order, numbered from the next free ID. Rows stay in ID order; the Phase col
 - **Phase 1 tests are blocked by the Phase 3 items they test** — MIR-22 by MIR-25, MIR-23 by MIR-13,
   MIR-25, MIR-26 and MIR-28, MIR-24 by MIR-27 — as well as by MIR-05. They cannot run before the
   schema they assert exists. Phase does not imply order; `Blocked by` does.
-- **MIR-25 (`is_personal`) blocks every other solo item.** It waits for MIR-10 and MIR-12, because it
-  is a column on `team` constrained against `membership`.
+- **MIR-25 (`is_personal`) blocks every other solo item but MIR-31**, directly or through MIR-27.
+  It waits for MIR-10 and MIR-12, because it is a column on `team` constrained against `membership`.
+  MIR-31 needs no personal-team schema and waits only for MIR-10.
 - **MIR-26 (signup) waits for MIR-27 and MIR-31.** The team is born with its forced config, and open
   signup does not ship before its abuse controls (operator, 2026-10-20).
 - **MIR-29 (user-level org transfer) waits for MIR-11**, whose composite keys fix the order rows move in.
