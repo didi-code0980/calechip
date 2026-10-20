@@ -6,23 +6,33 @@ id: MIR-03
 title: "Role changes are bounded to members the admin administers, promotion to admin is a separately gated action, and every role change records its actor"
 feature_ids: [MIR-03]   # ADR-063 row; written by the steward on the operator's decision of 2026-10-20
 group: MIR           # ADR-063: MIR is the eighth feature group
-state: BACKLOG
+state: READY
 owner: ""
 branch: ""
-size_estimate: ""     # S|M - set by tech-lead-design at PLAN; gates DoR
-size: ""              # S|M|L|XL - set by tech-lead-design at PLAN; decides splitting
+size_estimate: "M"    # S|M - set by tech-lead-design at PLAN; gates DoR
+size: "M"             # S|M|L|XL - set by tech-lead-design at PLAN; decides splitting
 depends_on: []   # "Blocked by" — the MIR IDs that must be DONE first
-invariants_touched: []
-allowed_paths: []
+invariants_touched: [INV-07]
+allowed_paths:
+  - "supabase/migrations/20261020150000_mir03_bounded_role_changes.sql"
+  - "src/lib/data/supabase.ts"
+  - "src/lib/data/mock.ts"
+  - "src/lib/data/index.ts"
+  - "src/routes/MemberList.tsx"
+  - "tests/role-change-bounds.test.ts"
+  - "tests/cross-team-role.test.ts"
+  - ".ai/registry/decisions/ADR-065-role-changes-are-own-team-promotion-is-its-own-action-and-every-change-is-recorded.md"
+  - ".ai/registry/decisions/ADR-044-an-admin-sets-a-rank-on-any-team.md"   # supersession note under § Status only
+  - ".ai/board/tickets/MIR-03/**"
 glossary_owed: []
-schema_delta: "TODO(plan): set at PLAN — the plan item changes the schema"
-requires_adr: false
+schema_delta: "REPLACE FUNCTION set_member_role (own-team conjunct, refuses admin) + CREATE definer function promote_member_to_admin(uuid) + CREATE TABLE member_role_change (RLS on, no policy, no grant) + CREATE trigger function member_record_role_change and AFTER UPDATE OF role trigger on member (ADR-065)"
+requires_adr: true    # .ai/registry/decisions/ADR-065-role-changes-are-own-team-promotion-is-its-own-action-and-every-change-is-recorded.md, ACCEPTED by the operator 2026-10-20 ("Q1. A / Q2. A")
 rework_count: 0
 chat_budget:
   developer->tech-lead-design: { used: 0, max: 6 }
 tracker: { provider: "", external_id: "", sync_enabled: false }
 gates:
-  plan:   { passed: false, at: null }
+  plan:   { passed: true, at: "2026-10-20T15:03:32+07:00" }
   review: { passed: false, at: null }
 
 # --- MIR extra fields ---------------------------------------------------------------------------

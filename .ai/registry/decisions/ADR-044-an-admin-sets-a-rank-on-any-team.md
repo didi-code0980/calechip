@@ -14,6 +14,11 @@ governed_by: [RULE-01, RULE-02, RULE-09]
 
 ## Status
 
+> **Decision 1 SUPERSEDED by [ADR-065](ADR-065-role-changes-are-own-team-promotion-is-its-own-action-and-every-change-is-recorded.md)**,
+> accepted by the operator on 2026-10-20 at `/plan MIR-03`. An admin now sets ranks on their own team
+> only, and promotion to admin goes through its own function. Decisions 2, 3 and 4 still stand. The
+> body below is unchanged.
+
 `ACCEPTED by the operator` — 2026-09-24, in words: asked *"why it cannot make an account as manager"*,
 shown the two routes with their costs, and answered **`2`** — *cho admin đổi role xuyên team thật*,
 the route whose cost was stated as "đảo ADR-039 § Decision 1, nên cần một ADR do bạn accept trước".

@@ -22,6 +22,9 @@ planned, sized, and safe to build** — the next stage for a row here is IN_PROG
 
 | # | Ticket | Title | Size | Depends on |
 |---|--------|-------|------|------------|
+| 1 | MIR-03 | Role changes are bounded to members the admin administers, promotion to admin is a separately gated action, and every role change records its actor | M | — |
+
+**`MIR-03` moved here at /advance on 2026-10-20**, from `01-plan.md` gate PASS with all six Definition of Ready items passing; `schema_delta` cites [ADR-065](../registry/decisions/ADR-065-role-changes-are-own-team-promotion-is-its-own-action-and-every-change-is-recorded.md), `ACCEPTED by the operator`. Cut from `main` after PR #165; the `MIR` rows of `## BACKLOG` are still only on `feat/MIR-01`.
 
 **Empty again — `MIR-02` left this section for `## ARCHIVE` at its own ship on 2026-10-20.** `MIR-01` is parked at `READY` on `feat/MIR-01`, not on this branch.
 
