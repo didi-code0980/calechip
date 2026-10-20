@@ -17,8 +17,12 @@
 
 import fs from "node:fs";
 
-/** Strip a trailing ` # comment`, which 27 of 36 ticket.yaml files carry. */
-const stripComment = (s) => {
+/**
+ * Strip a trailing ` # comment`, which 27 of 36 ticket.yaml files carry. YAML semantics: `#` opens a
+ * comment only at line start or after whitespace, and never inside quotes. Exported for
+ * `scripts/check-allowed-paths.mjs`; the hook keeps its own copy (it imports nothing from `scripts/`).
+ */
+export const stripComment = (s) => {
   let out = "";
   let quote = null;
   for (let i = 0; i < s.length; i++) {

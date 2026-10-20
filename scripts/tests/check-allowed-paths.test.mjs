@@ -223,3 +223,70 @@ test("ADR-054: deleting the ticket's own idea file is still a violation", () => 
   assert.equal(r?.code, 1);
   assert.match(r.stderr, /2026-10-08-a-person-learns/);
 });
+
+// --- trailing comments on allowed_paths items, 2026-10-20 ----------------------------------------
+//
+// Found on MIR-02: `- "supabase/migrations/…_solo_profile_self_update.sql"   # comment lines only, …`
+// was read with its comment attached, matched nothing, and the ticket failed RULE-03 in CI on a path
+// it lists. The hook's copy had the same defect; guard-allowed-paths.test.mjs carries the mirror.
+
+test("a trailing comment on a block-sequence item is not part of the path", () => {
+  const root = makeRepo(
+    '\n  - "src/app/orders/page.tsx"   # why, with a § and a colon: here\n  # a whole-line comment\n  - src/app/invoices/** # bare',
+    { "src/app/orders/page.tsx": "after\n", "src/app/invoices/page.tsx": "after\n" }
+  );
+  const out = run(root).stdout;
+  assert.match(out, /allowed-paths: PASS/);
+  assert.match(out, /allowed_paths: src\/app\/orders\/page\.tsx, src\/app\/invoices\/\*\*\n/);
+});
+
+test("a # inside quotes or without whitespace before it is part of the path", () => {
+  const root = makeRepo('\n  - "src/a # b.ts"\n  - src/c#d.ts', { "src/a # b.ts": "x\n", "src/c#d.ts": "x\n" });
+  assert.match(run(root).stdout, /allowed-paths: PASS/);
+});
+
+test("a trailing comment after an inline list is ignored", () => {
+  const root = makeRepo('["src/app/orders/**"]   # [not, a, path]', { "src/app/orders/page.tsx": "after\n" });
+  assert.match(run(root).stdout, /allowed_paths: src\/app\/orders\/\*\*\n/);
+});
+
+// The fixtures rule: read the real files. Expected values come from scripts/lib/ticket-yaml.mjs, a
+// separate parser. Each real ticket that already carries a commented item is checked as it stands;
+// one real ticket (the first with concrete paths) is checked with a comment injected on every item.
+{
+  const { parseSimpleYaml } = await import("../lib/ticket-yaml.mjs");
+  const REPO = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..", "..");
+  const TICKETS = path.join(REPO, ".ai/board/tickets");
+  const concrete = (p) => typeof p === "string" && !/[*?]/.test(p) && !p.endsWith("/");
+  const real = [];
+  for (const id of fs.readdirSync(TICKETS).sort()) {
+    const f = path.join(TICKETS, id, "ticket.yaml");
+    if (!fs.existsSync(f)) continue;
+    const text = fs.readFileSync(f, "utf8");
+    const t = parseSimpleYaml(text, f);
+    const paths = (Array.isArray(t.allowed_paths) ? t.allowed_paths : []).filter(concrete);
+    if (paths.length) real.push({ id, text, paths });
+  }
+  const shipOf = ({ id, text, paths }) =>
+    makeRepo("[]", Object.fromEntries(paths.map((p) => [p, "changed\n"])), {
+      id,
+      base: { [`.ai/board/tickets/${id}/ticket.yaml`]: text },
+    });
+
+  test("a real ticket.yaml, with a comment injected on every item, passes on its own paths", () => {
+    assert.ok(real.length > 0, "no ticket.yaml with a concrete allowed path — this test is inert");
+    const t = real[0];
+    const injected = t.text.replace(/^(\s+- .*)$/gm, "$1   # injected: a comment");
+    assert.match(run(shipOf({ ...t, text: injected })).stdout, /allowed-paths: PASS/, t.id);
+  });
+
+  test("every real ticket.yaml whose allowed_paths carries a comment passes on its own paths", () => {
+    for (const t of real) {
+      const lines = t.text.split(/\r?\n/);
+      const commented = t.paths.some((p) =>
+        lines.some((l) => /^\s+- /.test(l) && l.includes(p) && /\s#/.test(l.slice(l.indexOf(p) + p.length)))
+      );
+      if (commented) assert.match(run(shipOf(t)).stdout, /allowed-paths: PASS/, t.id);
+    }
+  });
+}

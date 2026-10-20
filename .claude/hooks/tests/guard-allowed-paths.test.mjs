@@ -137,3 +137,89 @@ test("a ship-owned basename nested somewhere else is still blocked", () => {
   const root = makeProject({ [TICKET_FILE]: TICKET({ allowed_paths: '["src/**"]' }) }, "feat/TST-01");
   assert.equal(runHook(HOOK, root, write("docs/.ai/board/metrics.md")).code, 2);
 });
+
+// --- trailing comments on allowed_paths items, 2026-10-20 ----------------------------------------
+//
+// `- "a/b.sql"   # why` used to yield the glob `a/b.sql"   # why`, which matches nothing. Found on
+// MIR-02, whose own allowed path was refused. YAML semantics: `#` opens a comment only at line start
+// or after whitespace, never inside quotes.
+
+test("a trailing comment on a block-sequence item is not part of the path", () => {
+  const yaml = TICKET().replace(
+    "allowed_paths: []",
+    'allowed_paths:\n  - "src/app/orders/page.tsx"   # why, with a § and a colon: here\n  - src/lib/** # bare\n  # a whole-line comment between items\n  - tests/a.ts'
+  );
+  const root = makeProject({ [TICKET_FILE]: yaml }, "feat/TST-01");
+  assert.equal(runHook(HOOK, root, write("src/app/orders/page.tsx")).code, 0);
+  assert.equal(runHook(HOOK, root, write("src/lib/data/x.ts")).code, 0);
+  assert.equal(runHook(HOOK, root, write("tests/a.ts")).code, 0, "a comment line must not end the list");
+});
+
+test("a # inside quotes or without whitespace before it is part of the path", () => {
+  const yaml = TICKET().replace(
+    "allowed_paths: []",
+    'allowed_paths:\n  - "src/a # b.ts"\n  - src/c#d.ts'
+  );
+  const root = makeProject({ [TICKET_FILE]: yaml }, "feat/TST-01");
+  assert.equal(runHook(HOOK, root, write("src/a # b.ts")).code, 0);
+  assert.equal(runHook(HOOK, root, write("src/c#d.ts")).code, 0);
+  assert.equal(runHook(HOOK, root, write("src/a")).code, 2);
+});
+
+test("a trailing comment after an inline list is ignored", () => {
+  const root = makeProject(
+    { [TICKET_FILE]: TICKET({ allowed_paths: '["src/app/orders/**"]   # [not, a, path]' }) },
+    "feat/TST-01"
+  );
+  assert.equal(runHook(HOOK, root, write("src/app/orders/page.tsx")).code, 0);
+  assert.equal(runHook(HOOK, root, write("not")).code, 2);
+});
+
+// The fixtures rule (testing-standards.md § Fixtures that share the implementation's assumptions):
+// read the real files. Every ticket.yaml on the board is copied, a comment is injected after every
+// list item, and its first and last concrete allowed path must still be writable. Expected values
+// come from scripts/lib/ticket-yaml.mjs — a separate parser — not from the hook's own reader.
+{
+  const { parseSimpleYaml } = await import("../../../scripts/lib/ticket-yaml.mjs");
+  const fsm = await import("node:fs");
+  const pathm = await import("node:path");
+  const { fileURLToPath } = await import("node:url");
+  const REPO = pathm.resolve(pathm.dirname(fileURLToPath(import.meta.url)), "..", "..", "..");
+  const TICKETS = pathm.join(REPO, ".ai/board/tickets");
+  const concrete = (p) => typeof p === "string" && !/[*?]/.test(p) && !p.endsWith("/");
+
+  const real = [];
+  for (const id of fsm.readdirSync(TICKETS).sort()) {
+    const f = pathm.join(TICKETS, id, "ticket.yaml");
+    if (!fsm.existsSync(f)) continue;
+    const text = fsm.readFileSync(f, "utf8");
+    const t = parseSimpleYaml(text, f);
+    const paths = (Array.isArray(t.allowed_paths) ? t.allowed_paths : []).filter(concrete);
+    if (paths.length) real.push({ id, text, paths });
+  }
+
+  test("the board has real tickets to read", () => {
+    assert.ok(real.length > 0, "no ticket.yaml with a concrete allowed path — this block is inert");
+  });
+
+  test("every real ticket.yaml, with a comment injected on every item, still allows its own paths", () => {
+    for (const { id, text, paths } of real) {
+      const injected = text.replace(/^(\s+- .*)$/gm, "$1   # injected: a comment");
+      const root = makeProject({ [`.ai/board/tickets/${id}/ticket.yaml`]: injected }, `feat/${id}`);
+      for (const p of new Set([paths[0], paths.at(-1)])) {
+        assert.equal(runHook(HOOK, root, write(p)).code, 0, `${id}: ${p}`);
+      }
+    }
+  });
+
+  test("every real allowed_paths item that already carries a comment is allowed as it stands", () => {
+    for (const { id, text, paths } of real) {
+      const commented = paths.filter((p) =>
+        text.split(/\r?\n/).some((l) => l.includes(p) && /^\s+- /.test(l) && /\s#/.test(l.slice(l.indexOf(p) + p.length)))
+      );
+      if (!commented.length) continue;
+      const root = makeProject({ [`.ai/board/tickets/${id}/ticket.yaml`]: text }, `feat/${id}`);
+      for (const p of commented) assert.equal(runHook(HOOK, root, write(p)).code, 0, `${id}: ${p}`);
+    }
+  });
+}

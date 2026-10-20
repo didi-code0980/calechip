@@ -111,11 +111,33 @@ function toRepoRelative(root, p) {
   return path.relative(root, abs).split(path.sep).join("/");
 }
 
+// Strip a trailing ` # comment`. YAML semantics: `#` opens a comment only at line start or after
+// whitespace, and never inside quotes. A copy of `stripComment` in scripts/lib/ticket-yaml.mjs — this
+// hook imports nothing from scripts/ on purpose, so the copies must be kept in step by hand. Added
+// 2026-10-20: without it `- "a/b.sql"   # why` became the glob `a/b.sql"   # why`, which matches
+// nothing, and MIR-02's own allowed path was blocked.
+function stripComment(s) {
+  let out = "";
+  let quote = null;
+  for (let i = 0; i < s.length; i++) {
+    const c = s[i];
+    if (quote) {
+      out += c;
+      if (c === quote) quote = null;
+      continue;
+    }
+    if (c === '"' || c === "'") { quote = c; out += c; continue; }
+    if (c === "#" && (i === 0 || /\s/.test(s[i - 1]))) break;
+    out += c;
+  }
+  return out.trimEnd();
+}
+
 // Minimal YAML: read a top-level sequence, inline "[a, b]" or block "- a" form.
 function readYamlList(text, key) {
   const lines = text.split(/\r?\n/);
   for (let i = 0; i < lines.length; i++) {
-    const m = new RegExp(`^${key}:\\s*(.*)$`).exec(lines[i]);
+    const m = new RegExp(`^${key}:\\s*(.*)$`).exec(stripComment(lines[i]));
     if (!m) continue;
     const inline = m[1].trim();
     if (inline.startsWith("[")) {
@@ -127,9 +149,10 @@ function readYamlList(text, key) {
     }
     const out = [];
     for (let j = i + 1; j < lines.length; j++) {
-      const item = /^\s*-\s*(.+?)\s*$/.exec(lines[j]);
+      const line = stripComment(lines[j]);
+      const item = /^\s*-\s*(.+?)\s*$/.exec(line);
       if (!item) {
-        if (/^\s*$|^\s*#/.test(lines[j])) continue;
+        if (/^\s*$/.test(line)) continue;
         break;
       }
       out.push(item[1].replace(/^["']|["']$/g, ""));
