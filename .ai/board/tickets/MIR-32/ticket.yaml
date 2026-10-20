@@ -37,6 +37,7 @@ mir_detail: |
   Short names (tea04, cal11, …) are migrations, per the File legend in
   .ai/board/audits/multi-tenancy-audit-2026-10-12.md:38-77. "A:n" is a line of that audit;
   "plan:n" a line of .ai/board/plans/calechip-multi-tenancy-plan.md.
+
   Plan S-11 (plan:410-412), from the solo-user section (plan:329-441):
   - Verify no code path assumes a team has a manager; a personal team has none (rule 6)
   - Both halves of the role split: database (MIR-16, `may_decide` `manager_role:62`) and client

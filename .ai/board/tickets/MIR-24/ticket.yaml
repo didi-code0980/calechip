@@ -37,6 +37,7 @@ mir_detail: |
   Short names (tea04, cal11, …) are migrations, per the File legend in
   .ai/board/audits/multi-tenancy-audit-2026-10-12.md:38-77. "A:n" is a line of that audit;
   "plan:n" a line of .ai/board/plans/calechip-multi-tenancy-plan.md.
+
   Plan S-3 (plan:380-382), from the solo-user section (plan:329-441):
   - pgTAP: forced config on a personal team cannot be overridden through any path, including a
     `security definer` function
