@@ -540,6 +540,10 @@ const TEAM_NOT_EMPTY =
   "This team still has people on it and cannot be deleted. Anybody who was removed from it stays " +
   "on it for history, so a team that has ever had somebody removed can never be deleted.";
 const MEMBER_MOVE_REFUSED = "That person could not be moved.";
+// MIR-02. The sentences `src/lib/data/supabase.ts` shows for `decideMember`'s and `setMemberTeam`'s
+// refusals, repeated verbatim so the mock and the real seam say the same thing.
+const SIGNUP_DECISION_REFUSED = "That sign-up could not be decided. It may already have been.";
+const MEMBER_TEAM_SAVE_REFUSED = "That member could not be moved.";
 const APPROVAL_SETTINGS_REFUSED = "Only an admin can change which entries need approval.";
 
 // ---------------------------------------------------------------------------
@@ -1656,14 +1660,18 @@ export const seam: DataSeam = {
    * The `using` clause admits only rows that are still `pending` with no team, so re-deciding
    * somebody already on a team is refused — that is `member_update_admin`'s territory.
    */
+  //
+  // MIR-02: the two refusals carry the sentence the real seam shows for `admit_member` and
+  // `reject_member`'s 42501, not the function bodies' wording. They differed, and MIR-02 AC-9 names
+  // the shipped sentence; the behaviour — who is refused, and when — is unchanged.
   async decideMember(memberId: string, decision: MemberDecision): Promise<Result<void>> {
     const me = currentAdmin();
-    if (!me) return refused("not_permitted", "Only an admin can decide a sign-up.");
+    if (!me) return refused("not_permitted", SIGNUP_DECISION_REFUSED);
 
     const target = members.find(
       (m) => m.id === memberId && m.teamId === null && m.status === "pending",
     );
-    if (!target) return refused("not_permitted", "That sign-up is not waiting for a decision.");
+    if (!target) return refused("not_permitted", SIGNUP_DECISION_REFUSED);
 
     if (decision.approve && !teams.some((t) => t.id === decision.teamId)) {
       return refused("not_permitted", "That team does not exist.");
@@ -1777,14 +1785,14 @@ export const seam: DataSeam = {
   // success on zero changed columns. The rank write is now `public.set_member_role`, whose `where`
   // carries `role <> 'admin'`, so the datastore refuses it too and the two agree by construction.
   // SOLO, 2026-09-10. The mock reproduces the POLICY: an admin, the caller's own team on both sides.
+  // MIR-02: that bound is `public.set_member_team` now, unchanged; the three refusals carry the one
+  // sentence the real seam shows for its 42501 (MIR-02 AC-10), where they used to differ.
   async setMemberTeam(memberId: string, teamId: string): Promise<Result<Member>> {
     const me = currentAdmin();
-    if (!me) return refused("not_permitted", "Only an admin can move a member.");
-    if (teamId !== me.teamId) {
-      return refused("not_permitted", "An admin can only move somebody to their own team.");
-    }
+    if (!me) return refused("not_permitted", MEMBER_TEAM_SAVE_REFUSED);
+    if (teamId !== me.teamId) return refused("not_permitted", MEMBER_TEAM_SAVE_REFUSED);
     const target = members.find((m) => m.id === memberId && m.teamId === me.teamId);
-    if (!target) return refused("not_permitted", "That member is not on your team.");
+    if (!target) return refused("not_permitted", MEMBER_TEAM_SAVE_REFUSED);
     target.teamId = teamId;
     return { ok: true, value: { ...target } };
   },
@@ -2550,8 +2558,14 @@ export const seam: DataSeam = {
   // `public.move_member`: an approved, not-removed member, onto a team that exists. `teamId` is the
   // ONLY field written — role, removal and status are untouched, so an admin moving somebody gains
   // no power to promote or remove them on a team the admin is not on.
+  //
+  // MIR-02, ADR-064 decision 3: NOT THE CALLER THEMSELVES. The trigger clause in
+  // `20261020120000_mir02_member_self_writes.sql` refuses anybody changing their own `team_id`, and
+  // it fires inside `move_member` too. Checked before the move, so the mock is never looser than it.
   async moveMember(memberId: string, teamId: string): Promise<Result<void>> {
-    if (!currentAdmin()) return refused("not_permitted", MEMBER_MOVE_REFUSED);
+    const me = currentAdmin();
+    if (!me) return refused("not_permitted", MEMBER_MOVE_REFUSED);
+    if (memberId === me.id) return refused("not_permitted", MEMBER_MOVE_REFUSED);
     if (!teams.some((t) => t.id === teamId)) return refused("not_permitted", MEMBER_MOVE_REFUSED);
 
     const target = members.find(

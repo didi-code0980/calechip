@@ -1658,21 +1658,22 @@ export const seam: DataSeam = {
   /**
    * SOLO, 2026-09-10. Approve or reject one waiting sign-up.
    *
-   * **THE UPDATE NAMES ONLY `status` AND `team_id`, WHICH IS THE COLUMN GRANT AND NOT A CHOICE.**
-   * The migration grants `update (status, team_id)` and nothing else, so an attempt to write a
-   * display name here would be refused by the privilege rather than by this file — ADM-01's lesson
-   * about row-level policies permitting every column of the row they admit.
+   * **MIR-02, ADR-064 — BOTH HALVES ARE NOW DEFINER FUNCTIONS, AND NEITHER IS A TABLE WRITE.**
+   * `20261020120000_mir02_member_self_writes.sql` revokes `update (status, team_id)` from
+   * `authenticated`, because that grant plus `member_update_own` let a pending sign-up admit
+   * themselves with one PATCH. An approval is `public.admit_member`, a rejection is
+   * `public.reject_member`; each tests `is_admin` and that the row is still pending and teamless in
+   * its own body, the bound `member_decide_admin`'s `using` clause used to supply.
    *
-   * **ZERO ROWS UPDATED IS NOT SUCCESS.** `member_decide_admin`'s `using` clause admits only a
-   * pending, teamless row and only for an admin, so a row that fails any of it simply does not match
-   * and the statement changes nothing. The `select` is what tells the two apart — the shape
-   * `removeAllowedEmail` used before it, for the same reason.
+   * **A 42501 IS THE REFUSAL, WHERE ZERO ROWS USED TO BE.** A definer function raises on `not found`
+   * rather than filtering, so `!error` is success — `setRankThroughRpc` records the same change.
    */
   async decideMember(memberId: string, decision: MemberDecision): Promise<Result<void>> {
     // SOLO, 2026-09-11 — an APPROVAL is `public.admit_member`, onto any team the admin chose. It is a
     // `security definer` function for the reason `listTeams` records: the approved row lands on a
     // team the caller may not be able to SELECT, and an UPDATE whose new row fails the SELECT policy
-    // under a `.select()` is an error rather than a success. The REJECTION below is unchanged.
+    // under a `.select()` is an error rather than a success. MIR-02: the REJECTION is
+    // `public.reject_member` now, for the revoke the doc comment above records.
     if (decision.approve) {
       const { error } = await client().rpc("admit_member", {
         p_member_id: memberId,
@@ -1687,25 +1688,14 @@ export const seam: DataSeam = {
       return { ok: true, value: undefined };
     }
 
-    const patch = { status: "rejected" as const, team_id: null };
-
-    const { data, error } = await client()
-      .from("member")
-      .update(patch)
-      .eq("id", memberId)
-      .select("id")
-      .returns<Array<{ id: string }>>();
-
-    if (error) return { ok: false, error: toPostgrestFailure(error) };
-    if (data && data.length > 0) return { ok: true, value: undefined };
-
-    return {
-      ok: false,
-      error: {
-        code: "not_permitted",
-        message: "That sign-up could not be decided. It may already have been.",
-      },
-    };
+    const { error } = await client().rpc("reject_member", { p_member_id: memberId });
+    if (error) {
+      return {
+        ok: false,
+        error: toTeamFailure(error, "That sign-up could not be decided. It may already have been."),
+      };
+    }
+    return { ok: true, value: undefined };
   },
 
   // -------------------------------------------------------------------------
@@ -1819,26 +1809,24 @@ export const seam: DataSeam = {
   // this path and the column is therefore writable in the direction that must be refused (AC-5).
   //
   // Zero rows back is a refusal, for the same reason as `removeMember` above.
-  // SOLO, 2026-09-10. `member_update_admin`s `with check` re-derives the destination and refuses a
-  // mismatch, so no value sent here can move somebody to a team the caller is not on.
+  // SOLO, 2026-09-10; MIR-02, ADR-064. `public.set_member_team`, not a table update: `team_id` is no
+  // longer granted to `authenticated`. The function carries the bound `member_update_admin`s `using`
+  // and `with check` used to — the member AND the destination are the caller's own team — so no
+  // value sent here can move somebody to a team the caller is not on. It is deliberately NOT
+  // `move_member`, which is any team (01-plan.md § 8 alternative B).
+  //
+  // A 42501 is the refusal; the row guard stops a body of some other shape being read as a member.
   async setMemberTeam(memberId: string, teamId: string): Promise<Result<Member>> {
-    const { data, error } = await client()
-      .from("member")
-      .update({ team_id: teamId })
-      .eq("id", memberId)
-      .select(MEMBER_COLUMNS)
-      .returns<MemberRow[]>();
+    const { data, error } = await client().rpc("set_member_team", {
+      p_member_id: memberId,
+      p_team_id: teamId,
+    });
 
-    if (error) return { ok: false, error: toPostgrestFailure(error) };
-
-    const row = (data ?? [])[0];
-    if (!row) {
-      return {
-        ok: false,
-        error: { code: "not_permitted", message: "That member could not be moved." },
-      };
+    if (error) return { ok: false, error: toTeamFailure(error, "That member could not be moved.") };
+    if (!isMemberRow(data)) {
+      return { ok: false, error: { code: "unknown", message: "That member could not be moved." } };
     }
-    return { ok: true, value: toMember(row) };
+    return { ok: true, value: toMember(data) };
   },
 
   // SOLO, 2026-09-24 — ADR-044. `setMemberRole(id, "admin")`, and the narrower sentence is the whole
@@ -1867,8 +1855,11 @@ export const seam: DataSeam = {
   //    change on a row that is not `auth.uid()`'s. It has to be a TRIGGER and not a policy, because
   //    `member_update_admin` already lets an admin update rows across their team and a `with check`
   //    cannot see WHICH columns moved — known weakness 6 in `.ai/standards/rbac-and-security.md`;
-  //  - the CONTROL for "which columns" is the column grant. Naming `role` or `team_id` in this
-  //    update would be refused with `42501 permission denied for column` before a policy runs.
+  //  - the CONTROL for "which columns" is the column grant. Naming `role`, `status` or `team_id` in
+  //    this update would be refused with `42501 permission denied for column` before a policy runs
+  //    — true again since MIR-02's revoke; between `20260910100000_solo_member_approval.sql` and
+  //    it, `status` and `team_id` were granted and this sentence was false. The MIR-02 trigger
+  //    clause refuses the caller's own three columns on every other path too.
   //
   // ZERO ROWS BACK IS A REFUSAL, the trap `removeMember` and `createEntry` both record: a filtered
   // UPDATE returns no representation and PostgREST does not error, so `!error` is not success.

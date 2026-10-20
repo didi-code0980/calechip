@@ -346,7 +346,12 @@ export interface DataSeam {
    * own: `member_decide_admin`s `with check` compared the incoming `team_id` to
    * `member_team_id(auth.uid())`. The operator decided every admin manages every team, so an
    * APPROVAL goes through `public.admit_member`, which checks `is_admin` and that the team exists
-   * and nothing about ownership. A REJECTION is unchanged and is still the table update.
+   * and nothing about ownership.
+   *
+   * **MIR-02, ADR-064 — A REJECTION IS `public.reject_member`, NO LONGER A TABLE UPDATE.**
+   * `update (status, team_id)` is revoked from `authenticated`, because with `member_update_own` it
+   * let a pending sign-up admit themselves. The function is the control: an admin, and a row still
+   * pending with no team.
    *
    * Refused for a non-admin and for a row already decided, both as `not_permitted`.
    */
@@ -468,6 +473,12 @@ export interface DataSeam {
    *
    * ZERO ROWS RETURNED IS A REFUSAL, not a success — the shape `removeMember` and `promoteMember`
    * already document.
+   *
+   * **MIR-02, ADR-064 — THE CONTROL IS NOW `public.set_member_team`.** `team_id` is no longer
+   * granted to `authenticated`, so this is an RPC and not a table update. The function carries the
+   * same bound the policy did — an admin, the member on the caller's own team, the destination the
+   * caller's own team — and refuses with a 42501 rather than returning zero rows. The paragraph
+   * above describes the policy it replaced.
    */
   setMemberTeam(memberId: string, teamId: string): Promise<Result<Member>>;
 
@@ -852,6 +863,11 @@ export interface DataSeam {
    * old team's past counts change. INV-07 holds as written; what changes is which team it names.
    *
    * It writes `team_id` and nothing else — not the role, not the removal, not the status.
+   *
+   * **MIR-02, ADR-064 decision 3 — NEVER THE CALLER THEMSELVES.** The control is the trigger clause
+   * in `20261020120000_mir02_member_self_writes.sql`, which refuses anybody changing their own
+   * `role`, `status` or `team_id` and fires inside `move_member` too. An admin moving their own id
+   * is refused as `not_permitted`.
    */
   moveMember(memberId: string, teamId: string): Promise<Result<void>>;
 
