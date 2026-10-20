@@ -2855,3 +2855,27 @@ cả 21 ticket"*. That is the authority for this run's exception to "the steward
   line "Every MIR ticket is still blocked" and the `ticket.yaml` row of *Affected documents*.
 - Exception is scoped to these two fields in these 21 files; it does not say who writes them for a
   MIR item appended later.
+
+### 2026-10-20 — `allowed_paths` readers strip trailing ` # comment`
+
+Operator instruction: *"check-allowed-paths.mjs: bỏ comment # … cuối dòng trong item allowed_paths"*.
+
+- **Defect, live:** MIR-02's `ticket.yaml:18` lists
+  `"supabase/migrations/20260910093000_solo_profile_self_update.sql"   # comment lines only, …`.
+  Both `readYamlList` copies kept the comment as part of the glob, so `node scripts/check-allowed-paths.mjs`
+  on `feat/MIR-02` failed RULE-03 on a path the ticket lists, and the hook would have refused the same
+  write. A second instance of the same defect: an inline list with a comment containing `]` was cut at
+  the comment's bracket (`lastIndexOf("]")`).
+- **Class, not instance:** two hand-rolled readers of `ticket.yaml` did no comment handling while the
+  third, `scripts/lib/ticket-yaml.mjs`, already did. Fixed in both: `scripts/check-allowed-paths.mjs`
+  now imports the lib's `stripComment`, which is now exported. `.claude/hooks/guard-allowed-paths.mjs`
+  carries a copy, because it deliberately imports nothing from `scripts/`. YAML semantics: `#` opens a
+  comment only at line start or after whitespace, never inside quotes.
+- **Tests:** both test files gain simplified cases, plus cases read from the real board per the
+  fixtures rule: every real `ticket.yaml` with a comment injected on every item (hook), and every real
+  ticket that already carries a commented item, as it stands (both). All new tests fail against the
+  old code. Suite: 387 pass, 0 fail. `check-docs`: 0 errors, 2 warnings, both already there before
+  this change.
+- **Not a mid-ticket rule change:** no rule moved. The check now reads MIR-02's `allowed_paths` as
+  written. Landed on `ops/allowed-paths-eol-comment`; MIR-02 picks it up from `main` at its next sync.
+- No registry write.

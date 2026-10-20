@@ -19,7 +19,7 @@ import fs from "node:fs";
 import path from "node:path";
 
 import { isOwnIdea } from "./lib/entry.mjs";
-import { readFrontMatter } from "./lib/ticket-yaml.mjs";
+import { readFrontMatter, stripComment } from "./lib/ticket-yaml.mjs";
 
 const ROOT = process.cwd();
 const BASE = process.env.GITHUB_BASE_REF || "main";
@@ -50,10 +50,13 @@ function branchName() {
   }
 }
 
+// Every line is read through `stripComment` first, so `- "a/b.sql"   # why` yields `a/b.sql`. Before
+// 2026-10-20 it did not, and the comment became part of the glob: MIR-02's own allowed path failed
+// RULE-03 in CI against the ticket that listed it.
 function readYamlList(text, key) {
   const lines = text.split(/\r?\n/);
   for (let i = 0; i < lines.length; i++) {
-    const m = new RegExp(`^${key}:\\s*(.*)$`).exec(lines[i]);
+    const m = new RegExp(`^${key}:\\s*(.*)$`).exec(stripComment(lines[i]));
     if (!m) continue;
     const inline = m[1].trim();
     if (inline.startsWith("[")) {
@@ -65,9 +68,10 @@ function readYamlList(text, key) {
     }
     const out = [];
     for (let j = i + 1; j < lines.length; j++) {
-      const item = /^\s*-\s*(.+?)\s*$/.exec(lines[j]);
+      const line = stripComment(lines[j]);
+      const item = /^\s*-\s*(.+?)\s*$/.exec(line);
       if (!item) {
-        if (/^\s*$|^\s*#/.test(lines[j])) continue;
+        if (/^\s*$/.test(line)) continue;
         break;
       }
       out.push(item[1].replace(/^["']|["']$/g, ""));
