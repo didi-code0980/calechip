@@ -2,7 +2,7 @@ name: verify
 
 # The pull-request gate, and the same gate on every push to main. Branch protection requires ONE job
 # from this file: `verify`, at the bottom, which passes only when every other job here passed. The
-# other job names — static, scripts, e2e (n/2) — are deliberately not required, so regrouping steps
+# other job names — static, scripts, database, e2e (n/2) — are deliberately not required, so regrouping steps
 # or changing the shard count never touches repository settings. The required list is
 # docs/ops/branch-protection.md. CICD-02.
 #
@@ -78,6 +78,26 @@ jobs:
       - name: hook and script tests
         run: node --test .claude/hooks/tests/*.test.mjs scripts/tests/*.test.mjs
 
+  # MIR-05. Builds a local Supabase stack from every migration and runs supabase/tests/ with pgTAP.
+  # No `environment:` — it needs no secret, so it cannot reach the hosted project even by mistake.
+  database:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: pnpm/action-setup@v6
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      - name: database tests
+        run: pnpm db:test
+
   e2e:
     name: e2e (${{ matrix.shard }}/2)
     runs-on: ubuntu-latest
@@ -94,7 +114,7 @@ jobs:
         run: echo "e2e"
 
   verify:
-    needs: [static, scripts, e2e]
+    needs: [static, scripts, database, e2e]
     if: ${{ !cancelled() }}
     runs-on: ubuntu-latest
     environment: prod
@@ -105,7 +125,8 @@ jobs:
         env:
           STATIC: ${{ needs.static.result }}
           SCRIPTS: ${{ needs.scripts.result }}
+          DATABASE: ${{ needs.database.result }}
           E2E: ${{ needs.e2e.result }}
         run: |
-          echo "static=$STATIC scripts=$SCRIPTS e2e=$E2E"
-          [ "$STATIC" = success ] && [ "$SCRIPTS" = success ] && [ "$E2E" = success ]
+          echo "static=$STATIC scripts=$SCRIPTS database=$DATABASE e2e=$E2E"
+          [ "$STATIC" = success ] && [ "$SCRIPTS" = success ] && [ "$DATABASE" = success ] && [ "$E2E" = success ]
