@@ -61,6 +61,7 @@ Names only. No value of any of these belongs in any file.
   — [deployment-repo/README.md § Secrets](deployment-repo/README.md#secrets).
 - Missing any of these, `build-image` fails at its `secrets present` step and `release` at
   `inputs present`, each naming what is missing.
+- **Rotating the Supabase keys** changes the value of `VITE_SUPABASE_ANON_KEY`, never the name, and needs a new image — the old key is baked into every earlier one. Each rotation is logged in [key-rotation.md](key-rotation.md).
 
 ## Cutting a release
 

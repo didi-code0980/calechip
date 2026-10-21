@@ -18,6 +18,7 @@ blob-report
 # committed once — 5a29434 on origin/ops/architecture, carrying a live SUPABASE_SERVICE_ROLE_KEY.
 # Under ADR-005 that key bypasses row-level security entirely, which is the whole authorization
 # model. The rule below stops the next commit; it does nothing about the one that already happened.
+# Rotation record: docs/ops/key-rotation.md (MIR-01).
 .env
 .env.*
 !.env.example
