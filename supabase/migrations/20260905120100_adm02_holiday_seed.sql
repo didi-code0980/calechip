@@ -30,4 +30,6 @@
 insert into public.holiday (date, name, kind) values
   -- ('2026-01-01', 'Tet Duong lich', 'non_working'),
   -- ... one row per announced date ...
+    ('2026-01-01', 'Tet Duong lich', 'non_working'),
+  ('2027-01-01', 'Tet Duong lich', 'non_working')
 on conflict (date) do nothing;
