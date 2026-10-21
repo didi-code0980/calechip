@@ -6,7 +6,7 @@ id: MIR-04
 title: "The member directory returns only members of the caller's own teams, and the event-invitee check is audited"
 feature_ids: [MIR-04]   # ADR-063 row; written by the steward on the operator's decision of 2026-10-20
 group: MIR           # ADR-063: MIR is the eighth feature group
-state: REVIEW        # `developer` at /implement, 2026-10-21, on 03-impl-log.md `gate: PASS` / `next_state: REVIEW`
+state: DONE          # `orchestrator` at /ship, 2026-10-21
 owner: ""
 branch: ""
 size_estimate: "M"    # S|M - set by tech-lead-design at PLAN; gates DoR
