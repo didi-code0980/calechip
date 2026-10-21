@@ -24,7 +24,7 @@ Apply only when `conclusion` is `success` and `headSha` is at or after the CICD-
 
 | Check | Workflow | What it runs |
 |---|---|---|
-| `verify` | `.github/workflows/verify.yml` | Passes only when `static` (typecheck, lint, unit, documentation audit), `scripts` (hook and script tests) and both `e2e` shards all passed |
+| `verify` | `.github/workflows/verify.yml` | Passes only when `static` (typecheck, lint, unit, documentation audit), `scripts` (hook and script tests), `database` (`pnpm db:test` — pgTAP against every migration) and both `e2e` shards all passed |
 | `allowed-paths` | `.github/workflows/allowed-paths.yml` | `scripts/check-allowed-paths.mjs` — RULE-03 on the whole branch |
 | `mir-tracking` | `.github/workflows/mir-tracking.yml` | `.github/scripts/check-mir-tracking.mjs` — the MIR status index and change log stay in step |
 
@@ -32,7 +32,7 @@ Apply only when `conclusion` is `success` and `headSha` is at or after the CICD-
 
 - **`ci-fast`** — runs on push to `feat/**` only, never on a pull request. It is feedback, not a
   gate; a required check that never reports on a pull request would block every merge.
-- **`static`, `scripts`, `e2e (1/2)`, `e2e (2/2)`** — the jobs inside `verify`. They are not
+- **`static`, `scripts`, `database`, `e2e (1/2)`, `e2e (2/2)`** — the jobs inside `verify`. They are not
   required so that the gate can be regrouped, or the shard count changed, without touching these
   settings. `verify` fails whenever any of them fails, is skipped or is cancelled.
 

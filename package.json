@@ -11,6 +11,7 @@
     "lint": "eslint .",
     "test": "vitest run",
     "e2e": "playwright test",
+    "db:test": "node scripts/db-test.mjs",
     "docs:audit": "node scripts/check-docs.mjs",
     "hooks:test": "node --test .claude/hooks/tests/*.test.mjs scripts/tests/*.test.mjs"
   },
