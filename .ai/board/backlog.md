@@ -22,6 +22,9 @@ planned, sized, and safe to build** — the next stage for a row here is IN_PROG
 
 | # | Ticket | Title | Size | Depends on |
 |---|--------|-------|------|------------|
+| 1 | MIR-01 | The service role key and the anon key are rotated, and the rotation is recorded | S | — |
+
+**`MIR-01` moved here at /advance on 2026-10-21**, from `01-plan.md` gate PASS with all six Definition of Ready items passing; `schema_delta: none`. `feat/MIR-01` was re-cut from `main` after PR #167 and re-planned: the earlier parked `READY` copy named in the paragraphs below was on no ref when this ran. MIR-01 had no row in `## BACKLOG` on `main`, so no row left that table.
 
 **Empty again — `MIR-04` left this section for `## ARCHIVE` at its own ship on 2026-10-21.** Phase 0 is shipped except `MIR-01`, parked on `feat/MIR-01`.
 
