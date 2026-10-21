@@ -24,6 +24,9 @@ inputs_read:
   - src/routes/EventEditor.tsx
   - tests/events.test.ts
   - tests/e2e/evt-01-events.spec.ts
+  - src/routes/EventDetail.tsx                    # 2026-10-21 amendment, 99-questions.md
+  - tests/e2e/evt-03-calendar-events.spec.ts      # 2026-10-21 amendment, 99-questions.md
+  - tests/e2e/evt-08-event-invitation.spec.ts     # 2026-10-21 amendment, 99-questions.md
 consulted:
   - with: operator
     asked: "Q1: what list_member_directory() returns to a non-admin — A own team only, B own team plus people the caller already shares an event or notification with (picker offers teammates only), C no change until MIR-15. Q2: the invitee check — A narrow to the event's team, B keep any team and record the audit."
@@ -321,6 +324,36 @@ After this ticket the screen offers a non-admin no other-team member, but all th
 accept one, given an id or an email. ADR-066 *Consequences* records this. The org bound is MIR-13 /
 MIR-15. None of the three is edited.
 
+### 4.5b Screen `src/routes/EventDetail.tsx` (added 2026-10-21, AC-12)
+
+The directory is no longer a fixed roster: an invite sent from the detail page can create the
+connection (clause (c), an invitee of an event the caller manages) that admits the new person. The
+directory read at page load predates that connection, so the new invitee renders as *Former member*
+until a reload. That is a defect against AC-12, reproduced by `evt-08-event-invitation.spec.ts:178`.
+
+`onInvited()` re-reads the directory with the rest, and stores it in the same `setState`. Exactly:
+
+```ts
+const [fresh, people, link, list, names] = await Promise.all([
+  seam.getEvent(event.id),
+  seam.listEventInvitees(event.id),
+  seam.getEventGuestLink(event.id),
+  seam.listEventEmailInvitations(event.id),
+  seam.listMemberDirectory(),
+]);
+if (!fresh) return;
+setState((current) =>
+  current.phase === "ready"
+    ? { ...current, event: fresh, invitees: people, guestLink: link, invitations: list, directory: names }
+    : current,
+);
+```
+
+The comment above `onInvited` gains one sentence: *MIR-04, ADR-066 2(c): the directory too, because
+the invite may be what admits the new invitee's name.* The `catch` stays as it is. No other line of
+the file changes: no seam call is re-signed, no type changes, no selector is added, and `load()` is
+untouched.
+
 ### 4.6 Tests
 
 **`tests/member-directory-scope.test.ts` (new, drives the mock seam).** One `it` per row, named as
@@ -360,6 +393,25 @@ and say so in `03-impl-log.md`.
   The filter step filters on the teammate's name.
 - `"AC-14, AC-23: the edit form opens with the current values, including who is named"` names
   `TEAMMATE` instead of `OTHER_TEAM`. Nothing else changes.
+
+**`tests/e2e/evt-03-calendar-events.spec.ts` (edit, one test; added 2026-10-21).** `"AC-4, AC-9,
+AC-11: what a member cannot read is not drawn; an admin on team B sees team B's events"` creates
+"Named B" as the team-A member by clicking `NAMES.otherTeam` in the picker. AC-10 now removes that
+option, so the step is superseded, not broken. The re-aim:
+- The `createEvent` helper's `values` gains one optional field, `inviteEmail?: string`. When it is
+  set, the helper fills `event-form-invite-input` with it before `event-save`. The existing `invite`
+  field and its picker click are kept as they are, for "Named A".
+- "Named B" is created with `scope: "named"`, no `invite`, and `inviteEmail: OTHER_TEAM`. On save,
+  `createEventWithInvitations` creates the event and then `inviteToEvent`'s member branch adds the
+  team-B member to `event_invitee` (ADR-061; legal under Q2 B / AC-11). It is still a Limited people
+  event created by the team-A member and naming the team-B member.
+- Every assertion keeps its value: 4 events on the member's 2026-09-23, "B team day" absent there,
+  and `["B team day", "Named B", "Open day"]` with `data-taking-part="false"` on team B's view.
+- One dated comment line above the "Named B" call cites MIR-04 / ADR-066 1 and says the picker no
+  longer offers another team. The test name and every other test in the file are unchanged.
+
+**`tests/e2e/evt-08-event-invitation.spec.ts`: not listed, and must pass unchanged.** Its failure at
+line 184 is the AC-12 defect § 4.5b fixes.
 
 **The whole existing suite must stay green**, including `tests/e2e/`. `evt-08-event-invitation.spec.ts:178-184`
 invites `OTHER_TEAM` by email and expects their name under `event-invitees`. That is AC-5 and AC-12,
@@ -418,6 +470,8 @@ allowed_paths:
   - "tests/member-directory-scope.test.ts"
   - "tests/events.test.ts"                  # the one superseded AC-10 assertion, § 4.6
   - "tests/e2e/evt-01-events.spec.ts"       # two picker tests re-aimed at a teammate, § 4.6
+  - "src/routes/EventDetail.tsx"            # onInvited re-reads the directory, § 4.5b (2026-10-21)
+  - "tests/e2e/evt-03-calendar-events.spec.ts"   # "Named B" invited by email, § 4.6 (2026-10-21)
   - ".ai/registry/decisions/ADR-066-the-member-directory-is-own-team-plus-people-the-caller-already-shares-an-event-with.md"
   - ".ai/registry/decisions/ADR-045-charter-refusals-4-and-5-are-lifted-for-events.md"   # supersession note under § Status only
   - ".ai/board/tickets/MIR-04/**"
@@ -425,14 +479,17 @@ allowed_paths:
 
 `glossary_owed` is `[]`. No glossary row is written and `.ai/registry/glossary.md` is not listed.
 
-The list holds seven source and test files plus two ADRs: **`size: M`**. That agrees with
-`size_estimate: M`.
+The list holds nine source and test files plus two ADRs, eleven in all: **`size: M`**. That agrees
+with `size_estimate: M`. *Until 2026-10-21: seven source and test files; the two added by the
+amendment below leave the bucket unchanged.*
 
-**Not XL.** No seam signature or shared type changes, and no caller of the seam changes. That is the
+**Not XL.** No seam signature or shared type changes, and no caller of the seam has to change to
+follow a contract. `EventDetail.tsx` (§ 4.5b) changes because the directory's *content* now depends on
+connections an invite can create, not because a signature moved. That is the
 test `.ai/01-operating-model.md` gives for a schema change, applied as MIR-03 § 7 applied it.
 
-`tests/events.test.ts`, `tests/e2e/evt-01-events.spec.ts` and `ADR-045` are files this run did not
-create. Each is listed only for the narrow edit § 4.6 and § 6 name.
+`tests/events.test.ts`, `tests/e2e/evt-01-events.spec.ts`, `src/routes/EventDetail.tsx`,
+`tests/e2e/evt-03-calendar-events.spec.ts` and `ADR-045` are files this run did not create. Each is listed only for the narrow edit § 4.6 and § 6 name.
 
 ## 8. Rejected alternatives
 
@@ -465,3 +522,10 @@ are rewritten anyway.
   is named. AC-5 therefore takes invitees from managed events, not readable ones, so the directory
   does not leak more than the invitee list does. ADR-066 § Status records this and the one-word
   revert. No AC was narrowed to make the build easier.
+- `2026-10-21T08:17:08+07:00`: § 4.5b added (`EventDetail.tsx`'s `onInvited` re-reads
+  `listMemberDirectory()`), § 4.6 gains the `evt-03-calendar-events.spec.ts` re-aim ("Named B" named
+  through `event-form-invite-input`) and states that `evt-08-event-invitation.spec.ts` stays
+  unchanged, § 7 gains both paths (`size` stays M, 11 files). Both failures were reproduced on the
+  branch by `tech-lead-design` before amending. **The plan was wrong here:** § 4.6 required evt-08
+  to pass while § 7 left out the one consumer whose stale directory read breaks it. Raised by
+  `developer` in 99-questions.md. Amended by `tech-lead-design`.
