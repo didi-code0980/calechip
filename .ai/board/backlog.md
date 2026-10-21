@@ -22,6 +22,9 @@ planned, sized, and safe to build** — the next stage for a row here is IN_PROG
 
 | # | Ticket | Title | Size | Depends on |
 |---|--------|-------|------|------------|
+| 1 | MIR-05 | pgTAP runs locally and in CI against a real Postgres with every migration applied | M | — |
+
+**`MIR-05` moved here at /advance on 2026-10-21**, from `01-plan.md` gate PASS with all six Definition of Ready items passing; `schema_delta: none`. MIR-05 had no row in `## BACKLOG`, so no row left that table.
 
 **Empty again — `MIR-01` left this section for `## ARCHIVE` at its own ship on 2026-10-21.** Phase 0 is shipped in the loop; the key rotation itself and the `Result:` lines of `verification.md` are the operator's.
 
