@@ -180,22 +180,25 @@ test.describe("EVT-01 — events", () => {
     await expect(page.getByTestId("event-name")).toHaveText("Sooner");
   });
 
-  test("AC-10, AC-13, AC-23: the picker groups every other member by team, and the creator sees who is named", async ({ page }) => {
+  // 2026-10-21, MIR-04 / ADR-066 1: superseded "the picker groups every other member by team".
+  test("AC-10, AC-13, AC-23 (ADR-066): the picker offers the caller's own team, and the creator sees who is named", async ({ page }) => {
     await signIn(page, MEMBER.email);
     await startNew(page);
     await fillEvent(page, { name: "Design review", start: "2099-05-05", end: "2099-05-05", scope: "named" });
 
     const picker = page.getByTestId("event-picker");
     await expect(picker).toBeVisible();
-    await expect(picker.getByTestId("event-picker-group")).toHaveCount(2);
-    await expect(picker).toContainText(OTHER_TEAM.team);
-    // The caller is not offered to themselves.
-    await expect(picker.getByTestId("event-picker-option").filter({ hasText: MEMBER.name })).toHaveCount(0);
-    await expect(picker.getByTestId("event-picker-option").filter({ hasText: OTHER_TEAM.name })).toHaveCount(1);
-
-    await page.getByTestId("event-picker-filter").fill("khác");
     await expect(picker.getByTestId("event-picker-group")).toHaveCount(1);
-    await picker.getByTestId("event-picker-option").filter({ hasText: OTHER_TEAM.name }).click();
+    await expect(picker).toContainText("CaleChip");
+    // The caller is not offered to themselves, and nobody from another team is offered.
+    await expect(picker.getByTestId("event-picker-option").filter({ hasText: MEMBER.name })).toHaveCount(0);
+    await expect(picker.getByTestId("event-picker-option").filter({ hasText: OTHER_TEAM.name })).toHaveCount(0);
+    await expect(picker.getByTestId("event-picker-option").filter({ hasText: TEAMMATE.name })).toHaveCount(1);
+
+    await page.getByTestId("event-picker-filter").fill("duyệt");
+    await expect(picker.getByTestId("event-picker-group")).toHaveCount(1);
+    await expect(picker.getByTestId("event-picker-option")).toHaveCount(1);
+    await picker.getByTestId("event-picker-option").filter({ hasText: TEAMMATE.name }).click();
     await page.getByTestId("event-picker-filter").fill("");
 
     // Scope away and back: the picker is drawn only while Limited people is chosen.
@@ -207,18 +210,18 @@ test.describe("EVT-01 — events", () => {
     await page.getByTestId("event-save").click();
     // EVT-12 AC-14. The label only; the value stays `named`.
     await expect(page.getByTestId("event-scope")).toHaveText("Limited people");
-    await expect(page.getByTestId("event-invitees")).toContainText(OTHER_TEAM.name);
+    await expect(page.getByTestId("event-invitees")).toContainText(TEAMMATE.name);
 
     // AC-13: the named person sees the event, and not who else is named.
-    await switchTo(page, OTHER_TEAM.email);
+    await switchTo(page, TEAMMATE.email);
     await openEvents(page);
     await page.getByTestId("event-row").filter({ hasText: "Design review" }).click();
     await expect(page.getByTestId("event-detail")).toBeVisible();
     await expect(page.getByTestId("event-invitees")).toHaveCount(0);
     await expect(page.getByTestId("event-edit-button")).toHaveCount(0);
 
-    // AC-7: a teammate of the creator who is not named cannot see it at all.
-    await switchTo(page, TEAMMATE.email);
+    // AC-7: someone who is not named cannot see it at all.
+    await switchTo(page, OTHER_TEAM.email);
     await openEvents(page);
     await expect(page.getByTestId("events-empty")).toBeVisible();
   });
@@ -227,7 +230,7 @@ test.describe("EVT-01 — events", () => {
     await signIn(page, MEMBER.email);
     await startNew(page);
     await fillEvent(page, { name: "Offsite", start: "2099-07-01", end: "2099-07-02", scope: "named", location: "Da Lat" });
-    await page.getByTestId("event-picker-option").filter({ hasText: OTHER_TEAM.name }).click();
+    await page.getByTestId("event-picker-option").filter({ hasText: TEAMMATE.name }).click();
     await page.getByTestId("event-save").click();
     await expect(page.getByTestId("event-detail")).toBeVisible();
 
@@ -238,7 +241,7 @@ test.describe("EVT-01 — events", () => {
     await expect(page.getByTestId("event-location-input")).toHaveValue("Da Lat");
     await expect(page.getByTestId("event-scope-named")).toBeChecked();
     await expect(
-      page.getByTestId("event-picker-option").filter({ hasText: OTHER_TEAM.name }).locator("input"),
+      page.getByTestId("event-picker-option").filter({ hasText: TEAMMATE.name }).locator("input"),
     ).toBeChecked();
 
     await page.getByTestId("event-name-input").fill("Offsite 2099");

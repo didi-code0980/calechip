@@ -307,22 +307,27 @@ describe("who can read it", () => {
 });
 
 describe("choosing who is named", () => {
-  it("AC-10: the directory is every approved, current member of every team — five fields and no more", async () => {
+  // 2026-10-21, MIR-04 / ADR-066: superseded "the directory is every approved, current member of every team".
+  it("AC-10 (ADR-066): a member's directory is their own team — five fields and no more", async () => {
     as(FIXTURE_MEMBER.id);
     const directory = await mock.listMemberDirectory();
     const ids = directory.map((d) => d.id);
 
-    for (const who of [FIXTURE_ADMIN.id, FIXTURE_MEMBER.id, FIXTURE_APPROVED_MEMBER.id, FIXTURE_OTHER_TEAM_MEMBER.id, MANAGER_A, MEMBER_B2]) {
+    for (const who of [FIXTURE_ADMIN.id, FIXTURE_MEMBER.id, FIXTURE_APPROVED_MEMBER.id, MANAGER_A]) {
       expect(ids).toContain(who);
+    }
+    // No event or notification connects them to the caller yet.
+    for (const who of [FIXTURE_OTHER_TEAM_MEMBER.id, MEMBER_B2]) {
+      expect(ids).not.toContain(who);
     }
     for (const who of [PENDING, REJECTED, FIXTURE_REMOVED_MEMBER.id]) {
       expect(ids).not.toContain(who);
     }
     for (const row of directory) {
       expect(Object.keys(row).sort()).toEqual(["avatar", "displayName", "id", "teamId", "teamName"]);
+      expect(row.teamId).toBe(FIXTURE_TEAM.id);
     }
-    const other = directory.find((d) => d.id === FIXTURE_OTHER_TEAM_MEMBER.id);
-    expect(other?.teamName).toBe(FIXTURE_OTHER_TEAM.name);
+    expect(directory.some((d) => d.teamName === FIXTURE_OTHER_TEAM.name)).toBe(false);
   });
 
   it("AC-10: ordered by team name, then display name", async () => {

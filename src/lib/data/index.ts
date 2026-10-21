@@ -1351,7 +1351,9 @@ export interface DataSeam {
   // refuses before the round trip is an affordance and says so.
   //
   // `listMembers()` IS UNTOUCHED, AND SO IS EVERY POLICY ON `public.member` (AC-12, INV-04). The
-  // picker reads `listMemberDirectory()`, a separate definer read with five columns.
+  // picker reads `listMemberDirectory()`, a separate definer read with five columns — since MIR-04
+  // (ADR-066) not every member of every team, but the caller's own team plus the people an event or
+  // a notification already connects them to, and every team for an admin.
   // -------------------------------------------------------------------------
 
   /** Every event the caller may read (§ 3), ordered by `startDate` ascending, then `id`. The policy
@@ -1366,8 +1368,11 @@ export interface DataSeam {
    *  returns no rows, and that is the whole mechanism. */
   listEventInvitees(eventId: string): Promise<string[]>;
 
-  /** The picker's source (AC-10): every approved, non-removed member of every team, the caller
-   *  included, ordered by `teamName` then `displayName`. Empty for a caller with no team. */
+  /** The picker's and the name resolvers' source: approved, non-removed members who are the
+   *  caller's own team, plus the creator of any event they may read, the invitees of any event they
+   *  may manage, attendees they can see, and actors of their notifications; every team for an admin;
+   *  empty without a team. ADR-066 (MIR-04). The caller included, ordered by `teamName` then
+   *  `displayName`. */
   listMemberDirectory(): Promise<DirectoryMember[]>;
 
   /** AC-1, AC-2, AC-3, AC-11. One call to `public.save_event`, so the row and its named list are

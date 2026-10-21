@@ -20,7 +20,10 @@
 //
 // **THE PICKER IS INLINE, NOT A DIALOG** (§ 2b): a scrollable checklist grouped under team names,
 // with a text filter, drawn only while `Limited people` is chosen. It omits the caller — an
-// affordance; `list_member_directory()` returns them and the policy would accept them.
+// affordance; `list_member_directory()` returns them and the policy would accept them. Since MIR-04
+// (ADR-066 1) it offers a non-admin only their own team, plus anyone already named on the event being
+// edited. That is an affordance too: the directory carries the other people it connects the caller
+// to, for names, and the datastore still accepts an invitee of any team (operator Q2 B).
 //
 // EVT-09. On the create form only, an email field under the scope choice — below the picker when it
 // is drawn (01-plan.md § 2b, § 4.2). **IT ADDS A SURFACE, NOT A BEHAVIOUR**: the addresses go through
@@ -266,19 +269,28 @@ function EventForm({
   const set = <K extends keyof FormValues>(key: K, value: FormValues[K]): void =>
     setValues((v) => ({ ...v, [key]: value }));
 
-  // AC-10. Every approved member of every team except the caller, grouped under their team's name.
+  // AC-10 (ADR-066 1). Everyone in the directory except the caller, grouped under their team's name —
+  // and for a non-admin, only their own team plus whoever the event already names. Keyed on
+  // `initial.inviteeIds`, not the live list, so someone unchecked during an edit stays on screen.
+  // An affordance only; the datastore accepts an invitee of any team (Q2 B).
   const groups = useMemo(() => {
     const needle = fold(filter.trim());
     const byTeam = new Map<string, { teamName: string; people: DirectoryMember[] }>();
     for (const person of directory) {
       if (me !== null && person.id === me.id) continue;
+      if (
+        me?.role !== "admin" &&
+        person.teamId !== me?.teamId &&
+        !initial.inviteeIds.includes(person.id)
+      )
+        continue;
       if (needle !== "" && !fold(`${person.displayName} ${person.teamName}`).includes(needle)) continue;
       const group = byTeam.get(person.teamId) ?? { teamName: person.teamName, people: [] };
       group.people.push(person);
       byTeam.set(person.teamId, group);
     }
     return [...byTeam.entries()].map(([teamId, group]) => ({ teamId, ...group }));
-  }, [directory, filter, me]);
+  }, [directory, filter, me, initial.inviteeIds]);
 
   const toggleInvitee = (memberId: string, on: boolean): void =>
     set(

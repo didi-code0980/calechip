@@ -3330,13 +3330,37 @@ export const seam: DataSeam = {
       .sort((a, b) => a.localeCompare(b));
   },
 
-  // `public.list_member_directory()`: the caller must have a team; the row must be approved and not
-  // removed. FIVE FIELDS AND NO MORE (ADR-045 point 4). Ordered as the real seam orders it.
+  // `public.list_member_directory()` as MIR-04 replaced it (ADR-066): the caller must have a team;
+  // the row must be approved and not removed; then one of five clauses admits it — (a) the caller is
+  // an admin, (b) own team, (c) creator of an event the caller reads or invitee of one the caller
+  // manages, (d) attendance the caller can see, (e) actor of a notification addressed to the caller.
+  // FIVE FIELDS AND NO MORE (ADR-045 point 4). Ordered as the real seam orders it.
   async listMemberDirectory(): Promise<DirectoryMember[]> {
-    if (memberTeamId(currentMemberId) === null) return [];
+    const uid = currentMemberId;
+    const ownTeam = memberTeamId(uid);
+    if (ownTeam === null) return [];
+    const mayManageEventId = (eventId: string): boolean => {
+      const e = events.find((x) => x.id === eventId);
+      return e !== undefined && mayManageEvent(e, uid);
+    };
+    // `event_attendance_select_visible` minus the caller's own row, which (b) already covers.
+    const attendanceVisibleTo = (a: EventAttendance): boolean => {
+      const e = events.find((x) => x.id === a.eventId);
+      return (
+        e !== undefined && mayReadEvent(e, uid) && (a.status === "attending" || mayManageEvent(e, uid))
+      );
+    };
+    const admitted = (m: Member): boolean =>
+      eventIsAdmin(uid) ||
+      m.teamId === ownTeam ||
+      events.some((e) => e.creatorId === m.id && mayReadEvent(e, uid)) ||
+      eventInvitees.some((i) => i.memberId === m.id && mayManageEventId(i.eventId)) ||
+      eventAttendance.some((a) => a.memberId === m.id && attendanceVisibleTo(a)) ||
+      notifications.some((n) => n.actorId === m.id && n.recipientId === uid);
     const rows: DirectoryMember[] = [];
     for (const m of members) {
       if (m.status !== "approved" || m.removedAt !== null || m.teamId === null) continue;
+      if (!admitted(m)) continue;
       // The fixtures carry two rows under one id (FIXTURE_SECOND_ADMIN and FIXTURE_PENDING_SIGNUP);
       // the table cannot, so the first approved row is the one the join would return.
       if (rows.some((r) => r.id === m.id)) continue;

@@ -230,18 +230,20 @@ export default function EventDetail(): JSX.Element {
   // EVT-08, AC-5. After a send, the link the invitation opened and the list it grew, re-read so the
   // page never draws what the datastore did not return. EVT-12 AC-6, AC-7: the event and its people
   // too, so a conversion shows its scope and the added member in place. A null event leaves state.
+  // MIR-04, ADR-066 2(c): the directory too, because the invite may be what admits the new invitee's name.
   async function onInvited(): Promise<void> {
     try {
-      const [fresh, people, link, list] = await Promise.all([
+      const [fresh, people, link, list, names] = await Promise.all([
         seam.getEvent(event.id),
         seam.listEventInvitees(event.id),
         seam.getEventGuestLink(event.id),
         seam.listEventEmailInvitations(event.id),
+        seam.listMemberDirectory(),
       ]);
       if (!fresh) return;
       setState((current) =>
         current.phase === "ready"
-          ? { ...current, event: fresh, invitees: people, guestLink: link, invitations: list }
+          ? { ...current, event: fresh, invitees: people, guestLink: link, invitations: list, directory: names }
           : current,
       );
     } catch {

@@ -49,7 +49,14 @@ async function walkTo(page: Page, path: string): Promise<void> {
 
 async function createEvent(
   page: Page,
-  values: { name: string; start: string; end: string; scope?: "team" | "named" | "public"; invite?: string },
+  values: {
+    name: string;
+    start: string;
+    end: string;
+    scope?: "team" | "named" | "public";
+    invite?: string;
+    inviteEmail?: string;
+  },
 ): Promise<void> {
   await page.getByTestId("nav-events-link").click();
   await expect(page).toHaveURL(/\/events$/);
@@ -65,6 +72,9 @@ async function createEvent(
       .getByTestId("event-picker-option")
       .filter({ hasText: values.invite })
       .click();
+  }
+  if (values.inviteEmail !== undefined) {
+    await page.getByTestId("event-form-invite-input").fill(values.inviteEmail);
   }
   await page.getByTestId("event-save").click();
   await expect(page.getByTestId("event-detail")).toBeVisible();
@@ -213,12 +223,13 @@ test.describe("EVT-03 — events on the week and month grids", () => {
     await switchTo(page, MEMBER);
     await createEvent(page, { name: "Open day", start: "2026-09-23", end: "2026-09-23" });
     await createEvent(page, { name: "A team day", start: "2026-09-23", end: "2026-09-23", scope: "team" });
+    // 2026-10-21, MIR-04 / ADR-066 1: the picker no longer offers another team; named by email instead.
     await createEvent(page, {
       name: "Named B",
       start: "2026-09-23",
       end: "2026-09-23",
       scope: "named",
-      invite: NAMES.otherTeam,
+      inviteEmail: OTHER_TEAM,
     });
     await createEvent(page, {
       name: "Named A",
