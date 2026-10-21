@@ -1475,7 +1475,8 @@ Tickets that cannot proceed until a human decides something. Name the decision, 
 
 | # | Ticket | Blocked on | Since | Who decides |
 |---|--------|------------|-------|-------------|
-| 1 | MIR-05 | `20260905120100_adm02_holiday_seed.sql` must parse at HEAD (99-questions.md option A) — the operator's rows land by their own pull request, then `/review` re-runs | 2026-10-21 | operator |
+
+**`MIR-05` left this table on 2026-10-21**: the operator's holiday rows merged in [#169](https://github.com/didi-code0980/calechip/pull/169) (99-questions.md option A); `/review` re-ran in a fresh session and passed. State back to `REVIEW`.
 
 **`CICD-05` left this table on 2026-10-14**: the operator chose option 3 — `src/components/TopBar.tsx` from the three chore commits ships with the ticket as an accepted exception (note in its `ticket.yaml`). State back to `REVIEW`; `/review` re-runs in a fresh session.
 
