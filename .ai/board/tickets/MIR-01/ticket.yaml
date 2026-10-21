@@ -4,16 +4,20 @@
 # state enum: TRIAGE BACKLOG PLAN READY IN_PROGRESS REVIEW REWORK ESCALATED DONE
 id: MIR-01
 title: "The service role key and the anon key are rotated, and the rotation is recorded"
-feature_ids: []       # a MIR item implements no registry feature; the features it affects are in expected_impact
-group: ""             # MIR is a plan family, not a registry group — features.md: extending the prefixes needs an ADR
-state: BACKLOG
+feature_ids: [MIR-01]   # ADR-063 row; written by the steward on the operator's decision of 2026-10-20
+group: MIR           # ADR-063: MIR is the eighth feature group
+state: DONE          # `orchestrator` at /ship, 2026-10-21
 owner: ""
 branch: ""
-size_estimate: ""     # S|M - set by tech-lead-design at PLAN; gates DoR
-size: ""              # S|M|L|XL - set by tech-lead-design at PLAN; decides splitting
+size_estimate: "S"    # S|M - set by tech-lead-design at PLAN; gates DoR
+size: "S"             # S|M|L|XL - set by tech-lead-design at PLAN; decides splitting
 depends_on: []   # "Blocked by" — the MIR IDs that must be DONE first
-invariants_touched: []
-allowed_paths: []
+invariants_touched: []   # tech-lead-design at PLAN, 2026-10-21: no entry, count or membership is touched
+allowed_paths:   # tech-lead-design at PLAN, 2026-10-21 — 01-plan.md § 7
+  - "docs/ops/key-rotation.md"
+  - "docs/ops/ci-cd.md"
+  - ".gitignore"
+  - ".ai/board/tickets/MIR-01/**"
 glossary_owed: []
 schema_delta: none
 requires_adr: false
@@ -22,8 +26,8 @@ chat_budget:
   developer->tech-lead-design: { used: 0, max: 6 }
 tracker: { provider: "", external_id: "", sync_enabled: false }
 gates:
-  plan:   { passed: false, at: null }
-  review: { passed: false, at: null }
+  plan:   { passed: true, at: "2026-10-21T16:23:36+07:00" }
+  review: { passed: true, at: "2026-10-21T16:56:51+07:00" }   # orchestrator at /advance, from 04-review.md verdict: PASS
 
 # --- MIR extra fields ---------------------------------------------------------------------------
 # Not in .ai/templates/ticket.yaml. Added for the multi-tenancy plan; nothing in scripts/ reads them.

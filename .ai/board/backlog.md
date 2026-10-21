@@ -23,6 +23,10 @@ planned, sized, and safe to build** — the next stage for a row here is IN_PROG
 | # | Ticket | Title | Size | Depends on |
 |---|--------|-------|------|------------|
 
+**Empty again — `MIR-01` left this section for `## ARCHIVE` at its own ship on 2026-10-21.** Phase 0 is shipped in the loop; the key rotation itself and the `Result:` lines of `verification.md` are the operator's.
+
+**`MIR-01` moved here at /advance on 2026-10-21**, from `01-plan.md` gate PASS with all six Definition of Ready items passing; `schema_delta: none`. `feat/MIR-01` was re-cut from `main` after PR #167 and re-planned: the earlier parked `READY` copy named in the paragraphs below was on no ref when this ran. MIR-01 had no row in `## BACKLOG` on `main`, so no row left that table.
+
 **Empty again — `MIR-04` left this section for `## ARCHIVE` at its own ship on 2026-10-21.** Phase 0 is shipped except `MIR-01`, parked on `feat/MIR-01`.
 
 **`MIR-04` moved here at /advance on 2026-10-20**, from `01-plan.md` gate PASS with all six Definition of Ready items passing; `schema_delta` cites [ADR-066](../registry/decisions/ADR-066-the-member-directory-is-own-team-plus-people-the-caller-already-shares-an-event-with.md), `ACCEPTED by the operator`. Cut from `main` after PR #166; the `MIR` rows of `## BACKLOG` are still only on `feat/MIR-01`, so no row left that table on this branch. `MIR-01` stays parked at `READY` on `feat/MIR-01`.
@@ -1502,26 +1506,28 @@ các tính năng mới và đưa vào backlog"*. The four solo rows registered e
 
 | # | Ticket | Title | Shipped | PR |
 |---|--------|-------|---------|-----|
-| 1 | CICD-01 | The pull-request gate is green on `main` again, with each failing end-to-end test quarantined against a ticket in a register | 2026-10-13 | PENDING_PR |
-| 2 | CICD-02 | A push to a feature branch gets lint, typecheck and unit results within about three minutes, and a pull request runs the full gate as named, required checks | 2026-10-13 | [#131](https://github.com/didi-code0980/calechip/pull/131) |
-| 3 | CICD-03 | Every merge to `main` builds one image, pushes it to Docker Hub tagged by its commit, and smoke-tests it against the image's health endpoint | 2026-10-13 | [#132](https://github.com/didi-code0980/calechip/pull/132) |
-| 4 | CICD-04 | A version tag on `main` promotes the image already built for that commit, by digest and without rebuilding, and opens a release pull request in the deployment repository | 2026-10-14 | [#133](https://github.com/didi-code0980/calechip/pull/133) |
-| 5 | CICD-05 | The deployment repository deploys only CaleChip from merged config, health-checks it and restores the previous version on failure — drafted in this repository | 2026-10-14 | [#134](https://github.com/didi-code0980/calechip/pull/134) |
-| 6 | CICD-06 | The pipeline, its secrets, how to cut a release and how to roll one back are written down, and the standards that describe CI match it | 2026-10-14 | [#135](https://github.com/didi-code0980/calechip/pull/135) |
-| 7 | CICD-07 | The self-hosted runner on the WSL server has a hand-run setup runbook, and the deploy workflow selects it by the label `mmlabs-server` | 2026-10-14 | [#138](https://github.com/didi-code0980/calechip/pull/138) |
-| 8 | EVT-12 | The creator or an admin of an *Own team* or *Limited people* event invites people by email, a member outside its reach is added to its named list, and *Named people* is relabelled *Limited people* | 2026-10-14 | [#140](https://github.com/didi-code0980/calechip/pull/140) |
-| 9 | EVT-13 | A signed-in member who opens a guest link to an event they can read is taken to the event in the app | 2026-10-15 | [#141](https://github.com/didi-code0980/calechip/pull/141) |
-| 10 | UIE-12 | The way to join an event stays in view while its page scrolls, on `/events/:id` and on `/guest/:token` | 2026-10-15 | [#145](https://github.com/didi-code0980/calechip/pull/145) |
-| 11 | EVT-14 | A signed-out reader of a guest link is offered sign-in and sign-up, and signing in returns them to the event | 2026-10-15 | [#146](https://github.com/didi-code0980/calechip/pull/146) |
-| 12 | TSK-01 | A member keeps a private list of tasks for each day, and only they can read or change it | 2026-10-15 | [#149](https://github.com/didi-code0980/calechip/pull/149) |
-| 13 | TSK-05 | Ticking a task done or not done changes on screen at once, and the server's answer confirms or undoes it | 2026-10-16 | [#150](https://github.com/didi-code0980/calechip/pull/150) |
-| 14 | TSK-02 | Each time the app opens, a member is shown their overdue tasks and can tick them or move them all to today | 2026-10-17 | [#153](https://github.com/didi-code0980/calechip/pull/153) |
-| 15 | TSK-03 | A member declaring PTO is warned about their own tasks on those days, without being stopped | 2026-10-17 | [#155](https://github.com/didi-code0980/calechip/pull/155) |
-| 16 | TSK-04 | The week view shows, in each day's header, how many of the viewer's own tasks are done out of the total | 2026-10-18 | [#156](https://github.com/didi-code0980/calechip/pull/156) |
-| 17 | TSK-06 | The task page shows the week around the selected day, with progress, and a task may carry an optional time of day | 2026-10-18 | PENDING_PR |
-| 18 | MIR-02 | A member's own role, status and team can be changed only through bounded, definer-checked paths | 2026-10-20 | [#165](https://github.com/didi-code0980/calechip/pull/165) |
-| 19 | MIR-03 | Role changes are bounded to members the admin administers, promotion to admin is a separately gated action, and every role change records its actor | 2026-10-20 | [#166](https://github.com/didi-code0980/calechip/pull/166) |
-| 20 | MIR-04 | The member directory returns only members of the caller's own teams, and the event-invitee check is audited | 2026-10-21 | PENDING_PR |
+| 1 | CICD-02 | A push to a feature branch gets lint, typecheck and unit results within about three minutes, and a pull request runs the full gate as named, required checks | 2026-10-13 | [#131](https://github.com/didi-code0980/calechip/pull/131) |
+| 2 | CICD-03 | Every merge to `main` builds one image, pushes it to Docker Hub tagged by its commit, and smoke-tests it against the image's health endpoint | 2026-10-13 | [#132](https://github.com/didi-code0980/calechip/pull/132) |
+| 3 | CICD-04 | A version tag on `main` promotes the image already built for that commit, by digest and without rebuilding, and opens a release pull request in the deployment repository | 2026-10-14 | [#133](https://github.com/didi-code0980/calechip/pull/133) |
+| 4 | CICD-05 | The deployment repository deploys only CaleChip from merged config, health-checks it and restores the previous version on failure — drafted in this repository | 2026-10-14 | [#134](https://github.com/didi-code0980/calechip/pull/134) |
+| 5 | CICD-06 | The pipeline, its secrets, how to cut a release and how to roll one back are written down, and the standards that describe CI match it | 2026-10-14 | [#135](https://github.com/didi-code0980/calechip/pull/135) |
+| 6 | CICD-07 | The self-hosted runner on the WSL server has a hand-run setup runbook, and the deploy workflow selects it by the label `mmlabs-server` | 2026-10-14 | [#138](https://github.com/didi-code0980/calechip/pull/138) |
+| 7 | EVT-12 | The creator or an admin of an *Own team* or *Limited people* event invites people by email, a member outside its reach is added to its named list, and *Named people* is relabelled *Limited people* | 2026-10-14 | [#140](https://github.com/didi-code0980/calechip/pull/140) |
+| 8 | EVT-13 | A signed-in member who opens a guest link to an event they can read is taken to the event in the app | 2026-10-15 | [#141](https://github.com/didi-code0980/calechip/pull/141) |
+| 9 | UIE-12 | The way to join an event stays in view while its page scrolls, on `/events/:id` and on `/guest/:token` | 2026-10-15 | [#145](https://github.com/didi-code0980/calechip/pull/145) |
+| 10 | EVT-14 | A signed-out reader of a guest link is offered sign-in and sign-up, and signing in returns them to the event | 2026-10-15 | [#146](https://github.com/didi-code0980/calechip/pull/146) |
+| 11 | TSK-01 | A member keeps a private list of tasks for each day, and only they can read or change it | 2026-10-15 | [#149](https://github.com/didi-code0980/calechip/pull/149) |
+| 12 | TSK-05 | Ticking a task done or not done changes on screen at once, and the server's answer confirms or undoes it | 2026-10-16 | [#150](https://github.com/didi-code0980/calechip/pull/150) |
+| 13 | TSK-02 | Each time the app opens, a member is shown their overdue tasks and can tick them or move them all to today | 2026-10-17 | [#153](https://github.com/didi-code0980/calechip/pull/153) |
+| 14 | TSK-03 | A member declaring PTO is warned about their own tasks on those days, without being stopped | 2026-10-17 | [#155](https://github.com/didi-code0980/calechip/pull/155) |
+| 15 | TSK-04 | The week view shows, in each day's header, how many of the viewer's own tasks are done out of the total | 2026-10-18 | [#156](https://github.com/didi-code0980/calechip/pull/156) |
+| 16 | TSK-06 | The task page shows the week around the selected day, with progress, and a task may carry an optional time of day | 2026-10-18 | PENDING_PR |
+| 17 | MIR-02 | A member's own role, status and team can be changed only through bounded, definer-checked paths | 2026-10-20 | [#165](https://github.com/didi-code0980/calechip/pull/165) |
+| 18 | MIR-03 | Role changes are bounded to members the admin administers, promotion to admin is a separately gated action, and every role change records its actor | 2026-10-20 | [#166](https://github.com/didi-code0980/calechip/pull/166) |
+| 19 | MIR-04 | The member directory returns only members of the caller's own teams, and the event-invitee check is audited | 2026-10-21 | [#167](https://github.com/didi-code0980/calechip/pull/167) |
+| 20 | MIR-01 | The service role key and the anon key are rotated, and the rotation is recorded | 2026-10-21 | PENDING_PR |
+
+**The window displaced `CICD-01` at MIR-01's ship** — *CICD-01, The pull-request gate is green on `main` again, with each failing end-to-end test quarantined against a ticket in a register, shipped 2026-10-13,* PENDING_PR
 
 **The window displaced `EVT-11` at MIR-04's ship** — *EVT-11, A creator puts pictures in an event's description, downscaled and capped in size, shipped 2026-10-13,* [#127](https://github.com/didi-code0980/calechip/pull/127)
 
