@@ -49,6 +49,13 @@ re-deriving the design instead of fixing what the reviewer found
 every contract item in plan section 4 is
 implemented; `03-impl-log.md` lists every file touched with a one-line reason.
 
+**Run each verify command on its own, in exactly the form named.** Use `node scripts/check-allowed-paths.mjs`,
+`node scripts/check-carry.mjs <ID>`, `pnpm typecheck`, `pnpm lint`, `pnpm test`, or the `pnpm exec`
+forms in `.ai/standards/testing-standards.md`. One per Bash call. The exit code is in the tool
+result, so do not add `; echo "EXIT=$?"`, a `cd`, or a pipe. Under the runner nothing can approve a
+prompt, so a compound command is denied even when each part is allowed. That is how MIR-08's first
+review lost R1–R3 (run 20261023-065554).
+
 Check the branch first. `guard-allowed-paths.mjs` resolves the ticket from `feat/<ID>`, so work done
 on another branch name runs with the path guard inactive.
 
