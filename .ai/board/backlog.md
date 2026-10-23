@@ -23,6 +23,8 @@ planned, sized, and safe to build** — the next stage for a row here is IN_PROG
 | # | Ticket | Title | Size | Depends on |
 |---|--------|-------|------|------------|
 
+**`MIR-08` moved here at /advance on 2026-10-23**, from `01-plan.md` gate PASS with all six Definition of Ready items passing; `schema_delta: none`. MIR-08 had no row in `## BACKLOG`, so no row left that table.
+
 **Empty again — `MIR-07` left this section for `## ARCHIVE` at its own ship on 2026-10-23.**
 
 **`MIR-07` is at `REVIEW` in `ticket.yaml`, `gates.review` passed** — recorded at /advance on 2026-10-23 from `04-review.md` verdict PASS. The row stays here until `/ship` moves it to `## ARCHIVE`.

@@ -2,7 +2,7 @@
 ticket: MIR-08
 stage: PLAN
 agent: tech-lead-design
-produced_at: 2026-10-23T03:18:50Z
+produced_at: 2026-10-23T04:12:33Z
 inputs_read:
   - .ai/board/tickets/MIR-08/ticket.yaml
   - .ai/registry/features.md
@@ -10,6 +10,7 @@ inputs_read:
   - .ai/registry/decisions/ADR-026-db-sql-carries-the-target-schema.md
   - .ai/registry/decisions/ADR-064-a-person-cannot-change-their-own-role-status-or-team.md
   - .ai/registry/decisions/ADR-065-role-changes-are-own-team-promotion-is-its-own-action-and-every-change-is-recorded.md
+  - .ai/registry/decisions/ADR-067-the-runner-pushes-merges-and-decides-blocked-questions-on-its-own.md
   - .ai/board/plans/calechip-multi-tenancy-plan.md
   - .ai/board/plans/multi-tenancy-status.md
   - .ai/board/audits/multi-tenancy-audit-2026-10-12.md
@@ -22,20 +23,9 @@ inputs_read:
   - supabase/migrations/
 consulted: []
 chat_before_verdict: none
-gate: BLOCKED
-blocking_reason: >-
-  Both outcomes plan item P2-1 allows supersede ADR-026, which is ACCEPTED by the operator.
-  ADR-026 decision 1 says supabase/db.sql carries the hand-transcribed target schema; "replace it
-  with the generated dump" reverses decision 1, and "delete it" retires the ADR outright. An agent
-  may not write an ADR that supersedes an accepted decision (ADR-008), so the operator owes two
-  things: (1) the choice — A, retire db.sql and name supabase/migrations/ as the only schema source
-  (recommended: it is the remedy both ADR-025 and ADR-026 name in their own revert condition 2,
-  and that condition has fired — audit A:307-337, MD-033); or B, replace db.sql with a
-  `supabase db dump --local` of the stack MIR-05 already builds, plus a CI job that regenerates it
-  and fails on a diff; and (2) the superseding ADR recording that choice, ACCEPTED by the operator.
-  Once both exist, re-run /plan MIR-08 in the Tech Lead session: it writes allowed_paths from the
-  chosen option's list in section 7 and passes.
-next_state: PLAN
+gate: PASS
+blocking_reason: ""
+next_state: READY
 ---
 
 # MIR-08 — plan
@@ -48,96 +38,82 @@ next_state: PLAN
 |---|---|---|---|
 | MIR-08 | `supabase/db.sql` is regenerated from the applied migrations or retired, and CI fails on drift | MIR | PLANNED |
 
-Source plan item P2-1 (`.ai/board/plans/calechip-multi-tenancy-plan.md:142-145`): generate the real
-schema from the applied migrations; replace `supabase/db.sql` with the generated dump, or delete it
-and document migrations as the only source; if kept, add a CI check that regenerates it and fails on
-drift.
+The source is plan item P2-1 (`.ai/board/plans/calechip-multi-tenancy-plan.md:142-145`):
+- Generate the real schema from the applied migrations.
+- Replace `supabase/db.sql` with the generated dump, or delete it and document migrations as the
+  only source.
+- If the file is kept, add a CI check that regenerates it and fails on drift.
 
-**Who gains what.** Whoever designs against the schema — a human, or a Tech Lead agent at PLAN for
-any phase 3 MIR ticket — gets one schema answer they can trust. Today `supabase/db.sql:1` calls
-itself "the whole schema" and the audit (A:307-337) found it wrong in twelve places, including
-`is_admin` and `member_team_id` bodies that predate `status = 'approved'`. Phase 3 rewrites every
-policy (`multi-tenancy-plan.md:140`), so a stale reference here is the most likely way a policy gets
-designed against a predicate that no longer runs.
+**Outcome chosen: retire** (ADR-068, see *Delegated decisions*).
+
+**Who gains what.** This ticket is for anyone who designs against the schema: a human, or a Tech
+Lead agent at PLAN for a phase 3 MIR ticket. They get one schema source that cannot disagree with
+itself.
+
+Today `supabase/db.sql:1` calls itself "the whole schema", but the audit (A:307-337) found it wrong
+in twelve places. Two of the errors are `is_admin` and `member_team_id` bodies that predate
+`status = 'approved'`. Phase 3 rewrites every policy (`multi-tenancy-plan.md:140`). A stale
+reference here is the most likely way a policy gets designed against a predicate that no longer
+runs.
 
 **Out of scope.**
-- The four P2-2 clean-ups (`issue.sql` transaction wrapping, `allowed_email` references, the
-  `member.team_id` index, the `overload_threshold` check) — MIR-09.
-- Any change to a migration, a table, a policy, a function or a grant. `db.sql` is not a migration
-  (ADR-026 decision 6); nothing here changes what the database is.
-- `.ai/standards/data-model.md` § Migrations and the `A6` row of `.ai/standards/rbac-and-security.md`
-  — standards plane, human-only (RULE-01). Owed by the superseding ADR's *Changed by* table.
-- `.ai/board/model-debt.md` MD-033 — closed by whoever records the outcome, not by this ticket.
-- Dumping the hosted project — refused by ADR-024 §3 and ADR-025's fourth option; any generation is
-  against the local stack only (`scripts/db-test.mjs` `REFUSED_FLAGS`).
+- **The four P2-2 clean-ups.** These are `issue.sql` transaction wrapping, the `allowed_email`
+  references, the `member.team_id` index and the `overload_threshold` check. They belong to MIR-09.
+- **Any change to the database.** No migration, table, policy, function or grant changes. `db.sql`
+  was never a migration (ADR-026 decision 6).
+- **A replacement artifact.** That means no generator, no dump, and no `check-docs.mjs` guard against
+  the file coming back (section 8).
+- **Standards-plane corrections.** This covers `.ai/standards/rbac-and-security.md` row A6 and
+  `.ai/standards/data-model.md`. Both are human-only (RULE-01) and are listed as owed in ADR-068.
+- **Closing MD-033 in `.ai/board/model-debt.md`.** That is the steward's job, on merge.
+- **Historical tickets, ADRs and migration comments that cite `db.sql:<line>`.** They are records
+  of their time and are left unedited.
 
-**`size_estimate`: S** (option A; M under option B — see section 7).
+**`size_estimate`: S.**
 
 ## 2. Acceptance criteria
 
-The operator's choice decides which set applies. Both are written out so the decision can be made
-against what each one ships. **AC-0 applies to both.**
-
-**AC-0**
-- Given the repository after this ticket
-- When a reader searches every non-board, non-registry file for the string `db.sql`
-- Then no file asserts a fact about `public.team` policies by citing `db.sql` (today:
-  `src/lib/data/supabase.ts:2304`, `src/routes/MonthView.tsx:293`, both citing "db.sql 9.1", which
-  the audit, discrepancy 8, found stale since cal04 and adm01)
-
-### Option A — retire
-
-**AC-A1**
-- Given `main` after this ticket merges
+**AC-1**
+- Given the branch after implementation
 - When the tree is listed
-- Then `supabase/db.sql` does not exist, and `supabase/migrations/` is unchanged byte-for-byte
+- Then `supabase/db.sql` does not exist
 
-**AC-A2**
-- Given a fresh local stack
-- When `pnpm db:test` runs
-- Then it passes exactly as before, proving nothing depended on `db.sql` to build the schema
+**AC-2 (refusal)**
+- Given the branch after implementation
+- When it is diffed against `origin/main`
+- Then no path under `supabase/migrations/`, `supabase/tests/`, `supabase/seed.sql` or
+  `supabase/config.toml` has changed
 
-### Option B — regenerate
+**AC-3**
+- Given `src/lib/data/supabase.ts` and `src/routes/MonthView.tsx`
+- When they are searched for the string `db.sql`
+- Then there is no match, and both comments that previously cited "(db.sql 9.1)" now cite
+  `supabase/migrations/20260904100000_cal04_team_select.sql` instead. The sentence each comment
+  makes is otherwise unchanged: before that migration is applied, `public.team` has no grant and no
+  policy.
 
-**AC-B1**
-- Given a clean checkout and Docker available
-- When `pnpm db:schema` runs
-- Then the local stack is reset from every migration and `supabase/db.sql` is overwritten with the
-  dump, preceded by a fixed header stating it is generated, never edited, and that
-  `supabase/migrations/` is the source
+**AC-4**
+- Given the branch after implementation
+- When `pnpm typecheck`, `pnpm lint` and `pnpm test` run
+- Then all three pass. Only comments changed in `src/`.
 
-**AC-B2**
-- Given a checkout whose `supabase/db.sql` matches a regeneration
-- When `pnpm db:schema --check` runs
-- Then it exits 0 and writes nothing
+**AC-5**
+- Given CI on the pull request
+- When the `database` job runs (`pnpm db:test`, which builds every migration and runs pgTAP)
+- Then it passes. This shows that nothing needed `db.sql` to build or test the schema. The same
+  check is the drift guarantee the feature row asks for, because the only schema source is the one
+  CI builds.
 
-**AC-B3 (refusal)**
-- Given a pull request that adds a migration without regenerating `supabase/db.sql`, or edits
-  `supabase/db.sql` by hand
-- When CI's `database` job runs
-- Then the job fails, and its log names `supabase/db.sql` and prints the diff
+**AC-6**
+- Given `.ai/registry/decisions/`
+- When ADR-026 and ADR-068 are read
+- Then ADR-026's status reads `SUPERSEDED by ADR-068`, its original status line is kept, and
+  ADR-068 is `ACCEPTED by tech-lead-design under the operator's delegation (ADR-067)`
 
-**AC-B4 (refusal)**
-- Given any of `--linked`, `--db-url`, `--project-ref` on the command line
-- When `pnpm db:schema` runs
-- Then it exits 2 before spawning anything, as `db:test` does
+**Invariants touched:** `[]`. No row, policy, function or grant changes. The file being retired
+describes the schema; it is not the schema.
 
-**AC-B5**
-- Given the regenerated file
-- When it is compared against the audit's twelve discrepancies (A:307-337)
-- Then none of the twelve remains — including the `auth.users` sync triggers (discrepancy 6), which
-  live outside `public` and so must be in the dumped schema set
-
-**Invariants touched:** `[]`. No row, policy, function or grant changes under either option; the
-file being retired or regenerated is documentation of the schema, not the schema.
-
-**Open questions.**
-1. **A or B** — blocking; the operator's, because either supersedes ADR-026. See `blocking_reason`.
-2. Under B only: which schemas the dump covers. `public` alone misses the `auth.users` triggers
-   (AC-B5); `public` plus `auth` dumps Supabase-owned objects that change with the CLI version and
-   would produce drift nobody caused. `TODO(verify)` against the CLI's own `db dump --help` —
-   the Supabase CLI is on the *past reliable recall* list, and the help could not be read in this
-   session (the command needed approval and this session has no approval surface).
+**Open questions:** none.
 
 ### 2b. Visual reference
 
@@ -147,105 +123,74 @@ Visual reference: none. The layout below is the Tech Lead's own and was never sp
 
 ## 3. Permission model
 
-No role gains or loses any capability; no RLS policy, grant or definer function is touched. The
-only actor is the CI runner and a developer's machine, both against the **local** stack only —
-the refusal of `--linked`, `--db-url` and `--project-ref` (AC-B4, mirroring `scripts/db-test.mjs`)
-is the boundary that keeps the hosted project's credentials out (ADR-024 §3). Applying anything to
-the hosted project stays human (RULE-09); neither option applies anything.
+No role gains or loses any capability. No RLS policy, grant or definer function is touched, so
+there is no server-side check to add and no denial changes. Applying anything to the hosted project
+remains human (RULE-09), and this ticket applies nothing.
 
 ## 4. Contract
 
-**Option A:** none. No entry point is added; one file is deleted and two comments are reworded.
-
-**Option B** (provisional; field and flag names fixed here so the Developer does not invent them):
-
-```js
-// scripts/build-db-sql.mjs
-export const REFUSED_FLAGS = ["--linked", "--db-url", "--project-ref"];
-export const OUTPUT_PATH = "supabase/db.sql";
-export const HEADER = "-- GENERATED by `pnpm db:schema` from supabase/migrations/. Never edit by hand.\n"
-  + "-- supabase/migrations/ is the only source of the schema. CI fails on any difference.\n";
-/** @returns {string|null} the first refused flag in argv, or null */
-export function refusedFlag(argv) {}
-/** @returns {{ name: string, args: string[] }[]} pure; the CLI invocations, in order */
-export function steps(outFile) {}           // start, `db reset --local`, `db dump --local … -f <outFile>`
-/** @returns {0|1|2} 0 written or unchanged, 1 drift under --check, 2 refused flag or CLI failure */
-export function main(argv) {}
-```
-
-```json
-// package.json "scripts"
-"db:schema": "node scripts/build-db-sql.mjs"
-```
-
-```yaml
-# .github/workflows/verify.yml, job `database`, after `pnpm db:test`
-- name: db.sql matches the migrations
-  run: pnpm db:schema --check
-```
-
-The exact `db dump` flags are `TODO(verify)` — open question 2.
+None. No entry point, type, field or schema is added or changed. The whole implementation is:
+- delete `supabase/db.sql`;
+- in each of the two comments, replace the parenthetical `(db.sql 9.1)` with
+  ``(`supabase/migrations/20260904100000_cal04_team_select.sql`)``. The comments are at
+  `src/lib/data/supabase.ts:2304` and `src/routes/MonthView.tsx:293`.
 
 ## 5. Seam impact
 
-None. `src/lib/data/` changes in comments only (AC-0); no function, name or arity changes.
+None. `src/lib/data/supabase.ts` changes in one comment only; no function, name or arity changes.
 
 ## 6. Schema delta
 
-`none`. Neither option creates, alters or drops a database object; ADR-026 decision 6 already holds
-that `db.sql` is not a migration. `requires_adr: true` is for a different reason — the superseding
-ADR on ADR-026 — and is not a schema ADR.
+`none`. No database object is created, altered or dropped. `requires_adr: true` is set because
+ADR-068 supersedes ADR-026, not because the schema changes. ADR-068 is written and linked.
 
 ## 7. allowed_paths
 
-**Written back as `[]`.** With the option undecided, enumerating either list would grant write scope
-for a decision nobody has made. The two lists below are what a re-run writes, verbatim.
-
-Option A — 3 paths, `size: S`:
-
 ```yaml
 allowed_paths:
+  - ".ai/registry/decisions/ADR-068-db-sql-is-retired-and-the-migrations-are-the-only-schema-source.md"
+  - ".ai/registry/decisions/ADR-026-db-sql-carries-the-target-schema.md"
   - "supabase/db.sql"
   - "src/lib/data/supabase.ts"
   - "src/routes/MonthView.tsx"
 ```
 
-Option B — 8 paths, `size: M`:
+The two ADR paths were added before they were written. Both are already complete at PLAN, and the
+Developer does not touch them.
 
-```yaml
-allowed_paths:
-  - "supabase/db.sql"
-  - "scripts/build-db-sql.mjs"
-  - "scripts/tests/build-db-sql.test.mjs"
-  - "package.json"
-  - ".github/workflows/verify.yml"
-  - ".ai/templates/plan.md"          # every migration-bearing ticket lists supabase/db.sql
-  - "src/lib/data/supabase.ts"
-  - "src/routes/MonthView.tsx"
-```
-
-`size` is written as `S`, against the recommended option; it becomes `M` if the operator picks B.
-`size_estimate` and `size` agree under A and disagree under B, because B adds a generator, its test,
-a CI step and a template obligation that A does not need.
-
-`glossary_owed` is `[]`; no glossary row is written.
+`size: S`, which agrees with `size_estimate`. `glossary_owed` is `[]`, so no glossary row is written.
 
 ## 8. Rejected alternatives
 
-- **Hand-correct `db.sql` for the twelve discrepancies and keep ADR-026 as it is.** The cheapest
-  edit and inside the current decision, which is why it is the obvious one. Rejected: it is exactly
-  what ADR-026's own *Consequences* says cannot hold — group 1 "can drift out of step with the
-  migrations and nothing will say so" — and it already did, twelve times (MD-033). It also fails the
-  feature row as written, which requires the file to be regenerated or retired, and CI to catch drift.
-- **Option B with a concatenation generator** (ADR-025's `build-db-sql.mjs`: migrations in filename
-  order, untransformed). Needs no Docker and no CLI flags. Rejected: concatenation reproduces history,
-  not the resulting schema — `is_admin` would appear in both its TEA-01 and its `member_approval`
-  body, which is discrepancy 10 restated rather than fixed.
-- **Under A, add a `check-docs.mjs` check that fails if `supabase/db.sql` reappears.** Considered,
-  not planned: the feature row asks for a drift check only if the file is kept. If the operator wants
-  the guard, it is one path and stays `S`.
+- **Regenerate the file instead (option B).** This means a `supabase db dump --local` of the MIR-05
+  stack, plus a CI step that fails on a diff. It is plausible because the stack already exists in CI.
+  Rejected (ADR-068 § Rationale):
+  - Every migration-bearing ticket would also have to regenerate the file.
+  - The dump format follows the CLI and Postgres versions, so an upgrade causes drift that no ticket
+    caused.
+  - `public` alone misses the `auth.users` triggers, and adding `auth` pulls in objects Supabase owns.
+- **Hand-correct the twelve discrepancies and keep ADR-026.** This is the cheapest edit. Rejected
+  because it is the regime that already drifted twelve times (MD-033), and it fails the feature row,
+  which requires the file to be regenerated or retired.
+- **Concatenate the migrations, as ADR-025's generator would.** This needs no Docker. Rejected
+  because a concatenation reproduces history rather than the resulting schema. `is_admin` would
+  appear in both its TEA-01 body and its `member_approval` body, so discrepancy 10 would be restated
+  rather than fixed.
+- **Add a `check-docs.mjs` check that fails if `db.sql` reappears.** Not planned. The feature row
+  asks for a drift check only if the file is kept, and the check would be a new piece of model
+  surface (`/thuki` territory) guarding against an unlikely event.
+
+## Delegated decisions
+
+- ADR-068: retire `supabase/db.sql` and name `supabase/migrations/` as the only schema source. It
+  supersedes ADR-026 and was taken under ADR-067. Options A (retire), B (regenerate) and C
+  (hand-correct) are recorded in the ADR.
 
 ## Changelog
 
-- `2026-10-23T03:18:50Z` — plan written, `gate: BLOCKED` on the A/B choice and the superseding ADR
-  for ADR-026. Raised by `tech-lead-design`.
+- `2026-10-23T03:18:50Z` — plan written, `gate: BLOCKED` on the retire-or-regenerate choice and the
+  superseding ADR for ADR-026. Raised by `tech-lead-design`.
+- `2026-10-23T04:12:33Z` — re-run under ADR-067. Took option A, wrote ADR-068 and marked ADR-026
+  superseded. Sections 1, 2, 4, 6, 7 and 8 were rewritten for option A only; the option B ACs and
+  their contract were dropped; the open questions were resolved. Gate is now PASS. Raised by
+  `tech-lead-design`. Amended by `tech-lead-design`.

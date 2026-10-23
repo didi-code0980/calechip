@@ -8,6 +8,8 @@ governed_by: [RULE-01, RULE-04, RULE-09]
 
 ## Status
 
+`SUPERSEDED by ADR-068` — 2026-10-23, under the operator's delegation (ADR-067). Original status, kept:
+
 `ACCEPTED by the operator` — 2026-09-04, in answer to the `/triage` question recorded in Context
 below.
 
