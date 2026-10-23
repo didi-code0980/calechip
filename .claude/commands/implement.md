@@ -57,6 +57,11 @@ The Developer may consult `tech-lead-design` by writing
 `tech-lead-review` or `qa` before their verdicts exist — `chat-guard.mjs` blocks that write
 (RULE-12).
 
+**Do not address `99-questions.md` to the operator for a decision you can recommend an answer to.**
+Under ADR-067 the runner stops on such a file and nobody is waiting to answer it. Take the option you
+recommend, record it under `## Delegated decisions` in `03-impl-log.md`, and continue. Address the
+operator only for a fact only a person holds.
+
 On PASS, set the ticket to `REVIEW` and **print the next command and its session** — do not invoke
 it:
 

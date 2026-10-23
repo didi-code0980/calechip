@@ -217,10 +217,12 @@ Two limits are not the orchestrator's to weigh:
 
 - **`main` is never a commit or a push target.** `git push origin main` and `git push --force` stay
   denied in settings.
-- **Merging stays human.** RULE-09. `gh pr merge` stays denied.
+- **No agent merges.** RULE-09. `gh pr merge` stays denied to every agent. The runner's own code
+  merges after its merge gate passes — ADR-067.
 
-`git push` is deliberately absent from the allow list, so every push prompts once. That prompt is the
-last point at which a human sees a branch name before history exists.
+`git push origin feat/*` is on the allow list since ADR-067. *Until then: "`git push` is deliberately
+absent from the allow list, so every push prompts once. That prompt is the last point at which a human
+sees a branch name before history exists."*
 
 ### The second exception: a direct instruction
 
@@ -249,8 +251,10 @@ Design contract items 1-4. Files listed in 03-impl-log.md.
 
 ## Pull requests
 
-The loop's terminal output is an **open pull request**, never a merge. Per RULE-09, merges are
-permanently human.
+`/ship`'s terminal output is an **open pull request**, never a merge. Under RULE-09 v3 a pull request
+is merged by a person, or by `scripts/run-loop.mjs` itself once `mergeGate` passes (ADR-067). The
+gate is every reported check green; when no check reports, it is local typecheck, lint and unit
+exiting 0. *Until 2026-10-23: "Per RULE-09, merges are permanently human."*
 
 `/ship` runs the build, marks the ticket DONE, and opens **one** PR with `gh pr create` — ADR-023.
 `gh pr merge` is in the settings deny list, so an agent that tries to merge is blocked rather than

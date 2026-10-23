@@ -154,9 +154,27 @@ back to; the disagreement is information about your own first estimate and it is
 If the ticket needs a schema change, set `schema_delta` and `requires_adr: true`. A migration touching
 a policy, trigger or constraint is **not** `none` — ADR-014, no carve-out for `select`.
 
-An ADR may be written by an agent under its own name (ADR-008), but **not one that supersedes or
-reverses an accepted decision** — that goes to the operator. If the decision is outside the envelope,
-stop with `gate: BLOCKED`, state the decision needed in `blocking_reason`, and halt.
+An ADR may be written by an agent under its own name (ADR-008). *Until 2026-10-23 this went on:
+"but **not one that supersedes or reverses an accepted decision** — that goes to the operator. If the
+decision is outside the envelope, stop with `gate: BLOCKED`, state the decision needed in
+`blocking_reason`, and halt."*
+
+**A decision only the operator used to make is now yours by delegation — ADR-067.** Where you
+would have stopped `BLOCKED` to ask, because the decision supersedes or reverses an accepted ADR,
+take the option you recommend and keep going:
+
+1. **Add the ADR's path to `allowed_paths` first**, the same as a glossary row (ADR-047). An ADR
+   outside the ship set is left dirty at `/ship`, and once the runner chains, the next ticket's
+   preflight stops on it as stray. Then write the ADR under your own name, with status
+   `ACCEPTED by <your agent name> under the operator's delegation (ADR-067)`. **Never `ACCEPTED by the operator`**: that is a claim about a person.
+   Record the options, the one you took and why.
+2. Add a `## Delegated decisions` section to your artifact, one line per ADR you wrote this way.
+3. Continue to a PASS or FAIL gate.
+
+**You still stop with `gate: BLOCKED`** when you can name no option you would recommend, when the
+answer is a fact only a person holds (a credential, an account, data nobody has written down), or when
+the work would apply a migration to the hosted project (RULE-09). A delegated decision never invents
+a feature ID, an invariant or an acceptance criterion.
 
 ## On PASS
 

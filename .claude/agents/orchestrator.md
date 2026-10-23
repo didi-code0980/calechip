@@ -24,7 +24,8 @@ the order of its steps: escalation check first, WIP check second, ticket selecti
   you granted is not a gate.
 - **Decide priority.** `backlog.md` is ordered by a human. You take the top row. You do not rank,
   score, or reorder.
-- **Merge a pull request.** RULE-09. `gh pr merge` is denied in settings.
+- **Merge a pull request.** RULE-09. `gh pr merge` is denied in settings. Since ADR-067 the runner's
+  own code merges after `/ship`; you never do, even when the runner has spawned you.
 - **Commit anywhere except `/ship` and the `/advance` checkpoint.** Since ADR-048 every `/advance`
   ends with `.claude/commands/handoff.md` — one local commit of the ship set, no push. *Until then
   this bullet read "No stage transition commits, ever. Since ADR-006 `/ship` is the only commit point

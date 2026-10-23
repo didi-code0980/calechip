@@ -25,7 +25,7 @@ import { fileURLToPath } from "node:url";
 import {
   nextStep, advanceSimulated, sessionFor, reviewStop, questionStop, budgetStop,
   inAllowedPaths, validateEntry, buildArgv, parseArgv, SESSION_POLICY, TICKET_ID,
-  readQuestions,
+  readQuestions, pickNext, checksVerdict,
 } from "../run-loop.mjs";
 import { intakePrompt } from "../lib/prompts.mjs";
 
@@ -430,3 +430,70 @@ test("the runner imports node built-ins and repository files only", () => {
     }
   }
 });
+
+// --- ADR-067: chain, merge gate, denials --------------------------------------------------------
+
+test("--chain takes the lowest-numbered same-group ticket whose depends_on are all DONE", () => {
+  const tickets = [
+    { id: "MIR-07", group: "MIR", state: "DONE", depends_on: [] },
+    { id: "MIR-10", group: "MIR", state: "BACKLOG", depends_on: ["MIR-08", "MIR-09"] },
+    { id: "MIR-09", group: "MIR", state: "BACKLOG", depends_on: ["MIR-07"] },
+    { id: "MIR-08", group: "MIR", state: "DONE", depends_on: [] },
+    { id: "CICD-08", group: "CICD", state: "BACKLOG", depends_on: [] },
+    { id: "MIR-11", group: "MIR", state: "ESCALATED", depends_on: [] },
+  ];
+  assert.equal(pickNext(tickets, "MIR").id, "MIR-09");
+  assert.equal(pickNext(tickets.filter((t) => t.id !== "MIR-09"), "MIR"), null,
+    "MIR-10 waits on MIR-09, and an ESCALATED ticket is never picked");
+  assert.equal(pickNext(tickets, undefined), null, "no group, no chain");
+});
+
+test("--chain orders by number, not by string: MIR-10 comes after MIR-9", () => {
+  const tickets = [
+    { id: "MIR-10", group: "MIR", state: "BACKLOG", depends_on: [] },
+    { id: "MIR-9", group: "MIR", state: "BACKLOG", depends_on: [] },
+  ];
+  assert.equal(pickNext(tickets, "MIR").id, "MIR-9");
+});
+
+test("the merge gate reads check runs and status contexts, and an empty rollup is 'none'", () => {
+  assert.equal(checksVerdict([]), "none");
+  assert.equal(checksVerdict(undefined), "none");
+  assert.equal(checksVerdict([{ status: "COMPLETED", conclusion: "SUCCESS" },
+                              { status: "COMPLETED", conclusion: "SKIPPED" }]), "pass");
+  assert.equal(checksVerdict([{ status: "IN_PROGRESS", conclusion: "" }]), "pending");
+  assert.equal(checksVerdict([{ status: "COMPLETED", conclusion: "FAILURE" },
+                              { status: "IN_PROGRESS" }]), "fail", "a failure is final even while others run");
+  assert.equal(checksVerdict([{ __typename: "StatusContext", state: "SUCCESS" }]), "pass");
+  assert.equal(checksVerdict([{ __typename: "StatusContext", state: "PENDING" }]), "pending");
+  assert.equal(checksVerdict([{ __typename: "StatusContext", state: "ERROR" }]), "fail");
+});
+
+test("--chain and --no-merge parse, and refuse each other", () => {
+  const o = parseArgv(["auto", "MIR-08", "--chain"]);
+  assert.equal(o.chain, true);
+  assert.equal(o.noMerge, false);
+  assert.equal(parseArgv(["auto", "MIR-08", "--no-merge"]).noMerge, true);
+  assert.throws(
+    () => execFileSync(process.execPath, [SCRIPT, "auto", "MIR-08", "--chain", "--no-merge"],
+                       { encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] }),
+    (e) => e.status === 1 && /--chain needs the merge/.test(String(e.stderr)),
+  );
+});
+
+test("a permission denial is a warning, not a failed step (ADR-067 decision 6)", () => {
+  const src = fs.readFileSync(SCRIPT, "utf8");
+  const body = /function stepFailure\(out\) \{([\s\S]*?)\n\}/.exec(src)?.[1] ?? "";
+  assert.ok(body.length > 0, "stepFailure not found");
+  assert.ok(!/permission_denials/.test(body), "stepFailure must not fail a step on a denial");
+  assert.match(src, /report\.warnings\.push/, "denials are recorded in REPORT.md");
+});
+
+test("no agent merges: the deny rule stays, and only mergeTicket calls gh pr merge", () => {
+  const settings = JSON.parse(fs.readFileSync(path.resolve(path.dirname(SCRIPT), "..", ".claude", "settings.json"), "utf8"));
+  assert.ok(settings.permissions.deny.includes("Bash(gh pr merge:*)"));
+  assert.ok(!settings.permissions.allow.some((r) => /gh pr merge/.test(r)));
+  const src = fs.readFileSync(SCRIPT, "utf8");
+  assert.equal((src.match(/gh\("pr", "merge"/g) ?? []).length, 1, "exactly one merge call site");
+});
+

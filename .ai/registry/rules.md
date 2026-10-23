@@ -1,6 +1,6 @@
 ---
-doc_version: 5
-last_updated: 2026-10-09
+doc_version: 6
+last_updated: 2026-10-23
 governed_by: [RULE-01, RULE-09]
 ---
 
@@ -36,7 +36,7 @@ enforcement map below, which is the point of that table.
 | RULE-06 | Two failed rework cycles escalate. There is no third attempt. | 1 | — |
 | RULE-07 | An invariant violation escalates on first occurrence and never enters REWORK. | 1 | — |
 | RULE-08 | Only Developer-caused failures increment `rework_count`. | 1 | — |
-| RULE-09 | Schema changes and PR merges are permanently human. An ADR may be accepted by an agent, recorded under that agent's name; `ACCEPTED by the operator` remains a claim about a person. | 2 | — |
+| RULE-09 | Applying a schema change to a hosted database is permanently human. A pull request is merged by a person, or by the runner's own code when its merge gate passes (ADR-067); never by an agent. An ADR may be accepted by an agent, recorded under that agent's name; `ACCEPTED by the operator` remains a claim about a person. | 3 | — |
 | RULE-10 | Git is the source of truth. The tracker is a mirror and is never on the critical path. | 1 | — |
 | RULE-11 | Agents may chat for clarification. The written artifact is the only binding output. | 1 | — |
 | RULE-12 | An agent may not chat with the agent that will judge its work before that judgement is written to file. | 1 | — |
@@ -62,7 +62,7 @@ real, so that a rule with no mechanism is visible as such rather than assumed to
 | RULE-06 | Orchestrator dispatch loop; `rework_count` in `ticket.yaml` |
 | RULE-07 | Review check R7; failure routing table sends R7 to a human |
 | RULE-08 | Failure routing table; only the Developer column increments |
-| RULE-09 | `.github/CODEOWNERS`, branch protection, `gh pr merge` denied in settings. The `Status` line names who accepted — ADR-008 |
+| RULE-09 | `gh pr merge` denied to every agent in settings; the runner merges only through `mergeGate` in `scripts/run-loop.mjs` (ADR-067). `.github/CODEOWNERS` and branch protection for a person's merge. The `Status` line names who accepted — ADR-008, and ADR-067 for a delegated decision |
 | RULE-10 | `sync_enabled` defaults to false; no gate reads tracker state |
 | RULE-11 | Artifact front-matter `consulted` block |
 | RULE-12 | `.claude/hooks/chat-guard.mjs`; front-matter attestation `chat_before_verdict` |

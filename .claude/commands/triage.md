@@ -92,9 +92,11 @@ Then one of two things, and the test is not a judgement call:
 
 - **The decision sits inside what is already decided** — accept it yourself, `ACCEPTED by <agent>`
   (RULE-09, ADR-008). The operator reviews it at merge.
-- **The decision would supersede or reverse an accepted ADR** — stop and ask, in one question. That
-  is changing the envelope rather than working inside it, and `ACCEPTED by the operator` is a claim
-  about a person that you may not write on their behalf.
+- **The decision would supersede or reverse an accepted ADR** — take the option you recommend
+  under the operator's delegation (ADR-067), and write the ADR as `ACCEPTED by <agent> under the
+  operator's delegation (ADR-067)`. Never write `ACCEPTED by the operator` on their behalf. Stop and
+  ask only when you can name no option you would recommend. *Until 2026-10-23: "stop and ask, in one
+  question. That is changing the envelope rather than working inside it."*
 
 **Where the idea file already quotes the operator confirming the decision, verbatim, under
 `## Evidence`, that quote is the words you point at**: write `ACCEPTED by the operator`, cite the
