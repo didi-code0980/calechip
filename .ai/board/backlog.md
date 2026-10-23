@@ -24,7 +24,7 @@ planned, sized, and safe to build** — the next stage for a row here is IN_PROG
 |---|--------|-------|------|------------|
 | 1 | MIR-07 | The mock is no looser than SQL on any permission decision, and a parity test enforces it | M | — |
 
-**`MIR-07` is at `REVIEW` in `ticket.yaml`** — recorded at /advance on 2026-10-23 from `03-impl-log.md` gate PASS. The row stays here until `/ship` moves it to `## ARCHIVE`.
+**`MIR-07` is at `REVIEW` in `ticket.yaml`, `gates.review` passed** — recorded at /advance on 2026-10-23 from `04-review.md` verdict PASS. The row stays here until `/ship` moves it to `## ARCHIVE`.
 
 **`MIR-07` moved here at /advance on 2026-10-23**, from `01-plan.md` gate PASS with all six Definition of Ready items passing; `schema_delta: none`. MIR-07 had no row in `## BACKLOG`, so no row left that table.
 
