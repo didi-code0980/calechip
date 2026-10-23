@@ -24,7 +24,7 @@ planned, sized, and safe to build** — the next stage for a row here is IN_PROG
 |---|--------|-------|------|------------|
 | 1 | MIR-06 | An SQL isolation suite proves each boundary as a real authenticated role against real policies | M | — |
 
-**`MIR-06` is at `REVIEW` in `ticket.yaml`** — recorded at /advance on 2026-10-23 from `03-impl-log.md` gate PASS. The row stays here until `/ship` moves it to `## ARCHIVE`.
+**`MIR-06` is at `REVIEW` in `ticket.yaml`, `gates.review` passed** — recorded at /advance on 2026-10-23 from `04-review.md` verdict PASS. The row stays here until `/ship` moves it to `## ARCHIVE`.
 
 **`MIR-06` moved here at /advance on 2026-10-23**, from `01-plan.md` gate PASS with all six Definition of Ready items passing; `schema_delta: none`. MIR-06 had no row in `## BACKLOG`, so no row left that table.
 
