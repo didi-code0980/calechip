@@ -23,6 +23,8 @@ planned, sized, and safe to build** — the next stage for a row here is IN_PROG
 | # | Ticket | Title | Size | Depends on |
 |---|--------|-------|------|------------|
 
+**`MIR-09` moved here at /advance on 2026-10-23**, from `01-plan.md` gate PASS with all six Definition of Ready items passing; `schema_delta` cites [ADR-069](../registry/decisions/ADR-069-member-team-id-is-indexed-and-the-overload-threshold-is-checked-in-the-database.md), `ACCEPTED by tech-lead-design under the operator's delegation (ADR-008)`. MIR-09 had no row in `## BACKLOG`, so no row left that table.
+
 **Empty again — `MIR-08` left this section for `## ARCHIVE` at its own ship on 2026-10-23.**
 
 **`MIR-08` is at `REVIEW` in `ticket.yaml`, `gates.review` passed** — recorded at /advance on 2026-10-23 from the re-run `04-review.md` (verdict PASS, `produced_at: 2026-10-23T07:28:26Z`), after the allow rules in [#176](https://github.com/didi-code0980/calechip/pull/176) let R1–R3 actually run. The row stays here until `/ship` moves it to `## ARCHIVE`. (The table row briefly shown here while the ticket was `ESCALATED` is removed: `ticket.yaml` is authoritative and this file is the view, repaired to match it.)
