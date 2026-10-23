@@ -696,6 +696,20 @@ MD-031, where a shipped ticket cited an ADR and an idea file that exist on no re
 
 ${bullets(r.orphanPaths)}
 
+## Tickets in this run
+
+One line per ticket the run drove. Under \`--chain\` the run takes the next ticket after each merge
+(ADR-067).
+
+${bullets(r.tickets)}
+
+## Warnings
+
+Commands a stage was denied, which did not stop the step (ADR-067 decision 6). A denial that
+mattered shows up in the artifact as a \`TODO(verify)\`, or as a gate that did not pass.
+
+${bullets(r.warnings)}
+
 ${ending}
 `;
 }

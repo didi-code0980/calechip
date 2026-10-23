@@ -91,13 +91,15 @@ view. Details, and the Vui/Gọn density toggle, are in
   as its own in `01-plan.md` § 2b. Behaviour, permissions and invariants are not covered by this and
   are still never invented — `.ai/standards/ui-design-system.md` § *Visual specification*.
 - **Additive only.** Do not delete or rewrite a file you did not create in the current run.
-- **Humans merge. Agents commit at the `/advance` checkpoint and at `/ship`, and push only at
-  `/ship`** — ADR-048. Each stage leaves the tree dirty; the `/advance` after it commits the ticket's
+- **No agent merges. Agents commit at the `/advance` checkpoint and at `/ship`, and push only at
+  `/ship`** — ADR-048, ADR-067. Each stage leaves the tree dirty; the `/advance` after it commits the ticket's
   ship set on `feat/<ID>` locally (`/handoff`). *Until 2026-10-01: "Agents commit at `/ship` only.
   Every stage leaves the tree dirty, from `/plan` all the way to the end."* `/ship` classifies the tree, commits the ticket and the three ship-owned
   board and registry files on one branch, records the state transition and opens **one** pull request
   — ADR-023. Chore work is not its to commit: it names those paths and leaves them dirty for the
-  session that wrote them. Merging is permanently human — RULE-09. Scope and limits in
+  session that wrote them. A pull request is merged by a person, or by the runner's own code once its
+  merge gate passes — RULE-09, ADR-067. *Until 2026-10-23: "Humans merge … Merging is permanently
+  human."* Scope and limits in
   [.ai/standards/git-conventions.md](.ai/standards/git-conventions.md).
 - **One working directory.** Every role is launched in the same folder, and one working tree holds
   one branch — so exactly one ticket is ever in flight, enforced by git rather than by policy

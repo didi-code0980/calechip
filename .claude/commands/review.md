@@ -55,6 +55,10 @@ its third column. Read the column; do not decide the increment yourself.
 **An R7 failure does not enter REWORK.** It escalates to a human on first occurrence (RULE-07): name
 the invariant, write `next_state: ESCALATED`, and halt.
 
+**Any other `BLOCKED` falls under ADR-067.** If the verdict waits on a decision you can recommend an
+answer to, take that answer, record it under `## Delegated decisions` in `04-review.md`, and judge
+against it. `route_to: human` is for RULE-07 and for a fact only a person holds.
+
 ## You do not touch `ticket.yaml`
 
 **Write the verdict into `04-review.md`'s front-matter and stop.** `gate`, `blocking_reason` and

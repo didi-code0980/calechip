@@ -147,7 +147,11 @@ Steps:
     There is nothing to release: with one working directory nothing else is waiting for the name.
 
 **The output is one open pull request. Never two, and never a merge.** ADR-023 makes the count one;
-RULE-09 makes merging permanently human, and `gh pr merge` is denied in settings.
+RULE-09 keeps every agent from merging, and `gh pr merge` is denied in settings. Under ADR-067 the
+runner merges after you return, in its own code; you never do. **List every ADR accepted by
+delegation on this branch (status `ACCEPTED by <agent> under the operator's delegation`) in the pull
+request body**, under its own heading. That list is the operator's only view of those decisions
+before they merge.
 
 You push here and nowhere else. `/advance`'s checkpoint commits locally (ADR-048); this command
 commits what remains, pushes, and opens the pull request. Two things are never yours: `main` as a target, and the merge.

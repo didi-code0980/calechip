@@ -12,8 +12,10 @@
 // its own session id is a real boundary. The orchestrator still does not dispatch: it is one of the
 // agents this script spawns, not the thing doing the spawning.
 //
-// **What this script never does:** commit, push, merge, edit `ticket.yaml`, or write a stage
-// artifact. `/advance` writes `ticket.yaml` and checkpoints (ADR-048); `/ship` commits and pushes.
+// **What this script never does:** commit, push, edit `ticket.yaml`, or write a stage artifact.
+// `/advance` writes `ticket.yaml` and checkpoints (ADR-048); `/ship` commits and pushes.
+// **It does merge, and only in `mergeTicket`** (ADR-067): after `/ship`, once `mergeGate` passes,
+// with its own `gh` call. No agent merges, and `gh pr merge` stays denied to every agent session.
 // The runner reads state and starts processes. If you find yourself adding an `fs.writeFileSync` to a path under `.ai/board/tickets/`,
 // the design has been lost.
 //
@@ -139,12 +141,14 @@ function parseArgv(argv) {
   const opts = { command: null, input: null, until: null, gate: null, dryRun: false,
                  maxSteps: MAX_STEPS_PER_TICKET, resumeRun: null, noAsk: false, forced: null,
                  runId: null, budget: MAX_BUDGET_USD_PER_STEP,
-                 maxQuestions: MAX_INTAKE_QUESTIONS };
+                 maxQuestions: MAX_INTAKE_QUESTIONS, chain: false, noMerge: false };
   const rest = [];
   for (let i = 0; i < argv.length; i++) {
     const a = argv[i];
     if (a === "--dry-run") opts.dryRun = true;
     else if (a === "--no-ask") opts.noAsk = true;
+    else if (a === "--chain") opts.chain = true;
+    else if (a === "--no-merge") opts.noMerge = true;
     else if (a === "--until") opts.until = argv[++i];
     else if (a === "--gate") opts.gate = argv[++i];
     else if (a === "--max-steps") opts.maxSteps = Number(argv[++i]);
@@ -165,6 +169,7 @@ function parseArgv(argv) {
   if (opts.gate && opts.gate !== "plan") die(`--gate ${opts.gate} is not supported; only \`plan\``);
   if (!Number.isInteger(opts.maxSteps) || opts.maxSteps < 1) die("--max-steps must be a positive integer");
   if (!(opts.budget > 0)) die("--budget must be a positive number of dollars");
+  if (opts.chain && opts.noMerge) die("--chain needs the merge: each ticket is cut from origin/main (ADR-067)");
   if (!Number.isInteger(opts.maxQuestions) || opts.maxQuestions < 0) {
     die("--max-questions must be zero or a positive integer (0 means ask nothing)");
   }
@@ -377,9 +382,13 @@ function preflight(t, step) {
   const branch = git("branch", "--show-current");
   const want = branchFor(t.id);
   const planIsNext = step?.command === "/plan";
+  // ADR-067 decision 6: when PLAN is next, any branch is accepted. /plan step 0 has a row for every
+  // case: already on the branch, switch to it, or cut it from origin/main. The stray check below is
+  // what step 0 actually stops on. Until 2026-10-23 this refused a clean tree on the last ticket's
+  // merged branch, which step 0 accepts, so every chained run stopped here.
   if (planIsNext) {
-    if (branch !== want && !PROTECTED_BRANCHES.includes(branch)) {
-      problems.push(`on branch \`${branch}\`: /plan creates \`${want}\` from origin/main, and its step 0 stops on any other branch`);
+    if (branch !== want && !branch) {
+      problems.push(`HEAD is detached; /plan step 0 needs a branch to read`);
     }
   } else if (branch !== want) {
     problems.push(`on branch \`${branch}\` but ${t.id} needs \`${want}\`; the runner never switches to an existing branch (ADR-006)`);
@@ -520,9 +529,18 @@ function stepFailure(out) {
   if (!r) return "output was not JSON — check --output-format and whether the CLI printed a prompt";
   // REPLY-TEXT: shown to the operator in a stop message. Never parsed, never routed on.
   if (r.is_error) return `is_error: ${r.result ?? r.error ?? "<no detail>"}`;
-  const denials = r.permission_denials ?? [];
-  if (denials.length) return `permission denied: ${JSON.stringify(denials).slice(0, 500)}`;
+  // ADR-067 decision 6: a permission denial is a warning, not a failure. The step is judged by its
+  // artifact's front-matter and by the board, like every other step. Until 2026-10-23 one denied
+  // `supabase db dump --help` failed a /plan whose 01-plan.md was already written with a valid gate.
   return null;
+}
+
+/** The commands a step was denied, one line each, for REPORT.md. */
+function stepDenials(out) {
+  return (out.result?.permission_denials ?? []).map((d) => {
+    const cmd = d?.tool_input?.command ?? d?.tool_input?.file_path ?? JSON.stringify(d?.tool_input ?? {});
+    return `${d?.tool_name ?? "?"}: ${String(cmd).replace(/\s+/g, " ").slice(0, 200)}`;
+  });
 }
 
 function writeStopped(runId, { ticket, stage, reason, decide, resume }) {
@@ -780,6 +798,8 @@ async function main() {
       '  --idea <text>   --idea-file <path>   --ticket <ID>   --tracker <id>',
       '  --until <STATE> --gate plan          --no-ask',
       '  --dry-run       --max-steps <n>      --resume-run <id>   --budget <usd per step>',
+      '  --chain         after the merge, run the next same-group ticket whose depends_on are DONE',
+      '  --no-merge      stop at the open pull request (the ending before ADR-067)',
       '  --max-questions <n>   0 asks nothing and assumes instead',
     ].join('\n'));
   }
@@ -789,7 +809,7 @@ async function main() {
   // failed early and left nothing to point at.
   const runId = opts.resumeRun ?? opts.runId ?? newRunId();
   const store = sessions();
-  const report = { input: opts.input, qa: [], steps: 0, cost: 0,
+  const report = { input: opts.input, qa: [], steps: 0, cost: 0, tickets: [], warnings: [], chain: opts.chain,
                    registryWrites: [], layoutDecisions: [] };
 
   let reportWritten = false;
@@ -938,6 +958,9 @@ async function main() {
 
   if (!fs.existsSync(ticketFile(id))) die(id + ': no ticket.yaml at ' + path.relative(ROOT, ticketFile(id)));
 
+  // ADR-067: one pass of this loop per ticket. Without --chain it runs once, which is the runner as
+  // it was before 2026-10-23 plus the merge.
+  for (;;) {
   let t = readTicket(ticketFile(id));
   const entry = validateEntry(t);
   if (entry.length) die('entry validation failed for ' + id + ':\n  - ' + entry.join('\n  - '));
@@ -946,6 +969,7 @@ async function main() {
 
   let steps = 0;
   let lastState = null;
+  let reachedDone = false;
 
   let sim = null;
   while (steps < opts.maxSteps) {
@@ -965,6 +989,7 @@ async function main() {
           resume: `node scripts/run-loop.mjs auto ${id}` });
       }
       discardTicketSessions(id, store); saveSessions(store);
+      if (t.state === "DONE") { reachedDone = true; break; }
       return;
     }
     if (opts.until && t.state === opts.until) { log(`reached --until ${opts.until}`); saveSessions(store); return; }
@@ -1078,6 +1103,7 @@ async function main() {
         saveSessions(store);
         process.exit(3);
       }
+      for (const w of stepDenials(out)) report.warnings.push(`${text} — denied ${w}`);
       const r = out.result ?? {};
       report.steps = steps;
       report.cost = spentThisRun;
@@ -1093,7 +1119,10 @@ async function main() {
 
     if (opts.dryRun) {
       sim = advanceSimulated(t);
-      if (sim === null) { log("\n[dry-run] end of sequence"); return; }
+      if (sim === null) {
+        log("\n[dry-run] end of sequence" + (opts.noMerge ? "" : " — the runner would now run mergeGate and merge (ADR-067)"));
+        return;
+      }
       lastState = null;
       continue;
     }
@@ -1106,12 +1135,154 @@ async function main() {
     }
   }
 
+  if (!reachedDone) {
   writeStopped(runId, { ticket: id, stage: "?",
     reason: `max steps reached (${opts.maxSteps})`,
     decide: "A ticket that needs more than this many steps is not converging. Read the run folder before raising the limit.",
     resume: `node scripts/run-loop.mjs auto ${id} --max-steps ${opts.maxSteps * 2}` });
   saveSessions(store);
   process.exit(2);
+  }
+
+  // --- ADR-067: merge, then the next ticket ---
+  if (opts.noMerge) {
+    report.tickets.push(`${id} — DONE, pull request left open (--no-merge)`);
+    return;
+  }
+  const merged = await mergeTicket(id, runId, report);
+  report.tickets.push(`${id} — merged ${merged.url} (${merged.gate})`);
+  if (!opts.chain) return;
+
+  const next = pickNext(allTickets(), t.group);
+  if (!next) { log(`\n--chain: no ${t.group ?? "same-group"} ticket left whose depends_on are all DONE`); return; }
+  log(`\n--chain: ${id} merged; next is ${next.id} (${next.state})`);
+  id = next.id;
+  report.ticketId = id;
+  }
+}
+
+// --- Chain and merge (ADR-067) -----------------------------------------------------------------
+
+const CHAIN_STATES = ["BACKLOG", "PLAN", "READY", "IN_PROGRESS", "REVIEW", "REWORK"];
+const idNumber = (id) => Number(/-(\d+)/.exec(String(id))?.[1] ?? Infinity);
+
+/**
+ * The next ticket under --chain: same feature group, in a state the runner acts on, every
+ * depends_on DONE, lowest number first. Pure — tests pass it a ticket list.
+ */
+function pickNext(tickets, group) {
+  if (!group) return null;
+  const state = new Map(tickets.map((x) => [String(x.id), x.state]));
+  return tickets
+    .filter((x) => x.group === group && CHAIN_STATES.includes(x.state))
+    .filter((x) => (x.depends_on ?? []).every((d) => state.get(String(d)) === "DONE"))
+    .sort((a, b) => idNumber(a.id) - idNumber(b.id) || String(a.id).localeCompare(String(b.id)))[0] ?? null;
+}
+
+const OK_CONCLUSIONS = ["SUCCESS", "SKIPPED", "NEUTRAL"];
+
+/**
+ * Reads `gh pr view --json statusCheckRollup`. Returns "none" (no check reported), "pending",
+ * "pass" or "fail". A CheckRun carries status and conclusion; a StatusContext carries state. Pure.
+ */
+function checksVerdict(rollup) {
+  const items = Array.isArray(rollup) ? rollup : [];
+  if (!items.length) return "none";
+  let pending = false;
+  for (const c of items) {
+    if (c.__typename === "StatusContext" || ("state" in c && !("status" in c))) {
+      const st = String(c.state ?? "").toUpperCase();
+      if (st === "PENDING" || st === "EXPECTED") pending = true;
+      else if (st !== "SUCCESS") return "fail";
+      continue;
+    }
+    if (String(c.status ?? "").toUpperCase() !== "COMPLETED") { pending = true; continue; }
+    if (!OK_CONCLUSIONS.includes(String(c.conclusion ?? "").toUpperCase())) return "fail";
+  }
+  return pending ? "pending" : "pass";
+}
+
+function gh(...args) {
+  const r = spawnSync("gh", args, { cwd: ROOT, encoding: "utf8", shell: false });
+  if (r.status !== 0) throw new Error(`gh ${args.join(" ")} failed: ${(r.stderr || r.stdout || "").trim()}`);
+  return (r.stdout || "").trim();
+}
+
+const sleep = (ms) => new Promise((res) => setTimeout(res, ms));
+
+/**
+ * The project's own verify commands, the `typecheck`, `lint` and `test` scripts in `package.json`.
+ * They run through each tool's own entry file under the current node, not through `pnpm`: on Windows
+ * `pnpm` is a .cmd shim, which needs a shell, and the runner never spawns one (see the test).
+ */
+const LOCAL_GATE = [
+  ["node_modules/typescript/bin/tsc", "--noEmit"],
+  ["node_modules/eslint/bin/eslint.js", "."],
+  ["node_modules/vitest/vitest.mjs", "run"],
+];
+const CHECKS_APPEAR_MS = 90_000;
+const CHECKS_FINISH_MS = 60 * 60_000;
+const POLL_MS = 15_000;
+
+/**
+ * ADR-067 decision 2. Every reported check is green, or, when none reports (verify.yml runs on
+ * release/** only since 2026-10-17), the local gate exits 0 on the ticket branch.
+ * Returns a one-line description of what passed, or throws with what failed.
+ */
+async function mergeGate(prNumber, runId) {
+  const rollup = () => JSON.parse(gh("pr", "view", String(prNumber), "--json", "statusCheckRollup")).statusCheckRollup;
+  let verdict = checksVerdict(rollup());
+  const appearBy = Date.now() + CHECKS_APPEAR_MS;
+  while (verdict === "none" && Date.now() < appearBy) { await sleep(POLL_MS); verdict = checksVerdict(rollup()); }
+  const finishBy = Date.now() + CHECKS_FINISH_MS;
+  while (verdict === "pending" && Date.now() < finishBy) { await sleep(POLL_MS); verdict = checksVerdict(rollup()); }
+
+  if (verdict === "pass") return "every reported check green";
+  if (verdict === "fail") throw new Error(`a check on #${prNumber} failed`);
+  if (verdict === "pending") throw new Error(`checks on #${prNumber} still pending after ${CHECKS_FINISH_MS / 60_000} min`);
+
+  log(`    no check reports on #${prNumber}; running the local gate`);
+  const lines = [];
+  for (const cmd of LOCAL_GATE) {
+    const r = spawnSync(process.execPath, cmd, { cwd: ROOT, encoding: "utf8", shell: false,
+                                                 maxBuffer: 64 * 1024 * 1024 });
+    lines.push(`$ ${cmd.join(" ")}  -> exit ${r.status}`, (r.stdout ?? "").slice(-4000), (r.stderr ?? "").slice(-4000));
+    fs.mkdirSync(runDir(runId), { recursive: true });
+    fs.writeFileSync(path.join(runDir(runId), `merge-gate-${prNumber}.log`), lines.join("\n"));
+    if (r.status !== 0) throw new Error(`local gate: \`${cmd.join(" ")}\` exited ${r.status}`);
+  }
+  return "no check reported; local typecheck, lint and unit exit 0";
+}
+
+/** After /ship: find the pull request, pass the gate, merge it with a merge commit. Stops the run on failure. */
+async function mergeTicket(id, runId, report) {
+  const branch = branchFor(id);
+  try {
+    const pr = JSON.parse(gh("pr", "view", branch, "--json", "number,url,state"));
+    report.prUrl = pr.url;
+    if (pr.state === "MERGED") return { url: pr.url, gate: "already merged" };
+    if (pr.state !== "OPEN") throw new Error(`pull request ${pr.url} is ${pr.state}`);
+    log(`\n[merge] ${pr.url} — merge gate`);
+    const gate = await mergeGate(pr.number, runId);
+    gh("pr", "merge", String(pr.number), "--merge");
+    for (let i = 0; i < 20; i++) {
+      const st = JSON.parse(gh("pr", "view", String(pr.number), "--json", "state")).state;
+      if (st === "MERGED") break;
+      await sleep(3000);
+    }
+    git("fetch", "origin", "--quiet");
+    log(`    merged — ${gate}`);
+    return { url: pr.url, gate };
+  } catch (e) {
+    const why = `merge stopped — ${e.message}`;
+    report.stopped = why;
+    report.resume = `node scripts/run-loop.mjs auto ${id}${report.chain ? " --chain" : ""}`;
+    writeStopped(runId, { ticket: id, stage: "DONE -> merged", reason: why,
+      decide: "The ticket is shipped and its pull request is open. Fix what failed on the branch, or merge it yourself. "
+            + "Read merge-gate-*.log in this run folder for the local gate's output.",
+      resume: report.resume });
+    process.exit(2);
+  }
 }
 
 // --- Entry point -------------------------------------------------------------------------------
@@ -1128,5 +1299,5 @@ if (invokedDirectly) main().catch((e) => die(e.stack ?? String(e), 4));
 
 export { nextStep, advanceSimulated, sessionFor, reviewStop, questionStop, budgetStop,
          readQuestions,
-         shipPermissionStop,
+         shipPermissionStop, pickNext, checksVerdict,
          inAllowedPaths, validateEntry, buildArgv, parseArgv, SESSION_POLICY, TICKET_ID };

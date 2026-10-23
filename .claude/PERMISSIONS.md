@@ -53,22 +53,20 @@ allow rule the test does not know about is one a clobber can drop silently.
 
 ## The push prompt, and the unattended runner
 
-`scripts/run-loop.mjs` (ADR-036) runs the loop with `--permission-mode dontAsk` and
-`--permission-prompts none`, which means **anything that would prompt is denied instead**. The allow
-list above is therefore the runner's whole vocabulary, and one deliberate absence decides where an
-unattended run ends.
+`scripts/run-loop.mjs` (ADR-036) runs every stage with `--permission-prompts none`, so **anything
+that would prompt is denied instead**. The allow list is therefore the runner's whole vocabulary.
 
-`git push` is still not on it, for the reason given above: the prompt is the last point at which a
-person sees a branch name before history exists. That reasoning does not weaken when the operator is
-away from the keyboard — it is the only moment left.
+**`git push origin feat/*` is on it since ADR-067** (operator, 2026-10-23), with its `-u` form.
+*Until then this section read: "`git push` is still not on it … the prompt is the last point at which
+a person sees a branch name before history exists. … Allowing `Bash(git push origin feat/*)` would
+close that gap and would reverse a control this file argues for in writing. It is the operator's
+decision and wants its own ADR, not an edit to the list."* The operator made that decision, and the
+ADR is ADR-067. `git push --force` and `git push origin main` stay denied, so the trunk is unchanged.
+A push reaches a ticket branch and nothing else.
 
-**So the runner refuses to start `/ship` rather than letting it fail halfway.** `/ship` commits at
-its step 5 and pushes immediately after, so a denial arriving mid-command would leave history written
-and no pull request open — the worst of the three possible outcomes. The run stops with the ticket
-reviewed, its gates recorded and the tree committed, naming the two commands that finish it.
-
-Allowing `Bash(git push origin feat/*)` would close that gap and would reverse a control this file
-argues for in writing. It is the operator's decision and wants its own ADR, not an edit to the list.
+`pnpm db:test`, `pnpm exec supabase` and `node_modules/.bin/supabase` were added in the same change.
+A PLAN that cannot read the Supabase CLI's own `--help` writes a `TODO(verify)` where a fact belongs.
+That CLI is on the past-reliable-recall list in `.ai/standards/tech-stack.md`.
 
 `Bash(git pull --ff-only)` was added for the runner: the branch decision table in
 `.ai/standards/git-conventions.md` reaches for it when a ticket branch already exists on the remote,
@@ -95,7 +93,10 @@ an agent that can message a channel can produce side effects nobody reviews.
 ## Denied git operations
 
 `git push --force` and `git push origin main` protect the trunk. `gh pr merge` enforces RULE-09:
-merging is permanently human, and the loop's terminal output is an open pull request.
+**no agent merges**. Since ADR-067 the runner's own code merges a ticket's pull request once
+`mergeGate` in `scripts/run-loop.mjs` passes. It calls `gh` itself and never through an agent, so
+this deny rule still holds for every agent session. *Until ADR-067: "merging is permanently human, and
+the loop's terminal output is an open pull request."*
 
 `git reset --hard` is denied because it is what an agent reaches for when it is confused, and what it
 discards includes the artifacts that would explain the confusion.
