@@ -43,7 +43,6 @@ const STATE_DIR = path.join(ROOT, ".runner");
 const TICKETS_DIR = path.join(ROOT, ".ai", "board", "tickets");
 const FEATURES = path.join(ROOT, ".ai", "registry", "features.md");
 
-const PROTECTED_BRANCHES = ["main", "master", "develop"];
 const MAX_STEPS_PER_TICKET = 12;
 
 // A measured number, not a guess: one `/next-ticket` — a read-only board report that wrote nothing
@@ -268,8 +267,15 @@ function nextStep(t, dir = ticketDir(t.id)) {
       return { command: "/advance", agent: "orchestrator" };
     case "READY":
       return { command: "/implement", agent: "developer", then: "/advance" };
-    case "IN_PROGRESS":
-      return { command: "/advance", agent: "orchestrator" };
+    case "IN_PROGRESS": {
+      // A finished /implement leaves 03-impl-log.md at PASS, and /advance records it. Anything else
+      // (BLOCKED, FAIL, or no log yet) means the stage did not finish, and the work is the
+      // Developer's again. Until 2026-10-23 this always routed to /advance, so a BLOCKED
+      // implementation was re-recorded and never re-run (MIR-08, run 20261023-041145).
+      const impl = readFrontMatter(path.join(dir, "03-impl-log.md"));
+      if (impl?.gate === "PASS") return { command: "/advance", agent: "orchestrator" };
+      return { command: "/implement", agent: "developer", then: "/advance" };
+    }
     case "REVIEW":
       if (reviewPassed) return { command: "/ship", agent: "orchestrator" };
       return { command: "/review", agent: "tech-lead-review", then: "/advance" };

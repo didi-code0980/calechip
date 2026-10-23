@@ -74,6 +74,18 @@ test("REWORK routes on route_to, never on a check number", () => {
   assert.equal(nextStep(ticket({ state: "REWORK" }), b).agent, "tech-lead-design");
 });
 
+test("IN_PROGRESS re-runs /implement unless 03-impl-log.md is at PASS (MIR-08, 2026-10-23)", () => {
+  const implLog = (dir, gate) =>
+    fs.writeFileSync(path.join(dir, "03-impl-log.md"), `---\nstage: IN_PROGRESS\ngate: ${gate}\n---\n\n# Log\n`);
+  const pass = tmp(); implLog(pass, "PASS");
+  assert.deepEqual(nextStep(ticket({ state: "IN_PROGRESS" }), pass), { command: "/advance", agent: "orchestrator" });
+  const blocked = tmp(); implLog(blocked, "BLOCKED");
+  assert.deepEqual(nextStep(ticket({ state: "IN_PROGRESS" }), blocked),
+    { command: "/implement", agent: "developer", then: "/advance" },
+    "a BLOCKED implementation used to be re-recorded by /advance and never re-run");
+  assert.equal(nextStep(ticket({ state: "IN_PROGRESS" }), tmp()).command, "/implement", "no log yet");
+});
+
 test("REWORK with no review artifact stops rather than guessing a route", () => {
   const step = nextStep(ticket({ state: "REWORK" }), tmp());
   assert.match(step.stop, /no 04-review\.md/);

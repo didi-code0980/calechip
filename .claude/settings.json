@@ -12,6 +12,7 @@
       "Bash(git rev-parse:*)",
       "Bash(git show-ref:*)",
       "Bash(git add:*)",
+      "Bash(git rm:*)",
       "Bash(git commit:*)",
       "Bash(git switch:*)",
       "Bash(git push origin feat/*)",
@@ -42,6 +43,7 @@
       "Bash(node --test:*)",
       "Bash(node scripts/check-docs.mjs)",
       "Bash(node scripts/check-allowed-paths.mjs)",
+      "Bash(node scripts/check-allowed-paths.mjs:*)",
       "Bash(pnpm exec tsc:*)",
       "Bash(pnpm exec eslint:*)",
       "Bash(pnpm exec vitest:*)",
@@ -50,7 +52,8 @@
       "Bash(pnpm install:*)",
       "Bash(pnpm db:test)",
       "Bash(pnpm exec supabase:*)",
-      "Bash(node_modules/.bin/supabase:*)"
+      "Bash(node_modules/.bin/supabase:*)",
+      "Bash(git push *)"
     ],
     "deny": [
       "Bash(git push --force:*)",
