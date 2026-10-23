@@ -9,14 +9,14 @@ group: MIR           # ADR-063: MIR is the eighth feature group
 state: BACKLOG
 owner: ""
 branch: ""
-size_estimate: ""     # S|M - set by tech-lead-design at PLAN; gates DoR
-size: ""              # S|M|L|XL - set by tech-lead-design at PLAN; decides splitting
+size_estimate: "S"    # S|M - set by tech-lead-design at PLAN; gates DoR. S under option A, M under B (01-plan.md §1)
+size: "S"             # S|M|L|XL - set by tech-lead-design at PLAN; decides splitting. Against option A; M if B (01-plan.md §7)
 depends_on: [MIR-01, MIR-02, MIR-03, MIR-04]   # "Blocked by" — the MIR IDs that must be DONE first
 invariants_touched: []
-allowed_paths: []
+allowed_paths: []     # deliberately empty: PLAN is BLOCKED on the A/B choice; 01-plan.md §7 holds both lists
 glossary_owed: []
-schema_delta: "TODO(plan): set at PLAN — the plan item changes the schema"
-requires_adr: false
+schema_delta: "none"  # db.sql is not a migration (ADR-026 decision 6); no database object changes
+requires_adr: true    # not a schema ADR: either option supersedes ADR-026, ACCEPTED by the operator
 rework_count: 0
 chat_budget:
   developer->tech-lead-design: { used: 0, max: 6 }
