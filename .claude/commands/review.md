@@ -59,6 +59,13 @@ the invariant, write `next_state: ESCALATED`, and halt.
 answer to, take that answer, record it under `## Delegated decisions` in `04-review.md`, and judge
 against it. `route_to: human` is for RULE-07 and for a fact only a person holds.
 
+**Run each verify command on its own, in exactly the form named.** Use `node scripts/check-allowed-paths.mjs`,
+`node scripts/check-carry.mjs <ID>`, `pnpm typecheck`, `pnpm lint`, `pnpm test`, or the `pnpm exec`
+forms in `.ai/standards/testing-standards.md`. One per Bash call. The exit code is in the tool
+result, so do not add `; echo "EXIT=$?"`, a `cd`, or a pipe. Under the runner nothing can approve a
+prompt, so a compound command is denied even when each part is allowed. That is how MIR-08's first
+review lost R1–R3 (run 20261023-065554).
+
 ## You do not touch `ticket.yaml`
 
 **Write the verdict into `04-review.md`'s front-matter and stop.** `gate`, `blocking_reason` and
