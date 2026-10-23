@@ -23,6 +23,8 @@ planned, sized, and safe to build** — the next stage for a row here is IN_PROG
 | # | Ticket | Title | Size | Depends on |
 |---|--------|-------|------|------------|
 
+**Empty again — `MIR-08` left this section for `## BLOCKED` at /advance on 2026-10-23**, `ESCALATED` from `04-review.md` verdict BLOCKED, `route_to: human`. No row in `## BACKLOG` or `## READY` to catch up.
+
 **`MIR-08` is at `REVIEW` in `ticket.yaml`, `gates.review` not yet passed** — recorded at /advance on 2026-10-23 from `03-impl-log.md` gate PASS (re-run, `produced_at: 2026-10-23T06:57:19Z`). The lint blocker below was not resolved by `tech-lead-design`; it was fixed independently, outside this ticket, by `4f9197e` ("fix(runner): lint error from ADR-067..."), now in this branch's history, which left `99-questions.md`'s question moot. `pnpm exec eslint .` is clean on the re-run; typecheck and the 987 unit tests stay green.
 
 **`MIR-08` was at `IN_PROGRESS` in `ticket.yaml`, blocked** — recorded at /advance on 2026-10-23 from `03-impl-log.md` gate BLOCKED, `next_state: IN_PROGRESS`. The deletion of `supabase/db.sql` and both comment edits are complete and typecheck/unit-test clean; the one red command is repo-wide `pnpm exec eslint .` failing on a pre-existing, out-of-`allowed_paths` error in `scripts/run-loop.mjs` (predates this ticket's branch). The developer asked `tech-lead-design` in `99-questions.md` whether the gate may pass on that basis or whether `allowed_paths` should widen; unanswered — no live `tech-lead-design` session in this run. The row stays here until that question is answered and `/implement` resumes.
@@ -1494,6 +1496,7 @@ Tickets that cannot proceed until a human decides something. Name the decision, 
 
 | # | Ticket | Blocked on | Since | Who decides |
 |---|--------|------------|-------|-------------|
+| 1 | MIR-08 | `04-review.md` reports R1 (`check-allowed-paths.mjs`, `check-carry.mjs`), R2 (`pnpm typecheck`) and R3 (`pnpm lint`) **NOT RUN** — the review session's permission layer denied every non-git subprocess with no approval surface. R4–R8 show no defect; this is not a verdict on the code. A human must grant the review session `node scripts/*.mjs` and `pnpm typecheck` / `pnpm lint` (or run them and commit the output), then `/review MIR-08` re-runs in a fresh session. | 2026-10-23 | operator |
 
 **`MIR-05` left this table on 2026-10-21**: the operator's holiday rows merged in [#169](https://github.com/didi-code0980/calechip/pull/169) (99-questions.md option A); `/review` re-ran in a fresh session and passed. State back to `REVIEW`.
 
