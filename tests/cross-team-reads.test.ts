@@ -7,6 +7,11 @@
 // not repeated here. AC-12's Supabase refusals are exercised by no test until a project is
 // provisioned (01-plan.md section 4.5) — the same status `listTeamEntriesOverlapping`'s had before
 // CAL-09's paging test.
+// MIR-07, 2026-10-23: the SQL half now runs. `public.list_members_for_team`,
+// `list_team_entries_for_team` and `list_team_entries_overlapping_for_team` refusing every caller but
+// an admin are exercised by `supabase/tests/020-entry-reads.test.sql`, `030-member-reads.test.sql`
+// and `070-definer-callers.test.sql` (MIR-06). AC-12's completeness throws are in `supabase.ts`,
+// not SQL, and are still exercised by no test.
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { afterEach, describe, expect, it } from "vitest";
