@@ -42,8 +42,13 @@ export const mayDecide = (role: MemberRole): boolean =>
  * The whole of clause (a) of `public.entry_enforce_decision()`, actor side: a decider, not removed,
  * and — unless they are an admin — not the owner. An admin may decide their own entry; the charter
  * decided that on 2026-08-31 for that role and for no other.
+ *
+ * MIR-07, 2026-10-23: and `approved`, which is `public.may_decide`'s `status = 'approved'` clause
+ * (`20260912100000_solo_manager_role.sql:55-64`). The mock hands this function full rows it holds,
+ * not only the seam's answer for an approved caller, so the clause cannot be left to the caller.
  */
 export const mayDecideEntriesOf = (me: Member, ownerId: string): boolean =>
+  me.status === "approved" &&
   me.removedAt === null &&
   mayDecide(me.role) &&
   (mayAdminister(me.role) || ownerId !== me.id);

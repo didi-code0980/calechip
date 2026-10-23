@@ -192,7 +192,7 @@ describe("sign-up, with email confirmation NOT required", () => {
     expect(after.map((m) => m.id)).not.toContain(joiner?.id);
   });
 
-  it("refuses an approval that names a team the admin is not on", async () => {
+  it("refuses an approval that names a team that does not exist", async () => {
     const fresh = await freshSeam(false);
     await fresh.signUp(signUpInput(NEW_EMAIL));
     const joiner = await fresh.getCurrentMember();
@@ -204,6 +204,13 @@ describe("sign-up, with email confirmation NOT required", () => {
     // The policy compares the incoming `team_id` to `member_team_id(auth.uid())`, so a caller naming
     // another team is refused rather than obeyed. A mock that trusted the argument would make a
     // component test pass against a missing `with check`.
+    //
+    // MIR-07, 2026-10-23. The paragraph above is no longer what either side does. Approval is
+    // `public.admit_member`, which checks only that the team EXISTS
+    // (`20260911180000_solo_many_teams.sql:157`), and the mock does the same. The id below names no
+    // team, so this asserts that refusal and no other; an approval onto another existing team is
+    // admitted by both, and bounding it is MIR-13's. Renamed from "refuses an approval that names a
+    // team the admin is not on", which claimed a refusal neither side implements.
     const refusedResult = await fresh.decideMember(joiner?.id ?? "", {
       approve: true,
       teamId: "00000000-0000-4000-8000-999999999999",

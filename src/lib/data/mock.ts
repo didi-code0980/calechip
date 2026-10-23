@@ -333,6 +333,32 @@ export function __setCurrentMember(id: string | null): void {
   currentMemberId = id;
 }
 
+/** Test-only, MIR-07. Inserts `member`, or replaces the row with the same id. A named export beside
+ *  `seam`, as `__setCurrentMember` is, so seam parity is untouched. It exists so the parity suite
+ *  can put a row in a state no seam call reaches — an admin who is pending, a manager who is
+ *  rejected — and ask the mock what SQL answers for it. */
+export function __putMemberForTest(member: Member): void {
+  const at = members.findIndex((m) => m.id === member.id);
+  if (at === -1) members.push({ ...member });
+  else members[at] = { ...member };
+}
+
+/** Test-only, MIR-07. The three shared predicates as the mock answers them for `uid`, without
+ *  touching the session: `public.is_admin`, `public.member_team_id` and `public.may_decide`.
+ *  `mayDecide` passes an owner id of "" so the own-entry clause of `mayDecideEntriesOf` is inert. */
+export function __permissionDecisions(uid: string): {
+  isAdmin: boolean;
+  memberTeamId: string | null;
+  mayDecide: boolean;
+} {
+  const me = members.find((m) => m.id === uid);
+  return {
+    isAdmin: adminOf(uid) !== null,
+    memberTeamId: memberTeamId(uid),
+    mayDecide: me !== undefined && mayDecideEntriesOf(me, ""),
+  };
+}
+
 // SOLO, 2026-09-10 — the profile screen changes passwords, and `signIn` answers from
 // `FIXTURE_CREDENTIALS`, which is a FROZEN array shared with every other spec file. Rewriting an
 // entry in it would change what `quan@example.com` means for the whole suite, in file order, for
@@ -375,10 +401,15 @@ function setSession(session: Session | null): void {
 // mock that let a member add an address would make every component test pass against a missing
 // policy. `allowed_email_insert_admin` and `allowed_email_delete_admin_unconsumed` both require an
 // admin whose team is the row's team, so that is what this asks.
-const currentAdmin = (): Member | null => {
-  const me = members.find((m) => m.id === currentMemberId && m.removedAt === null) ?? null;
-  return me && me.role === "admin" ? me : null;
+//
+// MIR-07, 2026-10-23. `public.is_admin(p_uid)`, reproduced with all three of its conjuncts: approved,
+// not removed, admin (`20260910100000_solo_member_approval.sql:69-77`). Until this ticket it lacked
+// `status === "approved"`, so a pending or rejected admin row was an admin here and nobody in SQL.
+const adminOf = (uid: string | null): Member | null => {
+  const m = members.find((x) => x.id === uid) ?? null;
+  return m && m.status === "approved" && m.removedAt === null && m.role === "admin" ? m : null;
 };
+const currentAdmin = (): Member | null => adminOf(currentMemberId);
 
 // ADM-03 adds `holiday_date_taken` to the union. It is widened rather than replaced by
 // `FailureCode`: the narrow list is what stops this file returning a code no mock path can produce,
@@ -687,6 +718,7 @@ const blankToNull = (value: string | null): string | null => {
 
 // `public.is_admin`, with its `status = 'approved'` and `removed_at is null` clauses — which
 // `currentAdmin()` above does not carry, so it is not reused here. `memberTeamId` carries both.
+// MIR-07, 2026-10-23: `currentAdmin()` now carries both too (`adminOf`); this is left as it was.
 const eventIsAdmin = (uid: string | null): boolean =>
   memberTeamId(uid) !== null && members.find((m) => m.id === uid)?.role === "admin";
 
@@ -1272,8 +1304,13 @@ const newEntryId = (): string => `ee000000-0000-4000-8000-${String(++nextEntryId
 // team and NULL for a member who does not exist OR HAS BEEN REMOVED — that `removed_at is null` is
 // in the function body, not in the policies that call it, so every policy built on it inherits the
 // removal filter without naming it.
+//
+// MIR-07, 2026-10-23. And `status = 'approved'`, which `20260910100000_solo_member_approval.sql:57-63`
+// added to the SQL function and this reproduction never carried: a pending or rejected row with a
+// `teamId` was on that team here and on no team in SQL.
 const memberTeamId = (memberId: string | null): string | null =>
-  members.find((m) => m.id === memberId && m.removedAt === null)?.teamId ?? null;
+  members.find((m) => m.id === memberId && m.removedAt === null && m.status === "approved")
+    ?.teamId ?? null;
 
 // The SQL comparison those policies write, and the reason it is a function rather than `===`.
 //
@@ -1837,6 +1874,16 @@ export const seam: DataSeam = {
   async updateOwnProfile(input: UpdateOwnProfileInput): Promise<Result<Member>> {
     const me = members.find((m) => m.id === currentMemberId) ?? null;
     if (!me || me.removedAt !== null) {
+      return refused("not_permitted", "Your profile could not be saved.");
+    }
+
+    // MIR-07. The columns `authenticated` may write on its own row and have the write succeed:
+    // `display_name` and `avatar`. Any other key is a column the grant revokes or the trigger refuses
+    // — MIR-02 (`20261020120000_mir02_member_self_writes.sql:62-66,136-139,163`). The type names two
+    // fields; a caller that is not this application can name more, as a hand-written PATCH can, and
+    // ignoring them silently would answer `ok` where SQL raises 42501.
+    const OWN_PROFILE_KEYS: readonly string[] = ["displayName", "avatar"];
+    if (Object.keys(input).some((k) => !OWN_PROFILE_KEYS.includes(k))) {
       return refused("not_permitted", "Your profile could not be saved.");
     }
 

@@ -16,6 +16,9 @@
 // `tests/permission-model.test.ts` still does not exist (`.ai/standards/rbac-and-security.md`
 // § Known weaknesses 1). What can be asserted here is that the mock admits where the function admits
 // and refuses where it refuses, and that matters because the acceptance suite drives the mock.
+// MIR-07, 2026-10-23: `public.set_member_role` and `public.promote_member_to_admin` are now
+// exercised against real SQL by `supabase/tests/040-member-self-writes.test.sql` and
+// `070-definer-callers.test.sql` (MIR-06). `tests/permission-model.test.ts` still does not exist.
 //
 // **THE DEFECT THIS FILE PINS.** Since `list_all_members()` shipped on 2026-09-11 the Members screen
 // has listed every team, while the rank write was a table update admitted by `member_update_admin`,
