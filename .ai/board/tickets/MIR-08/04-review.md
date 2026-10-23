@@ -2,63 +2,71 @@
 ticket: MIR-08
 stage: REVIEW
 agent: tech-lead-review
-produced_at: 2026-10-23T07:15:50Z
-inputs_read: [ .ai/board/tickets/MIR-08/01-plan.md, .ai/board/tickets/MIR-08/03-impl-log.md, .ai/board/tickets/MIR-08/ticket.yaml, .ai/board/tickets/MIR-08/99-questions.md, .ai/templates/review-report.md ]
+produced_at: 2026-10-23T07:28:26Z
+inputs_read: [ .ai/board/tickets/MIR-08/01-plan.md, .ai/board/tickets/MIR-08/03-impl-log.md, .ai/board/tickets/MIR-08/ticket.yaml, .ai/templates/review-report.md, .ai/registry/decisions/ADR-026-db-sql-carries-the-target-schema.md, .ai/registry/decisions/ADR-068-db-sql-is-retired-and-the-migrations-are-the-only-schema-source.md ]
 consulted: []
 chat_before_verdict: none
-gate: BLOCKED
-blocking_reason: "R1, R2 and R3 could not be run. This review session's permission layer denied every non-git subprocess (`node scripts/check-allowed-paths.mjs`, `node scripts/check-carry.mjs MIR-08`, `pnpm typecheck`) with no approval surface, and lint was not attempted for the same reason. The reviewer must run R2 and R3 itself and may not take 03-impl-log.md's exit codes on trust; 03-impl-log.md:66 records that the Developer could not run check-allowed-paths.mjs either, so no stage has run R1's script. A person must grant this review session `node scripts/*.mjs` and `pnpm typecheck` / `pnpm lint` (or run them and commit the output), then re-run /review MIR-08 in a fresh session. R4–R8 were checked and show no defect; this is not a verdict on the code."
-next_state: ESCALATED
-verdict: BLOCKED
+gate: PASS
+blocking_reason: ""
+next_state: DONE
+verdict: PASS
 failed_checks: []
 invariant_violation: false
-route_to: human
+route_to: none
 increments_rework: false
 ---
 
 # MIR-08 — review
 
+Re-review in a fresh session. The previous pass (run 20261023-065554) was BLOCKED because R1–R3
+could not be run. This pass ran all of them.
+
 ## Checklist
 
 | # | Check | Verdict | Citation |
 |---|---|---|---|
-| R1 | Committed diff ⊆ `allowed_paths`; carry has no stray path | **NOT RUN** | `node scripts/check-allowed-paths.mjs` and `node scripts/check-carry.mjs MIR-08` denied by the session's permission layer — no output to quote. By-hand reading only, not a substitute: `git diff --name-only origin/main...HEAD` lists the ticket folder, `.ai/board/backlog.md` (ship-owned), and five paths all present in `.ai/board/tickets/MIR-08/ticket.yaml:17-21`. `git status --porcelain` was empty. The Developer also did not run the script (`03-impl-log.md:66`). |
-| R2 | typecheck exit 0 | **NOT RUN** | `pnpm typecheck` denied by the session's permission layer. The impl log's exit 0 (`03-impl-log.md:63`) is not accepted in its place. |
-| R3 | lint exit 0 on changed lintable files | **NOT RUN** | Not runnable for the same reason. Relevant context: the earlier lint blocker was in `scripts/run-loop.mjs:46`, outside the diff (`99-questions.md`), and would be an ADR-041 chore, not a gate failure. |
-| R4 | Nothing bypasses the data-access seam | PASS (provisional) | The only `src/` changes are comment lines: `src/lib/data/supabase.ts:2304-2305`, `src/routes/MonthView.tsx:293-294`. No import, call or identifier changes. |
-| R5 | Plan §4 contract implemented | PASS (provisional) | See R5 detail |
-| R6 | Permission gating matches plan §3 | PASS (provisional) | Plan §3 changes no capability. `git diff --name-only origin/main...HEAD` touches no path under `supabase/migrations/`, `supabase/tests/`, `supabase/seed.sql` or `supabase/config.toml` (AC-2). The only database-adjacent change is deleting `supabase/db.sql`, which no code or CI references: `git grep -n "db\.sql" -- src scripts .github package.json` returns nothing. |
-| R7 | No invariant violated | PASS (provisional) | See R7 detail |
-| R8 | No dependency added without an ADR | PASS (provisional) | `package.json` and `pnpm-lock.yaml` are absent from `git diff --name-only origin/main...HEAD`. |
+| R1 | Committed diff ⊆ `allowed_paths`; carry has no stray path | PASS | `node scripts/check-allowed-paths.mjs` → `allowed-paths: ticket MIR-08, 11 changed file(s)` … `allowed-paths: PASS` (exit 0). `node scripts/check-carry.mjs MIR-08` → `0 uncommitted path(s)` / `PASS — nothing stray` (exit 0). The non-ticket, non-ship-owned paths in `git diff --name-only origin/main...HEAD` are the five in `.ai/board/tickets/MIR-08/ticket.yaml:17-21`. |
+| R2 | typecheck exit 0, whole program | PASS | `pnpm typecheck` (`tsc --noEmit`) exited 0 with no diagnostics. |
+| R3 | lint exit 0 on the changed lintable files | PASS | `pnpm lint` (`eslint .`, repo-wide) exited 0 with no output. This covers `src/lib/data/supabase.ts` and `src/routes/MonthView.tsx`. The earlier `scripts/run-loop.mjs:46` error has been fixed. `pnpm test`: 49 files, 987 tests passed (exit 0). |
+| R4 | Nothing bypasses the data-access seam (RULE-02) | PASS | The only `src/` changes are comment lines: `src/lib/data/supabase.ts:2304-2305` and `src/routes/MonthView.tsx:293-294`. No import, call or identifier changed (`git diff origin/main...HEAD -- src/`). |
+| R5 | Every plan §4 contract item is implemented | PASS | See R5 detail. |
+| R6 | Permission gating matches plan §3 | PASS | Plan §3 (`01-plan.md:126-128`) changes no capability. `git diff --name-only origin/main...HEAD` touches nothing under `supabase/migrations/`, `supabase/tests/`, `supabase/seed.sql` or `supabase/config.toml` (AC-2). The deleted `supabase/db.sql` is not read by any code, script or CI step: `git grep -n "db\.sql" -- src scripts .github package.json` finds nothing. The only hits under `supabase/` are historical comments in migrations, such as `supabase/migrations/20260904100000_cal04_team_select.sql:7`. Plan §1 (`01-plan.md:69-70`) places these out of scope as records of their time. |
+| R7 | No invariant violated (RULE-07) | PASS | See R7 detail. |
+| R8 | No dependency added without an ADR | PASS | `package.json` and `pnpm-lock.yaml` are absent from `git diff --name-only origin/main...HEAD`. |
 
 ## R5 detail
 
 | Contract item | Implemented at | Matches signature |
 |---|---|---|
-| Delete `supabase/db.sql` | `supabase/db.sql` deleted in the branch diff (1091 lines removed); absent from the tree | n/a — deletion |
-| Replace `(db.sql 9.1)` with ``(`supabase/migrations/20260904100000_cal04_team_select.sql`)`` in `supabase.ts` | `src/lib/data/supabase.ts:2304-2305` | Yes. The sentence is unchanged. The cited file exists, and `supabase/migrations/20260904100000_cal04_team_select.sql:34` (grant) and `:36` (`create policy team_select_own`) bear out the claim. |
-| The same replacement in `MonthView.tsx` | `src/routes/MonthView.tsx:293-294` | Yes; the sentence is otherwise unchanged |
-| AC-6: ADR status lines (written at PLAN, not by the Developer) | `.ai/registry/decisions/ADR-026-db-sql-carries-the-target-schema.md:11` (`SUPERSEDED by ADR-068`, original kept at :13); `.ai/registry/decisions/ADR-068-…md:11` (`ACCEPTED by tech-lead-design under the operator's delegation (ADR-067)`) | Yes |
+| Delete `supabase/db.sql` (`01-plan.md:133`) | `supabase/db.sql` is deleted in the branch diff (1091 lines removed) and absent from the tree (AC-1) | n/a, a deletion |
+| Replace `(db.sql 9.1)` in `supabase.ts` (`01-plan.md:134-136`) | `src/lib/data/supabase.ts:2304-2305` | Yes. The sentence is unchanged and the citation is now ``(`supabase/migrations/20260904100000_cal04_team_select.sql`)``. The cited file has the grant at `supabase/migrations/20260904100000_cal04_team_select.sql:34` and the policy at `:36`, so the claim checks out. |
+| The same replacement in `MonthView.tsx` | `src/routes/MonthView.tsx:293-294` | Yes. The sentence is otherwise unchanged (AC-3). No `db.sql` string remains in either file (`git grep` across `src` is empty). |
+| AC-6: ADR status lines (written at PLAN) | `.ai/registry/decisions/ADR-026-db-sql-carries-the-target-schema.md:11` (`SUPERSEDED by ADR-068`, original kept at `:13`); `.ai/registry/decisions/ADR-068-db-sql-is-retired-and-the-migrations-are-the-only-schema-source.md:11` | Yes |
+
+AC-5 (the CI `database` job) is a check on the pull request and cannot be run from this session. No
+migration changed (R6), so this diff gives that job nothing new to build.
 
 ## R7 detail
 
-`invariants_touched: []` (`.ai/board/tickets/MIR-08/ticket.yaml:15`). No ID to reason through. I checked independently that the empty list is correct: the diff changes no row, policy, function, grant or migration (R6 citation). The only `src/` deltas are comments (`src/lib/data/supabase.ts:2304-2305`, `src/routes/MonthView.tsx:293-294`). The deleted `supabase/db.sql` was not executed by any build, test or CI step (empty `git grep` across `src scripts .github package.json`).
+`invariants_touched: []` (`.ai/board/tickets/MIR-08/ticket.yaml:15`), so there is no ID to reason
+through. I checked independently that the empty list is correct:
+
+- The diff creates, alters or drops no row, policy, function, grant or migration (R6 citation).
+- The `src/` changes are comments only (`src/lib/data/supabase.ts:2304-2305`, `src/routes/MonthView.tsx:293-294`).
+- The deleted file was never executed by a build, test or CI step (empty `git grep` across `src scripts .github package.json`).
 
 | Invariant | Held by | Citation |
 |---|---|---|
-| — (none touched) | n/a | `.ai/board/tickets/MIR-08/ticket.yaml:15` |
+| none touched | n/a | `.ai/board/tickets/MIR-08/ticket.yaml:15` |
 
 ## Findings
 
-| # | Check | Finding | Routes to | Increments rework_count |
-|---|---|---|---|---|
-| 1 | R1, R2, R3 | The review could not run its own verification commands. The session denies `node` and `pnpm` subprocesses, and nobody can approve them. No code defect was found. | human (cannot review at all → ESCALATED) | false |
-| 2 | R1 (note) | No stage has ever run `check-allowed-paths.mjs` for MIR-08. `03-impl-log.md:66` records the same denial at IMPLEMENT. The sandbox permission gap therefore affects both stages, not just this one. | human — permissions in `.claude/settings*.json` / `.claude/PERMISSIONS.md` (steward) | false |
+None.
 
 ## Delegated decisions
 
-None taken. ADR-067 lets the reviewer pick an answer it can recommend, but no recommendable answer exists here. The alternative to running R2/R3 is accepting the impl log's exit codes, which the reviewer role forbids. This needs a permission grant, and only a person can give one.
+None.
 
 ## Verdict
 
-`BLOCKED`. Re-run `/review MIR-08` in a fresh session once `node scripts/check-allowed-paths.mjs`, `node scripts/check-carry.mjs` and `pnpm typecheck` / `pnpm lint` can run in the review session.
+`PASS`.

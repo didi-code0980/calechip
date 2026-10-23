@@ -22,7 +22,8 @@ planned, sized, and safe to build** — the next stage for a row here is IN_PROG
 
 | # | Ticket | Title | Size | Depends on |
 |---|--------|-------|------|------------|
-| 1 | MIR-08 | `supabase/db.sql` is regenerated from the applied migrations or retired, and CI fails on drift | S | — |
+
+**`MIR-08` is at `REVIEW` in `ticket.yaml`, `gates.review` passed** — recorded at /advance on 2026-10-23 from the re-run `04-review.md` (verdict PASS, `produced_at: 2026-10-23T07:28:26Z`), after the allow rules in [#176](https://github.com/didi-code0980/calechip/pull/176) let R1–R3 actually run. The row stays here until `/ship` moves it to `## ARCHIVE`. (The table row briefly shown here while the ticket was `ESCALATED` is removed: `ticket.yaml` is authoritative and this file is the view, repaired to match it.)
 
 **Empty again — `MIR-08` left this section for `## BLOCKED` at /advance on 2026-10-23**, `ESCALATED` from `04-review.md` verdict BLOCKED, `route_to: human`. No row in `## BACKLOG` or `## READY` to catch up.
 
