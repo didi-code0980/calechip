@@ -22,6 +22,9 @@ planned, sized, and safe to build** — the next stage for a row here is IN_PROG
 
 | # | Ticket | Title | Size | Depends on |
 |---|--------|-------|------|------------|
+| 1 | MIR-06 | An SQL isolation suite proves each boundary as a real authenticated role against real policies | M | — |
+
+**`MIR-06` moved here at /advance on 2026-10-23**, from `01-plan.md` gate PASS with all six Definition of Ready items passing; `schema_delta: none`. MIR-06 had no row in `## BACKLOG`, so no row left that table.
 
 **Empty again — `MIR-05` left this section for `## ARCHIVE` at its own ship on 2026-10-21.**
 

@@ -6,14 +6,26 @@ id: MIR-06
 title: "An SQL isolation suite proves each boundary as a real authenticated role against real policies"
 feature_ids: [MIR-06]   # ADR-063 row; written by the steward on the operator's decision of 2026-10-20
 group: MIR           # ADR-063: MIR is the eighth feature group
-state: BACKLOG
+state: READY          # `orchestrator` at /advance, 2026-10-23, from 01-plan.md gate PASS; DoR 6/6
 owner: ""
 branch: ""
-size_estimate: ""     # S|M - set by tech-lead-design at PLAN; gates DoR
-size: ""              # S|M|L|XL - set by tech-lead-design at PLAN; decides splitting
+size_estimate: M      # S|M - set by tech-lead-design at PLAN; gates DoR
+size: M               # S|M|L|XL - set by tech-lead-design at PLAN; decides splitting
 depends_on: [MIR-01, MIR-02, MIR-03, MIR-04]   # "Blocked by" — the MIR IDs that must be DONE first
-invariants_touched: []
-allowed_paths: []
+invariants_touched: []   # tech-lead-design at PLAN: tests only, no policy/trigger/seam change (01-plan.md § 2)
+allowed_paths:
+  - "supabase/tests/_isolation.psql"
+  - "supabase/tests/001-isolation-helpers.test.sql"
+  - "supabase/tests/010-catalogue.test.sql"
+  - "supabase/tests/020-entry-reads.test.sql"
+  - "supabase/tests/030-member-reads.test.sql"
+  - "supabase/tests/040-member-self-writes.test.sql"
+  - "supabase/tests/050-cross-team-writes.test.sql"
+  - "supabase/tests/060-removed-and-pending.test.sql"
+  - "supabase/tests/070-definer-callers.test.sql"
+  - "supabase/tests/080-guest-tokens.test.sql"
+  - "supabase/tests/090-event-boundaries.test.sql"
+  - ".ai/board/tickets/MIR-06/**"
 glossary_owed: []
 schema_delta: none
 requires_adr: false
@@ -22,7 +34,7 @@ chat_budget:
   developer->tech-lead-design: { used: 0, max: 6 }
 tracker: { provider: "", external_id: "", sync_enabled: false }
 gates:
-  plan:   { passed: false, at: null }
+  plan:   { passed: true, at: "2026-10-23T08:37:05+07:00" }
   review: { passed: false, at: null }
 
 # --- MIR extra fields ---------------------------------------------------------------------------
