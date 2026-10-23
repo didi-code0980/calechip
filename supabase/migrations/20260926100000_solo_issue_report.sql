@@ -22,6 +22,8 @@
 -- entries and the members they belong to rather than a row that is neither. The author's team is
 -- reachable through `member_id` for anybody who wants it, and reaching for it is not this feature.
 
+begin;
+
 create type public.issue_kind as enum ('bug', 'idea', 'other');
 
 -- `open` FIRST, so the enum's declaration order is the order a reader expects and `status = 'open'`
@@ -135,3 +137,5 @@ create policy issue_report_update_admin on public.issue_report
 -- every other table in this model refuses destruction for the reason ADR-013 gives: a row a person
 -- wrote is the record that they wrote it. `status = 'done'` is how a report leaves the admin's
 -- attention, and `delete` is a different decision nobody has made.
+
+commit;

@@ -54,10 +54,6 @@ export const FIXTURE_ADMIN: Member = {
   createdAt: "2026-08-31T00:00:00+00:00",
 };
 
-/** An unconsumed allow-list address. AC-1, AC-2, AC-4 sign up as this one. */
-
-/** A consumed one, for AC-3: it is on the list and must admit nobody. */
-
 /** Not on the list at all, for AC-5: sign-up succeeds and no member row is created. */
 export const FIXTURE_UNLISTED_EMAIL: string = "khach@example.com";
 

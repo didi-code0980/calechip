@@ -23,6 +23,8 @@ planned, sized, and safe to build** — the next stage for a row here is IN_PROG
 | # | Ticket | Title | Size | Depends on |
 |---|--------|-------|------|------------|
 
+**`MIR-09` is at `IN_PROGRESS` in `ticket.yaml`, blocked** — recorded at /advance on 2026-10-23 from `03-impl-log.md` gate BLOCKED, `next_state: IN_PROGRESS`. Every plan §4 contract item is implemented and typecheck/lint/the rest of the unit suite are green; the one red command is `pnpm test`'s pre-existing `tests/draft-entry.test.ts` AC-14 charter-refusal-6 scanner, which the developer reads as a false positive against the new `team_overload_threshold_range` check constraint (validates the admin's own input, does not consult the column to refuse a write to a different table). The developer cannot fix the scanner itself — `tests/draft-entry.test.ts` is outside `allowed_paths` (RULE-03) — and asked `tech-lead-design` in `99-questions.md` to either widen `allowed_paths` and narrow the scanner, or say the constraint should not ship. Unanswered. The row stays here until that question is answered and `/implement` resumes.
+
 **`MIR-09` moved here at /advance on 2026-10-23**, from `01-plan.md` gate PASS with all six Definition of Ready items passing; `schema_delta` cites [ADR-069](../registry/decisions/ADR-069-member-team-id-is-indexed-and-the-overload-threshold-is-checked-in-the-database.md), `ACCEPTED by tech-lead-design under the operator's delegation (ADR-008)`. MIR-09 had no row in `## BACKLOG`, so no row left that table.
 
 **Empty again — `MIR-08` left this section for `## ARCHIVE` at its own ship on 2026-10-23.**

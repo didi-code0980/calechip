@@ -27,6 +27,9 @@ import type {
   CreateTaskInput,
   UpdateTaskInput,
 } from "./index";
+// MIR-09, ADR-069. A RUNTIME import: both implementations share this one guard rather than holding a
+// second copy of it, 01-plan.md section 4.
+import { isValidThreshold, INVALID_THRESHOLD_MESSAGE } from "./index";
 // SOLO 2026-09-12, ADR-035. The role predicates, above the seam and shared with the screens so
 // the mock and the interface cannot disagree about who may decide.
 import { mayDecide, mayDecideEntriesOf } from "@/lib/roles";
@@ -419,10 +422,11 @@ const refused = (
   // `FailureCode` on purpose: it is the list of codes a MOCK refusal may carry, and every addition
   // is a deliberate one. Widening it would let a typo in a code reach a screen as a failure nobody
   // wrote a sentence for.
+  //
+  // MIR-09 removes the allow-list's two codes, whole, and adds `invalid_threshold`.
   code:
     | "not_permitted"
-    | "already_allow_listed"
-    | "already_consumed"
+    | "invalid_threshold"
     | "holiday_date_taken"
     | "empty_team_name"
     | "team_not_empty",
@@ -2410,12 +2414,20 @@ export const seam: DataSeam = {
   // ONE FIELD IS ASSIGNED (AC-9). `name`, `id` and `createdAt` are untouched, which is the column
   // grant's effect reproduced: there is no path here that could write them.
   //
-  // NO RANGE CHECK, matching supabase.ts. `[0, 100]` in whole percentage points is the SCREEN's
-  // (AC-7, AC-8) and there is no `check` constraint behind the real one - 01-plan.md section 6.
+  // `[0, 100]` IN WHOLE PERCENTAGE POINTS IS STILL THE SCREEN'S (AC-7, AC-8); the datastore's own
+  // `team_overload_threshold_range` check holds `[0, 1]` as a fraction, which `isValidThreshold`
+  // restates for this pre-send guard — MIR-09, ADR-069, 01-plan.md section 6. This paragraph read
+  // "NO RANGE CHECK ... there is no `check` constraint behind the real one" until that ticket.
   //
   // A COPY GOES BACK, never the stored object, so a caller cannot mutate the mock's table through
   // the value it was handed - the shape `getTeam` above already uses.
   async setOverloadThreshold(input: SetOverloadThresholdInput): Promise<Result<Team>> {
+    // MIR-09, ADR-069. The value check precedes the permission check (AC-4): a non-admin sending an
+    // out-of-range value is told the value is wrong, not that they lack permission to send it.
+    if (!isValidThreshold(input.overloadThreshold)) {
+      return refused("invalid_threshold", INVALID_THRESHOLD_MESSAGE);
+    }
+
     const me = currentAdmin();
     if (!me) return refused("not_permitted", "Only an admin can change the threshold.");
 
