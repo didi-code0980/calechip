@@ -23,6 +23,18 @@ planned, sized, and safe to build** — the next stage for a row here is IN_PROG
 | # | Ticket | Title | Size | Depends on |
 |---|--------|-------|------|------------|
 
+**Empty again — `MIR-08` left this section for `## ARCHIVE` at its own ship on 2026-10-23.**
+
+**`MIR-08` is at `REVIEW` in `ticket.yaml`, `gates.review` passed** — recorded at /advance on 2026-10-23 from the re-run `04-review.md` (verdict PASS, `produced_at: 2026-10-23T07:28:26Z`), after the allow rules in [#176](https://github.com/didi-code0980/calechip/pull/176) let R1–R3 actually run. The row stays here until `/ship` moves it to `## ARCHIVE`. (The table row briefly shown here while the ticket was `ESCALATED` is removed: `ticket.yaml` is authoritative and this file is the view, repaired to match it.)
+
+**Empty again — `MIR-08` left this section for `## BLOCKED` at /advance on 2026-10-23**, `ESCALATED` from `04-review.md` verdict BLOCKED, `route_to: human`. No row in `## BACKLOG` or `## READY` to catch up.
+
+**`MIR-08` is at `REVIEW` in `ticket.yaml`, `gates.review` not yet passed** — recorded at /advance on 2026-10-23 from `03-impl-log.md` gate PASS (re-run, `produced_at: 2026-10-23T06:57:19Z`). The lint blocker below was not resolved by `tech-lead-design`; it was fixed independently, outside this ticket, by `4f9197e` ("fix(runner): lint error from ADR-067..."), now in this branch's history, which left `99-questions.md`'s question moot. `pnpm exec eslint .` is clean on the re-run; typecheck and the 987 unit tests stay green.
+
+**`MIR-08` was at `IN_PROGRESS` in `ticket.yaml`, blocked** — recorded at /advance on 2026-10-23 from `03-impl-log.md` gate BLOCKED, `next_state: IN_PROGRESS`. The deletion of `supabase/db.sql` and both comment edits are complete and typecheck/unit-test clean; the one red command is repo-wide `pnpm exec eslint .` failing on a pre-existing, out-of-`allowed_paths` error in `scripts/run-loop.mjs` (predates this ticket's branch). The developer asked `tech-lead-design` in `99-questions.md` whether the gate may pass on that basis or whether `allowed_paths` should widen; unanswered — no live `tech-lead-design` session in this run. The row stays here until that question is answered and `/implement` resumes.
+
+**`MIR-08` moved here at /advance on 2026-10-23**, from `01-plan.md` gate PASS with all six Definition of Ready items passing; `schema_delta: none`. MIR-08 had no row in `## BACKLOG`, so no row left that table.
+
 **Empty again — `MIR-07` left this section for `## ARCHIVE` at its own ship on 2026-10-23.**
 
 **`MIR-07` is at `REVIEW` in `ticket.yaml`, `gates.review` passed** — recorded at /advance on 2026-10-23 from `04-review.md` verdict PASS. The row stays here until `/ship` moves it to `## ARCHIVE`.
@@ -1489,6 +1501,8 @@ Tickets that cannot proceed until a human decides something. Name the decision, 
 | # | Ticket | Blocked on | Since | Who decides |
 |---|--------|------------|-------|-------------|
 
+**`MIR-08` left this table on 2026-10-23**: its review could not run R1–R3 because the review session was denied the verify commands; R4–R8 showed no defect. The allow rules are in [#176](https://github.com/didi-code0980/calechip/pull/176). State back to `REVIEW`; `/review` re-runs in a fresh session.
+
 **`MIR-05` left this table on 2026-10-21**: the operator's holiday rows merged in [#169](https://github.com/didi-code0980/calechip/pull/169) (99-questions.md option A); `/review` re-ran in a fresh session and passed. State back to `REVIEW`.
 
 **`CICD-05` left this table on 2026-10-14**: the operator chose option 3 — `src/components/TopBar.tsx` from the three chore commits ships with the ticket as an accepted exception (note in its `ticket.yaml`). State back to `REVIEW`; `/review` re-runs in a fresh session.
@@ -1524,26 +1538,28 @@ các tính năng mới và đưa vào backlog"*. The four solo rows registered e
 
 | # | Ticket | Title | Shipped | PR |
 |---|--------|-------|---------|-----|
-| 1 | CICD-05 | The deployment repository deploys only CaleChip from merged config, health-checks it and restores the previous version on failure — drafted in this repository | 2026-10-14 | [#134](https://github.com/didi-code0980/calechip/pull/134) |
-| 2 | CICD-06 | The pipeline, its secrets, how to cut a release and how to roll one back are written down, and the standards that describe CI match it | 2026-10-14 | [#135](https://github.com/didi-code0980/calechip/pull/135) |
-| 3 | CICD-07 | The self-hosted runner on the WSL server has a hand-run setup runbook, and the deploy workflow selects it by the label `mmlabs-server` | 2026-10-14 | [#138](https://github.com/didi-code0980/calechip/pull/138) |
-| 4 | EVT-12 | The creator or an admin of an *Own team* or *Limited people* event invites people by email, a member outside its reach is added to its named list, and *Named people* is relabelled *Limited people* | 2026-10-14 | [#140](https://github.com/didi-code0980/calechip/pull/140) |
-| 5 | EVT-13 | A signed-in member who opens a guest link to an event they can read is taken to the event in the app | 2026-10-15 | [#141](https://github.com/didi-code0980/calechip/pull/141) |
-| 6 | UIE-12 | The way to join an event stays in view while its page scrolls, on `/events/:id` and on `/guest/:token` | 2026-10-15 | [#145](https://github.com/didi-code0980/calechip/pull/145) |
-| 7 | EVT-14 | A signed-out reader of a guest link is offered sign-in and sign-up, and signing in returns them to the event | 2026-10-15 | [#146](https://github.com/didi-code0980/calechip/pull/146) |
-| 8 | TSK-01 | A member keeps a private list of tasks for each day, and only they can read or change it | 2026-10-15 | [#149](https://github.com/didi-code0980/calechip/pull/149) |
-| 9 | TSK-05 | Ticking a task done or not done changes on screen at once, and the server's answer confirms or undoes it | 2026-10-16 | [#150](https://github.com/didi-code0980/calechip/pull/150) |
-| 10 | TSK-02 | Each time the app opens, a member is shown their overdue tasks and can tick them or move them all to today | 2026-10-17 | [#153](https://github.com/didi-code0980/calechip/pull/153) |
-| 11 | TSK-03 | A member declaring PTO is warned about their own tasks on those days, without being stopped | 2026-10-17 | [#155](https://github.com/didi-code0980/calechip/pull/155) |
-| 12 | TSK-04 | The week view shows, in each day's header, how many of the viewer's own tasks are done out of the total | 2026-10-18 | [#156](https://github.com/didi-code0980/calechip/pull/156) |
-| 13 | TSK-06 | The task page shows the week around the selected day, with progress, and a task may carry an optional time of day | 2026-10-18 | PENDING_PR |
-| 14 | MIR-02 | A member's own role, status and team can be changed only through bounded, definer-checked paths | 2026-10-20 | [#165](https://github.com/didi-code0980/calechip/pull/165) |
-| 15 | MIR-03 | Role changes are bounded to members the admin administers, promotion to admin is a separately gated action, and every role change records its actor | 2026-10-20 | [#166](https://github.com/didi-code0980/calechip/pull/166) |
-| 16 | MIR-04 | The member directory returns only members of the caller's own teams, and the event-invitee check is audited | 2026-10-21 | [#167](https://github.com/didi-code0980/calechip/pull/167) |
-| 17 | MIR-01 | The service role key and the anon key are rotated, and the rotation is recorded | 2026-10-21 | [#168](https://github.com/didi-code0980/calechip/pull/168) |
-| 18 | MIR-05 | pgTAP runs locally and in CI against a real Postgres with every migration applied | 2026-10-21 | [#170](https://github.com/didi-code0980/calechip/pull/170) |
-| 19 | MIR-06 | An SQL isolation suite proves each boundary as a real authenticated role against real policies | 2026-10-23 | [#171](https://github.com/didi-code0980/calechip/pull/171) |
-| 20 | MIR-07 | The mock is no looser than SQL on any permission decision, and a parity test enforces it | 2026-10-23 | PENDING_PR |
+| 1 | CICD-06 | The pipeline, its secrets, how to cut a release and how to roll one back are written down, and the standards that describe CI match it | 2026-10-14 | [#135](https://github.com/didi-code0980/calechip/pull/135) |
+| 2 | CICD-07 | The self-hosted runner on the WSL server has a hand-run setup runbook, and the deploy workflow selects it by the label `mmlabs-server` | 2026-10-14 | [#138](https://github.com/didi-code0980/calechip/pull/138) |
+| 3 | EVT-12 | The creator or an admin of an *Own team* or *Limited people* event invites people by email, a member outside its reach is added to its named list, and *Named people* is relabelled *Limited people* | 2026-10-14 | [#140](https://github.com/didi-code0980/calechip/pull/140) |
+| 4 | EVT-13 | A signed-in member who opens a guest link to an event they can read is taken to the event in the app | 2026-10-15 | [#141](https://github.com/didi-code0980/calechip/pull/141) |
+| 5 | UIE-12 | The way to join an event stays in view while its page scrolls, on `/events/:id` and on `/guest/:token` | 2026-10-15 | [#145](https://github.com/didi-code0980/calechip/pull/145) |
+| 6 | EVT-14 | A signed-out reader of a guest link is offered sign-in and sign-up, and signing in returns them to the event | 2026-10-15 | [#146](https://github.com/didi-code0980/calechip/pull/146) |
+| 7 | TSK-01 | A member keeps a private list of tasks for each day, and only they can read or change it | 2026-10-15 | [#149](https://github.com/didi-code0980/calechip/pull/149) |
+| 8 | TSK-05 | Ticking a task done or not done changes on screen at once, and the server's answer confirms or undoes it | 2026-10-16 | [#150](https://github.com/didi-code0980/calechip/pull/150) |
+| 9 | TSK-02 | Each time the app opens, a member is shown their overdue tasks and can tick them or move them all to today | 2026-10-17 | [#153](https://github.com/didi-code0980/calechip/pull/153) |
+| 10 | TSK-03 | A member declaring PTO is warned about their own tasks on those days, without being stopped | 2026-10-17 | [#155](https://github.com/didi-code0980/calechip/pull/155) |
+| 11 | TSK-04 | The week view shows, in each day's header, how many of the viewer's own tasks are done out of the total | 2026-10-18 | [#156](https://github.com/didi-code0980/calechip/pull/156) |
+| 12 | TSK-06 | The task page shows the week around the selected day, with progress, and a task may carry an optional time of day | 2026-10-18 | PENDING_PR |
+| 13 | MIR-02 | A member's own role, status and team can be changed only through bounded, definer-checked paths | 2026-10-20 | [#165](https://github.com/didi-code0980/calechip/pull/165) |
+| 14 | MIR-03 | Role changes are bounded to members the admin administers, promotion to admin is a separately gated action, and every role change records its actor | 2026-10-20 | [#166](https://github.com/didi-code0980/calechip/pull/166) |
+| 15 | MIR-04 | The member directory returns only members of the caller's own teams, and the event-invitee check is audited | 2026-10-21 | [#167](https://github.com/didi-code0980/calechip/pull/167) |
+| 16 | MIR-01 | The service role key and the anon key are rotated, and the rotation is recorded | 2026-10-21 | [#168](https://github.com/didi-code0980/calechip/pull/168) |
+| 17 | MIR-05 | pgTAP runs locally and in CI against a real Postgres with every migration applied | 2026-10-21 | [#170](https://github.com/didi-code0980/calechip/pull/170) |
+| 18 | MIR-06 | An SQL isolation suite proves each boundary as a real authenticated role against real policies | 2026-10-23 | [#171](https://github.com/didi-code0980/calechip/pull/171) |
+| 19 | MIR-07 | The mock is no looser than SQL on any permission decision, and a parity test enforces it | 2026-10-23 | PENDING_PR |
+| 20 | MIR-08 | `supabase/db.sql` is regenerated from the applied migrations or retired, and CI fails on drift | 2026-10-23 | PENDING_PR |
+
+**The window displaced `CICD-05` at MIR-08's ship** — *CICD-05, The deployment repository deploys only CaleChip from merged config, health-checks it and restores the previous version on failure — drafted in this repository, shipped 2026-10-14,* [#134](https://github.com/didi-code0980/calechip/pull/134)
 
 **The window displaced `CICD-04` at MIR-07's ship** — *CICD-04, A version tag on `main` promotes the image already built for that commit, by digest and without rebuilding, and opens a release pull request in the deployment repository, shipped 2026-10-14,* [#133](https://github.com/didi-code0980/calechip/pull/133)
 
