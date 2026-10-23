@@ -39,6 +39,21 @@ export const stripComment = (s) => {
   return out.trimEnd();
 };
 
+/**
+ * True when a value that starts with a quote also ends with that quote, unescaped. `"a\"` is not
+ * closed; `'it''s'` is. Used to find where a multi-line quoted scalar ends.
+ */
+const closesQuote = (v, q = v[0]) => {
+  const t = v.trimEnd();
+  if (t.length < 2 || !t.endsWith(q)) return false;
+  if (q === '"') {
+    let bs = 0;
+    for (let i = t.length - 2; i >= 0 && t[i] === "\\"; i--) bs++;
+    return bs % 2 === 0;
+  }
+  return true;
+};
+
 /** `""` -> "", `null` -> null, `true`/`false` -> boolean, `12` -> number, else the raw string. */
 const scalar = (raw) => {
   const v = raw.trim();
@@ -123,7 +138,26 @@ export function parseSimpleYaml(text, label = "<yaml>") {
     if (colon === -1) throw new Error(`${label}:${n + 1} line has no key: ${body}`);
 
     const key = body.slice(0, colon).trim();
-    const rest = body.slice(colon + 1);
+    let rest = body.slice(colon + 1);
+
+    // A quoted scalar that runs over several lines, which YAML folds into one line with a space at
+    // each break. Agents write `blocking_reason: "…` this way when the reason is long; until
+    // 2026-10-23 that threw "indented line has no parent key" and took the runner down with it
+    // (MIR-08, run 20261023-044304). Continuation lines are read raw: stripComment works one line
+    // at a time and cannot know it is inside a quote.
+    const opened = rest.trim();
+    if ((opened.startsWith('"') || opened.startsWith("'")) && !closesQuote(opened)) {
+      const parts = [opened];
+      let m = n + 1;
+      for (; m < lines.length; m++) {
+        const cont = lines[m].trim();
+        parts.push(cont);
+        if (closesQuote(opened[0] + cont, opened[0])) break;
+      }
+      if (m >= lines.length) throw new Error(`${label}:${n + 1} quoted value for ${key} is never closed`);
+      rest = " " + parts.filter((x) => x !== "").join(" ");
+      n = m;
+    }
 
     // Folded (`>`) or literal (`|`) block scalar, with an optional chomping indicator.
     // `schema_delta` is written this way on five tickets, because Definition of Ready item 4 asks

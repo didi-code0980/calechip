@@ -272,7 +272,9 @@ function nextStep(t, dir = ticketDir(t.id)) {
       // (BLOCKED, FAIL, or no log yet) means the stage did not finish, and the work is the
       // Developer's again. Until 2026-10-23 this always routed to /advance, so a BLOCKED
       // implementation was re-recorded and never re-run (MIR-08, run 20261023-041145).
-      const impl = readFrontMatter(path.join(dir, "03-impl-log.md"));
+      let impl;
+      try { impl = readFrontMatter(path.join(dir, "03-impl-log.md")); }
+      catch { impl = null; }   // unreadable front-matter is not a PASS; /implement rewrites the log
       if (impl?.gate === "PASS") return { command: "/advance", agent: "orchestrator" };
       return { command: "/implement", agent: "developer", then: "/advance" };
     }

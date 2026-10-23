@@ -170,3 +170,32 @@ test("every ticket.yaml on the board parses, with a state in the enum", () => {
     assert.ok(Array.isArray(t.allowed_paths ?? []), `${t.id} allowed_paths did not read as a list`);
   }
 });
+
+// --- Multi-line quoted scalars (MIR-08, run 20261023-044304) ------------------------------------
+
+test("a double-quoted value may run over several indented lines, folded with spaces", () => {
+  const y = parseSimpleYaml([
+    "gate: BLOCKED",
+    'blocking_reason: "pnpm exec eslint . exits 1 on scripts/run-loop.mjs:46:7, \'X\' is unused. That',
+    "  file is not in allowed_paths # not a comment inside quotes",
+    '  and git log -1 resolves to a73808d."',
+    "next_state: IN_PROGRESS",
+  ].join("\n"));
+  assert.equal(y.gate, "BLOCKED");
+  assert.equal(y.next_state, "IN_PROGRESS");
+  assert.equal(y.blocking_reason,
+    "pnpm exec eslint . exits 1 on scripts/run-loop.mjs:46:7, 'X' is unused. That file is not in " +
+    "allowed_paths # not a comment inside quotes and git log -1 resolves to a73808d.");
+});
+
+test("an escaped quote does not close a multi-line value, and an unclosed one throws", () => {
+  const y = parseSimpleYaml(['r: "a \\"b\\"', '  c"', "k: v"].join("\n"));
+  assert.equal(y.r, 'a \\"b\\" c');
+  assert.equal(y.k, "v");
+  assert.throws(() => parseSimpleYaml(['r: "never', "  closed"].join("\n")), /never closed/);
+});
+
+test("single-line quoted values are unchanged", () => {
+  const y = parseSimpleYaml(['a: ""', 'b: "x"', "c: 'y'"].join("\n"));
+  assert.deepEqual([y.a, y.b, y.c], ["", "x", "y"]);
+});
