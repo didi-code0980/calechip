@@ -290,7 +290,8 @@ export default function MonthView() {
       // the state that refuses to show a believable partial answer.
       //
       // In practice this fires on one thing: a build where this ticket's migration has not been
-      // applied, since `public.team` carries no grant and no policy until then (db.sql 9.1) and
+      // applied, since `public.team` carries no grant and no policy until then
+      // (`supabase/migrations/20260904100000_cal04_team_select.sql`) and
       // PostgREST answers zero rows. Applying a migration is human — RULE-09.
       if (!team) {
         setView({ phase: "unavailable" });

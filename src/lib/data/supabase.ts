@@ -2301,7 +2301,8 @@ export const seam: DataSeam = {
   // NO `.eq()` AND NO TEAM PARAMETER. `team_select_own` — shipped by this ticket's migration — is
   // what narrows the table to `id = member_team_id(auth.uid())`, and a filter written here would be
   // a second, weaker copy of the policy. Before that migration is applied this read answers zero
-  // rows to everybody, because `public.team` carries no grant and no policy at all (db.sql 9.1).
+  // rows to everybody, because `public.team` carries no grant and no policy at all
+  // (`supabase/migrations/20260904100000_cal04_team_select.sql`).
   //
   // `maybeSingle` and not `single`: zero rows is the answer for a caller with no member row, for a
   // removed one, and for a build where the migration has not been applied. All three are the

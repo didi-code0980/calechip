@@ -23,6 +23,8 @@ planned, sized, and safe to build** — the next stage for a row here is IN_PROG
 | # | Ticket | Title | Size | Depends on |
 |---|--------|-------|------|------------|
 
+**`MIR-08` is at `IN_PROGRESS` in `ticket.yaml`, blocked** — recorded at /advance on 2026-10-23 from `03-impl-log.md` gate BLOCKED, `next_state: IN_PROGRESS`. The deletion of `supabase/db.sql` and both comment edits are complete and typecheck/unit-test clean; the one red command is repo-wide `pnpm exec eslint .` failing on a pre-existing, out-of-`allowed_paths` error in `scripts/run-loop.mjs` (predates this ticket's branch). The developer asked `tech-lead-design` in `99-questions.md` whether the gate may pass on that basis or whether `allowed_paths` should widen; unanswered — no live `tech-lead-design` session in this run. The row stays here until that question is answered and `/implement` resumes.
+
 **`MIR-08` moved here at /advance on 2026-10-23**, from `01-plan.md` gate PASS with all six Definition of Ready items passing; `schema_delta: none`. MIR-08 had no row in `## BACKLOG`, so no row left that table.
 
 **Empty again — `MIR-07` left this section for `## ARCHIVE` at its own ship on 2026-10-23.**
