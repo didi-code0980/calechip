@@ -25,7 +25,7 @@ import { fileURLToPath } from "node:url";
 import {
   nextStep, advanceSimulated, sessionFor, reviewStop, questionStop, budgetStop,
   inAllowedPaths, validateEntry, buildArgv, parseArgv, SESSION_POLICY, TICKET_ID,
-  readQuestions, pickNext, checksVerdict,
+  readQuestions, pickNext, checksVerdict, progressKey,
 } from "../run-loop.mjs";
 import { intakePrompt } from "../lib/prompts.mjs";
 
@@ -519,5 +519,13 @@ test("no agent merges: the deny rule stays, and only mergeTicket calls gh pr mer
   assert.ok(!settings.permissions.allow.some((r) => /gh pr merge/.test(r)));
   const src = fs.readFileSync(SCRIPT, "utf8");
   assert.equal((src.match(/gh\("pr", "merge"/g) ?? []).length, 1, "exactly one merge call site");
+});
+
+test("a passing review is progress although the state stays REVIEW (MIR-08, run 20261023-072747)", () => {
+  const before = ticket({ state: "REVIEW", gates: { plan: { passed: true }, review: { passed: false } } });
+  const after = ticket({ state: "REVIEW", gates: { plan: { passed: true }, review: { passed: true } } });
+  assert.notEqual(progressKey(before), progressKey(after));
+  assert.equal(progressKey(before), progressKey({ ...before }), "nothing recorded is still no progress");
+  assert.notEqual(progressKey(before), progressKey({ ...before, rework_count: 1 }));
 });
 

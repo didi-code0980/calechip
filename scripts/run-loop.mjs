@@ -1020,7 +1020,11 @@ async function main() {
       }
     }
 
-    if (t.state === lastState && steps > 0) {
+    // Progress is the state AND the two gates AND the rework counter. A passing review leaves the
+    // ticket at REVIEW and moves only gates.review, which is correct (`/ship` sets DONE); comparing
+    // the state alone called that "recorded nothing" and stopped MIR-08 one step before /ship
+    // (run 20261023-072747).
+    if (progressKey(t) === lastState && steps > 0) {
       writeStopped(runId, { ticket: id, stage: t.state,
         reason: `state did not change after a step (still ${t.state}) — the stage ran but recorded nothing`,
         decide: "Read the last `step-NN.json` in this run folder. A stage that returns cleanly without moving the board usually means `/advance` found no artifact front-matter to transcribe.",
@@ -1028,7 +1032,7 @@ async function main() {
       saveSessions(store);
       process.exit(2);
     }
-    lastState = t.state;
+    lastState = progressKey(t);
 
     // --- B3: after PLAN, before the ticket is built against. ADR-037. ---
     //
@@ -1176,6 +1180,11 @@ async function main() {
   }
 }
 
+/** What a step must change for the runner to call it progress. Pure; see the loop above. */
+function progressKey(t) {
+  return [t.state, t.gates?.plan?.passed === true, t.gates?.review?.passed === true, t.rework_count ?? 0].join("|");
+}
+
 // --- Chain and merge (ADR-067) -----------------------------------------------------------------
 
 const CHAIN_STATES = ["BACKLOG", "PLAN", "READY", "IN_PROGRESS", "REVIEW", "REWORK"];
@@ -1314,5 +1323,5 @@ if (invokedDirectly) main().catch((e) => die(e.stack ?? String(e), 4));
 
 export { nextStep, advanceSimulated, sessionFor, reviewStop, questionStop, budgetStop,
          readQuestions,
-         shipPermissionStop, pickNext, checksVerdict,
+         shipPermissionStop, pickNext, checksVerdict, progressKey,
          inAllowedPaths, validateEntry, buildArgv, parseArgv, SESSION_POLICY, TICKET_ID };
