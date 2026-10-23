@@ -30,7 +30,7 @@ schema_delta: "index member_team_id_idx on public.member (team_id); check constr
 requires_adr: true    # ADR-069; ADR-014: a constraint is not `none`
 rework_count: 0
 chat_budget:
-  developer->tech-lead-design: { used: 1, max: 6 }
+  developer->tech-lead-design: { used: 2, max: 6 }
 tracker: { provider: "", external_id: "", sync_enabled: false }
 gates:
   plan:   { passed: true, at: "2026-10-23T08:26:10Z" }
