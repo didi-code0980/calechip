@@ -132,6 +132,18 @@ test("route_to: human and a BLOCKED verdict both stop", () => {
   assert.match(reviewStop(ticket(), b), /BLOCKED/);
 });
 
+test("a stale BLOCKED review does not stop a ticket a person moved back to REVIEW (MIR-08)", () => {
+  const dir = tmp();
+  writeReview(dir, { gate: "BLOCKED", verdict: "BLOCKED", invariant_violation: false, route_to: "human" });
+  const back = ticket({ state: "REVIEW", gates: { plan: { passed: true }, review: { passed: false } } });
+  assert.equal(reviewStop(back, dir), null, "/review is about to overwrite this file");
+  assert.equal(nextStep(back, dir).command, "/review");
+
+  const inv = tmp();
+  writeReview(inv, { gate: "FAIL", verdict: "FAIL", invariant_violation: true, route_to: "human", blocking_reason: "INV-01" });
+  assert.match(reviewStop(back, inv), /RULE-07/, "an invariant violation stops in every state");
+});
+
 test("a verdict that disagrees with its own gate voids the artifact", () => {
   const dir = tmp();
   writeReview(dir, { gate: "PASS", verdict: "FAIL", invariant_violation: false, route_to: "none" });
