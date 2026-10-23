@@ -323,6 +323,13 @@ function reviewStop(t, dir = ticketDir(t.id)) {
   if (r.invariant_violation === true) {
     return `invariant violation reported — RULE-07 escalates on first occurrence, never REWORK: ${r.blocking_reason ?? ""}`;
   }
+  // A ticket at REVIEW whose review gate has not passed is about to be reviewed again, and /review
+  // overwrites this file. A BLOCKED or human-routed verdict left in it is the last attempt's, which a
+  // person has already dealt with by moving the ticket back to REVIEW (MIR-05, MIR-08). Stopping on
+  // it again stopped MIR-08 before its re-review could run (run 20261023-072532). An invariant
+  // violation above still stops in every state. If the re-review records nothing, the
+  // "state did not change" check stops the run.
+  if (t?.state === "REVIEW" && t?.gates?.review?.passed !== true) return null;
   if (r.route_to === "human") return `review routed to a human: ${r.blocking_reason ?? ""}`;
   if (r.gate === "BLOCKED") return `review is BLOCKED: ${r.blocking_reason ?? ""}`;
   return null;
