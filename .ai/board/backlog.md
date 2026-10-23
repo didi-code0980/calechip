@@ -22,6 +22,7 @@ planned, sized, and safe to build** — the next stage for a row here is IN_PROG
 
 | # | Ticket | Title | Size | Depends on |
 |---|--------|-------|------|------------|
+| 1 | MIR-08 | `supabase/db.sql` is regenerated from the applied migrations or retired, and CI fails on drift | S | — |
 
 **Empty again — `MIR-08` left this section for `## BLOCKED` at /advance on 2026-10-23**, `ESCALATED` from `04-review.md` verdict BLOCKED, `route_to: human`. No row in `## BACKLOG` or `## READY` to catch up.
 
@@ -1496,7 +1497,8 @@ Tickets that cannot proceed until a human decides something. Name the decision, 
 
 | # | Ticket | Blocked on | Since | Who decides |
 |---|--------|------------|-------|-------------|
-| 1 | MIR-08 | `04-review.md` reports R1 (`check-allowed-paths.mjs`, `check-carry.mjs`), R2 (`pnpm typecheck`) and R3 (`pnpm lint`) **NOT RUN** — the review session's permission layer denied every non-git subprocess with no approval surface. R4–R8 show no defect; this is not a verdict on the code. A human must grant the review session `node scripts/*.mjs` and `pnpm typecheck` / `pnpm lint` (or run them and commit the output), then `/review MIR-08` re-runs in a fresh session. | 2026-10-23 | operator |
+
+**`MIR-08` left this table on 2026-10-23**: its review could not run R1–R3 because the review session was denied the verify commands; R4–R8 showed no defect. The allow rules are in [#176](https://github.com/didi-code0980/calechip/pull/176). State back to `REVIEW`; `/review` re-runs in a fresh session.
 
 **`MIR-05` left this table on 2026-10-21**: the operator's holiday rows merged in [#169](https://github.com/didi-code0980/calechip/pull/169) (99-questions.md option A); `/review` re-ran in a fresh session and passed. State back to `REVIEW`.
 
