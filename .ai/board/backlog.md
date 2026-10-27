@@ -22,6 +22,9 @@ planned, sized, and safe to build** — the next stage for a row here is IN_PROG
 
 | # | Ticket | Title | Size | Depends on |
 |---|--------|-------|------|------------|
+| 1 | MIR-10 | The org and multi-team membership schema is designed and approved before any migration | S | MIR-01..MIR-09 (DONE) |
+
+**`MIR-10` moved here at /advance on 2026-10-27**, from `01-plan.md` gate PASS with all six Definition of Ready items passing; `schema_delta: "none"`, with [ADR-070](../registry/decisions/ADR-070-the-org-and-multi-team-membership-schema.md) `ACCEPTED by tech-lead-design under the operator's delegation (ADR-067)`. MIR-10 had no row in `## BACKLOG`, so no row left that table.
 
 **Empty again — `MIR-09` left this section for `## ARCHIVE` at its own ship on 2026-10-27.**
 
