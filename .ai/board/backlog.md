@@ -22,6 +22,9 @@ planned, sized, and safe to build** — the next stage for a row here is IN_PROG
 
 | # | Ticket | Title | Size | Depends on |
 |---|--------|-------|------|------------|
+| 1 | MIR-11 | Composite foreign keys make a cross-org insert impossible at the database | S | MIR-01, MIR-02, MIR-03, MIR-04, MIR-05, MIR-06, MIR-07, MIR-08, MIR-09, MIR-10 |
+
+**`MIR-11` moved here at /advance on 2026-10-27**, from `01-plan.md` gate PASS with all six Definition of Ready items passing; `schema_delta` cites [ADR-070](../registry/decisions/ADR-070-the-org-and-multi-team-membership-schema.md) (`ACCEPTED by tech-lead-design under the operator's delegation (ADR-067)`) and [ADR-059](../registry/decisions/ADR-059-calechip-becomes-multi-tenant-system-org-team.md) (`ACCEPTED by the operator`). MIR-11 had no row in `## BACKLOG`, so no row left that table.
 
 **Empty again — `MIR-10` left this section for `## ARCHIVE` at its own ship on 2026-10-27.**
 
