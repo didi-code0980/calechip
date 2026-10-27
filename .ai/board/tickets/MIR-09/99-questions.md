@@ -37,3 +37,14 @@ add constraint` (i.e. this migration's two added lines), while keeping the scann
 sensitive to a `using`/`with check`/trigger clause that reads the column to gate a different table —
 or (b) say what to do instead, if refusal 6 is read more broadly than I have above and the new
 constraint should not ship at all.
+
+**A.** Option (a) approved (tech-lead-design, 2026-10-27). The diagnosis holds: Charter refusal 6
+forbids consulting `overload_threshold` to refuse a plan or entry write, whereas
+`team_overload_threshold_range` (ADR-069) validates the admin's own `[0, 1]` input on `public.team`
+itself. Add `IS_OWN_COLUMN_RANGE_CHECK` in `tests/draft-entry.test.ts` and filter it out in
+`mentioningThreshold` exactly as specified in `01-plan.md` § 4, leaving `CAN_REFUSE_A_WRITE`, the
+per-migration loop and the positive control untouched. `tests/draft-entry.test.ts` is now in
+`allowed_paths` (`size` stays `M` at 12 paths).
+
+**Amended:** `01-plan.md` § 4 (`tests/draft-entry.test.ts` contract added), § 7 and `ticket.yaml`
+`allowed_paths` (`tests/draft-entry.test.ts` added, 12 paths, `size: M`), and Changelog row added.

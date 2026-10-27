@@ -23,7 +23,12 @@ inputs_read:
   - src/lib/fixtures.ts
   - src/routes/Threshold.tsx
   - tests/threshold.test.ts
-consulted: []
+  - tests/draft-entry.test.ts
+consulted:
+  - with: developer
+    asked: "Whether tests/draft-entry.test.ts may be added to allowed_paths and its AC-14 charter-refusal-6 scanner narrowed so that the new team_overload_threshold_range check constraint on public.team is not flagged as consulting the threshold to refuse a plan write."
+    answer: "Approved. Added tests/draft-entry.test.ts to allowed_paths and specified the exact narrowing in § 4."
+    resulted_in_amendment: true
 chat_before_verdict: none
 gate: PASS
 blocking_reason: ""
@@ -263,6 +268,31 @@ statement and `commit;` after the last. Nothing else changes.
 - AC-4 against the mock, as an admin and as `FIXTURE_MEMBER`;
 - the stored value is unchanged afterwards.
 
+**`tests/draft-entry.test.ts` (edit, AC-14 scanner only; added 2026-10-27).** CAL-07's AC-14 scanner
+(`tests/draft-entry.test.ts:280-343`) pins Charter refusal 6 by scanning every migration for any
+statement mentioning `overload_threshold` that matches `CAN_REFUSE_A_WRITE` (`policy`, `trigger`,
+`before insert/update`, or `check (`). That regex flags `team_overload_threshold_range`, which
+validates the admin's own input when writing `team.overload_threshold` (ADR-069) and does not
+consult the threshold to refuse an entry or plan write. Narrow `mentioningThreshold` so it excludes
+the column's own range constraint on `public.team`:
+
+```ts
+/** MIR-09, ADR-069: `team_overload_threshold_range` checks the column's own [0, 1] bounds on
+ *  `public.team`; it does not consult the threshold to gate an entry or plan write (refusal 6). */
+const IS_OWN_COLUMN_RANGE_CHECK =
+  /^\s*alter\s+table\s+public\.team\s+add\s+constraint\s+team_overload_threshold_range\s+check\s*\(\s*overload_threshold\s*>=\s*0\s+and\s+overload_threshold\s*<=\s*1\s*\)\s*$/i;
+
+const mentioningThreshold = (sql: string): string[] =>
+  statementsOf(sql).filter(
+    (statement) =>
+      statement.includes("overload_threshold") && !IS_OWN_COLUMN_RANGE_CHECK.test(statement),
+  );
+```
+
+Nothing else in `tests/draft-entry.test.ts` changes: `CAN_REFUSE_A_WRITE`, the per-migration test
+loop and the positive control (`fires when a real migration's policy is made to consult the
+threshold`) stay untouched and green.
+
 ## 5. Seam impact
 
 No function is added, renamed or re-aritied, so `tests/seam-parity.test.ts` is unaffected.
@@ -296,11 +326,13 @@ allowed_paths:
   - "src/lib/domain/types.ts"
   - "src/lib/fixtures.ts"
   - "tests/threshold.test.ts"
+  - "tests/draft-entry.test.ts"
 ```
 
 - The ADR path was added before the ADR was written. The ADR is complete at PLAN, and the Developer
   does not edit it.
-- There are 11 paths, so `size` is M, which agrees with `size_estimate`.
+- There are 12 paths (11 at initial PLAN; `tests/draft-entry.test.ts` added by the 2026-10-27
+  amendment below), so `size` is M, which agrees with `size_estimate`.
 - `glossary_owed` is `[]`. *Threshold* already has its row and is not touched.
 
 ## 8. Rejected alternatives
@@ -329,3 +361,10 @@ none. ADR-069 is written under ADR-008 and supersedes no accepted ADR.
   "allow-list references" could not be fixed without knowing which references exist. The scope
   definition in section 1 is therefore informed by the code, and section 8's third alternative is
   the reading that was narrowed away.
+- `2026-10-27T08:28:30+07:00` — section 4 gains the `tests/draft-entry.test.ts` AC-14 scanner
+  narrowing (`IS_OWN_COLUMN_RANGE_CHECK`), and section 7 and `ticket.yaml` `allowed_paths` add
+  `tests/draft-entry.test.ts` (12 paths; `size` stays `M`). CAL-07's scanner matches any `check (`
+  in a statement mentioning `overload_threshold` and therefore false-positived on
+  `team_overload_threshold_range`, which validates the column's own `[0, 1]` bounds on `public.team`
+  (ADR-069) rather than consulting the threshold to refuse a plan or entry write (Charter refusal 6).
+  Raised by `developer` in `99-questions.md`. Amended by `tech-lead-design`.
