@@ -310,8 +310,16 @@ const statementsOf = (sql: string): string[] =>
     .join("\n")
     .split(";");
 
+/** MIR-09, ADR-069: `team_overload_threshold_range` checks the column's own [0, 1] bounds on
+ *  `public.team`; it does not consult the threshold to gate an entry or plan write (refusal 6). */
+const IS_OWN_COLUMN_RANGE_CHECK =
+  /^\s*alter\s+table\s+public\.team\s+add\s+constraint\s+team_overload_threshold_range\s+check\s*\(\s*overload_threshold\s*>=\s*0\s+and\s+overload_threshold\s*<=\s*1\s*\)\s*$/i;
+
 const mentioningThreshold = (sql: string): string[] =>
-  statementsOf(sql).filter((statement) => statement.includes("overload_threshold"));
+  statementsOf(sql).filter(
+    (statement) =>
+      statement.includes("overload_threshold") && !IS_OWN_COLUMN_RANGE_CHECK.test(statement),
+  );
 
 const migrations = readdirSync(repoRoot + MIGRATIONS).filter((name) => name.endsWith(".sql"));
 

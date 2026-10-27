@@ -201,6 +201,12 @@ export interface SetOverloadThresholdInput {
   overloadThreshold: number;
 }
 
+/** MIR-09, ADR-069. The datastore's `team_overload_threshold_range`, restated for the pre-send guard. */
+export function isValidThreshold(share: number): boolean {
+  return Number.isFinite(share) && share >= 0 && share <= 1;
+}
+export const INVALID_THRESHOLD_MESSAGE = "The threshold must be between 0% and 100%.";
+
 /** ADM-03, 01-plan.md section 4.2. AC-1, AC-2, AC-5.
  *
  *  THE THREE COLUMNS AN ADMIN MAY SET, and no more. `id` and `createdAt` are the datastore's — the
@@ -759,9 +765,14 @@ export interface DataSeam {
    * `!error` as success would report a refusal as done. This is the one behaviour in this contract a
    * developer will get wrong in good faith, and AC-5 is the test that catches it.
    *
-   * NO RANGE CHECK HERE. `[0, 100]` in whole percentage points is a product decision the SCREEN
-   * enforces before it issues anything (AC-7, AC-8, 01-plan.md section 4.3); there is no `check`
-   * constraint behind this and section 6 says why.
+   * `[0, 100]` IN WHOLE PERCENTAGE POINTS IS STILL A SCREEN DECISION (AC-7, AC-8, 01-plan.md section
+   * 4.3), enforced there before anything is sent. **MIR-09, ADR-069 — THIS PARAGRAPH USED TO END "and
+   * there is no `check` constraint behind this", AND THAT IS NO LONGER TRUE.** The datastore now
+   * carries `team_overload_threshold_range`, checking `[0, 1]` as a fraction; both implementations
+   * refuse the same fraction before sending, with `isValidThreshold` (this module), and map the
+   * constraint's own SQLSTATE `23514` to the same code — `invalid_threshold` — if a caller reaches it
+   * some other way. The value check runs BEFORE the permission check, so a non-admin sending an
+   * out-of-range value is told the value is wrong rather than that they lack permission.
    */
   setOverloadThreshold(input: SetOverloadThresholdInput): Promise<Result<Team>>;
 

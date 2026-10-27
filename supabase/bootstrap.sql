@@ -180,9 +180,10 @@ begin
     select t.id into v_team_id from public.team t;
   end if;
 
-  -- AC-4. `removed_at` stays null and `created_at` takes the column default. `public.allowed_email`
-  -- is deliberately untouched: admin zero was never allow-listed, and inventing a consumed row for
-  -- them would be a false provenance record in the one table whose purpose is provenance.
+  -- AC-4. `removed_at` stays null and `created_at` takes the column default. MIR-09: `public.allowed_email`
+  -- was dropped by `20260910100000_solo_member_approval.sql` and this sentence is kept past-tense —
+  -- admin zero was never allow-listed, and while the table existed inventing a consumed row for them
+  -- would have been a false provenance record in the one table whose purpose was provenance.
   insert into public.member (id, team_id, display_name, avatar, role)
   values (
     v_uid,

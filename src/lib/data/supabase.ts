@@ -37,6 +37,9 @@ import type {
   CreateTaskInput,
   UpdateTaskInput,
 } from "./index";
+// MIR-09, ADR-069. A RUNTIME import: both implementations share this one guard rather than holding a
+// second copy of it, 01-plan.md section 4.
+import { isValidThreshold, INVALID_THRESHOLD_MESSAGE } from "./index";
 import type {
   // EVT-01, 01-plan.md section 4.1.
   CalEvent,
@@ -1315,14 +1318,12 @@ function toFailure(error: AuthError): Failure {
 // TEA-02. The same contract as `toFailure` above, for the PostgREST side of the client: expected
 // failures are RETURNED, not thrown (.ai/standards/coding-standards.md, Error handling).
 //
-// The two codes that carry meaning here are SQLSTATEs the datastore raises, not strings this file
-// chooses. `23505` is the unique violation on `allowed_email`'s primary key, which is AC-5 being
-// enforced by the key rather than by a lookup. `42501` is "new row violates row-level security
-// policy", which is AC-4 and AC-8 arriving from the policy itself.
+// ONE CODE REMAINS HERE — `42501`/`PGRST301` — SINCE MIR-09. The `23505` arm mapped to the
+// allow-list's own refusal and was removed with the table: none of this mapper's four callers
+// (`removeMember`, `updateOwnProfile`, `setOverloadThreshold`, `setApprovalSettings`) writes a column
+// with a unique constraint, so a `23505` reaching any of them now falls to `unknown`.
 function toPostgrestFailure(error: PostgrestError): Failure {
   switch (error.code) {
-    case "23505":
-      return { code: "already_allow_listed", message: "That address is already on the list." };
     case "42501":
     case "PGRST301": // JWT missing or expired: the request reaches the policy as nobody
       return { code: "not_permitted", message: "You do not have permission to do this." };
@@ -1333,9 +1334,9 @@ function toPostgrestFailure(error: PostgrestError): Failure {
 
 // CAL-01. 01-plan.md section 4.3, and it is a SEPARATE mapper from `toPostgrestFailure` above
 // rather than three more cases inside it. The two tables answer the same SQLSTATE with different
-// sentences - `42501` on `allowed_email` means "you are not an admin", and on `entry` it means "this
-// is not your entry or you named a column you may not write" - and one function returning both would
-// be the wrong message on one of the two screens.
+// sentences - `42501` on `member` or `team` means "you are not an admin", and on `entry` it means
+// "this is not your entry or you named a column you may not write" - and one function returning both
+// would be the wrong message on one of the two screens.
 //
 // MATCHED ON THE SQLSTATE, NEVER ON THE CONSTRAINT NAME OR THE MESSAGE TEXT. A name match breaks
 // silently the day `entry_no_overlapping_portion` is renamed, and PostgREST's message wording is not
@@ -2349,10 +2350,16 @@ export const seam: DataSeam = {
   // longer exists. `promoteMember` uses the array form for exactly this reason and is the shape
   // copied here.
   //
-  // NO RANGE CHECK. `[0, 100]` in whole percentage points is the SCREEN's (AC-7, AC-8) and there is
-  // no `check` constraint behind this - 01-plan.md section 6. A second copy here would be a
-  // product rule living in the seam.
+  // `[0, 100]` IN WHOLE PERCENTAGE POINTS IS STILL THE SCREEN'S (AC-7, AC-8). MIR-09, ADR-069: the
+  // datastore now carries `team_overload_threshold_range`, checking `[0, 1]` as a fraction, and this
+  // paragraph used to end "and there is no `check` constraint behind this" — no longer true. The
+  // guard below restates the same fraction before sending, and the mapping after the write catches a
+  // 23514 reaching this function some other way.
   async setOverloadThreshold(input: SetOverloadThresholdInput): Promise<Result<Team>> {
+    if (!isValidThreshold(input.overloadThreshold)) {
+      return { ok: false, error: { code: "invalid_threshold", message: INVALID_THRESHOLD_MESSAGE } };
+    }
+
     const { data, error } = await client()
       .from("team")
       .update({ overload_threshold: input.overloadThreshold })
@@ -2360,7 +2367,12 @@ export const seam: DataSeam = {
       .select(TEAM_COLUMNS)
       .returns<TeamRow[]>();
 
-    if (error) return { ok: false, error: toPostgrestFailure(error) };
+    if (error) {
+      if (error.code === "23514") {
+        return { ok: false, error: { code: "invalid_threshold", message: INVALID_THRESHOLD_MESSAGE } };
+      }
+      return { ok: false, error: toPostgrestFailure(error) };
+    }
 
     const row = (data ?? [])[0];
     if (!row) {

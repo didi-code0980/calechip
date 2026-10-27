@@ -125,9 +125,8 @@ export type FailureCode =
   | "weak_password"
   | "rate_limited"
   | "network"
-  // TEA-02, 02-design.md section 1.1. The three expected failures of the allow-list writes.
-  | "already_allow_listed" // AC-5: the address is on the list, disregarding case
-  | "already_consumed" // AC-7: the entry has admitted somebody and cannot be removed
+  // TEA-02, 02-design.md section 1.1. The allow-list's two refusal codes stood here until MIR-09
+  // removed the table they described, whole — see `invalid_threshold` below, added the same ticket.
   | "not_permitted" // AC-4, AC-8: the policy refused the write
   // TEA-05, 01-plan.md section 4.1. AC-3: an account that exists and has not confirmed its address.
   // Kept out of `invalid_credentials` deliberately — folding the two would send somebody to reset a
@@ -167,10 +166,9 @@ export type FailureCode =
   | "busy_not_permitted"
   // ADM-03, 01-plan.md section 4.1. AC-6, AC-7: `unique (date)` refused the write (SQLSTATE 23505).
   //
-  // NOT `already_allow_listed`, which is the other 23505 this seam maps and whose message names an
-  // email address. One code carrying two sentences is how a wrong message reaches a screen — the
-  // reason CAL-01 gave for `entry_not_permitted`, applied to the constraint rather than to the
-  // policy.
+  // A SEPARATE CODE FROM EVERY OTHER 23505 THIS SEAM MAPS, each of whose message names a different
+  // thing. One code carrying two sentences is how a wrong message reaches a screen — the reason
+  // CAL-01 gave for `entry_not_permitted`, applied to the constraint rather than to the policy.
   //
   // THERE IS NO `holiday_not_permitted` BESIDE IT. The policy refusal reuses `not_permitted` with a
   // sentence written at its own call site, which is what `removeMember`, `promoteMember` and
@@ -300,6 +298,7 @@ export type FailureCode =
   // TSK-01. 42501, no session, or a write that touched zero rows — AC-17, AC-18. Never confirms that
   // the task exists.
   | "task_not_permitted"
+  | "invalid_threshold" // MIR-09: overload_threshold outside [0, 1], or not finite (SQLSTATE 23514)
   | "unknown";
 
 export interface Failure {

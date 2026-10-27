@@ -171,3 +171,31 @@ describe("ADM-01 setOverloadThreshold", () => {
     expect(await storedShare(FIXTURE_ADMIN.id)).toBe(FIXTURE_TEAM.overloadThreshold);
   });
 });
+
+// MIR-09, ADR-069. The mock's new pre-send guard — AC-4. The datastore's own refusal (AC-5) is not
+// reachable from the mock, which holds no SQL; that half is `supabase/tests/110-schema-cleanup.test.sql`.
+describe("MIR-09 range", () => {
+  afterEach(restore);
+
+  it("AC-4: an admin sending an out-of-range or non-finite value is refused, and nothing is written", async () => {
+    __setCurrentMember(FIXTURE_ADMIN.id);
+    for (const overloadThreshold of [1.5, -0.1, NaN, Infinity]) {
+      const result = await mock.setOverloadThreshold({ overloadThreshold });
+
+      expect(result.ok).toBe(false);
+      if (result.ok) continue;
+      expect(result.error.code).toBe("invalid_threshold");
+    }
+    expect(await storedShare(FIXTURE_ADMIN.id)).toBe(FIXTURE_TEAM.overloadThreshold);
+  });
+
+  it("AC-4: the value check runs before the permission check — a non-admin gets invalid_threshold too", async () => {
+    __setCurrentMember(FIXTURE_MEMBER.id);
+    const result = await mock.setOverloadThreshold({ overloadThreshold: 1.5 });
+
+    expect(result.ok).toBe(false);
+    if (result.ok) return;
+    expect(result.error.code).toBe("invalid_threshold");
+    expect(await storedShare(FIXTURE_MEMBER.id)).toBe(FIXTURE_TEAM.overloadThreshold);
+  });
+});
