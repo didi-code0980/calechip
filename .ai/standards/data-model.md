@@ -1,6 +1,6 @@
 ---
-doc_version: 8
-last_updated: 2026-10-13
+doc_version: 9
+last_updated: 2026-10-27
 governed_by: [RULE-01, RULE-04, RULE-09]
 ---
 
@@ -19,8 +19,9 @@ in a table, because a plausible column name in this file is indistinguishable fr
 
 One row per team. There are many since `supabase/migrations/20260911180000_solo_many_teams.sql`
 (ADR-039). The table exists because INV-07 counts entries against a team. ADR-059 places every team
-inside an org. The columns that carry that are MIR-10's design, and this file describes them when
-it lands. *Until 2026-10-13 this read "One row in v1. The table exists anyway because INV-07 counts
+inside an org. The target schema designed by MIR-10 ([ADR-070](../registry/decisions/ADR-070-the-org-and-multi-team-membership-schema.md))
+is specified in `## Multi-tenancy target schema (MIR-10, ADR-070)` below and takes effect in
+`supabase/migrations/` as MIR-11, MIR-12, MIR-14, MIR-16 and MIR-21 land. *Until 2026-10-13 this read "One row in v1. The table exists anyway because INV-07 counts
 entries against a team, and the brief's P2 list asks the model to leave room for more."*
 
 | Field | Type | Notes |
@@ -283,3 +284,119 @@ it**, and each says what it does block.
    another member's entry and v1 has no change feed, so `approved_by` is the only trace of anything.
    An `updated_by` column would be the cheapest way to close known weakness 3 without waiting for the
    P1 feed. *Blocks:* nothing; it is a decision about how much trace v1 keeps.
+
+## Multi-tenancy target schema (MIR-10, ADR-070)
+
+Designed and approved in
+[ADR-070](../registry/decisions/ADR-070-the-org-and-multi-team-membership-schema.md) under
+[ADR-059](../registry/decisions/ADR-059-calechip-becomes-multi-tenant-system-org-team.md) before any
+Phase 3 migration is written. Applied incrementally by MIR-11, MIR-12, MIR-14, MIR-16 and MIR-21.
+
+### New enum: `team_role`
+
+```sql
+create type public.team_role as enum ('member', 'manager');
+```
+
+- Used on `public.membership.role_in_team` (default `'member'`).
+- `public.member.role` (`public.member_role`) keeps its three values (`'member'`, `'manager'`,
+  `'admin'`) during Phase 3 (MIR-11..MIR-15) while `public.membership` is backfilled (MIR-12) and
+  policies are rewritten (MIR-13). In Phase 4 (MIR-16), `manager` moves to
+  `membership.role_in_team`, `admin` is renamed to `org_admin` on `public.member_role`
+  (`'member'`, `'org_admin'`), and `system_admin` lives in its own account store (MIR-18).
+
+### `org`
+
+One row per tenant organisation (`public.org`).
+
+| Field | Type | Notes |
+|---|---|---|
+| `id` | `uuid`, pk, default `gen_random_uuid()` | Tenant primary key referenced by `org_id` on every data table. |
+| `org_code` | `text`, not null, unique (`org_org_code_key`) | Immutable URL slug (`/{org_code}`). Enforced by `org_code_shape`, `org_code_not_reserved`, and `BEFORE UPDATE` trigger `org_enforce_immutable_org_code` (raises SQLSTATE `42501` when `new.org_code is distinct from old.org_code`). |
+| `name` | `text`, not null | Checked by `org_name_not_blank` (`btrim(name) <> ''`). |
+| `is_shared_tenant` | `boolean`, not null, default `false` | `true` only for **Org public**, enforced as a singleton by partial unique index `org_one_shared_tenant_idx on public.org (is_shared_tenant) where is_shared_tenant = true`. |
+| `max_members` | `integer`, null | Nullable commercial placeholder ([ADR-059](../registry/decisions/ADR-059-calechip-becomes-multi-tenant-system-org-team.md) § *Out of scope*). Checked by `org_max_members_positive` (`max_members is null or max_members >= 1`). |
+| `max_teams` | `integer`, null | Nullable commercial placeholder (ADR-059 § *Out of scope*). Checked by `org_max_teams_positive` (`max_teams is null or max_teams >= 1`). |
+| `plan` | `text`, null | Nullable commercial placeholder (ADR-059 § *Out of scope*). Checked by `org_plan_not_blank` (`plan is null or btrim(plan) <> ''`). |
+| `licence_expires_at` | `timestamptz`, null | Nullable commercial placeholder (ADR-059 § *Out of scope*). |
+| `timezone` | `text`, not null, default `'Asia/Ho_Chi_Minh'` | Checked by `org_timezone_not_blank` (`btrim(timezone) <> ''`). |
+| `created_at` | `timestamptz`, not null, default `now()` | |
+
+- **Shape constraint (`org_code_shape`):** `org_code ~ '^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$'`.
+- **Reserved word constraint (`org_code_not_reserved`):** `org_code <> all (array[...])` containing
+  all 29 reserved tokens — the 15 P3-1 tokens (`system`, `api`, `admin`, `login`, `signin`,
+  `signup`, `app`, `static`, `public`, `assets`, `healthz`, `fonts`, `images`, `_next`,
+  `index.html`) plus the 14 existing first-level SPA route segments (`signups`, `members`,
+  `entries`, `month`, `week`, `year`, `setting`, `threshold`, `teams`, `reports`, `holidays`,
+  `events`, `profile`, `guest`).
+- **Seeded `Org public` row (MIR-12):** `is_shared_tenant = true`, `name = 'Org public'`,
+  `org_code = 'shared'` (`'public'` is reserved because `public/` is the static asset directory),
+  `timezone = 'Asia/Ho_Chi_Minh'`, and `max_members`, `max_teams`, `plan`, `licence_expires_at` all
+  `null`.
+
+### `membership`
+
+N:M join between `public.member` and `public.team` within the same `public.org` (`public.membership`).
+
+| Field | Type | Notes |
+|---|---|---|
+| `id` | `uuid`, pk, default `gen_random_uuid()` | |
+| `org_id` | `uuid`, not null, fk `org(id)` on delete restrict | Shared by both composite FKs below so `member` and `team` must belong to the same org. |
+| `team_id` | `uuid`, not null | Composite FK `membership_team_org_fk`: `(team_id, org_id) references public.team (id, org_id) on delete restrict`. |
+| `member_id` | `uuid`, not null | Composite FK `membership_member_org_fk`: `(member_id, org_id) references public.member (id, org_id) on delete restrict`. |
+| `role_in_team` | `public.team_role`, not null, default `'member'` | Per-team role (`'member'` or `'manager'`). |
+| `is_primary` | `boolean`, not null, default `false` | At most one active primary team per member (`membership_one_active_primary_idx`). Checked by `membership_inactive_not_primary` (`left_at is null or is_primary = false`). |
+| `joined_at` | `timestamptz`, not null, default `now()` | Start of membership window for INV-04. |
+| `left_at` | `timestamptz`, null | End of membership window; `null` while active. Checked by `membership_left_after_joined` (`left_at is null or left_at >= joined_at`). Leaving a team sets `left_at := now()` and `is_primary := false` rather than deleting the row. |
+
+- **Partial unique indexes:**
+  - `membership_active_team_member_idx on public.membership (team_id, member_id) where left_at is null`
+  - `membership_one_active_primary_idx on public.membership (member_id) where left_at is null and is_primary = true`
+- **Supporting indexes:**
+  - `membership_member_active_idx on public.membership (member_id, team_id) where left_at is null`
+  - `membership_org_id_idx on public.membership (org_id)`
+  - `membership_team_history_idx on public.membership (team_id, member_id, joined_at, left_at)`
+- **MIR-12 backfill rule:** for every `public.member` row with `team_id is not null`, insert one
+  `public.membership` row with `org_id = member.org_id`, `team_id = member.team_id`,
+  `member_id = member.id`,
+  `role_in_team = case when member.role = 'manager' then 'manager'::public.team_role else 'member'::public.team_role end`,
+  `is_primary = true`, `joined_at = member.created_at`, and `left_at = member.removed_at`.
+
+### Composite foreign keys and `org_id` across existing tables (MIR-11, MIR-12, MIR-14, MIR-21)
+
+Every existing data table gains `org_id uuid not null references public.org (id) on delete restrict`
+(added nullable, backfilled to `Org public`, then set `not null` in MIR-11 and MIR-12). Parent tables
+`team`, `member` and `event` gain `unique (id, org_id)` so child composite FKs reject cross-org
+references at the database level with SQLSTATE `23503`.
+
+| Table | New / changed columns and unique keys | Composite foreign keys (`ON DELETE`) |
+|---|---|---|
+| `team` | `org_id uuid not null references public.org (id) on delete restrict`; `constraint team_id_org_id_key unique (id, org_id)` | — |
+| `member` | `org_id uuid not null references public.org (id) on delete restrict`; `constraint member_id_org_id_key unique (id, org_id)`; `id` PK still references `auth.users (id)` (one org per user); `team_id` and `member_team_id_idx` kept until MIR-21 drops both | — |
+| `entry` | `org_id uuid not null references public.org (id) on delete restrict`; `primary_team_id uuid not null`; `rejected_by uuid null`, `rejected_at timestamptz null`, `self_approved boolean not null default false` (MIR-14); keeps `member_id` and `entry_no_overlapping_portion` | `entry_member_org_fk`: `(member_id, org_id) -> member (id, org_id) on delete restrict`; `entry_primary_team_org_fk`: `(primary_team_id, org_id) -> team (id, org_id) on delete restrict`; `entry_approved_by_org_fk`: `(approved_by, org_id) -> member (id, org_id) on delete restrict`; `entry_rejected_by_org_fk` (MIR-14): `(rejected_by, org_id) -> member (id, org_id) on delete restrict` |
+| `holiday` | `org_id uuid not null references public.org (id) on delete restrict`; drops `holiday_date_key` (`unique (date)`), adds `constraint holiday_org_id_date_key unique (org_id, date)`. Org public rows are the national set owned by `system_admin` (MIR-15); dedicated-org rows are seeded from the national set on org creation (MIR-18) and maintained by `org_admin` (MIR-16) | — |
+| `busy_day` | `org_id uuid not null references public.org (id) on delete restrict` | `busy_day_member_org_fk`: `(member_id, org_id) -> member (id, org_id) on delete restrict` |
+| `issue_report` | `org_id uuid not null references public.org (id) on delete restrict` | `issue_report_member_org_fk`: `(member_id, org_id) -> member (id, org_id) on delete restrict` |
+| `event` | `org_id uuid not null references public.org (id) on delete restrict`; `constraint event_id_org_id_key unique (id, org_id)` | `event_creator_org_fk`: `(creator_id, org_id) -> member (id, org_id) on delete restrict`; `event_team_org_fk`: `(team_id, org_id) -> team (id, org_id) on delete restrict` |
+| `event_invitee` | `org_id uuid not null references public.org (id) on delete restrict` | `event_invitee_event_org_fk`: `(event_id, org_id) -> event (id, org_id) on delete cascade`; `event_invitee_member_org_fk`: `(member_id, org_id) -> member (id, org_id) on delete restrict` |
+| `event_attendance` | `org_id uuid not null references public.org (id) on delete restrict` | `event_attendance_event_org_fk`: `(event_id, org_id) -> event (id, org_id) on delete cascade`; `event_attendance_member_org_fk`: `(member_id, org_id) -> member (id, org_id) on delete restrict` |
+| `event_guest_link` | `org_id uuid not null references public.org (id) on delete restrict` | `event_guest_link_event_org_fk`: `(event_id, org_id) -> event (id, org_id) on delete cascade` |
+| `event_guest` | `org_id uuid not null references public.org (id) on delete restrict` | `event_guest_event_org_fk`: `(event_id, org_id) -> event (id, org_id) on delete set null (event_id)` (column-specific `SET NULL (event_id)` preserves `org_id not null`) |
+| `notification` | `org_id uuid not null references public.org (id) on delete restrict` | `notification_recipient_org_fk`: `(recipient_id, org_id) -> member (id, org_id) on delete restrict`; `notification_actor_org_fk`: `(actor_id, org_id) -> member (id, org_id) on delete restrict`; `notification_event_org_fk`: `(event_id, org_id) -> event (id, org_id) on delete set null (event_id)` |
+
+### Temporal multi-team absence count (INV-04, INV-07)
+
+- **Single definition preserved (INV-04):** `absenceCountsFor` in `src/lib/data/absence.ts` remains
+  the sole function in the system that computes the absence count. No SQL view, RPC or second
+  TypeScript helper computes it.
+- **Per-team temporal membership predicate (INV-04, INV-07):** an entry of `member_id = M` is
+  counted in team `T` on calendar date `d` (`yyyy-MM-dd`) if and only if:
+  1. `entry.status <> 'rejected'` (`'pending'` or `'approved'`),
+  2. `d` is in `[entry.start_date, entry.end_date]`,
+  3. `M` has `member.status = 'approved'` and `(member.removed_at is null or member.removed_at::date > d)`, and
+  4. `M` has a `public.membership` row for `team_id = T` with
+     `joined_at::date <= d and (left_at is null or left_at::date > d)` (evaluated in
+     `src/lib/data/absence.ts` using ISO-8601 `slice(0, 10)` string comparison).
+- Because `public.entry` is keyed on `member_id` (INV-07) and team membership is N:M through
+  `public.membership`, a multi-team member's entry is counted in every team whose membership window
+  `[joined_at::date, left_at::date)` covers `d`.
