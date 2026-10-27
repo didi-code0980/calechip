@@ -24,7 +24,9 @@ planned, sized, and safe to build** — the next stage for a row here is IN_PROG
 |---|--------|-------|------|------------|
 | 1 | MIR-10 | The org and multi-team membership schema is designed and approved before any migration | S | MIR-01..MIR-09 (DONE) |
 
-**`MIR-10` is at `REVIEW` in `ticket.yaml`, `gates.review` not yet passed** — recorded at /advance on 2026-10-27 from `03-impl-log.md` gate PASS (`produced_at: 2026-10-27T03:23:38Z`). The row stays here until `/ship` moves it to `## ARCHIVE`.
+**`MIR-10` is at `REVIEW` in `ticket.yaml`, `gates.review` passed** — recorded at /advance on 2026-10-27 from `04-review.md` (`produced_at: 2026-10-27T03:29:30Z`): `gate: PASS`, `verdict: PASS`, `invariant_violation: false`, `route_to: none`. `state` stays `REVIEW`; `/ship` sets `DONE` and moves the row to `## ARCHIVE`.
+
+**`MIR-10` was at `REVIEW` in `ticket.yaml`, `gates.review` not yet passed** — recorded at /advance on 2026-10-27 from `03-impl-log.md` gate PASS (`produced_at: 2026-10-27T03:23:38Z`). The row stays here until `/ship` moves it to `## ARCHIVE`.
 
 **`MIR-10` moved here at /advance on 2026-10-27**, from `01-plan.md` gate PASS with all six Definition of Ready items passing; `schema_delta: "none"`, with [ADR-070](../registry/decisions/ADR-070-the-org-and-multi-team-membership-schema.md) `ACCEPTED by tech-lead-design under the operator's delegation (ADR-067)`. MIR-10 had no row in `## BACKLOG`, so no row left that table.
 
