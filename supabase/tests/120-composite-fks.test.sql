@@ -214,9 +214,10 @@ select set_has(
 -- 2. `public.org` constraints and immutability trigger (AC-1) & Two-tenant fixture setup
 -- ---------------------------------------------------------------------------------------------
 
--- Insert Org A (shared tenant singleton) and Org B
+-- Insert Org A and Org B. MIR-12: neither is the shared tenant — Org public, created by
+-- 20261031120000_mir12_backfill_org_public.sql, holds the one slot `org_one_shared_tenant_idx` allows.
 insert into public.org (id, org_code, name, is_shared_tenant) values
-  ('d0000000-0000-4000-8000-000000000a01', 'org-alpha', 'Org Alpha', true),
+  ('d0000000-0000-4000-8000-000000000a01', 'org-alpha', 'Org Alpha', false),
   ('d0000000-0000-4000-8000-000000000b01', 'org-beta',  'Org Beta',  false);
 
 -- AC-1: reserved `org_code` ('admin') is refused with 23514 (check_violation)

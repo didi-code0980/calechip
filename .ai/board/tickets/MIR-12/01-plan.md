@@ -23,14 +23,20 @@ inputs_read:
   - src/lib/data/supabase.ts
   - src/lib/data/mock.ts
   - src/lib/fixtures.ts
-consulted: []
+  - supabase/tests/_isolation.psql
+  - supabase/tests/090-event-boundaries.test.sql
+  - supabase/tests/120-composite-fks.test.sql
+  - supabase/create-account.sql
+  - .ai/board/tickets/MIR-12/99-questions.md
+consulted:
+  - "developer, 2026-10-31T12:14:50Z (99-questions.md Q1): NOT NULL and holiday swap moved to MIR-13; tests 120 and 130 added to allowed_paths"
 chat_before_verdict: none
 gate: PASS
 blocking_reason: ""
 next_state: READY
 ---
 
-# MIR-12 — `org_id` backfilled into Org public, `membership` backfilled from `member.team_id`, columns set NOT NULL
+# MIR-12 — `org_id` backfilled into Org public, `membership` backfilled from `member.team_id`
 
 ## 1. Problem and scope
 
@@ -42,33 +48,44 @@ MIR-11 (`.ai/board/tickets/MIR-12/ticket.yaml` `depends_on`) added all `org_id` 
 every org-scoped table, created `public.org`, and created `public.membership` — all structural DDL.
 MIR-12 is the **data migration phase**: it makes those nullable columns non-null by creating the
 singleton *Org public* row, backfilling every existing team, member, entry and related-table row into
-it, populating `membership` from today's `member.team_id`, and finally setting `org_id NOT NULL` (and
-`primary_team_id NOT NULL` on `entry`) on every table that now has a row for each.
+it, and populating `membership` from today's `member.team_id`. *Amended 2026-10-31 (99-questions Q1):*
+the columns stay **nullable** after MIR-12; `SET NOT NULL` moves to MIR-13 (see out of scope below).
 
 The operator delegated the step-ordering decision on 2026-10-12 (recorded in
 `ticket.yaml mir_detail`): the final step in plan P3-3 — *Drop `member.team_id`* — waits for MIR-13
 (policy rewrite), and is split out as MIR-21. MIR-12 therefore ends at *set NOT NULL*; the column
-drop is out of scope.
+drop is out of scope. *Amended 2026-10-31:* MIR-12 also ends **before** *set NOT NULL* — that step
+moves to MIR-13, so that a constraint lands in the same migration as the writers that must satisfy it.
 
 **Which role gains what capability:** No user-visible capability changes in this ticket. The
 migration runs as a human-applied SQL file (RULE-09). Its value is structural: after it lands, every
 existing row in every org-scoped table has a valid, non-null `org_id`, the cross-org FK barrier
-written by MIR-11 is enforced, and `public.membership` is seeded so MIR-13's policy rewrite has rows
+written by MIR-11 has non-null values to bind, and `public.membership` is seeded so MIR-13's policy rewrite has rows
 to work against.
 
 **Out of scope:**
 
 - Dropping `member.team_id` or `member_team_id_idx` — that is **MIR-21**.
+- **`SET NOT NULL` on every `org_id` and on `entry.primary_team_id` — moved to MIR-13** (amended
+  2026-10-31, 99-questions Q1). Under NOT NULL every writer MIR-13 has not yet rewritten fails with
+  23502: `090-event-boundaries.test.sql:82` and `:103` exercise the real `insert (event_id)` grant
+  path and cannot be fixed by fixtures, and the admission trigger (`avatar_images:63-79`) would
+  silently drop sign-ups. Each migration must be independently shippable
+  (`.ai/board/plans/calechip-multi-tenancy-plan.md:323`). MIR-13 must re-run this ticket's
+  idempotent backfill immediately before its `SET NOT NULL`, to catch rows written in between.
+- **Replacing `holiday_date_key unique (date)` with `unique (org_id, date)` — moved to MIR-13** (same
+  amendment). With `org_id` nullable, `unique (org_id, date)` lets `addHoliday` (still writing null)
+  insert duplicate dates; keeping `holiday_date_key` keeps today's guarantee.
+- `supabase/seed.sql`, `supabase/tests/_isolation.psql`, `090`, `100` and `supabase/create-account.sql`
+  stay unchanged: with nullable columns none of them fails. `create-account.sql:152` is an `update`;
+  its member row comes from the admission trigger, which is MIR-13's.
 - Rewriting any RLS policy, trigger, or definer function — that is **MIR-13**.
 - Adding `rejected_by`, `rejected_at`, or `self_approved` on `entry` — that is **MIR-14**.
-- Any client-side change to `src/`, `tests/`, or `supabase/seed.sql` or `supabase/bootstrap.sql`
-  beyond what is explicitly listed in § 7 (`allowed_paths`). The `expected_impact` list in
-  `ticket.yaml` concerns **MIR-13** onwards, when the policies are rewritten and the seam must
-  supply `org_id`. This ticket's migration is applied to an empty-or-seeded database; there is no
-  running application code to update yet.
-- `holiday` `unique (org_id, date)` constraint: MIR-11 added `holiday.org_id` nullable and an
-  index. Setting it NOT NULL is in scope here. Replacing the existing `holiday_date_key unique (date)`
-  with `holiday_org_id_date_key unique (org_id, date)` is also in scope here (audit A:928).
+- Any change to `src/`, `tests/` or `supabase/` beyond what is explicitly listed in § 7
+  (`allowed_paths`). The `expected_impact` list in `ticket.yaml` concerns **MIR-13** onwards, when
+  the policies are rewritten and the seam must supply `org_id`. *Amended 2026-10-31:* this bullet
+  said "there is no running application code to update yet". That was wrong: the application and
+  the pgTAP suite are live writers, which is why NOT NULL moved to MIR-13.
 - Grants or RLS on `public.org` or `public.membership` — those are MIR-13's.
 
 `size_estimate: M`
@@ -79,10 +96,18 @@ Each criterion is stated from the perspective of an external check on the databa
 migration runs. Checks here are observable via `psql` or `supabase db diff` — they do not require
 application code to be running.
 
+**How AC-2..AC-7 and AC-11 are exercised** (*amended 2026-10-31*): `supabase db reset` runs the seed
+*after* migrations, so on a reset the migration backfills nothing. The verification is:
+1. Run `pnpm db:test`. It leaves the seed's rows with null `org_id`.
+2. Re-apply the migration file with `psql -f` against the local stack.
+3. Re-apply it a second time (AC-11).
+4. Run the AC queries.
+The output goes into the implementation artifact (`verification_required: true`).
+
 **AC-1 — Org public row exists and is the shared tenant**
 - Given the migration file has been applied to a database that already has MIR-11's schema
 - When `select id, org_code, name, is_shared_tenant from public.org` is executed
-- Then exactly one row exists with `org_code = 'public'` and `is_shared_tenant = true`
+- Then exactly one row exists with `is_shared_tenant = true`, and it has `org_code = 'shared'` and `name = 'Org public'` (ADR-070 § 2; `'public'` is refused by `org_code_not_reserved`). *Amended 2026-10-31; was `'public'`.*
 
 **AC-2 — Every team is backfilled into Org public**
 - Given the migration has been applied and zero or more `public.team` rows existed before
@@ -94,37 +119,41 @@ application code to be running.
 - When `select count(*) from public.member where org_id is null` is executed
 - Then the result is `0`
 
-**AC-4 — Every approved member with a non-null `team_id` has exactly one active primary `membership` row**
+**AC-4 — Every member with a non-null `team_id` has one backfilled `membership` row. It is the active primary unless the member is removed**
 - Given the migration has been applied
-- When `select count(*) from public.member m where m.team_id is not null and not exists (select 1 from public.membership ms where ms.member_id = m.id and ms.is_primary = true and ms.left_at is null)` is executed
+- When `select count(*) from public.member m where m.team_id is not null and m.removed_at is null and not exists (select 1 from public.membership ms where ms.member_id = m.id and ms.team_id = m.team_id and ms.is_primary = true and ms.left_at is null)` is executed
 - Then the result is `0`
+- And when `select count(*) from public.member m where m.team_id is not null and m.removed_at is not null and not exists (select 1 from public.membership ms where ms.member_id = m.id and ms.team_id = m.team_id and ms.is_primary = false and ms.left_at = greatest(m.removed_at, m.created_at))` is executed
+- Then the result is `0`. ADR-070 § 3 sets `left_at = removed_at`, and MIR-11's `membership_inactive_not_primary` forbids an inactive primary row, so a removed member's row is `is_primary = false`. *Amended 2026-10-31.*
+- And every backfilled row has `joined_at = member.created_at`, and `team_role = 'manager'` exactly when `member.role = 'manager'`. The column is `team_role` as MIR-11 shipped it; ADR-070 calls it `role_in_team`.
 
 **AC-5 — `membership` is_primary uniqueness index holds**
 - Given the migration has been applied
 - When `select count(*) from (select member_id from public.membership where left_at is null and is_primary = true group by member_id having count(*) > 1) dups` is executed
 - Then the result is `0`; the partial unique index `membership_one_active_primary_idx` is the database-level guard
 
-**AC-6 — Every `entry` row carries a non-null `org_id` and `primary_team_id`**
+**AC-6 — Every `entry` row carries a non-null `org_id`, and a non-null `primary_team_id` wherever its author has a team**
 - Given the migration has been applied
-- When `select count(*) from public.entry where org_id is null or primary_team_id is null` is executed
+- When `select count(*) from public.entry e join public.member m on m.id = e.member_id where e.org_id is null or (e.primary_team_id is null and m.team_id is not null)` is executed
 - Then the result is `0`
+- And an entry whose author has `team_id is null` keeps `primary_team_id` null. The migration reports how many with `raise notice` and does not refuse to run. *Amended 2026-10-31:* the refusal existed only to protect `SET NOT NULL`, which moved to MIR-13.
 
 **AC-7 — Every row in every other backfilled table carries a non-null `org_id`**
 - Given the migration has been applied
 - When each of these queries is executed: `select count(*) from public.holiday where org_id is null`, `select count(*) from public.busy_day where org_id is null`, `select count(*) from public.issue_report where org_id is null`, `select count(*) from public.event where org_id is null`, `select count(*) from public.event_invitee where org_id is null`, `select count(*) from public.event_attendance where org_id is null`, `select count(*) from public.event_guest_link where org_id is null`, `select count(*) from public.event_guest where org_id is null`, `select count(*) from public.notification where org_id is null`
 - Then every result is `0`
 
-**AC-8 — `NOT NULL` constraints are in place after the migration**
+**AC-8 — The columns stay nullable, so every writer MIR-13 has not yet rewritten still works** (*rewritten 2026-10-31; was "NOT NULL constraints are in place"*)
 - Given the migration has been applied
-- When the schema is inspected (e.g. `\d public.member`)
-- Then `org_id` is `NOT NULL` on `public.team`, `public.member`, `public.entry`, `public.holiday`, `public.busy_day`, `public.issue_report`, `public.event`, `public.event_invitee`, `public.event_attendance`, `public.event_guest_link`, `public.event_guest`, `public.notification`; and `primary_team_id` is `NOT NULL` on `public.entry`
+- When `select table_name, column_name from information_schema.columns where table_schema = 'public' and ((column_name = 'org_id' and table_name in ('team','member','entry','holiday','busy_day','issue_report','event','event_invitee','event_attendance','event_guest_link','event_guest','notification')) or (table_name = 'entry' and column_name = 'primary_team_id')) and is_nullable = 'NO'` is executed
+- Then zero rows are returned
 
-**AC-9 — `holiday` uniqueness is now per-org**
+**AC-9 — `holiday` uniqueness is unchanged: one row per date** (*rewritten 2026-10-31; the per-org swap moved to MIR-13*)
 - Given the migration has been applied
-- When a second `public.holiday` row is inserted with the same date as an existing row but a different `org_id`
-- Then the insert succeeds (the new `unique (org_id, date)` permits it)
-- And when a row with the same `org_id` and `date` is inserted
-- Then it is rejected with a unique violation
+- When the constraints on `public.holiday` are inspected
+- Then `holiday_date_key` still exists and `holiday_org_id_date_key` does not
+- And when a second `public.holiday` row is inserted with the date of an existing row
+- Then it is rejected with 23505
 
 **AC-10 — `public.org` RLS is enabled; no authenticated session can read it without a policy**
 - Given the migration has been applied (MIR-11 enabled RLS and revoked all grants on `public.org`)
@@ -140,6 +169,17 @@ application code to be running.
 - Given the updated `bootstrap.sql` is applied after MIR-12's migration on a fresh project
 - When `select count(*) from public.team where org_id is null` and `select count(*) from public.member where org_id is null` are executed
 - Then both return `0`
+
+**AC-13 — A pgTAP file covers the checks a reset database can answer** (*added 2026-10-31*)
+- Given `supabase/tests/130-backfill-org-public.test.sql` exists
+- When `pnpm db:test` runs
+- Then it asserts AC-1, AC-8, AC-9 and AC-10 against the reset database, and passes
+
+**AC-14 — `pnpm db:test` is green with no existing assertion weakened** (*added 2026-10-31*)
+- Given the migration and the test changes in § 7
+- When `pnpm db:test` runs
+- Then every test passes
+- And the only edit to an existing test is the fixture org `org-alpha` in `120-composite-fks.test.sql:218-219`, which becomes `is_shared_tenant = false`. Org public now holds the one shared-tenant slot (`org_one_shared_tenant_idx`). The test's assertion that a second shared tenant is refused (`:243-247`) stays, and now refuses against Org public.
 
 **Invariants touched:**
 
@@ -196,11 +236,12 @@ The timestamp follows the convention in `supabase/migrations/` (ISO 8601 compact
 
 **Migration outputs (after apply):**
 
-- `public.org`: 1 row (`org_code = 'public'`, `is_shared_tenant = true`)
-- `public.membership`: N rows (one per existing `member` row where `team_id is not null`)
-- Every `org_id` column on all 12 tables: NOT NULL
-- `entry.primary_team_id`: NOT NULL
-- `holiday_date_key` unique constraint: replaced by `holiday_org_id_date_key unique (org_id, date)`
+- `public.org`: 1 row (`org_code = 'shared'`, `name = 'Org public'`, `is_shared_tenant = true`, `timezone = 'Asia/Ho_Chi_Minh'`)
+- `public.membership`: N rows (one per existing `member` row where `team_id is not null`). Columns `org_id, team_id, member_id, team_role, is_primary, joined_at, left_at` take the values in AC-4.
+- Every `org_id` on all 12 tables: backfilled, **still nullable** (NOT NULL is MIR-13's)
+- `entry.primary_team_id`: backfilled from `member.team_id`, **still nullable**
+- `holiday_date_key`: **unchanged**
+- Test file: `supabase/tests/130-backfill-org-public.test.sql` (AC-13)
 
 **Seam / type changes:** None in this ticket. `src/lib/domain/types.ts`, `src/lib/data/mock.ts`,
 `src/lib/fixtures.ts`, and `src/lib/data/supabase.ts` are unchanged. The `org_id` field does not
@@ -219,8 +260,8 @@ unaffected.
 2. Backfills `org_id` (referencing the new row) on every nullable `org_id` column in all 12 tables.
 3. Backfills `entry.primary_team_id` from `member.team_id` via `entry.member_id`.
 4. Inserts one `public.membership` row per non-null `member.team_id` with `is_primary = true, left_at = null`.
-5. Sets `NOT NULL` on every `org_id` column and on `entry.primary_team_id`.
-6. Drops `holiday_date_key unique (date)` and adds `holiday_org_id_date_key unique (org_id, date)`.
+5. ~~Sets `NOT NULL` on every `org_id` column and on `entry.primary_team_id`.~~ Moved to MIR-13 (amended 2026-10-31).
+6. ~~Drops `holiday_date_key unique (date)` and adds `holiday_org_id_date_key unique (org_id, date)`.~~ Moved to MIR-13 (amended 2026-10-31).
 7. Updates `supabase/bootstrap.sql` to write `org_id` on the team and member inserts it performs.
 
 **ADR link:** [ADR-070](../../../registry/decisions/ADR-070-the-org-and-multi-team-membership-schema.md)
@@ -234,11 +275,13 @@ unaffected.
 allowed_paths:
   - "supabase/migrations/20261031120000_mir12_backfill_org_public.sql"
   - "supabase/bootstrap.sql"
+  - "supabase/tests/120-composite-fks.test.sql"
+  - "supabase/tests/130-backfill-org-public.test.sql"
 ```
 
 `glossary_owed` in `ticket.yaml` is `[]` — no glossary rows owed.
 
-`size`: 2 paths → **S**. `size_estimate` was M (written before counting paths). The estimate and the
+`size`: 4 paths → **S** (*amended 2026-10-31; was 2 paths*). `size_estimate` was M (written before counting paths). The estimate and the
 count disagree: M was chosen because the migration logic is non-trivial even if the path count is
 small. The verdict (ADR-012) is **S** — the two files are the only deliverables.
 
@@ -254,6 +297,13 @@ other migration uses. Cost: the SQL must be vetted by a human before apply, whic
 requirement anyway.
 
 **Alt 2 — set `NOT NULL` in a separate subsequent migration.**
+
+*Reversed 2026-10-31 (99-questions Q1): now **adopted**. NOT NULL moves to MIR-13, into the same
+migration as the writer rewrite.* The window this paragraph worried about already exists since
+MIR-11, and MIR-13 closes it by re-running the idempotent backfill before `SET NOT NULL`. The
+alternative, setting NOT NULL before the writers supply `org_id`, breaks live write paths
+(`090:82`, `090:103`, the admission trigger) and leaves CI red, which plan:323 rules out. The
+original reasoning follows and is kept as the record.
 
 Rejected for this ticket's scope. The plan (P3-3) explicitly sequences: add nullable, backfill, set
 NOT NULL, all as one logical unit across MIR-11 and MIR-12. Splitting the NOT NULL promotion into a
@@ -273,3 +323,14 @@ the file itself cannot make that choice and the comment in the migration header 
 ## Changelog
 
 - `2026-10-31T12:02:00Z` — initial draft. tech-lead-design.
+- `2026-10-31T12:17:00Z` — consultation, 99-questions Q1 (developer).
+  - `SET NOT NULL` and the holiday unique swap moved to MIR-13. Under NOT NULL, unrewritten writers
+    fail with 23502 (`090:82`, `090:103`, the admission trigger), fixtures cannot fix that, and
+    plan:323 requires each migration to ship alone.
+  - AC-1 now `'shared'`, and AC-4 gives removed members `is_primary = false`; both follow ADR-070
+    and MIR-11's checks.
+  - AC-6, AC-8 and AC-9 rewritten; AC-13 and AC-14 added.
+  - `allowed_paths` gains `120` and `130`; size stays S.
+  - Seed, `_isolation.psql`, `090`, `100` and `create-account.sql` stay out, because nullable
+    columns do not break them.
+  tech-lead-design.
