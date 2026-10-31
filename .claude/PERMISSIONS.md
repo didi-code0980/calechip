@@ -238,3 +238,27 @@ server. `orchestrator` is the exception and is the only agent that can reach the
 This is defence in depth with the allow list: the allow list says which tracker tools may ever be
 called, `disallowedTools` says who may call them, and `guard-tracker-scope.mjs` says what they may be
 pointed at.
+
+## Running from Antigravity — none of this file applies
+
+**Antigravity reads nothing under `.claude/`.** Added 2026-10-31, with the adapter in `.agents/`:
+`.agents/skills/<name>/SKILL.md` per live command, each a pointer to `.claude/commands/<name>.md`, and
+`.agents/rules/claude-md.md`, which inlines `CLAUDE.md`. That makes the commands reachable from
+Antigravity. It does not make anything above this section true there.
+
+| Claude Code mechanism | Under Antigravity |
+|---|---|
+| Deny list — `git push --force`, `git push origin main`, `git reset --hard`, `gh pr merge`, six tracker tools | **Absent.** The rule file tells the agent never to run the four git/`gh` ones; that is an instruction, not a refusal. RULE-09 rests on GitHub branch protection alone |
+| `chat-guard`, `guard-read-scope`, `guard-tracker-scope` (wired) | **Absent.** Antigravity has its own hooks (`.agents/hooks.json`, with a `deny` decision), but a different payload shape; none of ours is ported — MD-045 |
+| `guard-allowed-paths`, `guard-registry`, `guard-project-root` | Unwired here too (ADR-004), so **nothing changes**. RULE-03 is R1 and CI's `allowed-paths`, and both still run on work done from Antigravity |
+| `disableClaudeAiConnectors`, `.mcp.json` | Not read. Antigravity loads MCP servers from its own `mcp_config.json`; no tracker server is configured there |
+| Agent dispatch and each agent's `tools:` / `disallowedTools` | No dispatch. The agent reads `.claude/agents/<name>.md` and acts as that role, unrestricted. RULE-13's fresh session for `/review` is a new conversation, by instruction only |
+| `/auto`, `scripts/run-loop.mjs` | **Unchanged.** The runner spawns `claude`, so every stage it runs is a Claude Code session with all of the above |
+
+**The practical rule: a stage run from Antigravity is a stage run with no guards and an honest
+agent.** CI, CODEOWNERS and branch protection are server-side and hold either way. Everything that
+was refused at the keyboard is, there, only asked.
+
+`scripts/check-docs.mjs` D16 holds the adapter to the commands: a shim for every live command, none for
+a retired one, the same `description:`, and the rule file under Antigravity's 24,000-byte limit with
+`CLAUDE.md` inlined.

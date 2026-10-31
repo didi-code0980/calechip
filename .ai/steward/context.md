@@ -2879,3 +2879,52 @@ Operator instruction: *"check-allowed-paths.mjs: bỏ comment # … cuối dòng
 - **Not a mid-ticket rule change:** no rule moved. The check now reads MIR-02's `allowed_paths` as
   written. Landed on `ops/allowed-paths-eol-comment`; MIR-02 picks it up from `main` at its next sync.
 - No registry write.
+
+### 2026-10-31 — Antigravity adapter: `.agents/skills/` shims, `.agents/rules/claude-md.md`, check D16
+
+Operator, via `/thuki`: *"thêm shim .agent/workflows/"* — make the slash commands usable from Google
+Antigravity with thin shims.
+
+- **Built skills, not workflows, which is the opposite of what was asked.** The official pages,
+  read this run (`antigravity.google/docs/ide/workflows`, `/docs/migration/workflows-to-skills`),
+  say workflows *"will stop working on October 19, 2026"* and that after that date *"legacy workflow
+  directories are no longer indexed or executable using slash commands"*. Today is past that date,
+  so a `.agent/workflows/` shim would have been dead on arrival. Skills at
+  `.agents/skills/<name>/SKILL.md` are what `/<name>` invokes now. `.agents/` (plural) is the
+  documented default; `.agent/` is still recognised as legacy.
+- **17 shims, one per live command.** Each one is a front-matter `description:` line copied
+  literally from the command, plus a body that points at `.claude/commands/<name>.md` and copies
+  none of it. **`/spec`, `/design` and `/qa` get none.** A shim would harm here: Antigravity lists
+  every skill's description to the agent on every turn, and may invoke a skill on its own judgement,
+  so a shim would advertise a retired command. Each shim's first step tells the agent to run only
+  on an explicit `/<name>`, for the same reason.
+- **`.agents/rules/claude-md.md`, not a root `AGENTS.md`.** The rule is `trigger: always_on` and
+  inlines `CLAUDE.md` with `@[CLAUDE.md](../../CLAUDE.md)`, so it holds a pointer, not a second copy.
+  I chose it over `AGENTS.md` for two reasons. Other harnesses also read a root `AGENTS.md`, so it
+  would become a second instruction file for tools nobody asked about. And this way the whole adapter
+  sits in one directory. The rule also carries § *What does not carry over*.
+- **One premise corrected, and stated where it lives:** the request said RULE-03 does not apply
+  under Antigravity. It does. `guard-allowed-paths` is unwired in Claude Code too (ADR-004), and
+  RULE-03 is enforced by R1 and by CI's `allowed-paths`, both of which still run. What really goes
+  missing is the deny list, the three *wired* hooks, the agent `tools:` restrictions and dispatch.
+  Antigravity does have hooks and custom agents; it just reads none of ours. Recorded in
+  `.claude/PERMISSIONS.md` § *Running from Antigravity* and in **MD-045** (medium).
+- **Check D16** in `scripts/check-docs.mjs` holds the adapter to the commands: a shim for every live
+  command, none for a retired or missing one, the same `description:` line, a pointer to the file,
+  and a size cap of 4,000 bytes per shim against a copied body. It also keeps the rule file under
+  Antigravity's 24,000-byte truncation limit *with `CLAUDE.md` expanded*. Today that is 18,657 bytes,
+  so `CLAUDE.md` has about 5.3 KB of headroom before Antigravity silently drops its tail.
+  With no `.agents/skills/` the check emits a note and checks nothing. Tests: the synthetic cases,
+  plus four that copy the real commands, shims, rule file and `CLAUDE.md`. One of them proves that
+  exactly `spec`, `design` and `qa` read as retired across the three real banner shapes.
+- **Found, not fixed:** `check-docs` fails D9 on
+  `.ai/registry/decisions/ADR-068-db-sql-is-retired-and-the-migrations-are-the-only-schema-source.md`
+  (`governed_by` cites RULE-09 at v3, `doc_version` 2). It was already on `origin/main` before this
+  run, and it is a registry file.
+- **Branch state at start differed from the launch message.** The tree was clean on `main`, and
+  MIR-06 had shipped on 2026-10-23 (`0a53dd5`). No ticket is in flight. `stash@{0}`
+  (*"WIP on feat/MIR-06"*, one line in `ticket.yaml`) predates that ship and was left untouched.
+- Suite: **416 pass, 2 fail** of 418. Both failures (*"every human-owned document … passes D9"*,
+  *"this repository passes its own audit with zero errors"*) are that ADR-068 D9 finding, and fail
+  identically on a clean `origin/main` worktree. Every D16 test passes.
+- No registry write. No ticket in flight.
