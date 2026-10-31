@@ -27,7 +27,7 @@ chat_budget:
 tracker: { provider: "", external_id: "", sync_enabled: false }
 gates:
   plan:   { passed: true, at: "2026-10-31T12:06:00Z" }
-  review: { passed: false, at: null }
+  review: { passed: true, at: "2026-10-31T21:30:03+07:00" }   # orchestrator at /advance, from 04-review.md verdict: PASS
 
 # --- MIR extra fields ---------------------------------------------------------------------------
 # Not in .ai/templates/ticket.yaml. Added for the multi-tenancy plan; nothing in scripts/ reads them.
