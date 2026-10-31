@@ -1542,3 +1542,135 @@ test("this repository's real register and suite pass D15", () => {
   const res = spawnSync(process.execPath, [SCRIPT], { cwd: REPO, encoding: "utf8" });
   assert.doesNotMatch(res.stdout, /FAIL D15/);
 });
+
+// --- D16: the Antigravity adapter points at the commands and copies nothing --------------------
+//
+// The synthetic cases build commands and shims by hand. The last four copy this repository's real
+// `.claude/commands/`, `.agents/` and `CLAUDE.md` into the fixture, per the fixtures rule in
+// testing-standards.md: a check whose only fixtures were written by its author agrees with its
+// author about what a retirement banner looks like, and the real ones are three different shapes.
+
+const cmd = (desc, body = "Body.\n") => `---\ndescription: ${desc}\n---\n\n${body}`;
+const shim = (name, desc, extra = "") =>
+  `---\nname: ${name}\ndescription: ${desc}\n---\n\nRead \`.claude/commands/${name}.md\` and follow it.\n${extra}`;
+const d16 = (files) => run(project("", "", files));
+
+test("with no .agents/skills/, D16 checks nothing and says so", () => {
+  const r = d16({ ".claude/commands/go.md": cmd("Go") });
+  assert.deepEqual(r.findings("D16"), []);
+  assert.ok(r.notes.some((n) => n.includes("D16")), r.notes.join("\n"));
+});
+
+test("a matching shim passes D16", () => {
+  const r = d16({ ".claude/commands/go.md": cmd("Go — now"), ".agents/skills/go/SKILL.md": shim("go", "Go — now") });
+  assert.deepEqual(r.findings("D16"), []);
+});
+
+test("a live command with no shim fails D16", () => {
+  const f = d16({
+    ".claude/commands/go.md": cmd("Go"),
+    ".claude/commands/stop.md": cmd("Stop"),
+    ".agents/skills/go/SKILL.md": shim("go", "Go"),
+  }).findings("D16");
+  assert.equal(f.length, 1, f.join("\n"));
+  assert.match(f[0], /stop\.md: has no Antigravity shim/);
+});
+
+test("a drifted description fails D16 and quotes both", () => {
+  const f = d16({ ".claude/commands/go.md": cmd("Go, now"), ".agents/skills/go/SKILL.md": shim("go", "Go") }).findings("D16");
+  assert.equal(f.length, 1, f.join("\n"));
+  assert.match(f[0], /description has drifted/);
+});
+
+test("both retirement shapes exempt a command, and shimming one fails D16", () => {
+  const files = {
+    ".claude/commands/old.md": cmd("RETIRED by ADR-001 — removed. Do not run."),
+    ".claude/commands/older.md": cmd("Was a stage", "> **`/older` is retired — ADR-002.** Run /go.\n"),
+  };
+  assert.deepEqual(d16({ ...files, ".agents/skills/x/SKILL.md": "" }).findings("D16").filter((l) => /no Antigravity shim/.test(l)), []);
+  const f = d16({ ...files, ".agents/skills/old/SKILL.md": shim("old", "RETIRED by ADR-001 — removed. Do not run.") }).findings("D16");
+  assert.ok(f.some((l) => /shims \/old, which is retired/.test(l)), f.join("\n"));
+});
+
+test("an un-retired command still needs a shim", () => {
+  const body = "> **Un-retired 2026-09-22 — ADR-038.** The old `/idea` is retired; this one is not.\n";
+  const f = d16({ ".claude/commands/idea.md": cmd("Ask", body), ".agents/skills/go/SKILL.md": "" }).findings("D16");
+  assert.ok(f.some((l) => /idea\.md: has no Antigravity shim/.test(l)), f.join("\n"));
+});
+
+test("a shim with no command, no SKILL.md, a wrong name or no pointer fails D16", () => {
+  const f = d16({
+    ".claude/commands/go.md": cmd("Go"),
+    ".claude/commands/run.md": cmd("Run"),
+    ".agents/skills/go/SKILL.md": "---\nname: went\ndescription: Go\n---\n\nRead the command.\n",
+    ".agents/skills/run/notes.txt": "x",
+    ".agents/skills/gone/SKILL.md": shim("gone", "Gone"),
+  }).findings("D16");
+  assert.ok(f.some((l) => /gone\/SKILL\.md: shims \/gone, which has no file/.test(l)), f.join("\n"));
+  assert.ok(f.some((l) => /run\/: has no SKILL\.md/.test(l)), f.join("\n"));
+  assert.ok(f.some((l) => /declares name `went`/.test(l)), f.join("\n"));
+  assert.ok(f.some((l) => /does not name \.claude\/commands\/go\.md/.test(l)), f.join("\n"));
+});
+
+test("a shim large enough to hold a command body fails D16", () => {
+  const f = d16({ ".claude/commands/go.md": cmd("Go"), ".agents/skills/go/SKILL.md": shim("go", "Go", "x".repeat(5000)) }).findings("D16");
+  assert.ok(f.some((l) => /a shim points at the command, it does not copy it/.test(l)), f.join("\n"));
+});
+
+test("the rule file is measured with its includes expanded", () => {
+  const base = { ".claude/commands/go.md": cmd("Go"), ".agents/skills/go/SKILL.md": shim("go", "Go") };
+  const rule = "---\ntrigger: always_on\n---\n\n@[CLAUDE.md](../../CLAUDE.md)\n";
+  assert.deepEqual(d16({ ...base, "CLAUDE.md": "y".repeat(23000), ".agents/rules/claude-md.md": rule }).findings("D16"), []);
+  const over = d16({ ...base, "CLAUDE.md": "y".repeat(24100), ".agents/rules/claude-md.md": rule }).findings("D16");
+  assert.ok(over.some((l) => /Antigravity truncates a rule past 24000/.test(l)), over.join("\n"));
+  const missing = d16({ ...base, ".agents/rules/claude-md.md": rule }).findings("D16");
+  assert.ok(missing.some((l) => /includes \.\.\/\.\.\/CLAUDE\.md, which does not exist/.test(l)), missing.join("\n"));
+});
+
+/** This repository's real commands, adapter and CLAUDE.md, keyed by repo-relative path. */
+function realAdapterFiles() {
+  const out = {};
+  const take = (relDir) => {
+    const abs = path.join(REPO, relDir);
+    for (const e of fs.readdirSync(abs, { withFileTypes: true })) {
+      const r = `${relDir}/${e.name}`;
+      if (e.isDirectory()) take(r);
+      else out[r] = fs.readFileSync(path.join(REPO, r), "utf8");
+    }
+  };
+  take(".claude/commands");
+  take(".agents");
+  out["CLAUDE.md"] = fs.readFileSync(path.join(REPO, "CLAUDE.md"), "utf8");
+  return out;
+}
+
+test("this repository's real commands and shims pass D16", () => {
+  assert.deepEqual(d16(realAdapterFiles()).findings("D16"), []);
+});
+
+test("against the real commands, exactly /spec, /design and /qa read as retired", () => {
+  const files = realAdapterFiles();
+  for (const k of Object.keys(files)) if (k.startsWith(".agents/skills/")) delete files[k];
+  files[".agents/skills/.keep/SKILL.md"] = "";
+  const missing = d16(files).findings("D16")
+    .map((l) => /commands\/([a-z-]+)\.md: has no Antigravity shim/.exec(l)?.[1]).filter(Boolean).sort();
+  const live = fs.readdirSync(path.join(REPO, ".claude/commands")).map((f) => f.slice(0, -3))
+    .filter((n) => !["spec", "design", "qa"].includes(n)).sort();
+  assert.deepEqual(missing, live);
+});
+
+test("deleting one real shim is a D16 finding naming it", () => {
+  const files = realAdapterFiles();
+  delete files[".agents/skills/review/SKILL.md"];
+  const f = d16(files).findings("D16");
+  assert.equal(f.length, 1, f.join("\n"));
+  assert.match(f[0], /commands\/review\.md: has no Antigravity shim/);
+});
+
+test("the real rule file, with the real CLAUDE.md inlined, is under Antigravity's limit", () => {
+  const files = realAdapterFiles();
+  assert.match(files[".agents/rules/claude-md.md"], /@\[CLAUDE\.md\]\(\.\.\/\.\.\/CLAUDE\.md\)/);
+  files["CLAUDE.md"] += "z".repeat(24000);
+  const f = d16(files).findings("D16");
+  assert.ok(f.some((l) => /Antigravity truncates a rule/.test(l)), f.join("\n"));
+});

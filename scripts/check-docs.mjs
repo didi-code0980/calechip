@@ -1216,6 +1216,123 @@ function findTestDecls(file, text) {
   }
 }
 
+// --- D16: the Antigravity adapter points at the commands and copies nothing ------------------
+//
+// Antigravity reads none of `.claude/`. `.agents/skills/<name>/SKILL.md` is how `/<name>` reaches it,
+// and each one is a pointer to `.claude/commands/<name>.md`, never a copy — a copied command body is
+// the second copy CLAUDE.md § Stack warns always goes stale. So this holds the two sets together:
+// every live command has a shim, no shim outlives its command or shims a retired one, the shim's
+// `description:` line is the command's own, the shim names the file it points at, and it stays
+// small enough that it cannot be holding the command body. Workflows (`.agents/workflows/`) are not
+// checked: Antigravity stopped indexing them on 2026-10-19 (docs/migration/workflows-to-skills).
+//
+// It also holds `.agents/rules/claude-md.md` under Antigravity's 24,000-byte rule limit, measured
+// after its `@[label](path)` includes are expanded. Over the limit, Antigravity truncates the file
+// silently, and that file inlines CLAUDE.md — so the first sign would be an agent missing the end of
+// the project instructions.
+//
+// Who fixes a finding: the steward, when a command is added, retired or re-described, or when
+// CLAUDE.md grows. No stage writes either side.
+//
+// No `.agents/skills/` at all means no adapter: a note, nothing checked.
+
+const AG_SKILLS = ".agents/skills";
+const AG_RULE = ".agents/rules/claude-md.md";
+const AG_RULE_LIMIT = 24000;
+const AG_SHIM_MAX = 4000;
+
+/** A command is retired by a `description: RETIRED…` line or a `> **`/name` is retired` banner. */
+function isRetiredCommand(name, text) {
+  return (
+    /^description:\s*RETIRED\b/m.test(text) ||
+    new RegExp("^> \\*\\*`/" + name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&") + "` is retired\\b", "m").test(text)
+  );
+}
+
+/** The raw text after `key:` in a file's leading front-matter, or null. */
+function frontValue(text, key) {
+  const m = /^---\r?\n([\s\S]*?)\r?\n---/.exec(text ?? "");
+  if (!m) return null;
+  const l = new RegExp(`^${key}:[ \\t]*(.*?)[ \\t]*$`, "m").exec(m[1]);
+  return l ? l[1] : null;
+}
+
+{
+  const skillsDir = path.join(ROOT, AG_SKILLS);
+  if (!fs.existsSync(skillsDir)) {
+    unconfigured.push(`D16: no ${AG_SKILLS}/, so there is no Antigravity adapter and nothing to check`);
+  } else {
+    const cmdDir = path.join(ROOT, ".claude/commands");
+    const commands = new Map(); // name -> { text, retired }
+    if (fs.existsSync(cmdDir)) {
+      for (const f of fs.readdirSync(cmdDir).filter((x) => x.endsWith(".md"))) {
+        const name = f.slice(0, -3);
+        const text = fs.readFileSync(path.join(cmdDir, f), "utf8");
+        commands.set(name, { text, retired: isRetiredCommand(name, text) });
+      }
+    }
+    const shims = fs.readdirSync(skillsDir, { withFileTypes: true }).filter((e) => e.isDirectory()).map((e) => e.name);
+
+    for (const [name, c] of commands) {
+      if (!c.retired && !shims.includes(name)) {
+        err("D16", `.claude/commands/${name}.md`, `has no Antigravity shim at ${AG_SKILLS}/${name}/SKILL.md`);
+      }
+    }
+
+    for (const name of shims) {
+      const shimRel = `${AG_SKILLS}/${name}/SKILL.md`;
+      const text = readIf(path.join(ROOT, shimRel));
+      const c = commands.get(name);
+      if (text === null) {
+        err("D16", `${AG_SKILLS}/${name}/`, "has no SKILL.md, so Antigravity loads nothing from it");
+        continue;
+      }
+      if (!c) {
+        err("D16", shimRel, `shims /${name}, which has no file in .claude/commands/`);
+        continue;
+      }
+      if (c.retired) {
+        err("D16", shimRel, `shims /${name}, which is retired — a shim advertises it on every turn; delete it`);
+        continue;
+      }
+      const declared = frontValue(text, "name");
+      if (declared !== null && declared !== name) {
+        err("D16", shimRel, `declares name \`${declared}\`, but its folder makes it /${name}`);
+      }
+      const want = frontValue(c.text, "description");
+      const got = frontValue(text, "description");
+      if (got === null) err("D16", shimRel, "has no description, which Antigravity requires");
+      else if (want !== null && got !== want) {
+        err("D16", shimRel, `description has drifted from .claude/commands/${name}.md\n      command: ${want}\n      shim:    ${got}`);
+      }
+      if (!text.includes(`.claude/commands/${name}.md`)) {
+        err("D16", shimRel, `does not name .claude/commands/${name}.md, the file it is meant to point at`);
+      }
+      const bytes = Buffer.byteLength(text, "utf8");
+      if (bytes > AG_SHIM_MAX) {
+        err("D16", shimRel, `is ${bytes} bytes (limit ${AG_SHIM_MAX}) — a shim points at the command, it does not copy it`);
+      }
+    }
+
+    const ruleText = readIf(path.join(ROOT, AG_RULE));
+    if (ruleText !== null) {
+      let size = Buffer.byteLength(ruleText, "utf8");
+      for (const m of ruleText.matchAll(/@\[[^\]]*\]\(([^)]+)\)/g)) {
+        const target = path.resolve(path.dirname(path.join(ROOT, AG_RULE)), m[1]);
+        const inc = readIf(target);
+        if (inc === null) {
+          err("D16", AG_RULE, `includes ${m[1]}, which does not exist`);
+          continue;
+        }
+        size += Buffer.byteLength(inc.replace(/^---\r?\n[\s\S]*?\r?\n---\r?\n?/, ""), "utf8") - Buffer.byteLength(m[0], "utf8");
+      }
+      if (size > AG_RULE_LIMIT) {
+        err("D16", AG_RULE, `is ${size} bytes with its includes expanded; Antigravity truncates a rule past ${AG_RULE_LIMIT}`);
+      }
+    }
+  }
+}
+
 // --- Report ------------------------------------------------------------------------------------
 
 const byCheck = (list) => {
