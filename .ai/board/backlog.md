@@ -22,6 +22,9 @@ planned, sized, and safe to build** — the next stage for a row here is IN_PROG
 
 | # | Ticket | Title | Size | Depends on |
 |---|--------|-------|------|------------|
+| 1 | MIR-12 | `org_id` is added and backfilled into Org public, `membership` is backfilled from `member.team_id`, and `member.team_id` is dropped last | M | MIR-01..MIR-10 (all DONE) |
+
+**`MIR-12` moved here at /advance on 2026-10-31**, from `01-plan.md` gate PASS (`produced_at: 2026-10-31T12:02:00Z`) with all six Definition of Ready items passing; `schema_delta` cites [ADR-070](../registry/decisions/ADR-070-the-org-and-multi-team-membership-schema.md) (`ACCEPTED by tech-lead-design under the operator's delegation (ADR-067)`). MIR-12 had no row in `## BACKLOG`, so no row left that table.
 
 **Empty again — `MIR-11` left this section for `## ARCHIVE` at its own ship on 2026-10-27.**
 
