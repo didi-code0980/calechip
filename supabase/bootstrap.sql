@@ -74,6 +74,7 @@ declare
   v_email      text;
   v_meta       jsonb;
   v_team_id    uuid;
+  v_org_id     uuid;
   v_role       public.member_role;
   v_removed_at timestamptz;
 begin
@@ -171,28 +172,48 @@ begin
   -- the one team" — it would insert a SECOND team on the second run and nothing would refuse it.
   -- The count above is the discriminator instead. This is the first write in the file: every
   -- refusal is already behind us.
+  -- MIR-12. Admin zero and the first team live in Org public, the shared tenant that
+  -- 20261031120000_mir12_backfill_org_public.sql creates. Without that migration there is no org to
+  -- write into, and `org_id` is NOT NULL, so refuse here rather than at the insert.
+  select o.id into v_org_id from public.org o where o.is_shared_tenant;
+
+  if v_org_id is null then
+    raise exception 'bootstrap.sql refused to run: public.org holds no shared tenant (Org public)'
+      using hint = 'Apply supabase/migrations/20261031120000_mir12_backfill_org_public.sql first. '
+                   || v_listing;
+  end if;
+
   if v_team_count = 0 then
-    insert into public.team (name)
-    values (v_team_name)
+    insert into public.team (name, org_id)
+    values (v_team_name, v_org_id)
     returning id into v_team_id;   -- overload_threshold and created_at take the column defaults
   else
-    -- Exactly one row. Reuse it: do not insert, and DO NOT RENAME it to v_team_name.
-    select t.id into v_team_id from public.team t;
+    -- Exactly one row. Reuse it: do not insert, and DO NOT RENAME it to v_team_name. Its org is
+    -- read back rather than assumed, so the member row below satisfies `member`'s and
+    -- `membership`'s composite foreign keys whatever org the team was backfilled into.
+    select t.id, t.org_id into v_team_id, v_org_id from public.team t;
   end if;
 
   -- AC-4. `removed_at` stays null and `created_at` takes the column default. MIR-09: `public.allowed_email`
   -- was dropped by `20260910100000_solo_member_approval.sql` and this sentence is kept past-tense —
   -- admin zero was never allow-listed, and while the table existed inventing a consumed row for them
   -- would have been a false provenance record in the one table whose purpose was provenance.
-  insert into public.member (id, team_id, display_name, avatar, role)
+  insert into public.member (id, team_id, org_id, display_name, avatar, role)
   values (
     v_uid,
     v_team_id,                                    -- INV-07: the team comes from here and nowhere else
+    v_org_id,                                     -- MIR-12: the team's org, never a second source
     coalesce(nullif(btrim(v_meta ->> 'display_name'), ''),
              split_part(v_email, '@', 1)),        -- copied from ...tea01_membership.sql:113-117
     coalesce(nullif(btrim(v_meta ->> 'avatar'), ''), '1.png'),
     'admin'::public.member_role                   -- the one row in this product that is not written
                                                   -- by the trigger, and the reason this file exists
   );
+
+  -- MIR-12. The membership row MIR-12's backfill would have written had admin zero existed then
+  -- (ADR-070 § 3): one active primary row on the member's team. `admin` is not a team role, so it
+  -- maps to 'member', exactly as the backfill maps every role other than 'manager'.
+  insert into public.membership (org_id, team_id, member_id, team_role, is_primary)
+  values (v_org_id, v_team_id, v_uid, 'member'::public.team_role, true);
 end
 $$;

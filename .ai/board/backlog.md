@@ -23,6 +23,14 @@ planned, sized, and safe to build** — the next stage for a row here is IN_PROG
 | # | Ticket | Title | Size | Depends on |
 |---|--------|-------|------|------------|
 
+**Empty again — `MIR-12` left this section for `## ARCHIVE` at its own ship on 2026-11-01.**
+
+**`MIR-12` was at `REVIEW` in `ticket.yaml`, `gates.review` passed** — recorded at /advance on 2026-10-31 from `04-review.md` (`produced_at: 2026-10-31T12:38:46Z`): `gate: PASS`, `verdict: PASS`, `invariant_violation: false`, `route_to: none`. `state` stays `REVIEW`; `/ship` sets `DONE` and moves the row to `## ARCHIVE`.
+
+**`MIR-12` was at `REVIEW` in `ticket.yaml`, `gates.review` not yet passed** — recorded at /advance on 2026-10-31 from `03-impl-log.md` gate PASS (`produced_at: 2026-10-31T12:24:00Z`). The row stays here until `/ship` moves it to `## ARCHIVE`.
+
+**`MIR-12` moved here at /advance on 2026-10-31**, from `01-plan.md` gate PASS (`produced_at: 2026-10-31T12:02:00Z`) with all six Definition of Ready items passing; `schema_delta` cites [ADR-070](../registry/decisions/ADR-070-the-org-and-multi-team-membership-schema.md) (`ACCEPTED by tech-lead-design under the operator's delegation (ADR-067)`). MIR-12 had no row in `## BACKLOG`, so no row left that table.
+
 **Empty again — `MIR-11` left this section for `## ARCHIVE` at its own ship on 2026-10-27.**
 
 **`MIR-11` was at `REVIEW` in `ticket.yaml`, `gates.review` passed** — recorded at /advance on 2026-10-27 from `04-review.md` (`produced_at: 2026-10-27T04:38:30Z`): `gate: PASS`, `verdict: PASS`, `invariant_violation: false`, `route_to: none`. `state` stays `REVIEW`; `/ship` sets `DONE` and moves the row to `## ARCHIVE`.
@@ -1564,26 +1572,28 @@ các tính năng mới và đưa vào backlog"*. The four solo rows registered e
 
 | # | Ticket | Title | Shipped | PR |
 |---|--------|-------|---------|-----|
-| 1 | EVT-13 | A signed-in member who opens a guest link to an event they can read is taken to the event in the app | 2026-10-15 | [#141](https://github.com/didi-code0980/calechip/pull/141) |
-| 2 | UIE-12 | The way to join an event stays in view while its page scrolls, on `/events/:id` and on `/guest/:token` | 2026-10-15 | [#145](https://github.com/didi-code0980/calechip/pull/145) |
-| 3 | EVT-14 | A signed-out reader of a guest link is offered sign-in and sign-up, and signing in returns them to the event | 2026-10-15 | [#146](https://github.com/didi-code0980/calechip/pull/146) |
-| 4 | TSK-01 | A member keeps a private list of tasks for each day, and only they can read or change it | 2026-10-15 | [#149](https://github.com/didi-code0980/calechip/pull/149) |
-| 5 | TSK-05 | Ticking a task done or not done changes on screen at once, and the server's answer confirms or undoes it | 2026-10-16 | [#150](https://github.com/didi-code0980/calechip/pull/150) |
-| 6 | TSK-02 | Each time the app opens, a member is shown their overdue tasks and can tick them or move them all to today | 2026-10-17 | [#153](https://github.com/didi-code0980/calechip/pull/153) |
-| 7 | TSK-03 | A member declaring PTO is warned about their own tasks on those days, without being stopped | 2026-10-17 | [#155](https://github.com/didi-code0980/calechip/pull/155) |
-| 8 | TSK-04 | The week view shows, in each day's header, how many of the viewer's own tasks are done out of the total | 2026-10-18 | [#156](https://github.com/didi-code0980/calechip/pull/156) |
-| 9 | TSK-06 | The task page shows the week around the selected day, with progress, and a task may carry an optional time of day | 2026-10-18 | PENDING_PR |
-| 10 | MIR-02 | A member's own role, status and team can be changed only through bounded, definer-checked paths | 2026-10-20 | [#165](https://github.com/didi-code0980/calechip/pull/165) |
-| 11 | MIR-03 | Role changes are bounded to members the admin administers, promotion to admin is a separately gated action, and every role change records its actor | 2026-10-20 | [#166](https://github.com/didi-code0980/calechip/pull/166) |
-| 12 | MIR-04 | The member directory returns only members of the caller's own teams, and the event-invitee check is audited | 2026-10-21 | [#167](https://github.com/didi-code0980/calechip/pull/167) |
-| 13 | MIR-01 | The service role key and the anon key are rotated, and the rotation is recorded | 2026-10-21 | [#168](https://github.com/didi-code0980/calechip/pull/168) |
-| 14 | MIR-05 | pgTAP runs locally and in CI against a real Postgres with every migration applied | 2026-10-21 | [#170](https://github.com/didi-code0980/calechip/pull/170) |
-| 15 | MIR-06 | An SQL isolation suite proves each boundary as a real authenticated role against real policies | 2026-10-23 | [#171](https://github.com/didi-code0980/calechip/pull/171) |
-| 16 | MIR-07 | The mock is no looser than SQL on any permission decision, and a parity test enforces it | 2026-10-23 | PENDING_PR |
-| 17 | MIR-08 | `supabase/db.sql` is regenerated from the applied migrations or retired, and CI fails on drift | 2026-10-23 | PENDING_PR |
-| 18 | MIR-09 | Known schema inconsistencies are cleaned up: transaction wrapping, allow-list references, an index on `member.team_id`, a check on the overload threshold | 2026-10-27 | PENDING_PR |
-| 19 | MIR-10 | The org and multi-team membership schema is designed and approved before any migration | 2026-10-27 | PENDING_PR |
-| 20 | MIR-11 | Composite foreign keys make a cross-org insert impossible at the database | 2026-10-27 | PENDING_PR |
+| 1 | UIE-12 | The way to join an event stays in view while its page scrolls, on `/events/:id` and on `/guest/:token` | 2026-10-15 | [#145](https://github.com/didi-code0980/calechip/pull/145) |
+| 2 | EVT-14 | A signed-out reader of a guest link is offered sign-in and sign-up, and signing in returns them to the event | 2026-10-15 | [#146](https://github.com/didi-code0980/calechip/pull/146) |
+| 3 | TSK-01 | A member keeps a private list of tasks for each day, and only they can read or change it | 2026-10-15 | [#149](https://github.com/didi-code0980/calechip/pull/149) |
+| 4 | TSK-05 | Ticking a task done or not done changes on screen at once, and the server's answer confirms or undoes it | 2026-10-16 | [#150](https://github.com/didi-code0980/calechip/pull/150) |
+| 5 | TSK-02 | Each time the app opens, a member is shown their overdue tasks and can tick them or move them all to today | 2026-10-17 | [#153](https://github.com/didi-code0980/calechip/pull/153) |
+| 6 | TSK-03 | A member declaring PTO is warned about their own tasks on those days, without being stopped | 2026-10-17 | [#155](https://github.com/didi-code0980/calechip/pull/155) |
+| 7 | TSK-04 | The week view shows, in each day's header, how many of the viewer's own tasks are done out of the total | 2026-10-18 | [#156](https://github.com/didi-code0980/calechip/pull/156) |
+| 8 | TSK-06 | The task page shows the week around the selected day, with progress, and a task may carry an optional time of day | 2026-10-18 | PENDING_PR |
+| 9 | MIR-02 | A member's own role, status and team can be changed only through bounded, definer-checked paths | 2026-10-20 | [#165](https://github.com/didi-code0980/calechip/pull/165) |
+| 10 | MIR-03 | Role changes are bounded to members the admin administers, promotion to admin is a separately gated action, and every role change records its actor | 2026-10-20 | [#166](https://github.com/didi-code0980/calechip/pull/166) |
+| 11 | MIR-04 | The member directory returns only members of the caller's own teams, and the event-invitee check is audited | 2026-10-21 | [#167](https://github.com/didi-code0980/calechip/pull/167) |
+| 12 | MIR-01 | The service role key and the anon key are rotated, and the rotation is recorded | 2026-10-21 | [#168](https://github.com/didi-code0980/calechip/pull/168) |
+| 13 | MIR-05 | pgTAP runs locally and in CI against a real Postgres with every migration applied | 2026-10-21 | [#170](https://github.com/didi-code0980/calechip/pull/170) |
+| 14 | MIR-06 | An SQL isolation suite proves each boundary as a real authenticated role against real policies | 2026-10-23 | [#171](https://github.com/didi-code0980/calechip/pull/171) |
+| 15 | MIR-07 | The mock is no looser than SQL on any permission decision, and a parity test enforces it | 2026-10-23 | PENDING_PR |
+| 16 | MIR-08 | `supabase/db.sql` is regenerated from the applied migrations or retired, and CI fails on drift | 2026-10-23 | PENDING_PR |
+| 17 | MIR-09 | Known schema inconsistencies are cleaned up: transaction wrapping, allow-list references, an index on `member.team_id`, a check on the overload threshold | 2026-10-27 | PENDING_PR |
+| 18 | MIR-10 | The org and multi-team membership schema is designed and approved before any migration | 2026-10-27 | PENDING_PR |
+| 19 | MIR-11 | Composite foreign keys make a cross-org insert impossible at the database | 2026-10-27 | PENDING_PR |
+| 20 | MIR-12 | `org_id` is added and backfilled into Org public, `membership` is backfilled from `member.team_id`, and `member.team_id` is dropped last | 2026-11-01 | PENDING_PR |
+
+**The window displaced `EVT-13` at MIR-12's ship** — *EVT-13, A signed-in member who opens a guest link to an event they can read is taken to the event in the app, shipped 2026-10-15,* [#141](https://github.com/didi-code0980/calechip/pull/141)
 
 **The window displaced `EVT-12` at MIR-11's ship** — *EVT-12, The creator or an admin of an Own team or Limited people event invites people by email, a member outside its reach is added to its named list, and Named people is relabelled Limited people, shipped 2026-10-14,* [#140](https://github.com/didi-code0980/calechip/pull/140)
 
