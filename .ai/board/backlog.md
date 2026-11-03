@@ -24,6 +24,8 @@ planned, sized, and safe to build** — the next stage for a row here is IN_PROG
 |---|--------|-------|------|------------|
 | 1 | MIR-14 | A multi-team member's entry needs approval if any of their teams requires it, the first decision wins, any rejection rejects, and both approver and rejecter are recorded | M | — |
 
+**`MIR-14` is at `REVIEW` in `ticket.yaml`, `gates.review` passed** — recorded at /advance on 2026-11-03 from `04-review.md` (`produced_at: 2026-11-03T17:31:50+07:00`): `gate: PASS`, `verdict: PASS`, `invariant_violation: false`, `route_to: none`. `state` stays `REVIEW`; `/ship` sets `DONE` and moves the row to `## ARCHIVE`.
+
 **`MIR-14` is at `REVIEW` in `ticket.yaml`, `gates.review` not yet passed** — recorded at /advance on 2026-11-03 from `03-impl-log.md` gate PASS (`produced_at: 2026-11-03T10:18:12Z`). The row stays here until `/ship` moves it to `## ARCHIVE`.
 
 **`MIR-14` moved here at /advance on 2026-11-03**, from `01-plan.md` gate PASS (`produced_at: 2026-11-03T09:20:00Z`) with all six Definition of Ready items passing; `schema_delta` cites [ADR-073](../registry/decisions/ADR-073-one-decider-on-any-of-the-owners-teams-decides-a-multi-team-entry.md) (`ACCEPTED by tech-lead-design under the operator's delegation (ADR-067)`) and ADR-070. MIR-14 had no row in `## BACKLOG`, so no row left that table. The queue half split to `MIR-14-b` (ADR-073 decision 9), which is at `BACKLOG`.
