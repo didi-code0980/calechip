@@ -8,7 +8,7 @@ id: MIR-13-b
 title: "Every read policy and read definer function resolves teams through `member_team_ids` and is bounded by `org_id`, and `getTeam()` and the overload warning survive a member on several teams"
 feature_ids: [MIR-13]   # split of MIR-13 (operating model § ID scheme: splits get -a, -b)
 group: MIR
-state: REVIEW
+state: DONE
 owner: tech-lead-design
 branch: feat/MIR-13-b
 size_estimate: "M"    # S|M - set by tech-lead-design at PLAN; gates DoR
