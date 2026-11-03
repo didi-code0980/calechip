@@ -8,24 +8,27 @@ id: MIR-13-b
 title: "Every read policy and read definer function resolves teams through `member_team_ids` and is bounded by `org_id`, and `getTeam()` and the overload warning survive a member on several teams"
 feature_ids: [MIR-13]   # split of MIR-13 (operating model § ID scheme: splits get -a, -b)
 group: MIR
-state: BACKLOG
-owner: ""
-branch: ""
-size_estimate: ""     # S|M - set by tech-lead-design at PLAN; gates DoR
-size: ""              # S|M|L|XL - set by tech-lead-design at PLAN; decides splitting
+state: DONE
+owner: tech-lead-design
+branch: feat/MIR-13-b
+size_estimate: "M"    # S|M - set by tech-lead-design at PLAN; gates DoR
+size: "S"             # S|M|L|XL - set by tech-lead-design at PLAN; decides splitting. 3 paths; estimate M assumed client changes ADR-072 removed
 depends_on: [MIR-01, MIR-02, MIR-03, MIR-04, MIR-05, MIR-06, MIR-07, MIR-08, MIR-09, MIR-10, MIR-12, MIR-13]   # "Blocked by" — MIR-13 writes the helpers and keeps membership true
-invariants_touched: []
-allowed_paths: []
+invariants_touched: [INV-04, INV-07]
+allowed_paths:
+  - ".ai/registry/decisions/ADR-072-reads-that-feed-the-absence-count-resolve-to-the-primary-team.md"
+  - "supabase/migrations/20261103180000_mir13b_read_path_org_bound.sql"
+  - "supabase/tests/160-read-path-org-bound.test.sql"
 glossary_owed: []
-schema_delta: "TODO(plan): set at PLAN — select policies and read definer functions change (ADR-014)"
-requires_adr: false
+schema_delta: "non-none — select policies and read definer functions rewritten off member_team_id(), count-feeding reads on the primary team, admin and public reads bounded by org; no table, column, constraint or trigger change. ADR-072 (amends ADR-071 decision 5), ADR-070"
+requires_adr: true    # ADR-072, ACCEPTED under ADR-067
 rework_count: 0
 chat_budget:
   developer->tech-lead-design: { used: 0, max: 6 }
 tracker: { provider: "", external_id: "", sync_enabled: false }
 gates:
-  plan:   { passed: false, at: null }
-  review: { passed: false, at: null }
+  plan:   { passed: true, at: "2026-11-03T06:55:22Z" }
+  review: { passed: true, at: "2026-11-03T07:32:04Z" }
 
 # --- MIR extra fields ---------------------------------------------------------------------------
 mir_phase: 3
