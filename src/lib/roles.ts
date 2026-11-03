@@ -30,8 +30,8 @@ export const mayAdminister = (role: MemberRole): boolean => role === "admin";
  * the seam returns no row for a caller who is not `approved`, and `removedAt` is checked by the
  * callers that hold a full `Member` (see `mayDecideEntriesOf` below).
  *
- * **IT SAYS NOTHING ABOUT WHOSE ENTRY.** A manager may not decide their own — ADR-035 § *Decision*
- * item 3 — and that is a fact about a PAIR, so it lives in the function below rather than here.
+ * **IT SAYS NOTHING ABOUT WHOSE ENTRY.** Whose entry was a fact about a PAIR, so it lived in the
+ * function below; since ADR-073 decision 3 it is no longer a fact at all (see below).
  */
 export const mayDecide = (role: MemberRole): boolean =>
   role === "admin" || role === "manager";
@@ -39,19 +39,22 @@ export const mayDecide = (role: MemberRole): boolean =>
 /**
  * May `me` decide the entry owned by `ownerId`?
  *
- * The whole of clause (a) of `public.entry_enforce_decision()`, actor side: a decider, not removed,
- * and — unless they are an admin — not the owner. An admin may decide their own entry; the charter
- * decided that on 2026-08-31 for that role and for no other.
+ * Clause (a) of `public.entry_enforce_decision()`, actor side: a decider, and not removed.
+ *
+ * MIR-14, 2026-11-03: **THE OWN-ENTRY CLAUSE LEFT WITH ADR-073 DECISION 3**, which supersedes
+ * ADR-035 § *Decision* item 3. A manager may decide their own entry, and the database records it as
+ * `self_approved`. `ownerId` is kept so no caller changes; it is unused until MIR-17 moves this check
+ * onto `team_role`, where the owner's teams are what it will read. The per-team half of the rule
+ * (`may_decide_entry`) and the rejecter's hold on their own rejection are the database's — the
+ * client is the affordance (ADR-005).
  *
  * MIR-07, 2026-10-23: and `approved`, which is `public.may_decide`'s `status = 'approved'` clause
  * (`20260912100000_solo_manager_role.sql:55-64`). The mock hands this function full rows it holds,
  * not only the seam's answer for an approved caller, so the clause cannot be left to the caller.
  */
+// eslint-disable-next-line @typescript-eslint/no-unused-vars -- kept for MIR-17, see above
 export const mayDecideEntriesOf = (me: Member, ownerId: string): boolean =>
-  me.status === "approved" &&
-  me.removedAt === null &&
-  mayDecide(me.role) &&
-  (mayAdminister(me.role) || ownerId !== me.id);
+  me.status === "approved" && me.removedAt === null && mayDecide(me.role);
 
 /**
  * The word for a role, in the interface's language.
