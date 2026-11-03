@@ -48,6 +48,11 @@ select set_eq(
     'public.is_event_participant(uuid,uuid)',
     'public.may_read_event(uuid,uuid)',
     'public.notify(uuid[],public.notification_kind,uuid,text)',
+    -- MIR-13 helpers, 150-write-path-org-bound.test.sql AC-18
+    'public.member_org_id(uuid)',
+    'public.member_team_ids(uuid)',
+    'public.member_primary_team_id(uuid)',
+    'public.shares_active_team(uuid,uuid)',
     -- guest functions, 080-guest-tokens.test.sql
     'public.get_guest_event(text)',
     'public.list_guest_event_attendees(text)',
@@ -72,7 +77,10 @@ select set_eq(
     'public.notify_attendance_changed()',
     'public.notify_attendance_deleted()',
     'public.email_notification()',
-    'public.email_invitation()'
+    'public.email_invitation()',
+    -- MIR-13 triggers, 140-org-stamping-and-membership-mirror.test.sql
+    'public.member_sync_membership()',
+    'public.stamp_org_id()'
   ],
   'AC-12: every security definer function in public is classified by the suite'
 );

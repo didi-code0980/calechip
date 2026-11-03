@@ -210,10 +210,10 @@ begin
                                                   -- by the trigger, and the reason this file exists
   );
 
-  -- MIR-12. The membership row MIR-12's backfill would have written had admin zero existed then
-  -- (ADR-070 § 3): one active primary row on the member's team. `admin` is not a team role, so it
-  -- maps to 'member', exactly as the backfill maps every role other than 'manager'.
-  insert into public.membership (org_id, team_id, member_id, team_role, is_primary)
-  values (v_org_id, v_team_id, v_uid, 'member'::public.team_role, true);
+  -- MIR-13. No `membership` insert here. The `member_sync_membership` trigger
+  -- (20261103120000_mir13_write_path_org_bound.sql § 2) writes admin zero's one active primary row
+  -- from the member insert above, with `team_role = 'member'` because `admin` is not a team role.
+  -- MIR-12 inserted that row explicitly; with the trigger in place, a second insert would be refused
+  -- by membership_active_team_member_idx and the whole bootstrap would roll back (ADR-071 decision 2).
 end
 $$;
