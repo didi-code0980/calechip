@@ -20,7 +20,8 @@ select results_eq(
   'AC-1: the shared tenant has org_code = ''shared'' and name = ''Org public'''
 );
 
--- AC-8: every org_id column, and entry.primary_team_id, is still nullable.
+-- AC-8: every org_id column, and entry.primary_team_id, is NOT NULL. MIR-12 wrote this as "still
+-- nullable, until MIR-13"; MIR-13 (20261103120000_mir13_write_path_org_bound.sql § 4.3) closed it.
 select is_empty(
   $$select table_name::text, column_name::text
       from information_schema.columns
@@ -30,24 +31,25 @@ select is_empty(
                                 'event', 'event_invitee', 'event_attendance', 'event_guest_link',
                                 'event_guest', 'notification'))
             or (table_name = 'entry' and column_name = 'primary_team_id'))
-       and is_nullable = 'NO'$$,
-  'AC-8: no org_id column and not entry.primary_team_id is NOT NULL yet (MIR-13)'
+       and is_nullable = 'YES'$$,
+  'AC-8: every org_id column and entry.primary_team_id is NOT NULL (MIR-13)'
 );
 
--- AC-9: holiday uniqueness is still one row per date.
-select col_is_unique('public', 'holiday', array['date'],
-  'AC-9: public.holiday keeps unique (date)');
+-- AC-9: holiday uniqueness is one row per date per org. MIR-12 wrote this as "unique (date), until
+-- MIR-13"; MIR-13 § 4.4 swapped the key.
+select col_is_unique('public', 'holiday', array['org_id', 'date'],
+  'AC-9: public.holiday is unique on (org_id, date)');
 select is(
   (select count(*)::int from pg_constraint
     where conrelid = 'public.holiday'::regclass and conname = 'holiday_date_key'),
-  1,
-  'AC-9: holiday_date_key still exists'
+  0,
+  'AC-9: holiday_date_key no longer exists (MIR-13)'
 );
 select is(
   (select count(*)::int from pg_constraint
     where conrelid = 'public.holiday'::regclass and conname = 'holiday_org_id_date_key'),
-  0,
-  'AC-9: holiday_org_id_date_key does not exist yet (MIR-13)'
+  1,
+  'AC-9: holiday_org_id_date_key exists (MIR-13)'
 );
 
 insert into public.holiday (date, name, org_id)
@@ -57,7 +59,7 @@ select throws_ok(
   $$insert into public.holiday (date, name, org_id)
     values ('2099-01-02', 'MIR-12 second', (select id from public.org where is_shared_tenant))$$,
   '23505', null,
-  'AC-9: a second holiday on the same date is refused with 23505'
+  'AC-9: a second holiday on the same date in the same org is refused with 23505'
 );
 
 -- AC-10: RLS on, no grant, so an authenticated session cannot read Org public.

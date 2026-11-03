@@ -276,12 +276,15 @@ insert into public.event (id, creator_id, org_id, name, start_date, end_date, sc
 -- ---------------------------------------------------------------------------------------------
 
 -- AC-2: `public.membership` composite FKs (`membership_team_org_fk`, `membership_member_org_fk`)
+-- MIR-13: `is_primary` is false in both refusals. The mirror trigger has already written Ada's and
+-- Cy's active primary rows, so a second primary would be refused by
+-- membership_one_active_primary_idx (23505) before the foreign key under test is reached.
 select throws_ok(
   $$insert into public.membership (org_id, team_id, member_id, is_primary)
     values ('d0000000-0000-4000-8000-000000000a01',
             '10000000-0000-4000-8000-000000000002',
             'a0000000-0000-4000-8000-000000000001',
-            true)$$,
+            false)$$,
   '23503', null,
   'AC-2: membership_team_org_fk refuses cross-org (Design [Org B], Org A) with 23503'
 );
@@ -291,17 +294,19 @@ select throws_ok(
     values ('d0000000-0000-4000-8000-000000000a01',
             '10000000-0000-4000-8000-000000000001',
             'a0000000-0000-4000-8000-000000000003',
-            true)$$,
+            false)$$,
   '23503', null,
   'AC-2: membership_member_org_fk refuses cross-org (Cy [Org B], Org A) with 23503'
 );
 
+-- MIR-13: a closed row. The mirror trigger already holds Ada's active primary row on Engineering, so
+-- an active one would collide with membership_active_team_member_idx; a past window does not.
 select lives_ok(
-  $$insert into public.membership (org_id, team_id, member_id, is_primary)
+  $$insert into public.membership (org_id, team_id, member_id, is_primary, joined_at, left_at)
     values ('d0000000-0000-4000-8000-000000000a01',
             '10000000-0000-4000-8000-000000000001',
             'a0000000-0000-4000-8000-000000000001',
-            true)$$,
+            false, now() - interval '2 days', now() - interval '1 day')$$,
   'AC-2: same-org membership insert (Engineering [Org A], Ada [Org A], Org A) succeeds'
 );
 
@@ -457,6 +462,11 @@ select throws_ok(
   'AC-6: event_invitee_member_org_fk refuses Member Cy [Org B] with Org A in event_invitee with 23503'
 );
 
+-- MIR-13: `event_attendance_guard` now refuses both inserts below with 42501 first, because
+-- `is_event_audience` is bounded by org (MIR-13 AC-15). It is disabled for these two statements only,
+-- inside this rolled-back transaction, so the foreign keys stay what is under test.
+alter table public.event_attendance disable trigger event_attendance_guard;
+
 select throws_ok(
   $$insert into public.event_attendance (event_id, member_id, status, org_id)
     values ('d0000000-0000-4000-8000-000000000e02',
@@ -476,6 +486,8 @@ select throws_ok(
   '23503', null,
   'AC-6: event_attendance_member_org_fk refuses Member Cy [Org B] with Org A in event_attendance with 23503'
 );
+
+alter table public.event_attendance enable trigger event_attendance_guard;
 
 select throws_ok(
   $$insert into public.event_guest_link (event_id, token, org_id)
