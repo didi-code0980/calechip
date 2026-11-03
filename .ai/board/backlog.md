@@ -22,6 +22,10 @@ planned, sized, and safe to build** — the next stage for a row here is IN_PROG
 
 | # | Ticket | Title | Size | Depends on |
 |---|--------|-------|------|------------|
+| 1 | MIR-13-b | Every read policy and read definer function resolves teams through `member_team_ids` and is bounded by `org_id`, and `getTeam()` and the overload warning survive a member on several teams | M | — |
+
+**`MIR-13-b` moved here at /advance on 2026-11-03**, from `01-plan.md` gate PASS (`produced_at: 2026-11-03T06:55:00Z`) with all six Definition of Ready items passing; `schema_delta` cites [ADR-072](../registry/decisions/ADR-072-reads-that-feed-the-absence-count-resolve-to-the-primary-team.md) (`ACCEPTED by tech-lead-design under the operator's delegation (ADR-067)`) and ADR-070. MIR-13-b had no row in `## BACKLOG`, so no row left that table.
+
 **Empty again — `MIR-13` left this section for `## ARCHIVE` at its own ship on 2026-11-03.** Its read slice `MIR-13-b` stays at `BACKLOG`; the shared `MIR-13` row in `features.md` stays `PLANNED` until MIR-13-b ships.
 
 **`MIR-13` was at `REVIEW` in `ticket.yaml`, `gates.review` passed** — recorded at /advance on 2026-11-03 from `04-review.md` (`produced_at: 2026-11-03T04:30:10Z`): `gate: PASS`, `verdict: PASS`, `invariant_violation: false`, `route_to: none`. `state` stays `REVIEW`; `/ship` sets `DONE` and moves the row to `## ARCHIVE`.
