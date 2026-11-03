@@ -24,6 +24,10 @@ planned, sized, and safe to build** — the next stage for a row here is IN_PROG
 |---|--------|-------|------|------------|
 | 1 | MIR-13 | The policy layer is rewritten against `membership` and `org_id`, and no definer function trusts a client-supplied team id alone — write slice (ADR-071) | M | — |
 
+**`MIR-13` is at `REVIEW` in `ticket.yaml`, `gates.review` passed** — recorded at /advance on 2026-11-03 from `04-review.md` (`produced_at: 2026-11-03T04:30:10Z`): `gate: PASS`, `verdict: PASS`, `invariant_violation: false`, `route_to: none`. `state` stays `REVIEW`; `/ship` sets `DONE` and moves the row to `## ARCHIVE`.
+
+**`MIR-13` is at `REVIEW` in `ticket.yaml`, `gates.review` not yet passed** — recorded at /advance on 2026-11-03 from `03-impl-log.md` gate PASS (`produced_at: 2026-11-03T02:54:16Z`). The row stays here until `/ship` moves it to `## ARCHIVE`.
+
 **`MIR-13` moved here at /advance on 2026-11-03**, from `01-plan.md` gate PASS (`produced_at: 2026-11-03T01:55:00Z`) with all six Definition of Ready items passing; `schema_delta` cites [ADR-070](../registry/decisions/ADR-070-the-org-and-multi-team-membership-schema.md) and [ADR-071](../registry/decisions/ADR-071-writers-stamp-org-id-membership-mirrors-member-team-id-and-mir-13-splits-by-operation.md) (`ACCEPTED by tech-lead-design` under ADR-008). MIR-13 had no row in `## BACKLOG`, so no row left that table. Its read slice, `MIR-13-b`, is at `BACKLOG` and depends on MIR-13.
 
 **Empty again — `MIR-12` left this section for `## ARCHIVE` at its own ship on 2026-11-01.**
