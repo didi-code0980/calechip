@@ -11,7 +11,7 @@ owner: ""
 branch: ""
 size_estimate: ""     # S|M - set by tech-lead-design at PLAN; gates DoR
 size: ""              # S|M|L|XL - set by tech-lead-design at PLAN; decides splitting
-depends_on: [MIR-01, MIR-02, MIR-03, MIR-04, MIR-05, MIR-06, MIR-07, MIR-08, MIR-09, MIR-10, MIR-12, MIR-13]   # "Blocked by" — the MIR IDs that must be DONE first
+depends_on: [MIR-01, MIR-02, MIR-03, MIR-04, MIR-05, MIR-06, MIR-07, MIR-08, MIR-09, MIR-10, MIR-12, MIR-13, MIR-13-b]   # "Blocked by" — the MIR IDs that must be DONE first. MIR-13-b added 2026-11-03 at /plan MIR-13 (ADR-071 decision 5): the read policies must leave member_team_id before member.team_id is dropped
 invariants_touched: []
 allowed_paths: []
 glossary_owed: []
