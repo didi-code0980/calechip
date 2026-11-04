@@ -8,7 +8,7 @@ id: MIR-14-b
 title: "Each relevant manager's worklist shows a multi-team member's pending entry with the owner's name and the teams it affects, and the decision records are shown"
 feature_ids: [MIR-14]   # split of MIR-14 (operating model § ID scheme: splits get -a, -b)
 group: MIR
-state: REVIEW
+state: DONE
 owner: ""
 branch: ""
 size_estimate: "M"    # set by tech-lead-design at PLAN; gates DoR
