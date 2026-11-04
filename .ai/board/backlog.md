@@ -24,6 +24,10 @@ planned, sized, and safe to build** — the next stage for a row here is IN_PROG
 |---|--------|-------|------|------------|
 | 1 | MIR-14-b | Each relevant manager's worklist shows a multi-team member's pending entry with the owner's name and the teams it affects, and the decision records are shown | M | — |
 
+**`MIR-14-b` is at `REVIEW` in `ticket.yaml`, `gates.review` passed** — recorded at /advance on 2026-11-04 from `04-review.md` (`produced_at: 2026-11-04T10:48:55+07:00`): `gate: PASS`, `verdict: PASS`, `invariant_violation: false`, `route_to: none`. `state` stays `REVIEW`; `/ship` sets `DONE` and moves the row to `## ARCHIVE`.
+
+**`MIR-14-b` is at `REVIEW` in `ticket.yaml`, `gates.review` not yet passed** — recorded at /advance on 2026-11-04 from `03-impl-log.md` gate PASS (`produced_at: 2026-11-04T03:45:02Z`). The row stays here until `/ship` moves it to `## ARCHIVE`.
+
 **`MIR-14-b` moved here at /advance on 2026-11-04**, from `01-plan.md` gate PASS (`produced_at: 2026-11-04T01:23:40Z`) with all six Definition of Ready items passing; `schema_delta` cites [ADR-073](../registry/decisions/ADR-073-one-decider-on-any-of-the-owners-teams-decides-a-multi-team-entry.md) (`ACCEPTED by tech-lead-design under the operator's delegation (ADR-067)`), no new ADR. MIR-14-b had no row in `## BACKLOG`, so no row left that table.
 
 **Empty again — `MIR-14` left this section for `## ARCHIVE` at its own ship on 2026-11-03.** Its queue slice `MIR-14-b` stays at `BACKLOG`; the shared `MIR-14` row in `features.md` stays `PLANNED` until MIR-14-b ships.
