@@ -1,6 +1,6 @@
 ---
 doc_version: 5
-last_updated: 2026-10-13
+last_updated: 2026-11-03
 governed_by: [RULE-01, RULE-02, RULE-09]
 ---
 
@@ -16,7 +16,7 @@ testable — two unrelated role names are not comparable, two ranks are.
 | Rank | Role | The difference from the rank below |
 |---|---|---|
 | 1 | `member` | The baseline. Writes their own entries, reads everyone's. |
-| 2 | `manager` | A member who also **decides another member's entry** — approve or reject — and does nothing else a member cannot. Not their own entry, no calendar, no roster, no threshold. |
+| 2 | `manager` | A member who also **decides another member's entry** — approve or reject — on a team where they hold `team_role = 'manager'`, and their own entry too (ADR-073 decision 3, recorded as `self_approved`); and does nothing else a member cannot. No calendar, no roster, no threshold. *Until 2026-11-03 (MIR-14): "Not their own entry".* |
 | 3 | `admin` | A manager who also decides the rest — the holiday calendar, who is in the team, and the threshold — who may edit any entry rather than only their own, and who may approve their own. |
 
 There is no fourth rank, no owner, and no billing role. `.ai/00-charter.md` carries the same three
@@ -50,7 +50,7 @@ operator gave — see the note under § *Roles*. A bare `❌` there is a denial 
 | Edit or delete their own entry | ✅ | ✅ | ✅ |
 | Edit or delete another member's entry | ❌ | ❌ **decided — ADR-035 § Rationale** | ✅ |
 | Approve or reject another member's entry | ❌ | ✅ **ADR-035** | ✅ |
-| Approve or reject their own entry | ❌ | ❌ **decided — ADR-035 § Decision item 3** | ✅ |
+| Approve or reject their own entry | ❌ | ✅ **decided — ADR-073 decision 3**, recorded as `self_approved` *(was ❌ under ADR-035 § Decision item 3 until MIR-14)* | ✅ |
 | Read the holiday calendar | ✅ | ✅ | ✅ |
 | Add, edit or delete a holiday or swap day | ❌ | ❌ · | ✅ |
 | Read the member list | ✅ | ✅ | ✅ |
@@ -131,8 +131,11 @@ never learns the event id behind it (`supabase/migrations/20261015090000_evt13_g
 **THE TWO ROWS TO READ TWICE ARE THE TWO MARKED `decided`.** *Edit or delete another member's entry*
 is denied to a manager because granting it is what the update POLICY would do if it were widened, and
 ADR-035 § *Rationale* refuses exactly that: approving is a four-column write, and the row it sits on
-carries the entry's dates, type and note. *Approve or reject their own entry* is denied because the
-`✅` beside it was decided for `admin` on 2026-08-31 and for nothing else.
+carries the entry's dates, type and note. *Approve or reject their own entry* was denied because the
+`✅` beside it was decided for `admin` on 2026-08-31 and for nothing else. **MIR-14 reversed it**: the
+operator agreed in the multi-tenancy plan (`calechip-multi-tenancy-plan.md:34`) that a manager may
+approve their own entry, and ADR-073 decision 3 records it; the database marks such a decision
+`self_approved`.
 
 Every row above except the two marked was decided by the operator on 2026-08-31 or is stated in
 `.ai/00-charter.md`. The two marked rows are denials by default rather than by decision: a denial
@@ -269,6 +272,9 @@ guarantee.
    the star on an admin's entry means "an admin said so" and that admin is themselves. This was
    chosen deliberately: with one admin on a small team, forbidding it would leave that person's
    entries permanently unapproved.
+   **Since MIR-14 (ADR-073 decision 3) the same holds for a manager's own entries.** The record is
+   `entry.self_approved`, set by `entry_enforce_decision()` clause (b) when the approver is the owner
+   — for an admin and a manager alike. It records the weakness; it does not close it.
 
 5. **RULE-02's lint rule is not written yet.** Until it is, nothing prevents a component importing
    the Supabase client at build time. D12 reports a manifest or import crossing after the fact and
@@ -322,7 +328,7 @@ not here.
 | A7 | **The `security definer` team and member functions trust a client-supplied `p_team_id`, gated only by `is_admin`.** `admit_member` puts a sign-up into any team; `move_member`, `rename_team`, `delete_team` and the three cross-team reads take any team. `public.is_admin(auth.uid())` is the only bound, with no org condition. | `many_teams:53-206`, `cal11:33-65`; audit §4, §5 | MIR-13, MIR-16 |
 | A8 | **`setOverloadThreshold` and `setApprovalSettings` send no id** and update every row the policy admits. | `supabase.ts:2135-2140`, `supabase.ts:2374-2379`; audit §2 | MIR-13 |
 | A9 | **The sign-up queue is global.** Every admin sees and may decide every pending sign-up — the arrangement § *The permission table* already names as the first thing to revisit once a second team exists. | `member_approval:138-167`; audit §2, §3 | MIR-13, MIR-16 |
-| A10 | **Rejection, bulk rejection and auto-approval record no actor, and there is no audit table.** Only `approved_by` and `notification.actor_id` exist. Extends known weakness 3. | `mgr_gen_cols:107-109`, `adm06:73-86`, `approval_settings:102-129`; audit §7 | MIR-14, MIR-20 |
+| A10 | **Rejection, bulk rejection and auto-approval record no actor, and there is no audit table.** Only `approved_by` and `notification.actor_id` exist. Extends known weakness 3. | `mgr_gen_cols:107-109`, `adm06:73-86`, `approval_settings:102-129`; audit §7 | MIR-14, MIR-20 — **rejection half closed by MIR-14**: `entry.rejected_by` / `rejected_at`, written by the trigger for a single and a bulk rejection alike. Auto-approval's actor and the audit table stay MIR-20's. |
 | A11 | **The holiday calendar is one global table that any admin writes.** | `adm02:33`, `adm02:58-59`, `adm03:35-50`; audit §2 | MIR-10, MIR-15, MIR-16 |
 | A12 | **An admin reads and manages every event of every team, and a `public` event reaches and notifies every team.** Guest email addresses are readable by any admin through `list_event_guest_emails`. | `evt01:134-142`, `evt02:332-346`, `evt04:154-174`, `evt07:434-442`; audit §2 | MIR-13, MIR-15, MIR-16 |
 | A13 | **Issue reports and their images are readable by any admin.** | `issue:108-132`, `issue_img:148-153`; audit §2 | MIR-16 |
@@ -335,3 +341,5 @@ permission table* marks the manager's cell of *Approve or reject their own entry
 Decision item 3`. Known weakness 4 — the same self-approval, for an admin — then extends to managers,
 with the flag as its only record. MIR-14's pull request owes that row, weakness 4 and ADR-035 an
 amendment; nothing is amended here.
+*Done by MIR-14, 2026-11-03: the row, the `manager` rank line and known weakness 4 are amended above,
+and ADR-073 supersedes ADR-035 § Decision item 3.*

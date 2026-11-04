@@ -21,6 +21,8 @@
 // EVERY TEST RESTORES WHAT IT WROTE. `members` is module state that lives for the whole file and the
 // mock offers no reseed, so a test that left somebody a manager would silently change what every
 // test after it asserts against.
+import { readFileSync } from "node:fs";
+import { fileURLToPath } from "node:url";
 import { afterEach, describe, expect, it } from "vitest";
 import { seam, __setCurrentMember } from "@/lib/data/mock";
 import type { Entry, EntryType } from "@/lib/domain/types";
@@ -152,16 +154,19 @@ describe("ADR-035 § Decision — the one power the rank adds", () => {
   });
 });
 
-describe("ADR-035 § Decision item 3 — and not their own", () => {
-  it("a manager cannot approve their own entry", async () => {
+// MIR-14 — ADR-073 decision 3 SUPERSEDES ADR-035 § Decision item 3. A manager MAY decide their own
+// entry; the database records it as `self_approved`, which `Entry` does not carry yet (MIR-14-b), so
+// what the mock can show is the affordance and `approvedBy`. Numbered: MIR-14's plan states these.
+describe("ADR-073 decision 3 — a manager may decide their own entry", () => {
+  it("MIR-14 AC-21: a manager approves their own pending entry, recorded as theirs", async () => {
     const own = await pending(FIXTURE_MEMBER.id);
     undo = await asManager(FIXTURE_MEMBER.id);
 
     as(FIXTURE_MEMBER.id);
     const decided = await seam.approveEntry(own.id);
 
-    expect(decided.ok).toBe(false);
-    if (!decided.ok) expect(decided.error.code).toBe("entry_decision_not_permitted");
+    expect(decided.ok).toBe(true);
+    if (decided.ok) expect(decided.value.approvedBy).toBe(FIXTURE_MEMBER.id);
   });
 
   it("an admin still may approve their own, which is the row that was decided in 2026-08-31", async () => {
@@ -172,19 +177,87 @@ describe("ADR-035 § Decision item 3 — and not their own", () => {
     expect(decided.ok).toBe(true);
   });
 
-  it("a batch containing the manager's own entry is refused WHOLE, not partially", async () => {
+  it("MIR-14 AC-21: a batch containing the manager's own entry succeeds for every row", async () => {
     const mine = await pending(FIXTURE_MEMBER.id);
     const theirs = await pending(FIXTURE_APPROVED_MEMBER.id);
     undo = await asManager(FIXTURE_MEMBER.id);
 
     as(FIXTURE_MEMBER.id);
     const result = await seam.rejectEntries([mine.id, theirs.id], "Not this week.");
-    expect(result.ok).toBe(false);
+    expect(result.ok).toBe(true);
+    if (result.ok) expect(result.value).toEqual({ requested: 2, rejected: 2 });
 
-    // And the other member's entry is untouched — one statement, one transaction.
     as(FIXTURE_ADMIN.id);
     const rows = await seam.listTeamEntries();
-    expect(rows.find((e) => e.id === theirs.id)?.status).toBe("pending");
+    expect(rows.find((e) => e.id === mine.id)?.status).toBe("rejected");
+    expect(rows.find((e) => e.id === theirs.id)?.status).toBe("rejected");
+  });
+});
+
+// MIR-14 — ADR-073 decision 4, clause (a1). A rejection is changed only by its rejecter or an admin.
+describe("ADR-073 decision 4 — a manager may not overturn another person's rejection", () => {
+  const SENTENCE =
+    "Only an admin, or a manager of one of this person's teams, can decide this entry — and only whoever rejected it, or an admin, can change a rejection. Nothing about this entry has changed.";
+
+  it("MIR-14 AC-22: approving an entry the admin rejected is refused with the sentence", async () => {
+    const entry = await pending(FIXTURE_APPROVED_MEMBER.id);
+    as(FIXTURE_ADMIN.id);
+    const rejected = await seam.rejectEntry(entry.id, "Trùng lịch");
+    expect(rejected.ok).toBe(true);
+    undo = await asManager(FIXTURE_MEMBER.id);
+
+    as(FIXTURE_MEMBER.id);
+    const decided = await seam.approveEntry(entry.id);
+
+    expect(decided).toEqual({
+      ok: false,
+      error: { code: "entry_decision_not_permitted", message: SENTENCE },
+    });
+    as(FIXTURE_ADMIN.id);
+    const rows = await seam.listTeamEntries();
+    expect(rows.find((e) => e.id === entry.id)?.status).toBe("rejected");
+  });
+
+  it("MIR-14 AC-22: rewriting the reason on that rejection is refused too", async () => {
+    const entry = await pending(FIXTURE_APPROVED_MEMBER.id);
+    as(FIXTURE_ADMIN.id);
+    await seam.rejectEntry(entry.id, "Trùng lịch");
+    undo = await asManager(FIXTURE_MEMBER.id);
+
+    as(FIXTURE_MEMBER.id);
+    const reworded = await seam.rejectEntry(entry.id, "Lý do khác");
+    expect(reworded.ok).toBe(false);
+    if (!reworded.ok) expect(reworded.error.code).toBe("entry_decision_not_permitted");
+
+    const batch = await seam.rejectEntries([entry.id], "Lý do khác");
+    expect(batch.ok).toBe(false);
+    if (!batch.ok) expect(batch.error.code).toBe("entry_decision_not_permitted");
+  });
+
+  it("MIR-14: the rejecter may change their own decision, and an admin may change anybody's", async () => {
+    const entry = await pending(FIXTURE_APPROVED_MEMBER.id);
+    undo = await asManager(FIXTURE_MEMBER.id);
+
+    as(FIXTURE_MEMBER.id);
+    expect((await seam.rejectEntry(entry.id, "Trùng lịch")).ok).toBe(true);
+    expect((await seam.rejectEntry(entry.id, "Lý do mới")).ok).toBe(true);
+    expect((await seam.approveEntry(entry.id)).ok).toBe(true);
+
+    const again = await pending(FIXTURE_APPROVED_MEMBER.id);
+    as(FIXTURE_MEMBER.id);
+    expect((await seam.rejectEntry(again.id, "Trùng lịch")).ok).toBe(true);
+    as(FIXTURE_ADMIN.id);
+    const overturned = await seam.approveEntry(again.id);
+    expect(overturned.ok).toBe(true);
+    if (overturned.ok) expect(overturned.value.approvedBy).toBe(FIXTURE_ADMIN.id);
+  });
+
+  it("MIR-14 AC-22: the supabase seam carries the identical sentence", () => {
+    const source = readFileSync(
+      fileURLToPath(new URL("../src/lib/data/supabase.ts", import.meta.url)),
+      "utf8",
+    );
+    expect(source).toContain(JSON.stringify(SENTENCE));
   });
 });
 

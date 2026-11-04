@@ -32,7 +32,7 @@ import type {
 import { isValidThreshold, INVALID_THRESHOLD_MESSAGE } from "./index";
 // SOLO 2026-09-12, ADR-035. The role predicates, above the seam and shared with the screens so
 // the mock and the interface cannot disagree about who may decide.
-import { mayDecide, mayDecideEntriesOf } from "@/lib/roles";
+import { mayAdminister, mayDecide, mayDecideEntriesOf } from "@/lib/roles";
 // EVT-02, 01-plan.md section 4.2. `public.event_registration_open`, reproduced.
 import { eventToday, registrationOpen } from "@/lib/event-registration";
 // EVT-03. The admin's other-team narrowing (Q4-A) — one rule, shared with supabase.ts.
@@ -1369,7 +1369,7 @@ const ownsEntry = (me: Member, entry: Entry): boolean => entry.memberId === me.i
 // The four sentences, repeated from src/lib/data/supabase.ts so the two implementations of the seam
 // carry the same words — the rule CAL-01's three refusal constants and ADM-03's four already state.
 const DECISION_REFUSED =
-  "Only an admin or a manager can approve or reject an entry, and a manager cannot decide their own. Nothing about this entry has changed.";
+  "Only an admin, or a manager of one of this person's teams, can decide this entry — and only whoever rejected it, or an admin, can change a rejection. Nothing about this entry has changed.";
 const APPROVE_REFUSED = "This entry could not be approved.";
 const REJECT_REFUSED = "This entry could not be rejected.";
 const REASON_REQUIRED =
@@ -1401,6 +1401,18 @@ const NOTHING_SELECTED = "Select at least one entry before rejecting.";
 //
 // CLAUSE (c) IS NOT HERE. No decision writes a substantive column, so the reset cannot fire on this
 // path — and it already lives in `updateEntry`, where the edits that do fire it go through.
+// MIR-14 — ADR-073 decision 4, clause (a1) of the trigger. WHO REJECTED EACH ENTRY, keyed by entry
+// id. `rejected_by` is not on `Entry` (a shared-type change, MIR-14-b), so the mock holds it here,
+// module-private: set on every transition into `rejected` and every reason change, deleted when the
+// row leaves `rejected` — through a decision or through `updateEntry`'s INV-02 reset. A rejected row
+// with no key is a rejection whose rejecter nobody recorded, as every row rejected before MIR-14 is
+// in the database, and only an admin may change it.
+const rejectedByOf = new Map<string, string>();
+
+// Clause (a1): a non-admin moving a decision column of an entry somebody else rejected.
+const overturnsAnotherRejection = (me: Member, row: Entry): boolean =>
+  row.status === "rejected" && !mayAdminister(me.role) && rejectedByOf.get(row.id) !== me.id;
+
 function applyDecision(
   me: Member,
   row: Entry,
@@ -1414,14 +1426,16 @@ function applyDecision(
   // `role !== "admin"` alone here would refuse a case the trigger admits.
   const moves = next.status !== row.status || next.rejectionReason !== row.rejectionReason;
 
-  // SOLO 2026-09-12, ADR-035. `mayDecideEntriesOf` is `may_decide(uid)` AND the own-entry clause in
-  // one call, which is how the trigger reads it: a manager decides, but not their own entry. This
-  // read `me.role === "admin" && me.removedAt === null` and admitted nobody else.
-  if (moves && !mayDecideEntriesOf(me, row.memberId)) {
+  // SOLO 2026-09-12, ADR-035. `mayDecideEntriesOf` is `may_decide(uid)`. MIR-14: the own-entry
+  // clause it also carried left with ADR-073 decision 3 — a manager may decide their own entry.
+  // Then clause (a1): a rejection is changed only by its rejecter or an admin.
+  if (moves && (!mayDecideEntriesOf(me, row.memberId) || overturnsAnotherRejection(me, row))) {
     return { ok: false, error: { code: "entry_decision_not_permitted", message: DECISION_REFUSED } };
   }
 
   const wasApproved = row.status === "approved";
+  const reasonChanged = next.rejectionReason !== row.rejectionReason;
+  const wasRejected = row.status === "rejected";
 
   // The two columns this ticket's grant names, and no others. `tentative` is untouched (INV-05,
   // AC-6) and so are the dates, the type and the portion.
@@ -1440,6 +1454,14 @@ function applyDecision(
   } else if (row.status !== "approved") {
     row.approvedBy = null;
     row.approvedAt = null;
+  }
+
+  // MIR-14 — the rejecter, clause (b)'s second branch: recorded on the way into `rejected` and on a
+  // reason rewrite, and forgotten when the row leaves `rejected`.
+  if (row.status === "rejected" && (!wasRejected || reasonChanged)) {
+    rejectedByOf.set(row.id, me.id);
+  } else if (row.status !== "rejected") {
+    rejectedByOf.delete(row.id);
   }
 
   // The trigger's `new.updated_at := now()`, which is AC-15's "when the decision was recorded" —
@@ -2276,6 +2298,8 @@ export const seam: DataSeam = {
       // Forced rather than chosen: `entry_rejection_reason_iff_rejected` refuses any transition off
       // `rejected` that leaves the reason standing (INV-03).
       row.rejectionReason = null;
+      // MIR-14: and the rejecter, which clause (c) clears with the rest.
+      rejectedByOf.delete(row.id);
     }
 
     row.type = input.type;
@@ -3203,7 +3227,18 @@ export const seam: DataSeam = {
     // one transaction, so a manager whose batch contains their OWN entry is refused for the batch as
     // a whole rather than partially. That is what the trigger does too: it raises on the first row it
     // reaches that fails, and the whole statement rolls back.
-    if (moves && !admitted.every((e) => mayDecideEntriesOf(me, e.memberId))) {
+    //
+    // MIR-14: the own-entry refusal left with ADR-073 decision 3, so a manager's own entry no longer
+    // fails the batch. Clause (a1) joins it, per row that moves: one rejection somebody else made
+    // refuses the whole batch, as the trigger's single statement does.
+    const rowMoves = (e: Entry): boolean => e.status !== "rejected" || e.rejectionReason !== reason;
+    if (
+      moves &&
+      !admitted.every(
+        (e) =>
+          mayDecideEntriesOf(me, e.memberId) && !(rowMoves(e) && overturnsAnotherRejection(me, e)),
+      )
+    ) {
       return {
         ok: false,
         error: { code: "entry_decision_not_permitted", message: DECISION_REFUSED },

@@ -53,6 +53,8 @@ select set_eq(
     'public.member_team_ids(uuid)',
     'public.member_primary_team_id(uuid)',
     'public.shares_active_team(uuid,uuid)',
+    -- MIR-14 helper, 170-multi-team-decisions.test.sql
+    'public.may_decide_entry(uuid,uuid)',
     -- guest functions, 080-guest-tokens.test.sql
     'public.get_guest_event(text)',
     'public.list_guest_event_attendees(text)',
@@ -80,7 +82,9 @@ select set_eq(
     'public.email_invitation()',
     -- MIR-13 triggers, 140-org-stamping-and-membership-mirror.test.sql
     'public.member_sync_membership()',
-    'public.stamp_org_id()'
+    'public.stamp_org_id()',
+    -- MIR-14 trigger, 170-multi-team-decisions.test.sql AC-1 to AC-3
+    'public.entry_apply_approval_setting()'
   ],
   'AC-12: every security definer function in public is classified by the suite'
 );
