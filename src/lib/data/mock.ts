@@ -43,6 +43,8 @@ import type {
   BusyDay,
   DateRange,
   Entry,
+  // MIR-14-b, 01-plan.md section 4.3.
+  EntryOwner,
   EntryStatus,
   // SOLO, 2026-09-26 — report an issue.
   CreateIssueReportInput,
@@ -3102,6 +3104,46 @@ export const seam: DataSeam = {
       page: query.page,
       pageSize: PENDING_PAGE_SIZE,
     };
+  },
+
+  // MIR-14-b AC-8, AC-9. `public.list_entry_owners(uuid[])`, as far as a one-team mock can model it.
+  // Every member here has at most one team, so "a decider on any of the owner's active teams" is
+  // "a decider on the owner's team", and `teams` has one element. The SAME bound and the same
+  // sentence as supabase.ts, so the two tell one story; the raise fires before anything is read.
+  async listEntryOwners(memberIds: string[]): Promise<EntryOwner[]> {
+    const ids = [...new Set(memberIds)];
+    if (ids.length > PENDING_PAGE_SIZE) {
+      throw new Error(
+        `listEntryOwners was asked for ${ids.length} owners, more than one page (${PENDING_PAGE_SIZE})`,
+      );
+    }
+    if (ids.length === 0) return [];
+
+    const me = members.find((m) => m.id === currentMemberId);
+    if (!me || me.status !== "approved" || me.removedAt !== null || !mayDecide(me.role)) return [];
+
+    return members
+      .filter(
+        (owner) =>
+          ids.includes(owner.id) &&
+          owner.status === "approved" &&
+          owner.removedAt === null &&
+          owner.teamId !== null &&
+          owner.teamId === me.teamId,
+      )
+      .flatMap((owner) => {
+        const team = teams.find((t) => t.id === owner.teamId);
+        return team
+          ? [
+              {
+                memberId: owner.id,
+                displayName: owner.displayName,
+                avatar: owner.avatar,
+                teams: [{ id: team.id, name: team.name }],
+              },
+            ]
+          : [];
+      });
   },
 
   // -------------------------------------------------------------------------

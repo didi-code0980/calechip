@@ -51,6 +51,7 @@ operator gave — see the note under § *Roles*. A bare `❌` there is a denial 
 | Edit or delete another member's entry | ❌ | ❌ **decided — ADR-035 § Rationale** | ✅ |
 | Approve or reject another member's entry | ❌ | ✅ **ADR-035** | ✅ |
 | Approve or reject their own entry | ❌ | ✅ **decided — ADR-073 decision 3**, recorded as `self_approved` *(was ❌ under ADR-035 § Decision item 3 until MIR-14)* | ✅ |
+| Read the name and teams of an entry's owner, for an entry they may decide | ❌ | ✅ **ADR-073 decisions 1 and 8** — `list_entry_owners`, filtered by `may_decide_entry` (MIR-14-b) | ✅ **ADR-073 decisions 1 and 8** — on a team they share with the owner (MIR-14-b) |
 | Read the holiday calendar | ✅ | ✅ | ✅ |
 | Add, edit or delete a holiday or swap day | ❌ | ❌ · | ✅ |
 | Read the member list | ✅ | ✅ | ✅ |
