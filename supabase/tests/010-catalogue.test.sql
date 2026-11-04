@@ -55,6 +55,8 @@ select set_eq(
     'public.shares_active_team(uuid,uuid)',
     -- MIR-14 helper, 170-multi-team-decisions.test.sql
     'public.may_decide_entry(uuid,uuid)',
+    -- MIR-14-b RPC, 180-entry-owners.test.sql
+    'public.list_entry_owners(uuid[])',
     -- guest functions, 080-guest-tokens.test.sql
     'public.get_guest_event(text)',
     'public.list_guest_event_attendees(text)',

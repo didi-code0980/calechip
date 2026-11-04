@@ -101,7 +101,7 @@ import { useCallback, useEffect, useState } from "react";
 import EntryDecision from "@/components/EntryDecision";
 import { usePageOverload } from "@/hooks/usePageOverload";
 import { seam } from "@/lib/data";
-import type { Entry, EntryType, Member } from "@/lib/domain/types";
+import type { Entry, EntryOwner, EntryType, Member } from "@/lib/domain/types";
 import { PORTION_LABELS, TYPE_LABELS } from "@/lib/labels";
 import { mayDecide, mayDecideEntriesOf } from "@/lib/roles";
 // SOLO, 2026-09-11 — the loading mark that replaced this screen's "Loading…" sentence. The
@@ -191,7 +191,24 @@ type View =
       roster: Member[];
       /** SOLO 2026-09-13, ADR-035 § Decision item 3. The caller, so a manager's OWN row can say who decides it. */
       me: Member;
+      /** MIR-14-b. The owners `listEntryOwners` named, keyed by member id: the name a second-team
+       *  decider's roster cannot supply (ADR-072 decision 1), and the teams each entry affects. */
+      owners: Map<string, EntryOwner>;
     };
+
+/** MIR-14-b. The distinct owners of `rows` that `known` does not already hold. */
+function unresolvedOwners(rows: readonly Entry[], known: ReadonlyMap<string, EntryOwner>): string[] {
+  return [...new Set(rows.map((e) => e.memberId))].filter((id) => !known.has(id));
+}
+
+function withOwners(
+  known: ReadonlyMap<string, EntryOwner>,
+  found: readonly EntryOwner[],
+): Map<string, EntryOwner> {
+  const next = new Map(known);
+  for (const owner of found) next.set(owner.memberId, owner);
+  return next;
+}
 
 export default function PendingEntries() {
   const [view, setView] = useState<View>({ phase: "loading" });
@@ -260,6 +277,15 @@ export default function PendingEntries() {
         seam.listMembers(),
       ]);
 
+      // MIR-14-b AC-10, AC-13. The third read, and it is the page's OWNERS: who each entry belongs
+      // to when the roster cannot say (a second-team owner), and every team it affects. Inside the
+      // same `try`, so a failure here lands on `unavailable` like the other two — a queue drawn
+      // without the teams its entries affect is a queue decided on half the facts.
+      const owners = withOwners(
+        new Map(),
+        await seam.listEntryOwners(unresolvedOwners(pageResult.rows, new Map())),
+      );
+
       setView({
         phase: "ready",
         rows: pageResult.rows,
@@ -268,6 +294,7 @@ export default function PendingEntries() {
         pageSize: pageResult.pageSize,
         roster,
         me,
+        owners,
       });
     } catch {
       // AC-5 and AC-12. Both reads throw on a transport failure, and `listPendingEntries` throws on a
@@ -309,6 +336,11 @@ export default function PendingEntries() {
         queryFor(view.phase === "ready" ? view.pages : 0),
       );
 
+      // MIR-14-b AC-12. Only the owners not already resolved. A throw here is the catch below's —
+      // the rows on screen stay and the control comes back (AC-13).
+      const known = view.phase === "ready" ? view.owners : new Map<string, EntryOwner>();
+      const found = await seam.listEntryOwners(unresolvedOwners(next.rows, known));
+
       setView((current) =>
         current.phase === "ready"
           ? {
@@ -319,6 +351,7 @@ export default function PendingEntries() {
               total: next.total,
               rows: [...current.rows, ...next.rows],
               pages: current.pages + 1,
+              owners: withOwners(current.owners, found),
             }
           : current,
       );
@@ -389,17 +422,24 @@ export default function PendingEntries() {
     );
   }
 
-  const { rows, total, pageSize, roster } = view;
+  const { rows, total, pageSize, roster, owners } = view;
 
   // The owner's display name, from the roster the same load returned. An id is shown when no roster
   // row matches, which under `entry_select_team` and `member_select_team` cannot happen — both are
   // scoped to the same team by the same helper — so it is a fallback for a state the policies
   // exclude rather than a case with a design. TeamEntries.tsx records the same.
+  //
+  // MIR-14-b. That sentence stopped being true with MIR-14: `entry_select_decider` admits a
+  // second-team owner's entry, and `member_select_team` stays primary-only (ADR-072 decision 1). So
+  // `owners` is the second source, after the roster — the roster first, because it is the only one
+  // that still names a REMOVED owner (ADR-013, AC-11).
   const ownerName = (memberId: string): string =>
-    roster.find((m) => m.id === memberId)?.displayName ?? memberId;
+    roster.find((m) => m.id === memberId)?.displayName ??
+    owners.get(memberId)?.displayName ??
+    memberId;
 
   const ownerAvatar = (memberId: string): string =>
-    roster.find((m) => m.id === memberId)?.avatar ?? "";
+    roster.find((m) => m.id === memberId)?.avatar ?? owners.get(memberId)?.avatar ?? "";
 
   // SOLO, 2026-09-10. **THE ROWS IN HAND AGAINST THE SIZE OF THE MATCHING SET**, which is the one
   // comparison "load more" needs and the only one it makes. `total` is the datastore's figure from
@@ -449,185 +489,213 @@ export default function PendingEntries() {
           data-testid="pending-entries"
           className="divide-y divide-line overflow-hidden rounded-card bg-card shadow-soft"
         >
-          {rows.map((entry) => (
-            <li
-              key={entry.id}
-              data-testid="pending-entry-row"
-              data-entry-id={entry.id}
-              data-member-id={entry.memberId}
-              data-type={entry.type}
-              data-portion={entry.portion}
-              data-start-date={entry.startDate}
-              data-end-date={entry.endDate}
-              data-tentative={entry.tentative}
-              // SOLO, 2026-09-10 — the type's own colour as a left edge. A STRIPE and not a row
-              // background: the fills on this palette are pastels chosen to sit UNDER text on the
-              // calendar, and a whole row of one would fight the crowded-day sentence, which is the
-              // only thing on this screen allowed to shout.
-              className={`flex flex-wrap items-center gap-3 border-l-4 px-4 py-3 text-sm ${TYPE_STRIPE[entry.type]}`}
-            >
-              {/* SOLO. The avatar is the transcription's 38px circle rather than a bare glyph, and
-                  it sits on `bg-field` the way the sidebar's roster chip does — one shape for "a
-                  person" across the product instead of two. */}
-              <span
-                aria-hidden="true"
-                className="flex size-9.5 shrink-0 items-center justify-center overflow-hidden rounded-pill bg-field text-xl"
+          {rows.map((entry) => {
+            const owner = owners.get(entry.memberId);
+            return (
+              <li
+                key={entry.id}
+                data-testid="pending-entry-row"
+                data-entry-id={entry.id}
+                data-member-id={entry.memberId}
+                data-type={entry.type}
+                data-portion={entry.portion}
+                data-start-date={entry.startDate}
+                data-end-date={entry.endDate}
+                data-tentative={entry.tentative}
+                // SOLO, 2026-09-10 — the type's own colour as a left edge. A STRIPE and not a row
+                // background: the fills on this palette are pastels chosen to sit UNDER text on the
+                // calendar, and a whole row of one would fight the crowded-day sentence, which is the
+                // only thing on this screen allowed to shout.
+                className={`flex flex-wrap items-center gap-3 border-l-4 px-4 py-3 text-sm ${TYPE_STRIPE[entry.type]}`}
               >
-                <Avatar value={ownerAvatar(entry.memberId)} />
-              </span>
+                {/* SOLO. The avatar is the transcription's 38px circle rather than a bare glyph, and
+                    it sits on `bg-field` the way the sidebar's roster chip does — one shape for "a
+                    person" across the product instead of two. */}
+                <span
+                  aria-hidden="true"
+                  className="flex size-9.5 shrink-0 items-center justify-center overflow-hidden rounded-pill bg-field text-xl"
+                >
+                  <Avatar value={ownerAvatar(entry.memberId)} />
+                </span>
 
-              {/* SOLO. THE THREE LINES THE TRANSCRIPTION DRAWS — who and what, when, and whether the
-                  day is crowded. Every id, string and `data-` attribute below is ADM-04's, ADM-05's
-                  or ADM-06's; what changed is which line each sits on. `min-w-0` so a long note
-                  truncates inside the column rather than pushing the decision controls off the row. */}
-              <div className="flex min-w-0 flex-1 flex-col gap-0.5">
-                <p className="flex flex-wrap items-baseline gap-x-2">
-                  <span
-                    data-testid="pending-entry-row-member"
-                    className="font-semibold text-ink"
-                  >
-                    {ownerName(entry.memberId)}
-                  </span>
-                  {/* SOLO, 2026-09-10. The type was grey text beside the name, which is what made
-                      a leave row and a work-from-home row identical at a glance. It is a filled pill
-                      now, in the type's own colour, and it gained a selector: `data-type` on the
-                      element that CARRIES the colour is what lets a spec assert the two agree
-                      without reading a class off the row itself. */}
-                  <span
-                    data-testid="pending-entry-row-type"
-                    data-type={entry.type}
-                    className={`rounded-pill px-2 py-0.5 text-xs font-bold text-ink ${TYPE_PILL[entry.type]}`}
-                  >
-                    {TYPE_LABELS[entry.type]}
-                  </span>
-
-                  {/* The portion stays plain, deliberately. It is a different axis — INV-06, one
-                      portion for the whole entry — and giving it a fill too would make the row two
-                      competing badges with no way to tell which one answers *is this person at
-                      work*. */}
-                  <span className="text-ink-3">
-                    {PORTION_LABELS[entry.portion]}
-                  </span>
-                </p>
-
-                <p className="flex flex-wrap items-center gap-2">
-                  {/* BOTH BOUNDS, always, as `d → d` for a single day — the form CAL-01 fixed and
-                      TeamEntries.tsx repeats, for its reason: a single date shown once makes the
-                      inclusivity of `end_date` unobservable on exactly the case where an off-by-one
-                      is easiest to introduce. The strings render as they arrive; no `new Date(...)`
-                      on this path.
-
-                      SOLO added `font-mono` and nothing else. The transcription sets the dates in a
-                      monospace face so a column of them lines up, and a face is presentation — the
-                      STRING is unchanged, which is what `tests/e2e/adm-04-worklist.spec.ts` reads. */}
-                  <span
-                    data-testid="pending-entry-row-dates"
-                    className="font-mono text-xs text-ink-2"
-                  >
-                    {entry.startDate} → {entry.endDate}
-                  </span>
-
-                  {/* SOLO. `Tentative` became a PILL and kept its word. The transcription marks
-                      every row `CHƯA CHỐT`; the interface is English (§ Language), so the word is
-                      the one ADM-04 already ships and only the shape is the transcription's. The
-                      dashed border is `CLAUDE.md` § Visual direction's own marker for a tentative
-                      entry, so the row and the calendar say it the same way. */}
-                  {entry.tentative ? (
-                    <span className="rounded-pill border border-dashed border-ink-3 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-ink-3">
-                      Tentative
+                {/* SOLO. THE THREE LINES THE TRANSCRIPTION DRAWS — who and what, when, and whether the
+                    day is crowded. Every id, string and `data-` attribute below is ADM-04's, ADM-05's
+                    or ADM-06's; what changed is which line each sits on. `min-w-0` so a long note
+                    truncates inside the column rather than pushing the decision controls off the row. */}
+                <div className="flex min-w-0 flex-1 flex-col gap-0.5">
+                  <p className="flex flex-wrap items-baseline gap-x-2">
+                    <span
+                      data-testid="pending-entry-row-member"
+                      className="font-semibold text-ink"
+                    >
+                      {ownerName(entry.memberId)}
                     </span>
+                    {/* SOLO, 2026-09-10. The type was grey text beside the name, which is what made
+                        a leave row and a work-from-home row identical at a glance. It is a filled pill
+                        now, in the type's own colour, and it gained a selector: `data-type` on the
+                        element that CARRIES the colour is what lets a spec assert the two agree
+                        without reading a class off the row itself. */}
+                    <span
+                      data-testid="pending-entry-row-type"
+                      data-type={entry.type}
+                      className={`rounded-pill px-2 py-0.5 text-xs font-bold text-ink ${TYPE_PILL[entry.type]}`}
+                    >
+                      {TYPE_LABELS[entry.type]}
+                    </span>
+
+                    {/* The portion stays plain, deliberately. It is a different axis — INV-06, one
+                        portion for the whole entry — and giving it a fill too would make the row two
+                        competing badges with no way to tell which one answers *is this person at
+                        work*. */}
+                    <span className="text-ink-3">
+                      {PORTION_LABELS[entry.portion]}
+                    </span>
+                  </p>
+
+                  <p className="flex flex-wrap items-center gap-2">
+                    {/* BOTH BOUNDS, always, as `d → d` for a single day — the form CAL-01 fixed and
+                        TeamEntries.tsx repeats, for its reason: a single date shown once makes the
+                        inclusivity of `end_date` unobservable on exactly the case where an off-by-one
+                        is easiest to introduce. The strings render as they arrive; no `new Date(...)`
+                        on this path.
+
+                        SOLO added `font-mono` and nothing else. The transcription sets the dates in a
+                        monospace face so a column of them lines up, and a face is presentation — the
+                        STRING is unchanged, which is what `tests/e2e/adm-04-worklist.spec.ts` reads. */}
+                    <span
+                      data-testid="pending-entry-row-dates"
+                      className="font-mono text-xs text-ink-2"
+                    >
+                      {entry.startDate} → {entry.endDate}
+                    </span>
+
+                    {/* SOLO. `Tentative` became a PILL and kept its word. The transcription marks
+                        every row `CHƯA CHỐT`; the interface is English (§ Language), so the word is
+                        the one ADM-04 already ships and only the shape is the transcription's. The
+                        dashed border is `CLAUDE.md` § Visual direction's own marker for a tentative
+                        entry, so the row and the calendar say it the same way. */}
+                    {entry.tentative ? (
+                      <span className="rounded-pill border border-dashed border-ink-3 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-ink-3">
+                        Tentative
+                      </span>
+                    ) : null}
+
+                    {/* SOLO, 2026-09-10. **`createdAt`, WHICH WAS THE ONE FIELD ONLY THE EDIT
+                        SCREEN SHOWED.** With the `Open` link gone it has nowhere else to be read, and
+                        on a queue it is the field that says which of two entries has been waiting.
+
+                        **THE LOCAL CALENDAR DAY, AND `new Date(...)` IS CORRECT HERE — the one place
+                        in this product where it is.** The trap every other file records is about
+                        DATE-ONLY strings: `new Date('2026-04-30')` parses as UTC midnight and a local
+                        read west of UTC yields the previous day. `createdAt` is a full ISO 8601
+                        timestamp with an offset, so parsing it is unambiguous, and the local day is
+                        the honest answer to *when was this declared* for the person reading it.
+                        Slicing the string to ten characters would print the UTC day instead — wrong by
+                        one for anything declared before 07:00 in Vietnam.
+
+                        The exact value stays on `data-created-at`, unrounded, so a test reads the
+                        timestamp and a person reads the day. */}
+                    <span
+                      data-testid="pending-entry-row-declared"
+                      data-created-at={entry.createdAt}
+                      className="font-mono text-xs text-ink-3"
+                    >
+                      declared {localDayOf(entry.createdAt)}
+                    </span>
+                  </p>
+
+                  {/* SOLO, 2026-09-10. **THE NOTE, IN FULL AND ON ITS OWN LINE.** It was `truncate`d
+                      into the dates line, which is exactly the shape that sends somebody to the edit
+                      screen to read the rest — the screen this instruction removed the link to. It is
+                      the member's own words and is the one piece of user content on this screen, so it
+                      wraps rather than being clipped (`.ai/standards/ui-design-system.md` § Language
+                      is about interface copy and does not reach it). */}
+                  {/* MIR-14-b AC-10, AC-11 — THE TEAMS THIS ENTRY AFFECTS, 01-plan.md § 2b. Every team
+                      the owner actively belongs to, read at the moment of the question (INV-07,
+                      ADR-073 decision 1). Drawn for a single-team owner too, so its ABSENCE means
+                      something: the owner was not returned by `listEntryOwners`. No team colour —
+                      none exists, and lavender is holidays. */}
+                  {owner && owner.teams.length > 0 ? (
+                    <p
+                      data-testid="pending-entry-row-teams"
+                      data-team-ids={owner.teams.map((t) => t.id).join(",")}
+                      className="flex flex-wrap items-center gap-1.5 text-xs"
+                    >
+                      <span className="text-ink-3">Affects</span>
+                      {owner.teams.map((t) => (
+                        <span
+                          key={t.id}
+                          data-testid="pending-entry-row-team"
+                          data-team-id={t.id}
+                          className="rounded-pill bg-field px-2 py-0.5 text-[11px] font-semibold text-ink-2"
+                        >
+                          {t.name}
+                        </span>
+                      ))}
+                    </p>
                   ) : null}
 
-                  {/* SOLO, 2026-09-10. **`createdAt`, WHICH WAS THE ONE FIELD ONLY THE EDIT
-                      SCREEN SHOWED.** With the `Open` link gone it has nowhere else to be read, and
-                      on a queue it is the field that says which of two entries has been waiting.
+                  {entry.note ? (
+                    <p
+                      data-testid="pending-entry-row-note"
+                      className="whitespace-pre-wrap break-words text-xs text-ink-2"
+                    >
+                      {entry.note}
+                    </p>
+                  ) : null}
 
-                      **THE LOCAL CALENDAR DAY, AND `new Date(...)` IS CORRECT HERE — the one place
-                      in this product where it is.** The trap every other file records is about
-                      DATE-ONLY strings: `new Date('2026-04-30')` parses as UTC midnight and a local
-                      read west of UTC yields the previous day. `createdAt` is a full ISO 8601
-                      timestamp with an offset, so parsing it is unambiguous, and the local day is
-                      the honest answer to *when was this declared* for the person reading it.
-                      Slicing the string to ten characters would print the UTC day instead — wrong by
-                      one for anything declared before 07:00 in Vietnam.
+                  {/* SOLO — the crowded-day sentence. `usePageOverload` computes it for the whole page
+                      from ONE set of reads and INV-04's single implementation; see that file for why
+                      it is not `OverloadWarning` mounted per row.
 
-                      The exact value stays on `data-created-at`, unrounded, so a test reads the
-                      timestamp and a person reads the day. */}
-                  <span
-                    data-testid="pending-entry-row-declared"
-                    data-created-at={entry.createdAt}
-                    className="font-mono text-xs text-ink-3"
-                  >
-                    declared {localDayOf(entry.createdAt)}
-                  </span>
-                </p>
+                      **IT REFUSES NOTHING** (charter refusal 6). It is a sentence beside a control it
+                      cannot reach: the decision panel below neither reads it nor is disabled by it, so
+                      an admin who wants to approve a crowded day approves it. Rendered as `null` when
+                      the row is not crowded AND when the read has not resolved or failed — a warning
+                      is the only thing it says, and it has nothing to say about a read it did not get. */}
+                  {(crowded.get(entry.id) ?? []).map((day) => (
+                    <p
+                      key={day.date}
+                      data-testid="pending-entry-row-overload"
+                      data-date={day.date}
+                      data-count={day.count}
+                      className="text-xs font-semibold text-danger"
+                    >
+                      <span aria-hidden="true">⚠ </span>
+                      {day.date} already has {day.count} away
+                    </p>
+                  ))}
+                </div>
 
-                {/* SOLO, 2026-09-10. **THE NOTE, IN FULL AND ON ITS OWN LINE.** It was `truncate`d
-                    into the dates line, which is exactly the shape that sends somebody to the edit
-                    screen to read the rest — the screen this instruction removed the link to. It is
-                    the member's own words and is the one piece of user content on this screen, so it
-                    wraps rather than being clipped (`.ai/standards/ui-design-system.md` § Language
-                    is about interface copy and does not reach it). */}
-                {entry.note ? (
-                  <p
-                    data-testid="pending-entry-row-note"
-                    className="whitespace-pre-wrap break-words text-xs text-ink-2"
-                  >
-                    {entry.note}
-                  </p>
-                ) : null}
+                {/* **ADM-04 AC-14's `Open` LINK STOOD HERE AND IS REMOVED — SOLO, 2026-09-10.** The
+                    header records the instruction and what it costs; the route it pointed at is
+                    unchanged and `/entries/team` still reaches it on every row.
 
-                {/* SOLO — the crowded-day sentence. `usePageOverload` computes it for the whole page
-                    from ONE set of reads and INV-04's single implementation; see that file for why
-                    it is not `OverloadWarning` mounted per row.
+                    `ml-auto` moved onto the decision panel's wrapper below, which is what keeps the
+                    two controls hard against the right edge now that nothing separates them from the
+                    text column. */}
 
-                    **IT REFUSES NOTHING** (charter refusal 6). It is a sentence beside a control it
-                    cannot reach: the decision panel below neither reads it nor is disabled by it, so
-                    an admin who wants to approve a crowded day approves it. Rendered as `null` when
-                    the row is not crowded AND when the read has not resolved or failed — a warning
-                    is the only thing it says, and it has nothing to say about a read it did not get. */}
-                {(crowded.get(entry.id) ?? []).map((day) => (
-                  <p
-                    key={day.date}
-                    data-testid="pending-entry-row-overload"
-                    data-date={day.date}
-                    data-count={day.count}
-                    className="text-xs font-semibold text-danger"
-                  >
-                    <span aria-hidden="true">⚠ </span>
-                    {day.date} already has {day.count} away
-                  </p>
-                ))}
-              </div>
+                {/* ADM-05 AC-1, AC-2. The decision, on the surface the feature row names. It is the
+                    SAME component `/entries/:id/edit` mounts, so "a rejection carries a reason" is
+                    decided in one place rather than twice.
 
-              {/* **ADM-04 AC-14's `Open` LINK STOOD HERE AND IS REMOVED — SOLO, 2026-09-10.** The
-                  header records the instruction and what it costs; the route it pointed at is
-                  unchanged and `/entries/team` still reaches it on every row.
-
-                  `ml-auto` moved onto the decision panel's wrapper below, which is what keeps the
-                  two controls hard against the right edge now that nothing separates them from the
-                  text column. */}
-
-              {/* ADM-05 AC-1, AC-2. The decision, on the surface the feature row names. It is the
-                  SAME component `/entries/:id/edit` mounts, so "a rejection carries a reason" is
-                  decided in one place rather than twice.
-
-                  `reload` and not a splice: a decided entry leaves this view because the next read
-                  does not return it, and the count above falls for the same reason. */}
-              {/* SOLO 2026-09-13, ADR-035 § Decision item 3. A manager may not decide their OWN entry,
-                  and the trigger refuses it — so the controls are not drawn on that row rather than
-                  drawn to fail. An affordance only; the refusal is still the datastore's. */}
-              <div className="ml-auto shrink-0">
-                {mayDecideEntriesOf(view.me, entry.memberId) ? (
-                  <EntryDecision entry={entry} onDecided={reload} />
-                ) : (
-                  <p data-testid="pending-entries-own-entry" className="text-xs text-ink-3">
-                    Your own entry — an admin decides it.
-                  </p>
-                )}
-              </div>
-            </li>
-          ))}
+                    `reload` and not a splice: a decided entry leaves this view because the next read
+                    does not return it, and the count above falls for the same reason. */}
+                {/* SOLO 2026-09-13, ADR-035 § Decision item 3. A manager may not decide their OWN entry,
+                    and the trigger refuses it — so the controls are not drawn on that row rather than
+                    drawn to fail. An affordance only; the refusal is still the datastore's. */}
+                <div className="ml-auto shrink-0">
+                  {mayDecideEntriesOf(view.me, entry.memberId) ? (
+                    <EntryDecision entry={entry} onDecided={reload} />
+                  ) : (
+                    <p data-testid="pending-entries-own-entry" className="text-xs text-ink-3">
+                      Your own entry — an admin decides it.
+                    </p>
+                  )}
+                </div>
+              </li>
+            );
+          })}
         </ul>
       )}
 

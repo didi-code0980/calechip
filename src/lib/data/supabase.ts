@@ -60,6 +60,8 @@ import type {
   BusyDay,
   DateRange,
   Entry,
+  // MIR-14-b, 01-plan.md section 4.3.
+  EntryOwner,
   EntryPortion,
   EntryStatus,
   EntryType,
@@ -130,6 +132,15 @@ import {
 // EVT-01 — events. The rows, their mappers, the sentences and the SQLSTATEs.
 // 01-plan.md sections 4.2 and 4.3; `supabase/migrations/20260929120000_evt01_event.sql`.
 // ---------------------------------------------------------------------------
+
+/** MIR-14-b. One row of `public.list_entry_owners(uuid[])`: an owner and ONE of their active teams. */
+interface EntryOwnerRow {
+  member_id: string;
+  display_name: string;
+  avatar: string;
+  team_id: string;
+  team_name: string;
+}
 
 interface EventRow {
   id: string;
@@ -3089,6 +3100,43 @@ export const seam: DataSeam = {
     }
 
     return { rows: rows.map(toEntry), total: count, page: query.page, pageSize: PENDING_PAGE_SIZE };
+  },
+
+  // MIR-14-b AC-8, AC-9. `public.list_entry_owners(uuid[])`: one row per (owner, active team), for
+  // owners the caller may decide, ordered by owner then team name. Grouped here into one
+  // `EntryOwner` per id, keeping the rows' team order. No `.limit()`: the bound is the argument —
+  // at most PENDING_PAGE_SIZE owners, each on a handful of teams — and it is checked before the call.
+  async listEntryOwners(memberIds: string[]): Promise<EntryOwner[]> {
+    const ids = [...new Set(memberIds)];
+    if (ids.length > PENDING_PAGE_SIZE) {
+      throw new Error(
+        `listEntryOwners was asked for ${ids.length} owners, more than one page (${PENDING_PAGE_SIZE})`,
+      );
+    }
+    if (ids.length === 0) return [];
+
+    const { data, error } = await client()
+      .rpc("list_entry_owners", { p_member_ids: ids })
+      .returns<EntryOwnerRow[]>();
+
+    if (error) throw new Error(`listEntryOwners failed: ${error.message}`);
+    if (!Array.isArray(data)) {
+      throw new Error("listEntryOwners received a body that is not a list");
+    }
+
+    const byId = new Map<string, EntryOwner>();
+    for (const row of data) {
+      const owner = byId.get(row.member_id);
+      if (owner) owner.teams.push({ id: row.team_id, name: row.team_name });
+      else
+        byId.set(row.member_id, {
+          memberId: row.member_id,
+          displayName: row.display_name,
+          avatar: row.avatar,
+          teams: [{ id: row.team_id, name: row.team_name }],
+        });
+    }
+    return [...byId.values()];
   },
 
   // -------------------------------------------------------------------------

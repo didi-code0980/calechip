@@ -1252,3 +1252,28 @@ export interface Task {
 /** TSK-01. Bounds, in characters. Mirrored by `task_title_shape` and `task_note_shape`. */
 export const TASK_TITLE_MAX = 200;
 export const TASK_NOTE_MAX = 1000;
+
+// ---------------------------------------------------------------------------
+// MIR-14-b. 01-plan.md section 4.3.
+//
+// Two interfaces, added at the end. Nothing existing changes shape, so no existing caller changes and
+// the shared-type clause of .ai/01-operating-model.md § Sizing is not engaged — the ADM-06 precedent.
+// ---------------------------------------------------------------------------
+
+/** MIR-14-b. One of the teams an entry's owner actively belongs to (ADR-073 decision 1). */
+export interface EntryOwnerTeam {
+  id: string;
+  name: string;
+}
+
+/**
+ * MIR-14-b. The owner of an entry the caller may decide: who they are, and every team the entry
+ * affects. Derived at read time from `membership`, never stored.
+ */
+export interface EntryOwner {
+  memberId: string;
+  displayName: string;
+  avatar: string;
+  /** Ordered by name. Never empty: an owner with no active team is not returned. */
+  teams: EntryOwnerTeam[];
+}

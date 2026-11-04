@@ -13,6 +13,8 @@ import type {
   BusyDay,
   DateRange,
   Entry,
+  // MIR-14-b, 01-plan.md section 4.3.
+  EntryOwner,
   EntryPortion,
   EntryType,
   Holiday,
@@ -1127,6 +1129,23 @@ export interface DataSeam {
    * navigate.
    */
   listPendingEntries(query: PendingEntryQuery): Promise<PendingEntryPage>;
+
+  /**
+   * MIR-14-b AC-8, AC-9. The owners among `memberIds` whose entries the caller may decide, each with
+   * every active team they belong to. An id the caller may not decide, or that names nobody, is
+   * absent from the result — never an error. Order is not significant; callers key by `memberId`.
+   *
+   * WHY A SECOND READ AND NOT A WIDER `listMembers()`. The roster is primary-team only because it
+   * feeds the absence count (ADR-072 decision 1), so a second-team decider's queue holds entries
+   * whose owners it cannot name. This read names them to a decider and to nobody else —
+   * `public.list_entry_owners` filters through `may_decide_entry` (01-plan.md section 8, rejected
+   * alternative 1). `listPendingEntries` above is UNCHANGED.
+   *
+   * `[]` resolves to `[]` without a request. THROWS before any request when `memberIds` holds more
+   * than PENDING_PAGE_SIZE distinct ids — the one caller passes one page's owners — and on a
+   * transport failure.
+   */
+  listEntryOwners(memberIds: string[]): Promise<EntryOwner[]>;
 
   // -------------------------------------------------------------------------
   // ADM-05 — the decision itself, over ADM-04's surface. 01-plan.md section 4.2.
