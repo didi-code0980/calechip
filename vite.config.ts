@@ -103,6 +103,17 @@ export default defineConfig({
   resolve: {
     alias: { "@": fileURLToPath(new URL("./src", import.meta.url)) },
   },
+  // MIR-18, ADR-074 decision 6: the system panel is its own build entry, so the member bundle never
+  // carries it. `rolldownOptions` is Vite 8's name, read from the installed types
+  // (`vite/dist/node/index.d.ts`); `rollupOptions` is the older alias.
+  build: {
+    rolldownOptions: {
+      input: {
+        main: fileURLToPath(new URL("./index.html", import.meta.url)),
+        system: fileURLToPath(new URL("./system.html", import.meta.url)),
+      },
+    },
+  },
   // `pnpm dev` serves on http://localhost:4000, and Vite's default of 5173 is not used.
   //
   // `strictPort` so a busy 4000 is an ERROR rather than a silent move to 4001. Without it Vite
