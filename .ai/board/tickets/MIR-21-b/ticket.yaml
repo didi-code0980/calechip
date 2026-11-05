@@ -8,7 +8,7 @@ id: MIR-21-b
 title: "Every writer writes `membership` directly, and the mirror trigger, `member_team_id()` and `member.team_id` are dropped"
 feature_ids: [MIR-21]   # split of MIR-21 (operating model § ID scheme: splits get -a, -b)
 group: MIR
-state: READY  # `orchestrator` at /advance, 2026-11-05, on 01-plan.md `gate: PASS` / `next_state: READY`; DoR 6/6
+state: REVIEW  # `orchestrator` at /advance, 2026-11-05, on 03-impl-log.md `gate: PASS` / `next_state: REVIEW`
 owner: ""
 branch: ""
 size_estimate: "M"    # S|M - set by tech-lead-design at PLAN; gates DoR
@@ -25,12 +25,13 @@ allowed_paths:
   - "supabase/migrations/20261105210000_mir21b_writers_write_membership.sql"
   - "supabase/tests/230-writers-write-membership.test.sql"
   - "supabase/create-account.sql"
+  - "supabase/tests/160-read-path-org-bound.test.sql"   # AC-9 fixture only, :263-268; 99-questions.md, 2026-11-05
 glossary_owed: []
 schema_delta: "ADR-078: adds the owner-only helper membership_make_primary(uuid, uuid); rewrites eight writer functions and the member_update_admin policy so they write membership and read member_roster_team_id; narrows the member_sync_membership trigger to insert or update of removed_at. No table, column or constraint changes (01-plan.md § 6)"
 requires_adr: true    # ADR-078, written under the operator's delegation (ADR-067), within ADR-077 decision 5
 rework_count: 0
 chat_budget:
-  developer->tech-lead-design: { used: 0, max: 6 }
+  developer->tech-lead-design: { used: 1, max: 6 }
 tracker: { provider: "", external_id: "", sync_enabled: false }
 gates:
   plan:   { passed: true, at: "2026-11-05T21:19:00+07:00" }

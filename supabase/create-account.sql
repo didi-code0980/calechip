@@ -154,6 +154,10 @@ begin
           status  = 'approved'::public.member_status
       where id = v_id;
 
+    -- ADR-078: the mirror no longer writes `membership` on a team change, so the primary row is
+    -- written here, by the same owner-only helper `admit_member` calls.
+    perform public.membership_make_primary(v_id, v_team);
+
     raise notice 'created % and put them on the one team, approved. Sign in with the password you set.', v_email;
   else
     raise notice 'created %. They are PENDING with no team — approve them in the application.', v_email;

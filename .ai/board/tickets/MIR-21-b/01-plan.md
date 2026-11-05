@@ -370,8 +370,23 @@ second half is a source-text check, and pgTAP cannot read a file, so record that
 `03-impl-log.md` from a `grep`. AC-9 runs after each writer step, over every row of `public.member`,
 not only the fixtures.
 
-**No existing test changes.** The writers keep assigning the column and the mirror keeps its INSERT
-branch, so these tests pass as written:
+**One existing test changes, and only its fixture** *(amended 2026-11-05, see Changelog)*:
+`supabase/tests/160-read-path-org-bound.test.sql` AC-9, `:263-268`. It writes `member.team_id`
+directly as the owner and relied on the mirror's team-change branch, which § 4.4 removes, to open the
+`membership` row `event_attendance_guard` reads. The fixture now writes `membership` the way the
+writers do:
+
+- after the `update … set status = 'approved', team_id = tests.id('team_t')` at `:265`, add
+  `select public.membership_make_primary(tests.id('pending_p'), tests.id('team_t'));`;
+- after the `update … set status = 'pending', team_id = null` at `:268`, add
+  `update public.membership set left_at = now(), is_primary = false, updated_at = now() where member_id = tests.id('pending_p') and left_at is null;`;
+- a comment citing ADR-078 beside each, and the comment at `:263-264` may be reworded to match.
+
+Nothing else in 160 changes: no assertion, no plan count, no other fixture. pending_p ends as it did
+before this ticket — one closed row, no active row, `member_roster_team_id` null.
+
+The writers keep assigning the column and the mirror keeps its INSERT branch, so these tests pass as
+written:
 
 - `140` AC-9: its `tests.mirror_violations()` reads `m.team_id`, which stays true;
 - `220` AC-1 and AC-2;
@@ -414,9 +429,13 @@ allowed_paths:
   - "supabase/migrations/20261105210000_mir21b_writers_write_membership.sql"
   - "supabase/tests/230-writers-write-membership.test.sql"
   - "supabase/create-account.sql"
+  - "supabase/tests/160-read-path-org-bound.test.sql"
 ```
 
-Nine paths, so `size: M`.
+Ten paths, so `size: M`.
+
+- `160-read-path-org-bound.test.sql` is limited to its AC-9 fixture at `:263-268`, the two added
+  statements and their comments of § 4.6. Added 2026-11-05 at the developer's consultation.
 
 - `MIR-21-c/ticket.yaml` was written at this PLAN. The four other tickets gained `MIR-21-c` in
   `depends_on` at this PLAN (ADR-078 decision 7). Nothing further is owed on any of the five at
@@ -467,3 +486,14 @@ Nine paths, so `size: M`.
     - `create-account.sql` joins this ticket.
     - The fixture list moves whole to MIR-21-c.
   - **Values.** Every written value is the mirror's, not a new choice.
+- `2026-11-05T21:30:27+07:00` — § 4.6 and § 7 amended. Raised by `developer` in `99-questions.md`
+  (chat use 1 of 6).
+  - **Defect.** § 4.6 claimed no existing test changes. `pnpm db:test` showed
+    `160-read-path-org-bound.test.sql` AC-9 fails with this migration (`attendance_not_permitted` at
+    `:267`): its fixture writes `member.team_id` directly and relied on the team-change branch § 4.4
+    removes. § 4's census of direct column writes in `supabase/tests/**` missed it.
+  - **Resolution.** The fixture writes `membership` itself, through `membership_make_primary`, and
+    closes it on the way back. No assertion changes. Keeping the mirror's team-change branch was
+    rejected: it is § 8's "writers write both" double row.
+  - **Size.** Ten paths, still `M`.
+  - `170` test 42 fails on the baseline too. It is not this ticket's.
