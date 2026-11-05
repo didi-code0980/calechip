@@ -24,6 +24,8 @@ planned, sized, and safe to build** — the next stage for a row here is IN_PROG
 |---|--------|-------|------|------------|
 | 1 | MIR-21-b | Every writer writes `membership` directly, and the mirror trigger, `member_team_id()` and `member.team_id` are dropped | M | MIR-01..MIR-10, MIR-12, MIR-13, MIR-13-b, MIR-21 (all DONE) |
 
+**`MIR-21-b` is at `REVIEW` in `ticket.yaml`, `gates.review` passed** — recorded at /advance on 2026-11-05 from `04-review.md` (`produced_at: 2026-11-05T22:48:15+07:00`): `gate: PASS`, `verdict: PASS`, `invariant_violation: false`, `route_to: none`. `state` stays `REVIEW`; `/ship` sets `DONE` and moves the row to `## ARCHIVE`.
+
 **`MIR-21-b` is at `REVIEW` in `ticket.yaml`, `gates.review` not yet passed** — recorded at /advance on 2026-11-05 from `03-impl-log.md` gate PASS (`produced_at: 2026-11-05T21:33:00+07:00`). The row stays here until `/ship` moves it to `## ARCHIVE`.
 
 **`MIR-21-b` moved here at /advance on 2026-11-05**, from `01-plan.md` gate PASS (`produced_at: 2026-11-05T13:24:22Z`) with all six Definition of Ready items passing; `schema_delta` cites [ADR-078](../registry/decisions/ADR-078-writers-write-membership-alongside-the-column-and-the-drop-moves-to-mir-21-c.md) (`ACCEPTED by tech-lead-design under the operator's delegation (ADR-067)`). PLAN moved the drop of `member.team_id` to a new slice `MIR-21-c` (BACKLOG). MIR-21-b had no row in `## BACKLOG`, so no row left that table.

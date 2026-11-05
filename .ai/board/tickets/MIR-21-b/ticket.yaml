@@ -35,7 +35,7 @@ chat_budget:
 tracker: { provider: "", external_id: "", sync_enabled: false }
 gates:
   plan:   { passed: true, at: "2026-11-05T21:19:00+07:00" }
-  review: { passed: false, at: null }
+  review: { passed: true, at: "2026-11-05T22:50:31+07:00" }   # orchestrator at /advance, from 04-review.md verdict: PASS
 
 # --- MIR extra fields ---------------------------------------------------------------------------
 mir_phase: 3
