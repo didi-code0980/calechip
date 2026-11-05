@@ -10,7 +10,7 @@ id: MIR-18-b
 title: "A system admin lists, creates and edits orgs — caps and licence state — from the panel, which is served unindexed at an unguessable path with rate limiting and failed-login logging"
 feature_ids: [MIR-18]   # split of MIR-18 (operating model § ID scheme: splits get -a, -b)
 group: MIR
-state: READY
+state: REVIEW
 owner: ""
 branch: ""
 size_estimate: "M"    # S|M - set by tech-lead-design at PLAN; gates DoR. This slice; as triaged it was L

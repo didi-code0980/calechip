@@ -26,7 +26,11 @@ and is the authority on what the product is; this file is the authority on what 
 ([ADR-074](../registry/decisions/ADR-074-system-admin-is-a-separate-account-table-behind-totp-in-its-own-entry.md)),
 holds no member row, and the database treats it as one only at `aal2` through
 `public.is_system_admin()`. Until MIR-16 it holds no right on any table in this file. *Added
-2026-11-04 by MIR-18.*
+2026-11-04 by MIR-18.* Since MIR-18-b, a system admin lists, creates and edits orgs through
+`list_orgs`, `create_org` and `update_org`, each refusing unless `is_system_admin()` is true;
+`create_org` copies Org public's holidays into the new org
+([ADR-075](../registry/decisions/ADR-075-a-system-admin-manages-orgs-through-three-aal2-gated-rpcs.md)).
+That is its only right on any table in this file until MIR-16.
 
 **RANK 2 WAS ADDED 2026-09-12 BY [ADR-035](../registry/decisions/ADR-035-a-third-role-manager-decides-entries-and-nothing-else.md),
 AND THE `manager` COLUMN BELOW IS MOSTLY DEFAULTS.** The operator decided one cell — approve or

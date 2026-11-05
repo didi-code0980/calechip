@@ -57,6 +57,10 @@ select set_eq(
     'public.may_decide_entry(uuid,uuid)',
     -- MIR-14-b RPC, 180-entry-owners.test.sql
     'public.list_entry_owners(uuid[])',
+    -- MIR-18-b RPCs, 200-org-management.test.sql
+    'public.list_orgs()',
+    'public.create_org(text,text,text)',
+    'public.update_org(uuid,text,integer,integer,text,date)',
     -- guest functions, 080-guest-tokens.test.sql
     'public.get_guest_event(text)',
     'public.list_guest_event_attendees(text)',

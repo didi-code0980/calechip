@@ -40,6 +40,73 @@ export interface SystemSeam {
   verifyCode(code: string, factorId?: string): Promise<Result<SystemGate>>;
   /** Signs out of the panel only — `scope: "local"`. */
   signOut(): Promise<void>;
+  /** `rpc("list_orgs")`, mapped to camelCase. Never throws. MIR-18-b. */
+  listOrgs(): Promise<OrgResult<OrgSummary[]>>;
+  /** `rpc("create_org", { p_org_code, p_name, p_timezone })`. Value is the new id. Never throws. */
+  createOrg(input: CreateOrgInput): Promise<OrgResult<string>>;
+  /** `rpc("update_org", { p_org_id, p_name, p_max_members, p_max_teams, p_plan, p_licence_expires_on })`. Never throws. */
+  updateOrg(input: UpdateOrgInput): Promise<OrgResult<null>>;
+}
+
+// =============================================================================================
+// MIR-18-b — org management. 01-plan.md § 4.4, ADR-075.
+// =============================================================================================
+
+/** One row of `public.list_orgs()`. ADR-075. */
+export interface OrgSummary {
+  id: string;
+  orgCode: string;
+  name: string;
+  isSharedTenant: boolean;
+  timezone: string;
+  maxMembers: number | null;
+  maxTeams: number | null;
+  plan: string;
+  /** `yyyy-MM-dd` in the org's timezone, or null. */
+  licenceExpiresOn: string | null;
+  createdAt: string;
+}
+
+export interface CreateOrgInput {
+  orgCode: string;
+  name: string;
+  timezone: string;
+}
+
+export interface UpdateOrgInput {
+  orgId: string;
+  name: string;
+  maxMembers: number | null;
+  maxTeams: number | null;
+  plan: string;
+  licenceExpiresOn: string | null;
+}
+
+/** The panel's own refusal codes. Local to the panel: `src/lib/domain/types.ts` is not edited. */
+export type OrgFailureCode =
+  | "not_permitted" // 42501, P0002
+  | "org_code_taken" // 23505
+  | "org_code_invalid" // 23514 on org_code_shape or org_code_not_reserved
+  | "invalid_org_field" // any other 23514, or 23502; also the panel's own cap parse
+  | "unknown_timezone" // 22023
+  | "network"; // anything else, or a throw
+
+export type OrgResult<T> =
+  | { ok: true; value: T }
+  | { ok: false; error: { code: OrgFailureCode; message: string } };
+
+export const ORG_FAILURE_MESSAGES: Record<OrgFailureCode, string> = {
+  not_permitted: "You do not have permission to do that.",
+  org_code_taken: "That org code is already in use.",
+  org_code_invalid:
+    "Org codes are 2 to 32 lowercase letters, digits or hyphens, and some words are reserved.",
+  invalid_org_field: "A name and a plan are required, and caps are whole numbers of 1 or more.",
+  unknown_timezone: "That timezone is not recognised.",
+  network: "Could not reach the server. Try again.",
+};
+
+function orgRefusal(code: OrgFailureCode): { ok: false; error: { code: OrgFailureCode; message: string } } {
+  return { ok: false, error: { code, message: ORG_FAILURE_MESSAGES[code] } };
 }
 
 // The two refusals share `invalid_credentials`: both are a refused credential, and no other existing
@@ -152,7 +219,102 @@ const supabaseSystemSeam: SystemSeam = {
       // A failed sign-out leaves nothing to show; the next `gate()` reads the truth.
     }
   },
+
+  async listOrgs() {
+    try {
+      const { data, error } = await client().rpc("list_orgs");
+      if (error) return orgRefusal(orgFailureCode(error));
+      const rows = (data ?? []) as OrgRow[];
+      return { ok: true, value: rows.map(toOrgSummary) };
+    } catch {
+      return orgRefusal("network");
+    }
+  },
+
+  async createOrg(input) {
+    try {
+      const { data, error } = await client().rpc("create_org", {
+        p_org_code: input.orgCode,
+        p_name: input.name,
+        p_timezone: input.timezone,
+      });
+      if (error) return orgRefusal(orgFailureCode(error));
+      return { ok: true, value: data as string };
+    } catch {
+      return orgRefusal("network");
+    }
+  },
+
+  async updateOrg(input) {
+    try {
+      const { error } = await client().rpc("update_org", {
+        p_org_id: input.orgId,
+        p_name: input.name,
+        p_max_members: input.maxMembers,
+        p_max_teams: input.maxTeams,
+        p_plan: input.plan,
+        p_licence_expires_on: input.licenceExpiresOn,
+      });
+      if (error) return orgRefusal(orgFailureCode(error));
+      return { ok: true, value: null };
+    } catch {
+      return orgRefusal("network");
+    }
+  },
 };
+
+/** A row of `list_orgs()` as PostgREST returns it. */
+interface OrgRow {
+  id: string;
+  org_code: string;
+  name: string;
+  is_shared_tenant: boolean;
+  timezone: string;
+  max_members: number | null;
+  max_teams: number | null;
+  plan: string;
+  licence_expires_on: string | null;
+  created_at: string;
+}
+
+function toOrgSummary(row: OrgRow): OrgSummary {
+  return {
+    id: row.id,
+    orgCode: row.org_code,
+    name: row.name,
+    isSharedTenant: row.is_shared_tenant,
+    timezone: row.timezone,
+    maxMembers: row.max_members,
+    maxTeams: row.max_teams,
+    plan: row.plan,
+    licenceExpiresOn: row.licence_expires_on,
+    createdAt: row.created_at,
+  };
+}
+
+// The SQLSTATE is PostgREST's `code`. Inputs are sent as given, so the database's refusal is the one
+// shown (01-plan.md § 4.4).
+function orgFailureCode(error: { code?: string; message?: string }): OrgFailureCode {
+  switch (error.code) {
+    case "42501":
+    case "P0002":
+      return "not_permitted";
+    case "23505":
+      return "org_code_taken";
+    case "23514": {
+      const message = error.message ?? "";
+      return message.includes("org_code_shape") || message.includes("org_code_not_reserved")
+        ? "org_code_invalid"
+        : "invalid_org_field";
+    }
+    case "23502":
+      return "invalid_org_field";
+    case "22023":
+      return "unknown_timezone";
+    default:
+      return "network";
+  }
+}
 
 // =============================================================================================
 // Mock implementation — in memory, reset on reload. Fixtures are 01-plan.md § 2's table.
@@ -184,6 +346,92 @@ const mockAccounts = new Map<string, MockAccount>([
 let mockSession: { email: string; aal2: boolean } | null = null;
 let mockPendingFactorId: string | null = null;
 let mockFactorCounter = 0;
+
+// MIR-18-b. The two orgs of 01-plan.md § 2's panel table. The mock mirrors the database's checks so
+// the panel can be driven offline; it does not model holidays (AC-4 is the database's).
+const MOCK_ORG_CODE_SHAPE = /^[a-z0-9]([a-z0-9-]{0,30}[a-z0-9])?$/;
+// Copied from `20261027120000_mir11_composite_foreign_keys.sql:46-58` (`org_code_not_reserved`).
+const MOCK_RESERVED_ORG_CODES: readonly string[] = [
+  "system", "api", "admin", "login", "signin", "signup", "app",
+  "static", "public", "assets", "healthz", "fonts", "images",
+  "_next", "index.html",
+  "signups", "members", "entries", "month", "week", "year",
+  "setting", "threshold", "teams", "reports", "holidays",
+  "events", "profile", "guest",
+  "auth", "billing", "calechip", "calendar", "create", "dashboard",
+  "dev", "docs", "help", "invite", "join", "logout", "manage",
+  "new", "onboarding", "org", "orgs", "settings", "support",
+  "team", "www",
+];
+
+const mockOrgs: OrgSummary[] = [
+  {
+    id: "00000000-0000-4000-8000-00000000c000",
+    orgCode: "shared",
+    name: "Org public",
+    isSharedTenant: true,
+    timezone: "Asia/Ho_Chi_Minh",
+    maxMembers: null,
+    maxTeams: null,
+    plan: "free",
+    licenceExpiresOn: null,
+    createdAt: "2026-10-31T00:00:00.000Z",
+  },
+  {
+    id: "00000000-0000-4000-8000-00000000c001",
+    orgCode: "acme",
+    name: "Acme Studio",
+    isSharedTenant: false,
+    timezone: "Asia/Ho_Chi_Minh",
+    maxMembers: 30,
+    maxTeams: 3,
+    plan: "free",
+    licenceExpiresOn: "2027-06-30",
+    createdAt: "2026-11-01T00:00:00.000Z",
+  },
+];
+let mockOrgCounter = 1;
+
+/** The database's `is_system_admin()`: a system admin, at aal2. */
+function mockMaySeeOrgs(): boolean {
+  if (!mockSession?.aal2) return false;
+  return mockAccounts.get(mockSession.email)?.isSystemAdmin === true;
+}
+
+/** `list_orgs()`'s order: the shared tenant first, then `org_code` ascending. Copies, not the store. */
+function mockOrgsInOrder(): OrgSummary[] {
+  return [...mockOrgs]
+    .sort((a, b) =>
+      a.isSharedTenant !== b.isSharedTenant
+        ? Number(b.isSharedTenant) - Number(a.isSharedTenant)
+        : a.orgCode < b.orgCode
+          ? -1
+          : a.orgCode > b.orgCode
+            ? 1
+            : 0,
+    )
+    .map((org) => ({ ...org }));
+}
+
+/** `org_name_not_blank`, on the trimmed name. */
+function mockNameValid(name: string): boolean {
+  return name !== "" && name.length <= 80;
+}
+
+/** `org_max_*_positive`. */
+function mockCapValid(cap: number | null): boolean {
+  return cap === null || (Number.isInteger(cap) && cap >= 1);
+}
+
+/** The browser's stand-in for `pg_timezone_names`. */
+function mockTimezoneKnown(timezone: string): boolean {
+  try {
+    new Intl.DateTimeFormat("en-US", { timeZone: timezone });
+    return true;
+  } catch {
+    return false;
+  }
+}
 
 function mockGate(): SystemGate {
   if (!mockSession) return { state: "signed-out" };
@@ -236,6 +484,56 @@ const mockSystemSeam: SystemSeam = {
   async signOut() {
     mockSession = null;
     mockPendingFactorId = null;
+  },
+
+  async listOrgs() {
+    if (!mockMaySeeOrgs()) return orgRefusal("not_permitted");
+    return { ok: true, value: mockOrgsInOrder() };
+  },
+
+  async createOrg(input) {
+    if (!mockMaySeeOrgs()) return orgRefusal("not_permitted");
+    const name = input.name.trim();
+    if (!MOCK_ORG_CODE_SHAPE.test(input.orgCode) || MOCK_RESERVED_ORG_CODES.includes(input.orgCode)) {
+      return orgRefusal("org_code_invalid");
+    }
+    if (mockOrgs.some((org) => org.orgCode === input.orgCode)) return orgRefusal("org_code_taken");
+    if (!mockNameValid(name)) return orgRefusal("invalid_org_field");
+    if (!mockTimezoneKnown(input.timezone)) return orgRefusal("unknown_timezone");
+    mockOrgCounter += 1;
+    const id = `00000000-0000-4000-8000-00000000c${String(mockOrgCounter).padStart(3, "0")}`;
+    mockOrgs.push({
+      id,
+      orgCode: input.orgCode,
+      name,
+      isSharedTenant: false,
+      timezone: input.timezone,
+      maxMembers: null,
+      maxTeams: null,
+      plan: "free",
+      licenceExpiresOn: null,
+      createdAt: new Date().toISOString(),
+    });
+    return { ok: true, value: id };
+  },
+
+  async updateOrg(input) {
+    if (!mockMaySeeOrgs()) return orgRefusal("not_permitted");
+    const org = mockOrgs.find((candidate) => candidate.id === input.orgId);
+    if (!org || org.isSharedTenant) return orgRefusal("not_permitted");
+    const name = input.name.trim();
+    const plan = input.plan.trim();
+    if (!mockNameValid(name) || plan === "" || !mockCapValid(input.maxMembers) || !mockCapValid(input.maxTeams)) {
+      return orgRefusal("invalid_org_field");
+    }
+    Object.assign(org, {
+      name,
+      maxMembers: input.maxMembers,
+      maxTeams: input.maxTeams,
+      plan,
+      licenceExpiresOn: input.licenceExpiresOn,
+    });
+    return { ok: true, value: null };
   },
 };
 
