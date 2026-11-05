@@ -1,6 +1,6 @@
 ---
 doc_version: 5
-last_updated: 2026-11-03
+last_updated: 2026-11-04
 governed_by: [RULE-01, RULE-02, RULE-09]
 ---
 
@@ -21,6 +21,12 @@ testable — two unrelated role names are not comparable, two ranks are.
 
 There is no fourth rank, no owner, and no billing role. `.ai/00-charter.md` carries the same three
 and is the authority on what the product is; this file is the authority on what each may do.
+
+**`system_admin` is not a rank on this table.** It is a separate account in `public.system_admin`
+([ADR-074](../registry/decisions/ADR-074-system-admin-is-a-separate-account-table-behind-totp-in-its-own-entry.md)),
+holds no member row, and the database treats it as one only at `aal2` through
+`public.is_system_admin()`. Until MIR-16 it holds no right on any table in this file. *Added
+2026-11-04 by MIR-18.*
 
 **RANK 2 WAS ADDED 2026-09-12 BY [ADR-035](../registry/decisions/ADR-035-a-third-role-manager-decides-entries-and-nothing-else.md),
 AND THE `manager` COLUMN BELOW IS MOSTLY DEFAULTS.** The operator decided one cell — approve or
@@ -216,6 +222,10 @@ section below exists to prevent going unrecorded.
 
 **Supabase Auth.** It establishes identity; the policies above decide what that identity may do. No
 authentication API is written — ADR-005.
+
+System admins sign in to the panel with a password and a TOTP second factor (Supabase Auth MFA); the
+second factor is checked in the database by `is_system_admin()`, not in the panel (ADR-074 decision
+4, MIR-18).
 
 **Which surfaces may construct a client:** only `src/lib/data/`, the data-access seam declared in
 [architecture.md](architecture.md). A Supabase client constructed anywhere else is a second door into
