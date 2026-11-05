@@ -114,7 +114,7 @@ test.describe("EVT-01 — events", () => {
     await expect(page.getByTestId("event-name")).toHaveText("Team lunch");
     await expect(page.getByTestId("event-dates")).toHaveText("10 Mar – 12 Mar 2099");
     await expect(page.getByTestId("event-scope")).toHaveAttribute("data-scope", "public");
-    await expect(page.getByTestId("event-scope")).toHaveText("Every team");
+    await expect(page.getByTestId("event-scope")).toHaveText("Public");
     await expect(page.getByTestId("event-creator")).toContainText(MEMBER.name);
     await expect(page.getByTestId("event-location")).toContainText("Pho 24");
     await expect(page.getByTestId("event-description")).toHaveText("Bring your appetite");
@@ -171,7 +171,7 @@ test.describe("EVT-01 — events", () => {
 
     const first = upcoming.nth(0);
     await expect(first.getByTestId("event-row-scope")).toHaveAttribute("data-scope", "public");
-    await expect(first.getByTestId("event-row-scope")).toHaveText("Every team");
+    await expect(first.getByTestId("event-row-scope")).toHaveText("Public");
     await expect(first).toContainText("1 Feb – 2 Feb 2099");
     await expect(first).toContainText(MEMBER.name);
     await expect(upcoming.nth(1).getByTestId("event-row-scope")).toHaveText("Own team");

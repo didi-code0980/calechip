@@ -24,6 +24,8 @@ planned, sized, and safe to build** — the next stage for a row here is IN_PROG
 |---|--------|-------|------|------------|
 | 1 | MIR-15 | In Org public, the directory, public events and event notifications stay within the team, only system_admin sets its holidays, and a team can be moved to another org — first slice (ADR-076) | M | — |
 
+**`MIR-15` is at `REVIEW` in `ticket.yaml`, `gates.review` not yet passed** — recorded at /advance on 2026-11-05 from `03-impl-log.md` gate PASS (`produced_at: 2026-11-05T06:45:13Z`); `/implement` had already set `state: REVIEW`. The row stays here until `/ship` moves it to `## ARCHIVE`.
+
 **`MIR-15` moved here at /advance on 2026-11-05**, from `01-plan.md` gate PASS (`produced_at: 2026-11-05T05:19:00Z`) with all six Definition of Ready items passing; `schema_delta` cites [ADR-076](../registry/decisions/ADR-076-in-org-public-a-public-event-is-a-team-event-and-the-directory-reaches-no-other-team-through-it.md) (`ACCEPTED by tech-lead-design under the operator's delegation (ADR-067)`). MIR-15 had no row in `## BACKLOG`, so no row left that table. The rest of the feature split to `MIR-15-b`, `MIR-15-c` and `MIR-15-d` (ADR-076 decision 6), all at `BACKLOG`.
 
 **Empty again — `MIR-18-b` left this section for `## ARCHIVE` at its own ship on 2026-11-05.** The hardening slice `MIR-18-c` stays at `BACKLOG`; the shared `MIR-18` row in `features.md` stays `PLANNED` until MIR-18-c ships.

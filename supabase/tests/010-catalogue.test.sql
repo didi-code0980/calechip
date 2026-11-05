@@ -61,6 +61,8 @@ select set_eq(
     'public.list_orgs()',
     'public.create_org(text,text,text)',
     'public.update_org(uuid,text,integer,integer,text,date)',
+    -- MIR-15 helper, 210-org-public-team-bound.test.sql
+    'public.org_is_shared(uuid)',
     -- guest functions, 080-guest-tokens.test.sql
     'public.get_guest_event(text)',
     'public.list_guest_event_attendees(text)',
