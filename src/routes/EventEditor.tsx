@@ -72,7 +72,7 @@ type LoadState =
 const SCOPE_CHOICES: readonly { scope: EventScope; label: string; hint: string }[] = [
   { scope: "team", label: "Own team", hint: "Everyone on your team" },
   { scope: "named", label: "Limited people", hint: "Only the people you pick, from any team" },
-  { scope: "public", label: "Every team", hint: "Everyone on every team" },
+  { scope: "public", label: "Public", hint: "Your whole organisation — or only your team, on the shared space" },
 ];
 
 const FIELD =
