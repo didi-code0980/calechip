@@ -64,7 +64,8 @@ describe("the real seam carries the same filter", () => {
     expect(body.length).toBeGreaterThan(0);
   });
 
-  it("listMembers() filters team_id not null, so member_select_pending_admin's rows never reach it", () => {
-    expect(body).toMatch(/\.not\(\s*"team_id"\s*,\s*"is"\s*,\s*null\s*\)/);
+  // MIR-21, ADR-077: the filter names the computed field `roster_team_id`, not the column.
+  it("listMembers() filters roster_team_id not null, so member_select_pending_admin's rows never reach it", () => {
+    expect(body).toMatch(/\.not\(\s*"roster_team_id"\s*,\s*"is"\s*,\s*null\s*\)/);
   });
 });

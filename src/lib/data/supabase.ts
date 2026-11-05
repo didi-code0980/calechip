@@ -976,8 +976,12 @@ interface MemberRow {
 // SOLO, 2026-09-10. `status` joins the list. Selecting it explicitly rather than with `*` is the
 // shape this file already uses everywhere, and it is what makes a column added to the table by a
 // later migration invisible here until somebody names it.
+//
+// MIR-21, ADR-077 decision 2. `team_id` is the computed field `roster_team_id`, aliased so that
+// `MemberRow` and `toMember` are unchanged: the roster team read from `membership`, which equals the
+// column under ADR-071's mirror. The bare column is no longer read, so MIR-21-b can drop it.
 const MEMBER_COLUMNS =
-  "id, team_id, display_name, avatar, role, status, email, last_sign_in_at, removed_at, created_at";
+  "id, team_id:roster_team_id, display_name, avatar, role, status, email, last_sign_in_at, removed_at, created_at";
 
 function toMember(row: MemberRow): Member {
   return {
@@ -1650,9 +1654,9 @@ export const seam: DataSeam = {
   /**
    * SOLO, 2026-09-10. Everybody waiting on a decision, newest first. Replaces `listAllowedEmails`.
    *
-   * **THE `is` FILTER ON `team_id` IS NOT THE SECURITY BOUNDARY AND MUST NOT BE READ AS ONE.**
-   * `member_select_pending_admin` is, and it already says `team_id is null and status <> 'approved'`
-   * for an admin. The filters here narrow a read the policy has already decided — the same
+   * **THE `is` FILTER ON `roster_team_id` IS NOT THE SECURITY BOUNDARY AND MUST NOT BE READ AS ONE.**
+   * `member_select_pending_admin` is, and it already says `member_roster_team_id(id) is null and
+   * status <> 'approved'` for an admin (MIR-21, ADR-077: both read the roster team, not the column). The filters here narrow a read the policy has already decided — the same
    * relationship every other read in this file has to its own policy.
    *
    * A member receives zero rows rather than an error, which is why an empty list is the honest
@@ -1664,7 +1668,7 @@ export const seam: DataSeam = {
     const { data, error } = await client()
       .from("member")
       .select(MEMBER_COLUMNS)
-      .is("team_id", null)
+      .is("roster_team_id", null)
       .eq("status", "pending")
       .order("created_at", { ascending: false })
       .returns<MemberRow[]>();
@@ -1734,10 +1738,10 @@ export const seam: DataSeam = {
   // Two `order` calls, not one: `FIXTURE_ADMIN` and `FIXTURE_MEMBER` share a `created_at` literal,
   // so created_at alone leaves their order undefined in PostgreSQL (02-design.md section 1.4).
   //
-  // SOLO (TEA-09), 2026-09-29 — THE `team_id` NOT-NULL FILTER, AND WHY IT IS NOT A SECOND COPY OF
-  // THE TEAM BOUNDARY. "The policies OR together" above has a third party: `member_select_pending_admin`
-  // (20260910100000_solo_member_approval.sql) admits every row with `team_id is null and status <>
-  // 'approved'` to an ADMIN. Without this filter an admin's roster carried every waiting and every
+  // SOLO (TEA-09), 2026-09-29 — THE `roster_team_id` NOT-NULL FILTER, AND WHY IT IS NOT A SECOND COPY
+  // OF THE TEAM BOUNDARY. "The policies OR together" above has a third party: `member_select_pending_admin`
+  // (20260910100000_solo_member_approval.sql) admits every row with no roster team and `status <>
+  // 'approved'` to an ADMIN. MIR-21, ADR-077: the filter names the computed field, not the column. Without this filter an admin's roster carried every waiting and every
   // rejected sign-up — drawn in the sidebar as ordinary members, drawn as rows in the year grid, and
   // counted in INV-04's denominator so an admin saw fewer overloaded days than a member did for the
   // same date. The filter only NARROWS: `member_select_team` stays the boundary, and a teamless row
@@ -1747,7 +1751,7 @@ export const seam: DataSeam = {
     const { data, error } = await client()
       .from("member")
       .select(MEMBER_COLUMNS)
-      .not("team_id", "is", null)
+      .not("roster_team_id", "is", null)
       .order("created_at", { ascending: true })
       .order("id", { ascending: true })
       .limit(ROSTER_LIMIT)
@@ -2429,7 +2433,12 @@ export const seam: DataSeam = {
 
   // Every team's roster in one read. `listMembers` is untouched and stays the caller's own team.
   async listAllMembers(): Promise<Member[]> {
-    const { data, error } = await client().rpc("list_all_members").limit(ROSTER_LIMIT);
+    // MIR-21: `.select(MEMBER_COLUMNS)`, the shape `listMembersForTeam` uses, so `team_id` is the
+    // computed field rather than the column `setof public.member` would otherwise return.
+    const { data, error } = await client()
+      .rpc("list_all_members")
+      .select(MEMBER_COLUMNS)
+      .limit(ROSTER_LIMIT);
     if (error) throw new Error(`listAllMembers failed: ${error.message}`);
     if (!Array.isArray(data)) throw new Error("listAllMembers received a body that is not a list");
     if (data.length >= ROSTER_LIMIT) {
@@ -3378,8 +3387,8 @@ export const seam: DataSeam = {
   // `head: true`, so no member rows come back at all, only the count in a `Content-Range` header.
   //
   // **THE TWO FILTERS ARE THE QUEUE'S DEFINITION AND ARE COPIED FROM THAT FUNCTION, NOT INVENTED
-  // HERE.** A waiting sign-up is `team_id is null` AND `status = 'pending'`: the first is what makes
-  // them invisible to every team-scoped read, the second is what an admin decides. A count that
+  // HERE.** A waiting sign-up is `roster_team_id is null` AND `status = 'pending'`: the first is what
+  // makes them invisible to every team-scoped read, the second is what an admin decides. A count that
   // dropped either would put a number on the tab that the screen behind it disagrees with.
   //
   // A non-admin is answered `0` because `member_select_pending_admin` filters, and a throw is not a
@@ -3388,7 +3397,7 @@ export const seam: DataSeam = {
     const { count, error } = await client()
       .from("member")
       .select("id", { count: "exact", head: true })
-      .is("team_id", null)
+      .is("roster_team_id", null)
       .eq("status", "pending");
 
     if (error) throw new Error(`countPendingMembers failed: ${error.message}`);

@@ -43,7 +43,7 @@ next_state: READY
 Plan item P3-3, last step (`.ai/board/plans/calechip-multi-tenancy-plan.md:187`): *"Drop
 `member.team_id` only after all readers move to `membership`"*.
 
-**This ticket is the first half of that feature, split by operation (ADR-076 decision 3).** Done
+**This ticket is the first half of that feature, split by operation (ADR-077 decision 3).** Done
 whole, the feature is `L`: about eighteen paths, most of them pgTAP fixtures that insert the column.
 This ticket moves **every reader** off the column. MIR-21-b then moves every writer, drops the column,
 and rewrites the fixtures. The feature row stays `PLANNED` until MIR-21-b ships.
@@ -56,7 +56,7 @@ membership cannot be created without these reads going wrong for that person.
 
 **The answer moves without changing.** A member's *roster team* is the team of their active
 primary membership. For a removed member it is the team of the membership row their removal closed.
-Otherwise it is null (ADR-076 decision 1). Under ADR-071's mirror this equals `member.team_id` for
+Otherwise it is null (ADR-077 decision 1). Under ADR-071's mirror this equals `member.team_id` for
 every row. AC-1 proves that while the column still exists to compare against.
 
 `size_estimate: M`
@@ -172,7 +172,7 @@ Every fixture is created by today's writers, so the mirror maintains `membership
 - **INV-07.** "Every team that member belongs to" now has a single source for these reads:
   `membership`. The answer stays single-valued, on the primary team (ADR-072 decision 1).
 
-**Open questions.** None. The removed-member rule is settled in ADR-076 decision 1 from the mirror's
+**Open questions.** None. The removed-member rule is settled in ADR-077 decision 1 from the mirror's
 own definition. It is not a guess about intent.
 
 ### 2b. Visual reference
@@ -200,7 +200,7 @@ function's `where` (ADR-005).
 
 `member_roster_team_id(uuid)` takes any id and returns that member's team uuid to any authenticated
 caller. `member_primary_team_id` and `member_team_ids` already do the same. This ticket adds no new
-kind of exposure and does not close the existing one (ADR-076 *Consequences*).
+kind of exposure and does not close the existing one (ADR-077 *Consequences*).
 
 ## 4. Contract
 
@@ -211,7 +211,7 @@ every policy, inside `begin; … commit;`. Applying it to a hosted database is h
 ### 4.1 Helper and computed field
 
 ```sql
--- ADR-076 decision 1. The active primary row; for a removed member, the row the removal closed;
+-- ADR-077 decision 1. The active primary row; for a removed member, the row the removal closed;
 -- otherwise null. No status filter: the roster carries removed members (ADR-013, INV-04).
 create or replace function public.member_roster_team_id(p_member uuid) returns uuid
   language sql stable security definer set search_path = '' as $$
@@ -227,7 +227,7 @@ $$;
 revoke all on function public.member_roster_team_id(uuid) from public, anon;
 grant execute on function public.member_roster_team_id(uuid) to authenticated;
 
--- ADR-076 decision 2. A PostgREST computed field: the seam selects it as `team_id:roster_team_id`.
+-- ADR-077 decision 2. A PostgREST computed field: the seam selects it as `team_id:roster_team_id`.
 -- Invoker, so a caller only ever passes a row its policies already let it read.
 create or replace function public.roster_team_id(p_member public.member) returns uuid
   language sql stable set search_path = '' as $$
@@ -277,12 +277,12 @@ const MEMBER_COLUMNS =
 |---|---|
 | `listPendingMembers` | `.is("team_id", null)` becomes `.is("roster_team_id", null)` |
 | `countPendingMembers` | `.is("team_id", null)` becomes `.is("roster_team_id", null)` |
-| `listMembers` | `.not("team_id", "is", null)` becomes `.not("roster_team_id", "is", null)` |
+| `listMembers` | `.not("team_id", "is", null)` becomes `.not("roster_team_id", "is", null)`. `tests/roster-excludes-signups.test.ts:67-69` pins this string and moves with it (§ 7) |
 | `listAllMembers` | `.rpc("list_all_members")` gains `.select(MEMBER_COLUMNS)` before `.limit`, the shape `listMembersForTeam` already uses |
 | every other `.select(MEMBER_COLUMNS)` | none; the constant carries the change |
 
 Comments in the file that name the `team_id` filter (`:1653-1655`, `:1737-1747`, `:3380-3383`) are
-updated to name `roster_team_id` and ADR-076. Their reasoning is unchanged.
+updated to name `roster_team_id` and ADR-077. Their reasoning is unchanged.
 
 **`TODO(verify)` for the Developer, against the running stack, not from recall.** PostgREST must
 honour three things:
@@ -293,9 +293,9 @@ honour three things:
 
 PostgREST is on the "past reliable recall" list in `.ai/standards/tech-stack.md`. If any of the three
 is refused, stop and route to `tech-lead-design`. Do not substitute a view or a second RPC: that is
-ADR-076's rejected option.
+ADR-077's rejected option.
 
-### 4.5 pgTAP — `supabase/tests/210-roster-team-from-membership.test.sql`
+### 4.5 pgTAP — `supabase/tests/220-roster-team-from-membership.test.sql`
 
 New file. Fixtures as in § 2, created through today's writers (`admit_member`, `move_member`,
 `reject_member`, removal). One assertion block per AC-1 to AC-8 and AC-10. AC-1 runs over every row
@@ -304,7 +304,7 @@ of `public.member`, not just the fixtures.
 ### 4.6 Catalogue — `supabase/tests/010-catalogue.test.sql`
 
 The definer census (`:15-18`, `where … p.prosecdef`) gains `'public.member_roster_team_id(uuid)'`,
-under a `-- MIR-21 helper, 210-roster-team-from-membership.test.sql` comment.
+under a `-- MIR-21 helper, 220-roster-team-from-membership.test.sql` comment.
 `roster_team_id(public.member)` is an invoker function, so it is not in that census. The anon
 census (`:98-113`) needs no new entry: both functions revoke `anon`, and AC-10 asserts it.
 
@@ -319,13 +319,14 @@ census (`:98-113`) needs no new entry: both functions revoke `anon`, and AC-10 a
 rewrites three definer functions (§ 4). It changes no table, column, constraint or trigger. Under
 ADR-014 a policy rewrite is a schema delta.
 
-Covered by [ADR-076](../../../registry/decisions/ADR-076-a-members-roster-team-is-read-from-membership-and-mir-21-splits-reads-first.md),
+Covered by [ADR-077](../../../registry/decisions/ADR-077-a-members-roster-team-is-read-from-membership-and-mir-21-splits-reads-first.md),
 within ADR-072 and ADR-071. `requires_adr: true`.
 
 ## 7. allowed_paths
 
 ```yaml
 allowed_paths:
+  - ".ai/registry/decisions/ADR-077-a-members-roster-team-is-read-from-membership-and-mir-21-splits-reads-first.md"
   - ".ai/registry/decisions/ADR-076-a-members-roster-team-is-read-from-membership-and-mir-21-splits-reads-first.md"
   - ".ai/board/tickets/MIR-21-b/ticket.yaml"
   - ".ai/board/tickets/MIR-16/ticket.yaml"
@@ -333,14 +334,26 @@ allowed_paths:
   - ".ai/board/tickets/MIR-19/ticket.yaml"
   - ".ai/board/tickets/MIR-20/ticket.yaml"
   - "supabase/migrations/20261105150000_mir21_reads_off_member_team_id.sql"
-  - "supabase/tests/210-roster-team-from-membership.test.sql"
+  - "supabase/tests/220-roster-team-from-membership.test.sql"
   - "supabase/tests/010-catalogue.test.sql"
   - "src/lib/data/supabase.ts"
+  - "tests/roster-excludes-signups.test.ts"
 ```
 
-Ten paths, so `size: M`.
+Twelve paths, so `size: M`.
 
-- The four other tickets' `ticket.yaml` gain `MIR-21-b` in `depends_on` (ADR-076 decision 6). That
+- The ADR-076 path is the source side of the 09:53:29Z renumber. It is a deletion, not an edit: the
+  file's content is ADR-077, and the old name is still at `7a50eaa`. It is listed only so that R1,
+  `check-allowed-paths` and `check-carry` count the rename as the ticket's own. Nothing may write
+  that path.
+
+- `tests/roster-excludes-signups.test.ts` gets one edit only. In the source-text assertion at `:67-69`,
+  the regex and the test title name `roster_team_id` instead of `team_id`, and a comment cites ADR-077.
+  The mock half (`:1-49`) and the body extractor do not change. The assertion still pins the filter
+  that keeps `member_select_pending_admin`'s rows off the roster (TEA-09). Only the column it filters
+  on changes (§ 4.4, AC-9).
+
+- The four other tickets' `ticket.yaml` gain `MIR-21-b` in `depends_on` (ADR-077 decision 6). That
   edit was made at this PLAN and needs nothing further at IN_PROGRESS.
 - `MIR-21-b/ticket.yaml` was written at this PLAN.
 - `glossary_owed` is `[]`. No glossary row is owed.
@@ -353,7 +366,7 @@ Ten paths, so `size: M`.
   paths. Rejected: `L` must split at PLAN (`.ai/01-operating-model.md` § *Sizing*).
 - **Writers first, as ADR-071 decision 5 ordered MIR-13.** Rejected. Every reader still on the column
   would go wrong for anyone admitted or moved after the writers stop setting it, unless the mirror
-  were reversed. A two-way mirror is the duplication ADR-071 decision 2 rejected (ADR-076
+  were reversed. A two-way mirror is the duplication ADR-071 decision 2 rejected (ADR-077
   *Options*).
 - **A computed field named `team_id`, so that the seam is untouched after the drop.** Rejected. While
   the column exists, PostgREST resolves `team_id` to the column, so AC-2 and AC-9 could not show that
@@ -365,7 +378,7 @@ Ten paths, so `size: M`.
 
 ## Delegated decisions
 
-- ADR-076 — MIR-21 splits reads first; the roster team is read from `membership` through
+- ADR-077 — MIR-21 splits reads first; the roster team is read from `membership` through
   `member_roster_team_id` and the computed field `roster_team_id`. It supersedes nothing. It was
   written under ADR-067 because it re-scopes a feature that other tickets are blocked by.
 
@@ -376,3 +389,18 @@ Ten paths, so `size: M`.
   `member_sync_membership` then added the removed-member half of the roster-team rule. That came from
   the mirror's definition, not from convenience: without it AC-3 and AC-4 would change today's
   answer.
+- `2026-11-05T09:53:29Z` — sections 1, 4, 5, 6, 7, 8 and *Delegated decisions*: the ADR renumbered from 076 to ADR-077, and
+  `supabase/tests/210-roster-team-from-membership.test.sql` renamed to
+  `220-roster-team-from-membership.test.sql`. PR #191 (MIR-15) already uses ADR number 076 and
+  `supabase/tests/210-*`. Numbers only; no content changed. Raised by the operator. Amended by
+  `tech-lead-design`.
+- `2026-11-05T10:13:13Z` — sections 4.4 and 7: `allowed_paths` gains
+  `tests/roster-excludes-signups.test.ts`, which brings the count to eleven, so size stays M. That test's
+  source-text regex pins `listMembers`' old `.not("team_id", "is", null)` filter, so § 4.4 as written
+  breaks it. Only its regex and title change, to `roster_team_id`. Keeping the old filter would fail
+  AC-9 and block MIR-21-b. Deleting the assertion would leave TEA-09 unpinned. The gate is unchanged.
+  Raised by `developer`. Amended by `tech-lead-design`.
+- `2026-11-05T10:14:40Z` — section 7: `allowed_paths` gains the ADR-076 path, the deleted source side of the 09:53:29Z
+  renumber, because R1, `check-allowed-paths` and `check-carry` counted the staged rename as outside
+  the ticket. It is listed as a deletion only, so no content changes. Twelve paths, so size stays M.
+  The gate is unchanged. Raised by `developer`. Amended by `tech-lead-design`.

@@ -53,6 +53,8 @@ select set_eq(
     'public.member_team_ids(uuid)',
     'public.member_primary_team_id(uuid)',
     'public.shares_active_team(uuid,uuid)',
+    -- MIR-21 helper, 220-roster-team-from-membership.test.sql
+    'public.member_roster_team_id(uuid)',
     -- MIR-14 helper, 170-multi-team-decisions.test.sql
     'public.may_decide_entry(uuid,uuid)',
     -- MIR-14-b RPC, 180-entry-owners.test.sql

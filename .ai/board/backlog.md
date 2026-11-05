@@ -22,9 +22,11 @@ planned, sized, and safe to build** — the next stage for a row here is IN_PROG
 
 | # | Ticket | Title | Size | Depends on |
 |---|--------|-------|------|------------|
-| 1 | MIR-21 | `member.team_id` is dropped once every reader has moved to `membership` — read slice (ADR-076, roster team) | M | — |
+| 1 | MIR-21 | `member.team_id` is dropped once every reader has moved to `membership` — read slice (ADR-077, roster team) | M | — |
 
-**`MIR-21` moved here at /advance on 2026-11-05**, from `01-plan.md` gate PASS (`produced_at: 2026-11-05T09:32:02Z`) with all six Definition of Ready items passing; `schema_delta` cites [ADR-076](../registry/decisions/ADR-076-a-members-roster-team-is-read-from-membership-and-mir-21-splits-reads-first.md) (`ACCEPTED by tech-lead-design under the operator's delegation (ADR-067)`). MIR-21 had no row in `## BACKLOG`, so no row left that table. Writers and the drop split to `MIR-21-b`, at `BACKLOG`. **Open: number collision.** PR #191 (MIR-15, unmerged) also carries an `ADR-076` and a `supabase/tests/210-*` file; whichever merges second holds a duplicate ADR number. Not repaired here — the ADR is registry plane and the plan is an artifact.
+**`MIR-21` is at `REVIEW` in `ticket.yaml`, `gates.review` passed** — recorded at /advance on 2026-11-05 from `04-review.md` (`produced_at: 2026-11-05T10:21:06Z`): `gate: PASS`, `verdict: PASS`, `invariant_violation: false`, `route_to: none`. `03-impl-log.md` gate PASS (`produced_at: 2026-11-05T10:15:00Z`) had already moved `state` to `REVIEW`. `state` stays `REVIEW`; `/ship` sets `DONE` and moves the row to `## ARCHIVE`.
+
+**`MIR-21` moved here at /advance on 2026-11-05**, from `01-plan.md` gate PASS (`produced_at: 2026-11-05T09:32:02Z`) with all six Definition of Ready items passing; `schema_delta` cites ADR-077 (renumbered from ADR-076, below) (`ACCEPTED by tech-lead-design under the operator's delegation (ADR-067)`). MIR-21 had no row in `## BACKLOG`, so no row left that table. Writers and the drop split to `MIR-21-b`, at `BACKLOG`. **Number collision, resolved.** PR #191 (MIR-15) also carried an `ADR-076` and a `supabase/tests/210-*` file. On the operator's choice (option 1, 2026-11-05), `tech-lead-design` amended PLAN to renumber MIR-21's ADR to [ADR-077](../registry/decisions/ADR-077-a-members-roster-team-is-read-from-membership-and-mir-21-splits-reads-first.md) and its test to `220-roster-team-from-membership.test.sql`.
 
 **Empty again — `MIR-18-b` left this section for `## ARCHIVE` at its own ship on 2026-11-05.** The hardening slice `MIR-18-c` stays at `BACKLOG`; the shared `MIR-18` row in `features.md` stays `PLANNED` until MIR-18-c ships.
 

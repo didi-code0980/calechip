@@ -4,7 +4,7 @@ last_updated: 2026-11-05
 governed_by: [RULE-01, RULE-02, RULE-04, RULE-09]
 ---
 
-# ADR-076 — A member's roster team is read from `membership`, not `member.team_id`; MIR-21 splits by operation, reads first, and the column is dropped in MIR-21-b
+# ADR-077 — A member's roster team is read from `membership`, not `member.team_id`; MIR-21 splits by operation, reads first, and the column is dropped in MIR-21-b
 
 ## Status
 

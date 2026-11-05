@@ -1,5 +1,5 @@
 # Created by `tech-lead-design` at /plan MIR-21 on 2026-11-05: the write slice and the drop of
-# feature MIR-21, split by operation (ADR-076 decision 3; .ai/board/tickets/MIR-21/01-plan.md § 1
+# feature MIR-21, split by operation (ADR-077 decision 3; .ai/board/tickets/MIR-21/01-plan.md § 1
 # and § 7). Not produced by /triage: no idea file promotes it. It shares MIR-21's feature row, which
 # stays PLANNED until this ticket ships.
 # ticket.yaml is authoritative; backlog.md is a view (see .ai/01-operating-model.md).
@@ -12,13 +12,13 @@ state: BACKLOG
 owner: ""
 branch: ""
 size_estimate: ""     # S|M - set by tech-lead-design at PLAN; gates DoR
-size: ""              # S|M|L|XL - set by tech-lead-design at PLAN; decides splitting. Predicted at /plan MIR-21: about 18 paths, so L and splits again (ADR-076 decision 5)
-depends_on: [MIR-01, MIR-02, MIR-03, MIR-04, MIR-05, MIR-06, MIR-07, MIR-08, MIR-09, MIR-10, MIR-12, MIR-13, MIR-13-b, MIR-21]   # "Blocked by" — MIR-21 moves every reader off the column first (ADR-076 decision 3)
+size: ""              # S|M|L|XL - set by tech-lead-design at PLAN; decides splitting. Predicted at /plan MIR-21: about 18 paths, so L and splits again (ADR-077 decision 5)
+depends_on: [MIR-01, MIR-02, MIR-03, MIR-04, MIR-05, MIR-06, MIR-07, MIR-08, MIR-09, MIR-10, MIR-12, MIR-13, MIR-13-b, MIR-21]   # "Blocked by" — MIR-21 moves every reader off the column first (ADR-077 decision 3)
 invariants_touched: []
 allowed_paths: []
 glossary_owed: []
 schema_delta: "TODO(plan): set at PLAN — writers move to membership; the member_sync_membership trigger and function, public.member_team_id(uuid) and the member.team_id column are dropped"
-requires_adr: true    # ADR-076 decision 5 names the work; the contract is this ticket's PLAN
+requires_adr: true    # ADR-077 decision 5 names the work; the contract is this ticket's PLAN
 rework_count: 0
 chat_budget:
   developer->tech-lead-design: { used: 0, max: 6 }
@@ -35,7 +35,7 @@ expected_impact: []   # [predicted] none: the column has no reader after MIR-21
 mir_detail: |
   The write slice and the drop of P3-3's last step. MIR-21 (the read slice) ships first and leaves,
   in the database: `public.member_roster_team_id(uuid)` and the computed field
-  `public.roster_team_id(public.member)` (ADR-076 decision 2), and no read policy, read function or
+  `public.roster_team_id(public.member)` (ADR-077 decision 2), and no read policy, read function or
   seam read on the `member.team_id` column (MIR-21/01-plan.md § 4).
 
   In scope, from MIR-21/01-plan.md § 1 *Out of scope* (latest definitions as of 2026-11-05):
@@ -49,6 +49,6 @@ mir_detail: |
     :200 reads member_team_id), 110, 120, 140 (the mirror's own tests), 150, 160, 170, 180, 190;
     supabase/seed.sql, supabase/bootstrap.sql, supabase/create-account.sql
   - .ai/standards/data-model.md, where it documents the column
-  - the seam keeps `team_id:roster_team_id` (ADR-076 decision 2); no seam change is predicted
+  - the seam keeps `team_id:roster_team_id` (ADR-077 decision 2); no seam change is predicted
 
   Predicted L at /plan MIR-21: its PLAN splits it again.
