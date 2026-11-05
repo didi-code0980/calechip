@@ -135,6 +135,8 @@ select is(
   1,
   'AC-4: K reads an event_created notification for it'
 );
+-- MIR-15: N's public event is on T3, in Org public (the shared tenant), so it reaches K only because
+-- K holds the active T3 membership given above.
 select ok(exists (select 1 from public.list_member_directory() d where d.id = tests.id('member_u')),
   'AC-4: list_member_directory() called by K returns N');
 -- N also created a public event, so the line above holds through ADR-066 (c) alone. manager_u
@@ -156,6 +158,8 @@ select is_empty($$select id from public.event where id = tests.m13b('event_2')$$
 select tests.authenticate_as(tests.id('member_t'));
 select is_empty($$select id from public.event where id = tests.m13b('event_2')$$,
   'AC-5: K does not read V2');
+-- MIR-15: Event U public is on T3, in the shared tenant, so K reads it only through the active T3
+-- membership given above.
 select ok(exists (select 1 from public.event where id = tests.id('event_u_public')),
   'AC-5: K still reads a public event of Org A');
 select tests.clear_authentication();
@@ -165,7 +169,8 @@ select is(public.may_read_event(tests.m13b('event_2'), tests.id('member_t')), fa
   'AC-5: may_read_event(V2, K) is false');
 
 -- ---------------------------------------------------------------------------------------------
--- AC-6. Creating a public event notifies the creator's org only, and succeeds.
+-- AC-6. Creating a public event notifies the creator's org only, and succeeds. Org A is the shared
+-- tenant, so since MIR-15 that is the creator's team within it (ADR-076 decision 2).
 -- ---------------------------------------------------------------------------------------------
 select tests.authenticate_as(tests.id('member_t2'));
 select lives_ok(
@@ -179,9 +184,9 @@ select set_eq(
      where kind = 'event_created' and event_id = tests.event_named('VA mir13b')$$,
   $$select m.id from public.member m
      where m.org_id = tests.org_a()
-       and m.status = 'approved' and m.removed_at is null and m.team_id is not null
+       and tests.id('team_t') in (select public.member_team_ids(m.id))
        and m.id <> tests.id('member_t2')$$,
-  'AC-6: event_created goes to every other approved member of Org A'
+  'AC-6: event_created goes to every other active member of T1, the event''s team'
 );
 select is(
   (select count(*)::int from public.notification

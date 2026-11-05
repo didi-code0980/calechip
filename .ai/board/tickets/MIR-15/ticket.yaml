@@ -6,24 +6,35 @@ id: MIR-15
 title: "In Org public, the directory, public events and event notifications stay within the team, only system_admin sets its holidays, and a team can be moved to another org"
 feature_ids: [MIR-15]   # ADR-063 row; written by the steward on the operator's decision of 2026-10-20
 group: MIR           # ADR-063: MIR is the eighth feature group
-state: BACKLOG
+state: DONE
 owner: ""
 branch: ""
-size_estimate: ""     # S|M - set by tech-lead-design at PLAN; gates DoR
-size: ""              # S|M|L|XL - set by tech-lead-design at PLAN; decides splitting
+size_estimate: "M"    # S|M - set by tech-lead-design at PLAN; gates DoR. This slice; as triaged it was L
+size: "M"             # S|M|L|XL - set by tech-lead-design at PLAN; decides splitting. 11 paths; split to MIR-15-b, -c, -d (ADR-076 decision 6)
 depends_on: [MIR-01, MIR-02, MIR-03, MIR-04, MIR-05, MIR-06, MIR-07, MIR-08, MIR-09, MIR-10, MIR-18]   # "Blocked by" — the MIR IDs that must be DONE first
-invariants_touched: []
-allowed_paths: []
+invariants_touched: [INV-04]   # list_member_directory reads public.member; no member select policy changes (01-plan.md § 2)
+allowed_paths:
+  - ".ai/registry/decisions/ADR-076-in-org-public-a-public-event-is-a-team-event-and-the-directory-reaches-no-other-team-through-it.md"
+  - ".ai/board/tickets/MIR-15-b/ticket.yaml"
+  - ".ai/board/tickets/MIR-15-c/ticket.yaml"
+  - ".ai/board/tickets/MIR-15-d/ticket.yaml"
+  - "supabase/migrations/20261105180000_mir15_org_public_team_bound.sql"
+  - "supabase/tests/210-org-public-team-bound.test.sql"
+  - "supabase/tests/010-catalogue.test.sql"
+  - "supabase/tests/160-read-path-org-bound.test.sql"
+  - "src/routes/EventEditor.tsx"
+  - "src/routes/Events.tsx"
+  - "tests/e2e/evt-01-events.spec.ts"
 glossary_owed: []
-schema_delta: "TODO(plan): set at PLAN — the plan item changes the schema"
-requires_adr: false
+schema_delta: "non-none — new security definer function org_is_shared(uuid); may_read_event, is_event_audience and notify_event_created replaced; policy event_select_visible replaced. No table, column or row changes. ADR-076"
+requires_adr: true    # ADR-076, ACCEPTED under ADR-067 at /plan MIR-15
 rework_count: 0
 chat_budget:
   developer->tech-lead-design: { used: 0, max: 6 }
 tracker: { provider: "", external_id: "", sync_enabled: false }
 gates:
-  plan:   { passed: false, at: null }
-  review: { passed: false, at: null }
+  plan:   { passed: true, at: "2026-11-05T06:38:04Z" }
+  review: { passed: true, at: "2026-11-05T08:44:24Z" }
 
 # --- MIR extra fields ---------------------------------------------------------------------------
 # Not in .ai/templates/ticket.yaml. Added for the multi-tenancy plan; nothing in scripts/ reads them.
