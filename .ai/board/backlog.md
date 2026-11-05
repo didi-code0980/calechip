@@ -24,6 +24,8 @@ planned, sized, and safe to build** — the next stage for a row here is IN_PROG
 |---|--------|-------|------|------------|
 | 1 | MIR-18 | A separate system admin panel, unindexed, with its own account store, 2FA and org management — first slice (ADR-074) | M | — |
 
+**`MIR-18` is at `REVIEW` in `ticket.yaml`, `gates.review` passed** — recorded at /advance on 2026-11-05 from `04-review.md` (`produced_at: 2026-11-05T01:02:31Z`): `gate: PASS`, `verdict: PASS`, `invariant_violation: false`, `route_to: none`. `state` stays `REVIEW`; `/ship` sets `DONE` and moves the row to `## ARCHIVE`.
+
 **`MIR-18` is at `REVIEW` in `ticket.yaml`, `gates.review` not yet passed** — recorded at /advance on 2026-11-05 from `03-impl-log.md` gate PASS (`produced_at: 2026-11-04T08:33:48Z`). The row stays here until `/ship` moves it to `## ARCHIVE`.
 
 **`MIR-18` moved here at /advance on 2026-11-04**, from `01-plan.md` gate PASS (`produced_at: 2026-11-04T07:01:10Z`) with all six Definition of Ready items passing; `schema_delta` cites [ADR-074](../registry/decisions/ADR-074-system-admin-is-a-separate-account-table-behind-totp-in-its-own-entry.md) (`ACCEPTED by tech-lead-design under the operator's delegation (ADR-067)`). MIR-18 had no row in `## BACKLOG`, so no row left that table. The rest of the feature split to `MIR-18-b` (ADR-074 decision 8), which is at `BACKLOG`.
