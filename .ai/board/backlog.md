@@ -24,6 +24,8 @@ planned, sized, and safe to build** — the next stage for a row here is IN_PROG
 |---|--------|-------|------|------------|
 | 1 | MIR-18-b | A system admin lists, creates and edits orgs — caps and licence state — from the panel, which is served unindexed at an unguessable path with rate limiting and failed-login logging | M | — |
 
+**`MIR-18-b` is at `REVIEW` in `ticket.yaml`, `gates.review` passed** — recorded at /advance on 2026-11-05 from `04-review.md` (`produced_at: 2026-11-05T05:04:30Z`): `gate: PASS`, `verdict: PASS`, `invariant_violation: false`, `route_to: none`. `state` stays `REVIEW`; `/ship` sets `DONE` and moves the row to `## ARCHIVE`.
+
 **`MIR-18-b` is at `REVIEW` in `ticket.yaml`, `gates.review` not yet passed** — recorded at /advance on 2026-11-05 from `03-impl-log.md` gate PASS (`produced_at: 2026-11-05T02:27:01Z`). The row stays here until `/ship` moves it to `## ARCHIVE`.
 
 **`MIR-18-b` moved here at /advance on 2026-11-05**, from `01-plan.md` gate PASS (`produced_at: 2026-11-05T01:36:00Z`) with all six Definition of Ready items passing; `schema_delta` cites [ADR-075](../registry/decisions/ADR-075-a-system-admin-manages-orgs-through-three-aal2-gated-rpcs.md) (`ACCEPTED by tech-lead-design under the operator's delegation (ADR-067)`). MIR-18-b had no row in `## BACKLOG`, so no row left that table. The hardening split to `MIR-18-c`, which is at `BACKLOG`.
