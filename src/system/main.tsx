@@ -8,8 +8,10 @@
 import { StrictMode, useEffect, useState, type FormEvent, type JSX } from "react";
 import { createRoot } from "react-dom/client";
 import {
+  ORG_FAILURE_MESSAGES,
   systemSeam,
   systemSeamName,
+  type OrgSummary,
   type SystemGate,
   type TotpEnrolment,
 } from "@/lib/data/system";
@@ -21,6 +23,388 @@ const fieldClass = "w-full rounded-pill bg-field px-4 py-3 text-ink outline-none
 const primaryButtonClass =
   "w-full rounded-pill bg-primary px-4 py-3 font-semibold text-white disabled:opacity-60";
 const textButtonClass = "text-sm font-semibold text-ink-2 underline-offset-2 hover:underline";
+
+// MIR-18-b — the signed-in screen: org management (01-plan.md §§ 2b, 4.5; ADR-075).
+const DEFAULT_TIMEZONE = "Asia/Ho_Chi_Minh"; // the column default, ADR-070 § 2
+const smallPrimaryButtonClass =
+  "rounded-pill bg-primary px-4 py-2 text-sm font-semibold text-white disabled:opacity-60";
+const smallSecondaryButtonClass = "rounded-pill bg-field px-4 py-2 text-sm font-semibold text-ink";
+const formFieldClass = "w-full rounded-pill bg-card px-4 py-2 text-sm text-ink outline-none";
+const labelClass = "flex flex-col gap-1 text-xs font-semibold text-ink-3";
+const headerCellClass = "px-3 py-2 text-xs font-semibold tracking-wide text-ink-3 uppercase";
+
+function NullableCell({ testId, value, numeric }: { testId: string; value: string | number | null; numeric?: boolean }): JSX.Element {
+  return (
+    <td data-testid={testId} className={`px-3 py-2 ${numeric ? "text-right tabular-nums" : ""}`}>
+      {value === null ? <span className="text-ink-3">—</span> : value}
+    </td>
+  );
+}
+
+/**
+ * A cap field: empty is no cap. Not an integer after `Number(...)` is refused here and nothing is
+ * sent (AC-13's `2.5`); any integer, `0` included, is sent so the database's refusal is the one shown.
+ */
+function parseCap(text: string): { ok: true; value: number | null } | { ok: false } {
+  const trimmed = text.trim();
+  if (trimmed === "") return { ok: true, value: null };
+  const value = Number(trimmed);
+  return Number.isInteger(value) ? { ok: true, value } : { ok: false };
+}
+
+function OrgError({ testId, error }: { testId: string; error: string | null }): JSX.Element | null {
+  return error ? (
+    <p data-testid={testId} role="alert" className="text-sm text-danger">
+      {error}
+    </p>
+  ) : null;
+}
+
+function CreateOrgForm({ onDone, onCancel }: { onDone: () => void; onCancel: () => void }): JSX.Element {
+  const [orgCode, setOrgCode] = useState("");
+  const [name, setName] = useState("");
+  const [timezone, setTimezone] = useState(DEFAULT_TIMEZONE);
+  const [error, setError] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+
+  const submit = async (event: FormEvent) => {
+    event.preventDefault();
+    setBusy(true);
+    setError(null);
+    const result = await systemSeam.createOrg({ orgCode, name, timezone });
+    setBusy(false);
+    if (!result.ok) {
+      setError(result.error.message);
+      return;
+    }
+    onDone();
+  };
+
+  return (
+    <form
+      data-testid="system-org-create-form"
+      className="flex flex-col gap-3 rounded-xl bg-field/50 p-4"
+      onSubmit={(event) => void submit(event)}
+      noValidate
+    >
+      <h3 className="text-sm font-bold text-ink">New org</h3>
+      <label className={labelClass}>
+        Org code
+        <input
+          data-testid="system-org-create-code"
+          className={`${formFieldClass} font-mono`}
+          value={orgCode}
+          onChange={(event) => setOrgCode(event.target.value)}
+        />
+        <span className="text-xs font-normal text-ink-3">
+          Lowercase letters, digits and hyphens. Cannot be changed later.
+        </span>
+      </label>
+      <label className={labelClass}>
+        Name
+        <input
+          data-testid="system-org-create-name"
+          className={formFieldClass}
+          value={name}
+          onChange={(event) => setName(event.target.value)}
+        />
+      </label>
+      <label className={labelClass}>
+        Timezone
+        <input
+          data-testid="system-org-create-timezone"
+          className={formFieldClass}
+          value={timezone}
+          onChange={(event) => setTimezone(event.target.value)}
+        />
+      </label>
+      <div className="flex items-center gap-4">
+        <button data-testid="system-org-create-submit" type="submit" className={smallPrimaryButtonClass} disabled={busy}>
+          Create
+        </button>
+        <button data-testid="system-org-create-cancel" type="button" className={textButtonClass} onClick={onCancel}>
+          Cancel
+        </button>
+      </div>
+      <OrgError testId="system-org-create-error" error={error} />
+    </form>
+  );
+}
+
+function EditOrgForm({
+  org,
+  onDone,
+  onCancel,
+}: {
+  org: OrgSummary;
+  onDone: () => void;
+  onCancel: () => void;
+}): JSX.Element {
+  const [name, setName] = useState(org.name);
+  const [maxMembers, setMaxMembers] = useState(org.maxMembers === null ? "" : String(org.maxMembers));
+  const [maxTeams, setMaxTeams] = useState(org.maxTeams === null ? "" : String(org.maxTeams));
+  const [plan, setPlan] = useState(org.plan);
+  const [licence, setLicence] = useState(org.licenceExpiresOn ?? "");
+  const [error, setError] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+
+  const submit = async (event: FormEvent) => {
+    event.preventDefault();
+    setError(null);
+    const members = parseCap(maxMembers);
+    const teams = parseCap(maxTeams);
+    if (!members.ok || !teams.ok) {
+      setError(ORG_FAILURE_MESSAGES.invalid_org_field);
+      return;
+    }
+    setBusy(true);
+    const result = await systemSeam.updateOrg({
+      orgId: org.id,
+      name,
+      maxMembers: members.value,
+      maxTeams: teams.value,
+      plan,
+      licenceExpiresOn: licence === "" ? null : licence,
+    });
+    setBusy(false);
+    if (!result.ok) {
+      setError(result.error.message);
+      return;
+    }
+    onDone();
+  };
+
+  return (
+    // `noValidate`: the browser's own `min`/`step` check would block `0` and `2.5` before the
+    // panel's refusal (AC-13) could run.
+    <form
+      data-testid="system-org-edit-form"
+      className="flex flex-col gap-3 rounded-xl bg-field/50 p-4"
+      onSubmit={(event) => void submit(event)}
+      noValidate
+    >
+      <h3 className="text-sm font-bold text-ink">Edit org</h3>
+      <p data-testid="system-org-edit-code" className="font-mono text-sm text-ink-2">
+        {org.orgCode}
+      </p>
+      <label className={labelClass}>
+        Name
+        <input
+          data-testid="system-org-edit-name"
+          className={formFieldClass}
+          value={name}
+          onChange={(event) => setName(event.target.value)}
+        />
+      </label>
+      <div className="flex flex-col gap-1">
+        <div className="flex gap-3">
+          <label className={`${labelClass} flex-1`}>
+            Members cap
+            <input
+              data-testid="system-org-edit-max-members"
+              type="number"
+              min={1}
+              className={formFieldClass}
+              value={maxMembers}
+              onChange={(event) => setMaxMembers(event.target.value)}
+            />
+          </label>
+          <label className={`${labelClass} flex-1`}>
+            Teams cap
+            <input
+              data-testid="system-org-edit-max-teams"
+              type="number"
+              min={1}
+              className={formFieldClass}
+              value={maxTeams}
+              onChange={(event) => setMaxTeams(event.target.value)}
+            />
+          </label>
+        </div>
+        <span className="text-xs text-ink-3">Leave empty for no cap. Not enforced.</span>
+      </div>
+      <label className={labelClass}>
+        Plan
+        <input
+          data-testid="system-org-edit-plan"
+          className={formFieldClass}
+          value={plan}
+          onChange={(event) => setPlan(event.target.value)}
+        />
+      </label>
+      <label className={labelClass}>
+        Licence expires
+        <input
+          data-testid="system-org-edit-licence"
+          type="date"
+          className={formFieldClass}
+          value={licence}
+          onChange={(event) => setLicence(event.target.value)}
+        />
+      </label>
+      <div className="flex items-center gap-4">
+        <button data-testid="system-org-edit-submit" type="submit" className={smallPrimaryButtonClass} disabled={busy}>
+          Save
+        </button>
+        <button data-testid="system-org-edit-cancel" type="button" className={textButtonClass} onClick={onCancel}>
+          Cancel
+        </button>
+      </div>
+      <OrgError testId="system-org-edit-error" error={error} />
+    </form>
+  );
+}
+
+type OpenForm = { kind: "create" } | { kind: "edit"; org: OrgSummary } | null;
+
+function OrgManagement({ email, onSignOut }: { email: string; onSignOut: () => void }): JSX.Element {
+  const [orgs, setOrgs] = useState<OrgSummary[] | null>(null);
+  const [listError, setListError] = useState<string | null>(null);
+  const [form, setForm] = useState<OpenForm>(null);
+
+  // Read again after every successful write rather than patching local state (§ 4.5). The list
+  // already shown stays while a re-read is in flight.
+  const load = async () => {
+    setListError(null);
+    const result = await systemSeam.listOrgs();
+    if (!result.ok) {
+      setListError(result.error.message);
+      return;
+    }
+    setOrgs(result.value);
+  };
+
+  useEffect(() => {
+    void load();
+  }, []); // Read once on arriving at `signed-in`.
+
+  const done = () => {
+    setForm(null);
+    void load();
+  };
+
+  let list: JSX.Element;
+  if (listError) {
+    list = (
+      <div className="flex flex-col items-start gap-2">
+        <p data-testid="system-orgs-error" role="alert" className="text-sm text-danger">
+          {listError}
+        </p>
+        <button data-testid="system-orgs-retry" type="button" className={textButtonClass} onClick={() => void load()}>
+          Try again
+        </button>
+      </div>
+    );
+  } else if (orgs === null) {
+    list = (
+      <p data-testid="system-orgs-loading" role="status" className="text-ink-3">
+        Loading orgs…
+      </p>
+    );
+  } else {
+    list = (
+      <div data-testid="system-orgs" className="overflow-x-auto">
+        <table className="w-full text-left text-sm whitespace-nowrap text-ink">
+          <thead>
+            <tr className="border-b border-line">
+              <th className={headerCellClass}>Code</th>
+              <th className={headerCellClass}>Name</th>
+              <th className={headerCellClass}>Timezone</th>
+              <th className={`${headerCellClass} text-right`}>Members cap</th>
+              <th className={`${headerCellClass} text-right`}>Teams cap</th>
+              <th className={headerCellClass}>Plan</th>
+              <th className={headerCellClass}>Licence expires</th>
+              <th className={headerCellClass}>
+                <span className="sr-only">Actions</span>
+              </th>
+            </tr>
+          </thead>
+          <tbody>
+            {orgs.map((org) => (
+              <tr key={org.id} data-testid="system-org-row" data-org-code={org.orgCode} className="border-b border-line last:border-b-0">
+                <td data-testid="system-org-code" className="px-3 py-2 font-mono">
+                  {org.orgCode}
+                </td>
+                <td data-testid="system-org-name" className="px-3 py-2">
+                  {org.name}
+                </td>
+                <td data-testid="system-org-timezone" className="px-3 py-2">
+                  {org.timezone}
+                </td>
+                <NullableCell testId="system-org-max-members" value={org.maxMembers} numeric />
+                <NullableCell testId="system-org-max-teams" value={org.maxTeams} numeric />
+                <td data-testid="system-org-plan" className="px-3 py-2">
+                  {org.plan}
+                </td>
+                <NullableCell testId="system-org-licence" value={org.licenceExpiresOn} />
+                <td className="px-3 py-2 text-right">
+                  {org.isSharedTenant ? (
+                    <span
+                      data-testid="system-org-shared"
+                      className="rounded-pill bg-holiday px-3 py-1 text-xs font-semibold text-ink-2"
+                    >
+                      Shared
+                    </span>
+                  ) : (
+                    <button
+                      data-testid="system-org-edit"
+                      type="button"
+                      className={textButtonClass}
+                      onClick={() => setForm({ kind: "edit", org })}
+                    >
+                      Edit
+                    </button>
+                  )}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    );
+  }
+
+  return (
+    <div data-testid="system-signed-in" className="flex flex-col gap-6">
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div className="flex flex-col gap-2">
+          <h1 className="text-xl font-bold text-ink">System panel</h1>
+          <p className="text-ink-2">
+            Signed in as <span data-testid="system-signed-in-email">{email}</span>
+          </p>
+          <span className="self-start rounded-pill bg-wfh px-3 py-1 text-xs font-semibold text-wfh-ink">
+            Two-step verified
+          </span>
+        </div>
+        <button data-testid="system-signout" type="button" className={smallSecondaryButtonClass} onClick={onSignOut}>
+          Sign out
+        </button>
+      </div>
+
+      <section className="flex flex-col gap-4">
+        <div className="flex items-center justify-between gap-3">
+          <h2 className="text-lg font-bold text-ink">
+            Orgs {orgs ? <span className="font-normal text-ink-3">{orgs.length}</span> : null}
+          </h2>
+          <button
+            data-testid="system-org-new"
+            type="button"
+            className={smallPrimaryButtonClass}
+            onClick={() => setForm({ kind: "create" })}
+          >
+            New org
+          </button>
+        </div>
+        {/* One form at a time; the key remounts the edit form when another org's Edit is pressed. */}
+        {form?.kind === "create" ? <CreateOrgForm onDone={done} onCancel={() => setForm(null)} /> : null}
+        {form?.kind === "edit" ? (
+          <EditOrgForm key={form.org.id} org={form.org} onDone={done} onCancel={() => setForm(null)} />
+        ) : null}
+        {list}
+      </section>
+    </div>
+  );
+}
 
 function CodeForm({
   onSubmit,
@@ -233,26 +617,7 @@ function SystemPanel(): JSX.Element {
       </div>
     );
   } else {
-    screen = (
-      <div data-testid="system-signed-in" className="flex flex-col gap-3">
-        <h1 className="text-xl font-bold text-ink">System panel</h1>
-        <p className="text-ink-2">
-          Signed in as <span data-testid="system-signed-in-email">{gate.email}</span>
-        </p>
-        <span className="self-start rounded-pill bg-wfh px-3 py-1 text-xs font-semibold text-wfh-ink">
-          Two-step verified
-        </span>
-        <p className="py-6 text-center text-ink-3">Nothing to manage here yet.</p>
-        <button
-          data-testid="system-signout"
-          type="button"
-          className="w-full rounded-pill bg-field px-4 py-3 font-semibold text-ink"
-          onClick={() => void signOut()}
-        >
-          Sign out
-        </button>
-      </div>
-    );
+    screen = <OrgManagement email={gate.email} onSignOut={() => void signOut()} />;
   }
 
   return (
@@ -268,7 +633,7 @@ function SystemPanel(): JSX.Element {
           Demo build — data lives only in this browser and is lost when you reload the page.
         </p>
       ) : null}
-      <div className="mx-auto max-w-sm">
+      <div className={`mx-auto ${gate?.state === "signed-in" ? "max-w-4xl" : "max-w-sm"}`}>
         <p className="mb-3 text-center text-xs font-semibold tracking-wide text-ink-3 uppercase">
           CaleChip · System
         </p>

@@ -22,6 +22,14 @@ planned, sized, and safe to build** — the next stage for a row here is IN_PROG
 
 | # | Ticket | Title | Size | Depends on |
 |---|--------|-------|------|------------|
+**Empty again — `MIR-18-b` left this section for `## ARCHIVE` at its own ship on 2026-11-05.** The hardening slice `MIR-18-c` stays at `BACKLOG`; the shared `MIR-18` row in `features.md` stays `PLANNED` until MIR-18-c ships.
+
+**`MIR-18-b` was at `REVIEW` in `ticket.yaml`, `gates.review` passed** — recorded at /advance on 2026-11-05 from `04-review.md` (`produced_at: 2026-11-05T05:04:30Z`): `gate: PASS`, `verdict: PASS`, `invariant_violation: false`, `route_to: none`. `state` stays `REVIEW`; `/ship` sets `DONE` and moves the row to `## ARCHIVE`.
+
+**`MIR-18-b` was at `REVIEW` in `ticket.yaml`, `gates.review` not yet passed** — recorded at /advance on 2026-11-05 from `03-impl-log.md` gate PASS (`produced_at: 2026-11-05T02:27:01Z`). The row stays here until `/ship` moves it to `## ARCHIVE`.
+
+**`MIR-18-b` moved here at /advance on 2026-11-05**, from `01-plan.md` gate PASS (`produced_at: 2026-11-05T01:36:00Z`) with all six Definition of Ready items passing; `schema_delta` cites [ADR-075](../registry/decisions/ADR-075-a-system-admin-manages-orgs-through-three-aal2-gated-rpcs.md) (`ACCEPTED by tech-lead-design under the operator's delegation (ADR-067)`). MIR-18-b had no row in `## BACKLOG`, so no row left that table. The hardening split to `MIR-18-c`, which is at `BACKLOG`.
+
 **Empty again — `MIR-18` left this section for `## ARCHIVE` at its own ship on 2026-11-05.** Its second slice `MIR-18-b` stays at `BACKLOG`; the shared `MIR-18` row in `features.md` stays `PLANNED` until MIR-18-b ships.
 
 **`MIR-18` was at `REVIEW` in `ticket.yaml`, `gates.review` passed** — recorded at /advance on 2026-11-05 from `04-review.md` (`produced_at: 2026-11-05T01:02:31Z`): `gate: PASS`, `verdict: PASS`, `invariant_violation: false`, `route_to: none`. `state` stays `REVIEW`; `/ship` sets `DONE` and moves the row to `## ARCHIVE`.
@@ -1611,26 +1619,28 @@ các tính năng mới và đưa vào backlog"*. The four solo rows registered e
 
 | # | Ticket | Title | Shipped | PR |
 |---|--------|-------|---------|-----|
-| 1 | TSK-03 | A member declaring PTO is warned about their own tasks on those days, without being stopped | 2026-10-17 | [#155](https://github.com/didi-code0980/calechip/pull/155) |
-| 2 | TSK-04 | The week view shows, in each day's header, how many of the viewer's own tasks are done out of the total | 2026-10-18 | [#156](https://github.com/didi-code0980/calechip/pull/156) |
-| 3 | TSK-06 | The task page shows the week around the selected day, with progress, and a task may carry an optional time of day | 2026-10-18 | PENDING_PR |
-| 4 | MIR-02 | A member's own role, status and team can be changed only through bounded, definer-checked paths | 2026-10-20 | [#165](https://github.com/didi-code0980/calechip/pull/165) |
-| 5 | MIR-03 | Role changes are bounded to members the admin administers, promotion to admin is a separately gated action, and every role change records its actor | 2026-10-20 | [#166](https://github.com/didi-code0980/calechip/pull/166) |
-| 6 | MIR-04 | The member directory returns only members of the caller's own teams, and the event-invitee check is audited | 2026-10-21 | [#167](https://github.com/didi-code0980/calechip/pull/167) |
-| 7 | MIR-01 | The service role key and the anon key are rotated, and the rotation is recorded | 2026-10-21 | [#168](https://github.com/didi-code0980/calechip/pull/168) |
-| 8 | MIR-05 | pgTAP runs locally and in CI against a real Postgres with every migration applied | 2026-10-21 | [#170](https://github.com/didi-code0980/calechip/pull/170) |
-| 9 | MIR-06 | An SQL isolation suite proves each boundary as a real authenticated role against real policies | 2026-10-23 | [#171](https://github.com/didi-code0980/calechip/pull/171) |
-| 10 | MIR-07 | The mock is no looser than SQL on any permission decision, and a parity test enforces it | 2026-10-23 | PENDING_PR |
-| 11 | MIR-08 | `supabase/db.sql` is regenerated from the applied migrations or retired, and CI fails on drift | 2026-10-23 | PENDING_PR |
-| 12 | MIR-09 | Known schema inconsistencies are cleaned up: transaction wrapping, allow-list references, an index on `member.team_id`, a check on the overload threshold | 2026-10-27 | PENDING_PR |
-| 13 | MIR-10 | The org and multi-team membership schema is designed and approved before any migration | 2026-10-27 | PENDING_PR |
-| 14 | MIR-11 | Composite foreign keys make a cross-org insert impossible at the database | 2026-10-27 | PENDING_PR |
-| 15 | MIR-12 | `org_id` is added and backfilled into Org public, `membership` is backfilled from `member.team_id`, and `member.team_id` is dropped last | 2026-11-01 | PENDING_PR |
-| 16 | MIR-13 | The policy layer is rewritten against `membership` and `org_id`, and no definer function trusts a client-supplied team id alone — write slice (ADR-071) | 2026-11-03 | [#185](https://github.com/didi-code0980/calechip/pull/185) |
-| 17 | MIR-13-b | Every read policy and read definer function resolves teams through `member_team_ids` and is bounded by `org_id`, and `getTeam()` and the overload warning survive a member on several teams | 2026-11-03 | [#186](https://github.com/didi-code0980/calechip/pull/186) |
-| 18 | MIR-14 | A multi-team member's entry needs approval if any of their teams requires it, the first decision wins, any rejection rejects, and both approver and rejecter are recorded | 2026-11-03 | [#187](https://github.com/didi-code0980/calechip/pull/187) |
-| 19 | MIR-14-b | Each relevant manager's worklist shows a multi-team member's pending entry with the owner's name and the teams it affects, and the decision records are shown | 2026-11-04 | [#188](https://github.com/didi-code0980/calechip/pull/188) |
-| 20 | MIR-18 | A separate system admin panel, unindexed, with its own account store, 2FA and org management — first slice (ADR-074) | 2026-11-05 | PENDING_PR |
+| 1 | TSK-04 | The week view shows, in each day's header, how many of the viewer's own tasks are done out of the total | 2026-10-18 | [#156](https://github.com/didi-code0980/calechip/pull/156) |
+| 2 | TSK-06 | The task page shows the week around the selected day, with progress, and a task may carry an optional time of day | 2026-10-18 | PENDING_PR |
+| 3 | MIR-02 | A member's own role, status and team can be changed only through bounded, definer-checked paths | 2026-10-20 | [#165](https://github.com/didi-code0980/calechip/pull/165) |
+| 4 | MIR-03 | Role changes are bounded to members the admin administers, promotion to admin is a separately gated action, and every role change records its actor | 2026-10-20 | [#166](https://github.com/didi-code0980/calechip/pull/166) |
+| 5 | MIR-04 | The member directory returns only members of the caller's own teams, and the event-invitee check is audited | 2026-10-21 | [#167](https://github.com/didi-code0980/calechip/pull/167) |
+| 6 | MIR-01 | The service role key and the anon key are rotated, and the rotation is recorded | 2026-10-21 | [#168](https://github.com/didi-code0980/calechip/pull/168) |
+| 7 | MIR-05 | pgTAP runs locally and in CI against a real Postgres with every migration applied | 2026-10-21 | [#170](https://github.com/didi-code0980/calechip/pull/170) |
+| 8 | MIR-06 | An SQL isolation suite proves each boundary as a real authenticated role against real policies | 2026-10-23 | [#171](https://github.com/didi-code0980/calechip/pull/171) |
+| 9 | MIR-07 | The mock is no looser than SQL on any permission decision, and a parity test enforces it | 2026-10-23 | PENDING_PR |
+| 10 | MIR-08 | `supabase/db.sql` is regenerated from the applied migrations or retired, and CI fails on drift | 2026-10-23 | PENDING_PR |
+| 11 | MIR-09 | Known schema inconsistencies are cleaned up: transaction wrapping, allow-list references, an index on `member.team_id`, a check on the overload threshold | 2026-10-27 | PENDING_PR |
+| 12 | MIR-10 | The org and multi-team membership schema is designed and approved before any migration | 2026-10-27 | PENDING_PR |
+| 13 | MIR-11 | Composite foreign keys make a cross-org insert impossible at the database | 2026-10-27 | PENDING_PR |
+| 14 | MIR-12 | `org_id` is added and backfilled into Org public, `membership` is backfilled from `member.team_id`, and `member.team_id` is dropped last | 2026-11-01 | PENDING_PR |
+| 15 | MIR-13 | The policy layer is rewritten against `membership` and `org_id`, and no definer function trusts a client-supplied team id alone — write slice (ADR-071) | 2026-11-03 | [#185](https://github.com/didi-code0980/calechip/pull/185) |
+| 16 | MIR-13-b | Every read policy and read definer function resolves teams through `member_team_ids` and is bounded by `org_id`, and `getTeam()` and the overload warning survive a member on several teams | 2026-11-03 | [#186](https://github.com/didi-code0980/calechip/pull/186) |
+| 17 | MIR-14 | A multi-team member's entry needs approval if any of their teams requires it, the first decision wins, any rejection rejects, and both approver and rejecter are recorded | 2026-11-03 | [#187](https://github.com/didi-code0980/calechip/pull/187) |
+| 18 | MIR-14-b | Each relevant manager's worklist shows a multi-team member's pending entry with the owner's name and the teams it affects, and the decision records are shown | 2026-11-04 | [#188](https://github.com/didi-code0980/calechip/pull/188) |
+| 19 | MIR-18 | A separate system admin panel, unindexed, with its own account store, 2FA and org management — first slice (ADR-074) | 2026-11-05 | [#189](https://github.com/didi-code0980/calechip/pull/189) |
+| 20 | MIR-18-b | A system admin lists, creates and edits orgs — caps and licence state — from the panel, which is served unindexed at an unguessable path with rate limiting and failed-login logging | 2026-11-05 | PENDING_PR |
+
+**The window displaced `TSK-03` at MIR-18-b's ship** — *TSK-03, A member declaring PTO is warned about their own tasks on those days, without being stopped, shipped 2026-10-17,* [#155](https://github.com/didi-code0980/calechip/pull/155)
 
 **The window displaced `TSK-02` at MIR-18's ship** — *TSK-02, Each time the app opens, a member is shown their overdue tasks and can tick them or move them all to today, shipped 2026-10-17,* [#153](https://github.com/didi-code0980/calechip/pull/153)
 

@@ -10,24 +10,33 @@ id: MIR-18-b
 title: "A system admin lists, creates and edits orgs — caps and licence state — from the panel, which is served unindexed at an unguessable path with rate limiting and failed-login logging"
 feature_ids: [MIR-18]   # split of MIR-18 (operating model § ID scheme: splits get -a, -b)
 group: MIR
-state: BACKLOG
+state: DONE
 owner: ""
 branch: ""
-size_estimate: ""     # S|M - set by tech-lead-design at PLAN; gates DoR
-size: ""              # S|M|L|XL - set by tech-lead-design at PLAN; decides splitting
+size_estimate: "M"    # S|M - set by tech-lead-design at PLAN; gates DoR. This slice; as triaged it was L
+size: "M"             # S|M|L|XL - set by tech-lead-design at PLAN; decides splitting. 9 paths; the hardening split to MIR-18-c
 depends_on: [MIR-01, MIR-02, MIR-03, MIR-04, MIR-05, MIR-06, MIR-07, MIR-08, MIR-09, MIR-10, MIR-12, MIR-18]   # MIR-18 writes public.system_admin, is_system_admin() and the panel entry
 invariants_touched: []
-allowed_paths: []
+allowed_paths:
+  - ".ai/registry/decisions/ADR-075-a-system-admin-manages-orgs-through-three-aal2-gated-rpcs.md"
+  - ".ai/standards/rbac-and-security.md"
+  - ".ai/board/tickets/MIR-18-c/ticket.yaml"
+  - "supabase/migrations/20261105120000_mir18b_org_management.sql"
+  - "supabase/tests/200-org-management.test.sql"
+  - "supabase/tests/010-catalogue.test.sql"
+  - "src/lib/data/system.ts"
+  - "src/system/main.tsx"
+  - "tests/e2e/mir-18-b-org-management.spec.ts"
 glossary_owed: []
-schema_delta: "TODO(plan): set at PLAN — org reads and writes for a system admin, and the national-holiday seed on org creation (ADR-070 § 4)"
-requires_adr: false
+schema_delta: "non-none — new nullable column public.org.licence_expires_at; security definer functions list_orgs(), create_org(text,text,text), update_org(uuid,text,integer,integer,text,date), each gated on is_system_admin(); create_org copies Org public's holiday rows. ADR-075"
+requires_adr: true    # ADR-075, ACCEPTED under ADR-067 at /plan MIR-18-b
 rework_count: 0
 chat_budget:
   developer->tech-lead-design: { used: 0, max: 6 }
 tracker: { provider: "", external_id: "", sync_enabled: false }
 gates:
-  plan:   { passed: false, at: null }
-  review: { passed: false, at: null }
+  plan:   { passed: true, at: "2026-11-05T01:43:16Z" }
+  review: { passed: true, at: "2026-11-05T05:06:03Z" }
 
 # --- MIR extra fields ---------------------------------------------------------------------------
 # Not in .ai/templates/ticket.yaml. Added for the multi-tenancy plan; nothing in scripts/ reads them.
