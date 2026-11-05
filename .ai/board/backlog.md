@@ -22,6 +22,10 @@ planned, sized, and safe to build** — the next stage for a row here is IN_PROG
 
 | # | Ticket | Title | Size | Depends on |
 |---|--------|-------|------|------------|
+| 1 | MIR-21 | `member.team_id` is dropped once every reader has moved to `membership` — read slice (ADR-076, roster team) | M | — |
+
+**`MIR-21` moved here at /advance on 2026-11-05**, from `01-plan.md` gate PASS (`produced_at: 2026-11-05T09:32:02Z`) with all six Definition of Ready items passing; `schema_delta` cites [ADR-076](../registry/decisions/ADR-076-a-members-roster-team-is-read-from-membership-and-mir-21-splits-reads-first.md) (`ACCEPTED by tech-lead-design under the operator's delegation (ADR-067)`). MIR-21 had no row in `## BACKLOG`, so no row left that table. Writers and the drop split to `MIR-21-b`, at `BACKLOG`. **Open: number collision.** PR #191 (MIR-15, unmerged) also carries an `ADR-076` and a `supabase/tests/210-*` file; whichever merges second holds a duplicate ADR number. Not repaired here — the ADR is registry plane and the plan is an artifact.
+
 **Empty again — `MIR-18-b` left this section for `## ARCHIVE` at its own ship on 2026-11-05.** The hardening slice `MIR-18-c` stays at `BACKLOG`; the shared `MIR-18` row in `features.md` stays `PLANNED` until MIR-18-c ships.
 
 **`MIR-18-b` was at `REVIEW` in `ticket.yaml`, `gates.review` passed** — recorded at /advance on 2026-11-05 from `04-review.md` (`produced_at: 2026-11-05T05:04:30Z`): `gate: PASS`, `verdict: PASS`, `invariant_violation: false`, `route_to: none`. `state` stays `REVIEW`; `/ship` sets `DONE` and moves the row to `## ARCHIVE`.

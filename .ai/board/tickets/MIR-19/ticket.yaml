@@ -11,7 +11,7 @@ owner: ""
 branch: ""
 size_estimate: ""     # S|M - set by tech-lead-design at PLAN; gates DoR
 size: ""              # S|M|L|XL - set by tech-lead-design at PLAN; decides splitting
-depends_on: [MIR-01, MIR-02, MIR-03, MIR-04, MIR-10, MIR-11, MIR-12, MIR-13, MIR-14, MIR-15, MIR-18, MIR-21]   # "Blocked by" — the MIR IDs that must be DONE first
+depends_on: [MIR-01, MIR-02, MIR-03, MIR-04, MIR-10, MIR-11, MIR-12, MIR-13, MIR-14, MIR-15, MIR-18, MIR-21, MIR-21-b]   # "Blocked by" — the MIR IDs that must be DONE first. MIR-21-b added 2026-11-05 at /plan MIR-21 (ADR-076 decision 6)
 invariants_touched: []
 allowed_paths: []
 glossary_owed: []
