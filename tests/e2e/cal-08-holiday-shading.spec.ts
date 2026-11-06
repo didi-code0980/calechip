@@ -122,6 +122,23 @@ async function signIn(page: Page, email: string): Promise<void> {
   await page.getByTestId("sign-in-submit").click();
 }
 
+/**
+ * MIR-15-e, ADR-079 decision 5. Since MIR-15-b an admin of Org public is refused every holiday
+ * write (`and not public.org_is_shared(org_id)` on all three policies), and the two tests below
+ * that call `addHoliday` need that write to succeed — so Quan is placed in the mock's dedicated
+ * org, through `DEDICATED_ORG_STORAGE_KEY` (`src/lib/data/mock.ts`), read once at module load.
+ * MUST BE CALLED BEFORE THE FIRST `page.goto` (here, inside `openAs`) — the same ordering
+ * constraint `signOutIfSignedIn`'s neighbour `openAs` already has for the session key.
+ */
+async function placeAdminInDedicatedOrg(page: Page): Promise<void> {
+  await page.addInitScript(() => {
+    localStorage.setItem(
+      "calechip.mock.dedicatedOrgMembers",
+      JSON.stringify(["22222222-2222-4222-8222-222222222222"]),
+    );
+  });
+}
+
 /** Walks history back to an address. `page.goBack()` replays a react-router history entry, which is
  *  a popstate and not a reload — a `page.goto` would reset the mock's module state and lose both the
  *  session and every row the test had added. */
@@ -357,6 +374,7 @@ test.describe("CAL-08 — holidays and bridge days in the calendar views", () =>
   test("AC-9 and AC-10: a holiday changes no count, and an overloaded holiday keeps both signals", async ({
     page,
   }) => {
+    await placeAdminInDedicatedOrg(page);
     await openAs(page, "month", ADMIN_EMAIL, "/month/2026-09");
 
     // Before anything is changed: one person is away on the 14th, the 15th and the 16th, and no day
@@ -516,6 +534,7 @@ test.describe("CAL-08 — holidays and bridge days in the calendar views", () =>
   });
 
   test("AC-14: the month grid's out-of-month cells carry no day status", async ({ page }) => {
+    await placeAdminInDedicatedOrg(page);
     await openAs(page, "month", ADMIN_EMAIL, "/month/2026-09");
 
     // A holiday on the last day of September, which is one of October's LEADING cells — the fixture

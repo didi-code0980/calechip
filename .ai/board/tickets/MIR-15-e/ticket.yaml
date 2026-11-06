@@ -8,7 +8,7 @@ id: MIR-15-e
 title: "The member app stops offering holiday edits in Org public, and the mock seam reproduces Org public's holiday policies"
 feature_ids: [MIR-15]   # split of MIR-15 (operating model § ID scheme: splits get -a, -b)
 group: MIR
-state: READY
+state: REVIEW
 owner: ""
 branch: ""
 size_estimate: "M"   # S|M - set by tech-lead-design at PLAN; gates DoR

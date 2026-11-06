@@ -33,8 +33,13 @@ import { expect, test, type Page } from "@playwright/test";
 // supabase/migrations/20260905120100_adm02_holiday_seed.sql, which a human fills and applies.
 //
 // `holiday_select_all` (`using (true)`) and `grant select on public.holiday to authenticated` are
-// the real mechanisms behind AC-1, AC-2, AC-6, AC-7 and AC-14. This suite observes the mock's
+// the real mechanisms behind AC-1, AC-2, AC-6 and AC-14. This suite observes the mock's
 // reproduction of them.
+//
+// **MIR-15-e, ADR-079 decision 3 RETIRED AC-7's OWN MECHANISM AND ITS TEST.** `holiday_select_all`
+// was replaced by `holiday_select_own_org`, so a caller with no member row — AC-7's subject — no
+// longer reads the calendar at all. What AC-7 asserted is renamed MIR-15-e AC-5 below and asserts
+// the opposite of what it used to.
 //
 // It once named a third mechanism — the ABSENCE of all three write policies — and that was AC-13,
 // which ADM-03 retired where it stood below. The two read-half objects above are untouched by that
@@ -43,15 +48,15 @@ import { expect, test, type Page } from "@playwright/test";
 // EACH TEST GETS FRESH MOCK STATE, because the mock's tables and its session live in module memory
 // and a `page.goto` reloads the module. Navigation WITHIN a test is done by clicking links, which
 // react-router handles client-side — the constraint every suite from CAL-01 onwards records. The
-// exception is the member-less caller in AC-7, who has no landing screen carrying the link and can
-// only arrive by address; the session survives that reload because the mock persists it.
+// exception is the member-less caller in MIR-15-e AC-5, who has no landing screen carrying the link
+// and can only arrive by address; the session survives that reload because the mock persists it.
 //
 // Fixtures (src/lib/fixtures.ts, mirrored in supabase/seed.sql). FOUR ROWS, ALL IN 2026, AND 2027
 // CARRIES NONE — that empty year is AC-10's fixture and it is deliberate, not an oversight.
 // - Admin:       quan@example.com       (FIXTURE_ADMIN, FIXTURE_TEAM)
 // - Member:      thanh@example.com      (FIXTURE_MEMBER, FIXTURE_TEAM)
 // - Other team:  chi@other.example.com  (FIXTURE_OTHER_TEAM_MEMBER, FIXTURE_OTHER_TEAM) — AC-14
-// - Member-less: hoa@example.com        (FIXTURE_MEMBER_LESS, no member row at all) — AC-7
+// - Member-less: hoa@example.com        (FIXTURE_MEMBER_LESS, no member row at all) — MIR-15-e AC-5
 
 const PASSWORD = "password123";
 const ADMIN_EMAIL = "quan@example.com";
@@ -202,7 +207,13 @@ test.describe("ADM-02 the national holiday calendar", () => {
     await expect(page.getByTestId("holidays-year")).toHaveCount(0);
   });
 
-  test("AC-7: a signed-in caller who is on no team still reads the calendar", async ({ page }) => {
+  // RETIRED AS "AC-7: a signed-in caller who is on no team still reads the calendar" and RENAMED by
+  // MIR-15-e, ADR-079 decision 3. `holiday_select_own_org` replaced `holiday_select_all`, so this
+  // caller — no member row at all — now reads NO row rather than the same four everybody else does,
+  // and the screen is told so rather than rendering them.
+  test("MIR-15-e AC-5: a signed-in caller with no org is told there is no calendar for them", async ({
+    page,
+  }) => {
     await signIn(page, MEMBER_LESS_EMAIL);
     await expect(page.getByTestId("not-on-a-team")).toBeVisible();
 
@@ -211,9 +222,10 @@ test.describe("ADM-02 the national holiday calendar", () => {
     // persists it (TEA-05 AC-7), which is what makes this reachable at all.
     await page.goto("/holidays/2026");
 
-    await expect(page.getByTestId("holidays-row")).toHaveCount(DATES_2026.length);
-    expect(await drawnDates(page)).toEqual(DATES_2026);
-    await expect(page.getByTestId("holidays-unavailable")).toHaveCount(0);
+    await expect(page.getByTestId("holidays-no-org")).toBeVisible();
+    await expect(page.getByTestId("holidays-row")).toHaveCount(0);
+    await expect(page.getByTestId("holidays-year")).toHaveCount(0);
+    await expect(page.getByTestId("holidays-beyond-calendar")).toHaveCount(0);
   });
 
   // QUARANTINED BUG-003 under ADR-060 — row in docs/ops/e2e-quarantine.md; do not fix here.

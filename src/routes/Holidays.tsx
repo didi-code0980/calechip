@@ -2,11 +2,13 @@
 // ADM-03 — and, for an admin, writable: add, edit, delete.
 // 01-plan.md sections 2, 2b, 3, 4.2, 4.4 and 4.5.
 //
-// **IT IS THE ONLY SCREEN IN THE PRODUCT THAT READS A TABLE WITH NO TEAM.** `holiday` carries no
-// `team_id` and `holiday_select_all` is `using (true)` (ADR-015 section 1), so there is nothing here
-// to scope and nothing here to narrow: a member, an admin and a signed-in caller with no member row
-// all see the same rows (ADM-02 AC-2, AC-7, AC-14; ADM-03 AC-18). The three write policies carry no
-// team conjunct either, which is the same fact one operation over.
+// **MIR-15-e, ADR-079.** `holiday` NOW CARRIES AN ORG, and the read this screen makes is
+// `holiday_select_own_org` (ADR-079 decision 3), not the `holiday_select_all` this comment used to
+// cite: a caller reads only their own org's rows, and a caller with no org — no member row,
+// pending, or removed — reads none and is told so (AC-5) rather than seeing an empty year. The gate
+// below the controls are drawn under now also tests `!orgShared` (ADR-079 decision 2): an Org
+// public admin is shown the calendar and told who sets it (AC-1, AC-2), and a dedicated org's admin
+// keeps all three controls exactly as an admin always has (AC-3).
 //
 // **THE READ HALF IS UNCHANGED BY ADM-03.** Every selector ADM-02 shipped keeps its name and its
 // position, the one `listHolidays` call is the same call, and the loading, unavailable and
@@ -16,11 +18,11 @@
 // **WHAT ADM-03 ADDS IS AN AFFORDANCE, AND THE CONTROL IS IN THE DATASTORE.** `getCurrentMember()`
 // is called here for the ROLE and nothing else. ADM-02's comment said this screen deliberately does
 // not call it, and the reason it gave was that "you are not on a team" is not a true thing to say
-// about a national calendar — that is about the not-on-a-team PHASE, which is still not added: a
-// caller with no member row keeps reading the calendar in full and is simply offered no controls
-// (AC-14, AC-18). Hiding the controls stops nobody: `holiday_insert_admin`,
-// `holiday_update_admin`, `holiday_delete_admin` and the write grant are the control, and AC-15
-// exists to prove that removing the affordance changes nothing.
+// about a national calendar — that is about the not-on-a-team PHASE, which MIR-15-e adds for a
+// different reason: a caller with no org now reads no row at all (AC-5), rather than the whole
+// calendar with no controls that every other caller still gets (AC-14, AC-18). Hiding the controls
+// stops nobody: `holiday_insert_admin`, `holiday_update_admin`, `holiday_delete_admin` and the write
+// grant are the control, and AC-15 exists to prove that removing the affordance changes nothing.
 //
 // **IT STILL COMPUTES NO BRIDGE DAY.** ADR-015 section 4's three-input derivation is CAL-08's,
 // together with the shading in the calendar views, and its central definition — what *sandwiched*
@@ -88,20 +90,28 @@ const yearOf = (date: string): string => date.slice(0, 4);
 // The screen.
 // ---------------------------------------------------------------------------
 
-// Three phases, and the empty year is a fourth case INSIDE `ready` rather than a phase of its own —
+// Four phases now. The empty year is still a case INSIDE `ready` rather than a phase of its own —
 // because it is not a different fact about the read, it is a different fact about the calendar
-// (AC-10). "Still loading" and "the read failed" are the two that must never be folded into it: a
+// (AC-10). "Still loading" and "the read failed" are two that must never be folded into it: a
 // year drawn from a failed or possibly-truncated read looks exactly like an under-seeded one, and
 // telling those apart is the whole of AC-11 and AC-12.
 //
-// ADM-03 ADDS `me` TO `ready` AND NO FOURTH PHASE. There is deliberately no `refused` phase the way
-// `AllowList.tsx` has one: a member reads this calendar in full, so the role decides which CONTROLS
-// are drawn and never whether the screen is drawn (AC-14, AC-18). `null` covers both "no member row"
-// and "the member read failed", and both mean the same thing here — no controls, whole calendar.
+// ADM-03 ADDED `me` TO `ready` AND NO FOURTH PHASE, on the reasoning that a member reads this
+// calendar in full, so the role only ever decided which CONTROLS are drawn and never whether the
+// screen is drawn. MIR-15-e ADDS THE FOURTH PHASE, `no-org`, because that reasoning stopped being
+// true at MIR-15-b: `holiday_select_own_org` reads nothing for a caller with no org (no member row,
+// pending, or removed — AC-5), so there is no calendar for the screen to draw controls under in the
+// first place. `null` on `ready.me` still means only "the member read failed", which keeps today's
+// whole-calendar-no-controls behaviour for that one failure case (AC-6's reasoning mirrored).
 type View =
   | { phase: "loading" }
   | { phase: "unavailable" } // a throw from the read, including the truncation refusal
-  | { phase: "ready"; holidays: Holiday[]; me: Member | null };
+  | { phase: "no-org" } // MIR-15-e AC-5: the member read resolved to no org to read a calendar for
+  | { phase: "ready"; holidays: Holiday[]; me: Member | null; orgShared: OrgShared };
+
+/** MIR-15-e. "unknown" is a failed read: no control (AC-6) and no system-admin line, since the line
+ *  would then be a claim nothing established. */
+type OrgShared = "yes" | "no" | "unknown";
 
 export default function Holidays() {
   const { year } = useParams<{ year: string }>();
@@ -143,10 +153,39 @@ export default function Holidays() {
     // could not tell who you are" the same screen, and only one of those is a reason to withhold a
     // national calendar.
     let me: Member | null;
+    let memberReadFailed = false;
     try {
       me = await seam.getCurrentMember();
     } catch {
       me = null;
+      memberReadFailed = true;
+    }
+
+    // MIR-15-e AC-5. A caller with no org to read a calendar for — no member row, pending, or
+    // removed — is told so directly rather than seeing an empty year, because after MIR-15-b
+    // `holiday_select_own_org` reads them nothing (`member_org_id` is null for exactly these three
+    // cases). `listHolidays` is not called. A FAILED member read is NOT this case: "we could not
+    // tell who you are" keeps today's behaviour, the whole calendar with no controls, the same
+    // reasoning AC-6 uses below for a failed org-shared read.
+    if (!memberReadFailed && (me === null || me.status !== "approved" || me.removedAt !== null)) {
+      setView({ phase: "no-org" });
+      return;
+    }
+
+    // MIR-15-e, ADR-079 decision 2. Whether the caller's org is Org public, asked only for an admin
+    // — a member's controls are already hidden by role alone, so the extra read would add a failure
+    // mode to a path no criterion needs it on (01-plan.md § 8). AC-6: a throw answers "unknown"
+    // rather than a guess, so a failed read shows no control and no system-admin line, never three
+    // controls the database would refuse.
+    let orgShared: OrgShared;
+    if (me?.role === "admin") {
+      try {
+        orgShared = (await seam.isOwnOrgShared()) ? "yes" : "no";
+      } catch {
+        orgShared = "unknown";
+      }
+    } else {
+      orgShared = "no";
     }
 
     try {
@@ -155,7 +194,7 @@ export default function Holidays() {
       // threshold to compare against. Either would be the first step toward a derivation this ticket
       // has not designed.
       const holidays = await seam.listHolidays(range);
-      setView({ phase: "ready", holidays, me });
+      setView({ phase: "ready", holidays, me, orgShared });
     } catch {
       // AC-11 and AC-12. The read throws on a transport failure AND on a possibly-truncated answer
       // (`HOLIDAY_LIMIT`). This branch is the refusal: no calendar at all, rather than one missing
@@ -207,13 +246,33 @@ export default function Holidays() {
     );
   }
 
+  // MIR-15-e AC-5. The same centred card `holidays-unavailable` uses, WITHOUT `role="alert"` — this
+  // is a state, a fact about the caller's account, and not a failure the way a truncated or
+  // transport-failed read is.
+  if (view.phase === "no-org") {
+    return (
+      <p
+        data-testid="holidays-no-org"
+        className="mx-auto max-w-md rounded-2xl bg-white p-8 text-center text-sm shadow-sm"
+      >
+        Your account is not in an organisation yet, so there is no holiday calendar to show.
+      </p>
+    );
+  }
+
   const anchorYear = year as string;
-  const { holidays, me } = view;
+  const { holidays, me, orgShared } = view;
 
   // AC-14. THE ONE CONDITION EVERY CONTROL BELOW IS DRAWN UNDER. A member, and a signed-in caller
   // with no member row, get the calendar and nothing to press. It is an affordance and never the
   // check — the three policies are the check, and AC-15 is the test that says so.
-  const mayWrite = me !== null && me.removedAt === null && me.role === "admin";
+  //
+  // MIR-15-e, ADR-079 decision 2 adds `orgShared === "no"`: an Org public admin (`orgShared ===
+  // "yes"`) and a failed org-shared read (`"unknown"`, AC-6) now draw no control either, matching
+  // `holiday_insert_admin`'s, `holiday_update_admin`'s and `holiday_delete_admin`'s own
+  // `and not public.org_is_shared(org_id)` conjunct.
+  const mayWrite =
+    me !== null && me.removedAt === null && me.role === "admin" && orgShared === "no";
 
   // AC-1, AC-2. The add form's own handler. The seam returns the stored row, so the year it landed
   // in is read back from the datastore rather than assumed to be the one on screen (AC-4).
@@ -290,6 +349,14 @@ export default function Holidays() {
           Next
         </Link>
       </header>
+
+      {/* MIR-15-e AC-2. Exactly where the Add form sits for a writing admin, so an Org public
+          admin sees this line in the place they would look for the control they do not have. */}
+      {me?.role === "admin" && orgShared === "yes" ? (
+        <p data-testid="holidays-set-by-system" className="text-sm opacity-70">
+          Org public&rsquo;s holiday calendar is set by a system admin.
+        </p>
+      ) : null}
 
       {/* ADM-03 AC-1, AC-2, AC-3, AC-5. Above the list, because adding is what an admin comes here
           to do and the list is what they check afterwards. `kind` opens on `non_working`, which is

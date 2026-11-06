@@ -1433,9 +1433,18 @@ function toHolidayFailure(error: PostgrestError, refusal: string): Failure {
 // EACH NAMES THE CALENDAR AS AN ADMIN'S TO CHANGE rather than saying "not permitted", because the
 // only caller who can reach one of these through the interface is somebody who bypassed a control
 // that was never rendered for them (AC-14, AC-15).
-const HOLIDAY_ADD_REFUSED = "Only an admin can add to the holiday calendar.";
-const HOLIDAY_UPDATE_REFUSED = "Only an admin can change the holiday calendar.";
-const HOLIDAY_DELETE_REFUSED = "Only an admin can remove a day from the holiday calendar.";
+//
+// MIR-15-e, ADR-079 decision 5. Each sentence now also names Org public's exception: since
+// MIR-15-b `holiday_insert_admin`, `holiday_update_admin` and `holiday_delete_admin` each carry
+// `and not public.org_is_shared(org_id)`, so an admin of Org public reaches this refusal through the
+// interface too (AC-1), and "Only an admin can …" alone would then be false for the person reading
+// it.
+const HOLIDAY_ADD_REFUSED =
+  "Only an admin can add to the holiday calendar, and in Org public only a system admin can.";
+const HOLIDAY_UPDATE_REFUSED =
+  "Only an admin can change the holiday calendar, and in Org public only a system admin can.";
+const HOLIDAY_DELETE_REFUSED =
+  "Only an admin can remove a day from the holiday calendar, and in Org public only a system admin can.";
 
 // The three refusal sentences, one per verb, held here so the two implementations of the seam can
 // carry the same words — mock.ts repeats these literals for the same reason src/lib/fixtures.ts and
@@ -2880,9 +2889,11 @@ export const seam: DataSeam = {
   // `gte`/`lte`, INCLUSIVE AT BOTH ENDS, matching `DateRange` everywhere else on this seam.
   //
   // NO TEAM FILTER, and this is the one read in this file where that is correct rather than a gap.
-  // `holiday_select_all` is `using (true)` because a holiday row carries no member, no team and no
-  // personal data (AC-14). A reviewer under check R6 should read the absence of `.eq("team_id", …)`
-  // against the migration's own comment rather than against the other reads here.
+  // MIR-15-e, ADR-079 decision 3 — this comment used to say `holiday_select_all` is `using (true)`,
+  // which stopped being true at MIR-15-b: the policy is now `holiday_select_own_org`, scoping every
+  // caller to their own org's rows rather than every row. There is still no `.eq("team_id", …)`
+  // here because `holiday` has no team column (ADR-015 section 1) and never did; the org scope is
+  // the policy's `using` clause and not a filter this function adds.
   //
   // ORDER FIXED ABOVE THE DATASTORE, in both implementations, for the reason
   // src/lib/data/absence.ts already records: tests/seam-parity.test.ts compares names and arity and
@@ -3012,6 +3023,25 @@ export const seam: DataSeam = {
     }
 
     return { ok: true, value: undefined };
+  },
+
+  // MIR-15-e, ADR-079 decision 5. `public.member_org_id` for the signed-in user, then
+  // `public.org_is_shared` on it. `false` for no session, no member row, or a member not approved
+  // or removed — `member_org_id` returns null for each of those and `org_is_shared(null)` is false.
+  // An affordance for `/holidays` only; the write policies above are the control, and this function
+  // THROWS on any transport failure rather than guessing, so a caller fails closed (AC-6).
+  async isOwnOrgShared(): Promise<boolean> {
+    const { data: auth } = await client().auth.getUser();
+    const uid = auth.user?.id;
+    if (!uid) return false;
+
+    const { data: orgId, error: orgError } = await client().rpc("member_org_id", { p_uid: uid });
+    if (orgError) throw new Error(`isOwnOrgShared failed: ${orgError.message}`);
+    if (orgId === null) return false;
+
+    const { data: shared, error } = await client().rpc("org_is_shared", { p_org_id: orgId });
+    if (error) throw new Error(`isOwnOrgShared failed: ${error.message}`);
+    return shared === true;
   },
 
   // -------------------------------------------------------------------------
