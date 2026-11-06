@@ -24,6 +24,8 @@ planned, sized, and safe to build** — the next stage for a row here is IN_PROG
 |---|--------|-------|------|------------|
 | 1 | MIR-21-c | `member.team_id`, `member_team_id()` and the mirror's insert branch are dropped, and nothing names the column — team-lock slice (ADR-079) | S | MIR-01..MIR-10, MIR-12, MIR-13, MIR-13-b, MIR-21, MIR-21-b (all DONE) |
 
+**`MIR-21-c` is at `REVIEW` in `ticket.yaml`, `gates.review` not yet passed** — recorded at /advance on 2026-11-06 from `03-impl-log.md` gate PASS (`produced_at: 2026-11-06T10:21:35+07:00`); `/implement` had already set `state: REVIEW`. The row stays here until `/ship` moves it to `## ARCHIVE`.
+
 **`MIR-21-c` moved here at /advance on 2026-11-06**, from `01-plan.md` gate PASS (`produced_at: 2026-11-06T02:37:30Z`) with all six Definition of Ready items passing; `schema_delta` cites [ADR-079](../registry/decisions/ADR-079-the-team-lock-moves-to-membership-first-and-the-drop-splits-into-four-slices.md) (`ACCEPTED by tech-lead-design under the operator's delegation (ADR-067)`). PLAN split the drop into `MIR-21-d`, `MIR-21-e` and `MIR-21-f` (BACKLOG). MIR-21-c had no row in `## BACKLOG`, so no row left that table.
 
 **Empty again — `MIR-21-b` left this section for `## ARCHIVE` at its own ship on 2026-11-05.** Its drop slice `MIR-21-c` stays at `BACKLOG`; the shared `MIR-21` row in `features.md` stays `PLANNED` until MIR-21-c ships.

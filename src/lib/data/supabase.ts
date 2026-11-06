@@ -1213,10 +1213,12 @@ async function setRankThroughRpc(
   role: MemberRole,
   refusal: string,
 ): Promise<Result<Member>> {
-  const { data, error } = await client().rpc("set_member_role", {
-    p_member_id: memberId,
-    p_role: role,
-  });
+  // MIR-21-c, ADR-079 decision 1. The column is about to go stale, so `team_id` is the roster team:
+  // `MEMBER_COLUMNS` reads it through the computed field over the returned row.
+  const { data, error } = await client()
+    .rpc("set_member_role", { p_member_id: memberId, p_role: role })
+    .select(MEMBER_COLUMNS)
+    .single<MemberRow>();
 
   if (error) return { ok: false, error: toRankFailure(error, refusal) };
   if (!isMemberRow(data)) return { ok: false, error: { code: "unknown", message: refusal } };
@@ -1839,10 +1841,12 @@ export const seam: DataSeam = {
   //
   // A 42501 is the refusal; the row guard stops a body of some other shape being read as a member.
   async setMemberTeam(memberId: string, teamId: string): Promise<Result<Member>> {
-    const { data, error } = await client().rpc("set_member_team", {
-      p_member_id: memberId,
-      p_team_id: teamId,
-    });
+    // MIR-21-c, ADR-079 decision 1. The column is about to go stale, so `team_id` is the roster
+    // team: `MEMBER_COLUMNS` reads it through the computed field over the returned row.
+    const { data, error } = await client()
+      .rpc("set_member_team", { p_member_id: memberId, p_team_id: teamId })
+      .select(MEMBER_COLUMNS)
+      .single<MemberRow>();
 
     if (error) return { ok: false, error: toTeamFailure(error, "That member could not be moved.") };
     if (!isMemberRow(data)) {
@@ -1855,7 +1859,12 @@ export const seam: DataSeam = {
   // goes through `set_member_role`, which now refuses `admin`. A `42501` is the refusal, the same as
   // the rank write's, so `toRankFailure` maps it with the promotion sentence.
   async promoteMember(memberId: string): Promise<Result<Member>> {
-    const { data, error } = await client().rpc("promote_member_to_admin", { p_member_id: memberId });
+    // MIR-21-c, ADR-079 decision 1. The column is about to go stale, so `team_id` is the roster
+    // team: `MEMBER_COLUMNS` reads it through the computed field over the returned row.
+    const { data, error } = await client()
+      .rpc("promote_member_to_admin", { p_member_id: memberId })
+      .select(MEMBER_COLUMNS)
+      .single<MemberRow>();
 
     if (error) return { ok: false, error: toRankFailure(error, MEMBER_PROMOTE_REFUSED) };
     if (!isMemberRow(data)) {
