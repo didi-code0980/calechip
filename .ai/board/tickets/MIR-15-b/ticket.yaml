@@ -8,7 +8,7 @@ id: MIR-15-b
 title: "Only a system admin sets Org public's holidays, from the system panel, and each org reads only its own holiday calendar"
 feature_ids: [MIR-15]   # split of MIR-15 (operating model § ID scheme: splits get -a, -b)
 group: MIR
-state: REVIEW   # `orchestrator` at /advance, 2026-11-06, from 03-impl-log.md gate PASS
+state: DONE   # `orchestrator` at /ship, 2026-11-06
 owner: ""
 branch: ""
 size_estimate: "M"    # S|M - set by tech-lead-design at PLAN; gates DoR
