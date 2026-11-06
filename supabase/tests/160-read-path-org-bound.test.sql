@@ -263,9 +263,14 @@ insert into public.notification (recipient_id, kind, event_id, event_name, actor
 -- `event_attendance_guard` refuses a person on no team, so pending_p is on T1 for the one insert and
 -- back to a pending sign-up before anything is read.
 update public.member set status = 'approved', team_id = tests.id('team_t') where id = tests.id('pending_p');
+-- ADR-078: the mirror no longer writes on a team change, so the fixture writes the row the writers write.
+select public.membership_make_primary(tests.id('pending_p'), tests.id('team_t'));
 insert into public.event_attendance (event_id, member_id, status) values
   (tests.id('event_t_public'), tests.id('pending_p'), 'attending');
 update public.member set status = 'pending', team_id = null where id = tests.id('pending_p');
+-- ADR-078: and closes it again, as the mirror's team-change branch did on the way back.
+update public.membership set left_at = now(), is_primary = false, updated_at = now()
+ where member_id = tests.id('pending_p') and left_at is null;
 select is(
   (select count(*)::int from public.event_attendance where member_id = tests.id('pending_p')),
   1,
