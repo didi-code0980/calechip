@@ -23,7 +23,9 @@ planned, sized, and safe to build** — the next stage for a row here is IN_PROG
 | # | Ticket | Title | Size | Depends on |
 |---|--------|-------|------|------------|
 
-**Empty again — `MIR-15-b` left this section for `## ARCHIVE` at its own ship on 2026-11-06.** Its sibling slices `MIR-15-c`, `MIR-15-d` and `MIR-15-e` stay at `BACKLOG`; the shared `MIR-15` row in `features.md` stays `PLANNED` until the last of them ships.
+**`MIR-15-e` moved here at /advance on 2026-11-06**, from `01-plan.md` gate PASS (`produced_at: 2026-11-06T09:08:21Z`) with all six Definition of Ready items passing; `schema_delta: none` (confirmed at PLAN, no migration). `MIR-15-e` had no row in `## BACKLOG`, so no row left that table.
+
+**Empty again — `MIR-15-b` left this section for `## ARCHIVE` at its own ship on 2026-11-06.** Its sibling slices `MIR-15-c` and `MIR-15-d` stay at `BACKLOG`; `MIR-15-e` moved to `READY` the same day; the shared `MIR-15` row in `features.md` stays `PLANNED` until the last of them ships.
 
 **`MIR-15-b` was at `REVIEW` in `ticket.yaml`, `gates.review` passed** — recorded at /advance on 2026-11-06 from `04-review.md` (`produced_at: 2026-11-06T08:32:49Z`): `gate: PASS`, `verdict: PASS`, `invariant_violation: false`, `route_to: none`. `state` stays `REVIEW`; `/ship` sets `DONE` and moves the row to `## ARCHIVE`.
 
