@@ -22,6 +22,9 @@ planned, sized, and safe to build** — the next stage for a row here is IN_PROG
 
 | # | Ticket | Title | Size | Depends on |
 |---|--------|-------|------|------------|
+| 1 | MIR-15-b | Only a system admin sets Org public's holidays, from the system panel, and each org reads only its own holiday calendar | M | MIR-01…MIR-10, MIR-18, MIR-18-b, MIR-15 (all DONE) |
+
+**`MIR-15-b` moved here at /advance on 2026-11-06**, from `01-plan.md` gate PASS (`produced_at: 2026-11-06T04:36:00Z`) with all six Definition of Ready items passing; `schema_delta` cites [ADR-079](../registry/decisions/ADR-079-org-public-holidays-are-written-through-four-system-admin-rpcs-and-each-org-reads-only-its-own.md) (`ACCEPTED by tech-lead-design under the operator's delegation (ADR-067)`). MIR-15-b had no row in `## BACKLOG`, so no row left that table. PLAN split the member-app half to a new slice `MIR-15-e` (BACKLOG). **Number collision, unresolved.** Open PR #194 (MIR-21-c) also carries an `ADR-079`, the migration version `20261106120000` and a `supabase/tests/240-*` file; whichever merges second must renumber.
 
 **Empty again — `MIR-21-b` left this section for `## ARCHIVE` at its own ship on 2026-11-05.** Its drop slice `MIR-21-c` stays at `BACKLOG`; the shared `MIR-21` row in `features.md` stays `PLANNED` until MIR-21-c ships.
 
