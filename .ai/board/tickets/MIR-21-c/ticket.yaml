@@ -8,7 +8,7 @@ id: MIR-21-c
 title: "`member.team_id`, `member_team_id()` and the mirror's insert branch are dropped, and nothing names the column"
 feature_ids: [MIR-21]   # split of MIR-21 (operating model § ID scheme: splits get -a, -b)
 group: MIR
-state: REVIEW  # `developer` at /implement MIR-21-c, 2026-11-06, on 03-impl-log.md `gate: PASS`
+state: DONE          # `orchestrator` at /ship, 2026-11-06
 owner: ""
 branch: ""
 size_estimate: S      # set by tech-lead-design at /plan MIR-21-c, 2026-11-06 (01-plan.md § 1)
