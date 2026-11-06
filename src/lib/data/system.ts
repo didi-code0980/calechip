@@ -12,7 +12,9 @@
 // THE DATABASE IS THE CONTROL. `gate()` reaching `signed-in` is an affordance; every system-scope
 // read is gated on `public.is_system_admin()`, which requires the row AND `aal2` (ADR-074 decision 4).
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
-import type { Result } from "@/lib/domain/types";
+import type { DateRange, Holiday, HolidayKind, Result } from "@/lib/domain/types";
+import { HOLIDAY_LIMIT } from "@/lib/domain/types";
+import { FIXTURE_HOLIDAYS } from "@/lib/fixtures";
 
 /** Where a panel visitor stands. Each state is one screen (01-plan.md § 2b). */
 export type SystemGate =
@@ -46,6 +48,47 @@ export interface SystemSeam {
   createOrg(input: CreateOrgInput): Promise<OrgResult<string>>;
   /** `rpc("update_org", { p_org_id, p_name, p_max_members, p_max_teams, p_plan, p_licence_expires_on })`. Never throws. */
   updateOrg(input: UpdateOrgInput): Promise<OrgResult<null>>;
+  /** `rpc("list_national_holidays", { p_start, p_end })`, ascending, limited to HOLIDAY_LIMIT. Never throws. MIR-15-b. */
+  listNationalHolidays(range: DateRange): Promise<HolidayResult<Holiday[]>>;
+  /** `rpc("add_national_holiday", { p_date, p_name, p_kind })`. Value is the new id. Never throws. */
+  addNationalHoliday(input: NationalHolidayInput): Promise<HolidayResult<string>>;
+  /** `rpc("update_national_holiday", { p_id, p_date, p_name, p_kind })`. Never throws. */
+  updateNationalHoliday(holidayId: string, input: NationalHolidayInput): Promise<HolidayResult<null>>;
+  /** `rpc("delete_national_holiday", { p_id })`. Never throws. */
+  deleteNationalHoliday(holidayId: string): Promise<HolidayResult<null>>;
+}
+
+// =============================================================================================
+// MIR-15-b — Org public's holidays. 01-plan.md § 4.5, ADR-079.
+// =============================================================================================
+
+export interface NationalHolidayInput {
+  date: string; // yyyy-MM-dd
+  name: string; // sent as given; the RPC trims and refuses blank
+  kind: HolidayKind;
+}
+
+export type HolidayFailureCode =
+  | "not_permitted" // 42501
+  | "holiday_not_found" // P0002
+  | "holiday_date_taken" // 23505
+  | "invalid_holiday" // 22023, or the list reached HOLIDAY_LIMIT
+  | "network"; // anything else, or a throw
+
+export type HolidayResult<T> =
+  | { ok: true; value: T }
+  | { ok: false; error: { code: HolidayFailureCode; message: string } };
+
+export const HOLIDAY_FAILURE_MESSAGES: Record<HolidayFailureCode, string> = {
+  not_permitted: "You do not have permission to do that.",
+  holiday_not_found: "That day is no longer in the calendar. Reload to see the current list.",
+  holiday_date_taken: "The calendar already has a row for that date. Edit that row instead.",
+  invalid_holiday: "A date and a name are required.",
+  network: "Could not reach the server. Try again.",
+};
+
+function holidayRefusal(code: HolidayFailureCode): { ok: false; error: { code: HolidayFailureCode; message: string } } {
+  return { ok: false, error: { code, message: HOLIDAY_FAILURE_MESSAGES[code] } };
 }
 
 // =============================================================================================
@@ -261,7 +304,90 @@ const supabaseSystemSeam: SystemSeam = {
       return orgRefusal("network");
     }
   },
+
+  async listNationalHolidays(range) {
+    try {
+      const { data, error } = await client()
+        .rpc("list_national_holidays", { p_start: range.start, p_end: range.end })
+        .limit(HOLIDAY_LIMIT);
+      if (error) return holidayRefusal(holidayFailureCode(error));
+      const rows = (data ?? []) as HolidayRpcRow[];
+      // ADM-02's truncation rule for `listHolidays`: a list at the limit may be short, and a short
+      // calendar is a wrong one, so it is not shown.
+      if (rows.length >= HOLIDAY_LIMIT) return holidayRefusal("network");
+      return { ok: true, value: rows.map(toNationalHoliday) };
+    } catch {
+      return holidayRefusal("network");
+    }
+  },
+
+  async addNationalHoliday(input) {
+    try {
+      const { data, error } = await client().rpc("add_national_holiday", {
+        p_date: input.date,
+        p_name: input.name,
+        p_kind: input.kind,
+      });
+      if (error) return holidayRefusal(holidayFailureCode(error));
+      return { ok: true, value: data as string };
+    } catch {
+      return holidayRefusal("network");
+    }
+  },
+
+  async updateNationalHoliday(holidayId, input) {
+    try {
+      const { error } = await client().rpc("update_national_holiday", {
+        p_id: holidayId,
+        p_date: input.date,
+        p_name: input.name,
+        p_kind: input.kind,
+      });
+      if (error) return holidayRefusal(holidayFailureCode(error));
+      return { ok: true, value: null };
+    } catch {
+      return holidayRefusal("network");
+    }
+  },
+
+  async deleteNationalHoliday(holidayId) {
+    try {
+      const { error } = await client().rpc("delete_national_holiday", { p_id: holidayId });
+      if (error) return holidayRefusal(holidayFailureCode(error));
+      return { ok: true, value: null };
+    } catch {
+      return holidayRefusal("network");
+    }
+  },
 };
+
+/** A row of `list_national_holidays()` as PostgREST returns it. */
+interface HolidayRpcRow {
+  id: string;
+  date: string;
+  name: string;
+  kind: HolidayKind;
+  created_at: string;
+}
+
+function toNationalHoliday(row: HolidayRpcRow): Holiday {
+  return { id: row.id, date: row.date, name: row.name, kind: row.kind, createdAt: row.created_at };
+}
+
+function holidayFailureCode(error: { code?: string }): HolidayFailureCode {
+  switch (error.code) {
+    case "42501":
+      return "not_permitted";
+    case "P0002":
+      return "holiday_not_found";
+    case "23505":
+      return "holiday_date_taken";
+    case "22023":
+      return "invalid_holiday";
+    default:
+      return "network";
+  }
+}
 
 /** A row of `list_orgs()` as PostgREST returns it. */
 interface OrgRow {
@@ -348,7 +474,8 @@ let mockPendingFactorId: string | null = null;
 let mockFactorCounter = 0;
 
 // MIR-18-b. The two orgs of 01-plan.md § 2's panel table. The mock mirrors the database's checks so
-// the panel can be driven offline; it does not model holidays (AC-4 is the database's).
+// the panel can be driven offline. Of holidays it models Org public's only (MIR-15-b), and not the
+// copy `create_org` makes into a new org (MIR-18-b AC-4 is the database's).
 const MOCK_ORG_CODE_SHAPE = /^[a-z0-9]([a-z0-9-]{0,30}[a-z0-9])?$/;
 // Copied from `20261027120000_mir11_composite_foreign_keys.sql:46-58` (`org_code_not_reserved`).
 const MOCK_RESERVED_ORG_CODES: readonly string[] = [
@@ -431,6 +558,20 @@ function mockTimezoneKnown(timezone: string): boolean {
   } catch {
     return false;
   }
+}
+
+// MIR-15-b. Org public's calendar, seeded with copies of the member app's fixture rows so the panel
+// and the member mock start from the same dates.
+const mockNationalHolidays: Holiday[] = FIXTURE_HOLIDAYS.map((holiday) => ({ ...holiday }));
+let mockHolidayCounter = 0;
+
+/** `add_`/`update_national_holiday`'s value checks, then `holiday_org_id_date_key`. */
+function mockHolidayRefusal(input: NationalHolidayInput, exceptId: string | null): HolidayFailureCode | null {
+  if (input.date === "" || input.name.trim() === "") return "invalid_holiday";
+  if (mockNationalHolidays.some((holiday) => holiday.date === input.date && holiday.id !== exceptId)) {
+    return "holiday_date_taken";
+  }
+  return null;
 }
 
 function mockGate(): SystemGate {
@@ -533,6 +674,49 @@ const mockSystemSeam: SystemSeam = {
       plan,
       licenceExpiresOn: input.licenceExpiresOn,
     });
+    return { ok: true, value: null };
+  },
+
+  async listNationalHolidays(range) {
+    if (!mockMaySeeOrgs()) return holidayRefusal("not_permitted");
+    const rows = mockNationalHolidays
+      .filter((holiday) => holiday.date >= range.start && holiday.date <= range.end)
+      .sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : 0))
+      .map((holiday) => ({ ...holiday }));
+    return { ok: true, value: rows };
+  },
+
+  async addNationalHoliday(input) {
+    if (!mockMaySeeOrgs()) return holidayRefusal("not_permitted");
+    const refusal = mockHolidayRefusal(input, null);
+    if (refusal) return holidayRefusal(refusal);
+    mockHolidayCounter += 1;
+    const id = `00000000-0000-4000-8000-0000000d${String(mockHolidayCounter).padStart(4, "0")}`;
+    mockNationalHolidays.push({
+      id,
+      date: input.date,
+      name: input.name.trim(),
+      kind: input.kind,
+      createdAt: new Date().toISOString(),
+    });
+    return { ok: true, value: id };
+  },
+
+  async updateNationalHoliday(holidayId, input) {
+    if (!mockMaySeeOrgs()) return holidayRefusal("not_permitted");
+    const holiday = mockNationalHolidays.find((candidate) => candidate.id === holidayId);
+    if (!holiday) return holidayRefusal("holiday_not_found");
+    const refusal = mockHolidayRefusal(input, holidayId);
+    if (refusal) return holidayRefusal(refusal);
+    Object.assign(holiday, { date: input.date, name: input.name.trim(), kind: input.kind });
+    return { ok: true, value: null };
+  },
+
+  async deleteNationalHoliday(holidayId) {
+    if (!mockMaySeeOrgs()) return holidayRefusal("not_permitted");
+    const index = mockNationalHolidays.findIndex((candidate) => candidate.id === holidayId);
+    if (index < 0) return holidayRefusal("holiday_not_found");
+    mockNationalHolidays.splice(index, 1);
     return { ok: true, value: null };
   },
 };
