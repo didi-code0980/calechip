@@ -65,6 +65,11 @@ select set_eq(
     'public.update_org(uuid,text,integer,integer,text,date)',
     -- MIR-15 helper, 210-org-public-team-bound.test.sql
     'public.org_is_shared(uuid)',
+    -- MIR-15-b RPCs, 240-org-public-holidays.test.sql
+    'public.list_national_holidays(date,date)',
+    'public.add_national_holiday(date,text,public.holiday_kind)',
+    'public.update_national_holiday(uuid,date,text,public.holiday_kind)',
+    'public.delete_national_holiday(uuid)',
     -- guest functions, 080-guest-tokens.test.sql
     'public.get_guest_event(text)',
     'public.list_guest_event_attendees(text)',
