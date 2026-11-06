@@ -1,0 +1,51 @@
+# Created by `tech-lead-design` at /plan MIR-21-c on 2026-11-06: the last of four slices of the
+# drop of feature MIR-21 (ADR-079 decision 4; .ai/board/tickets/MIR-21-c/01-plan.md § 1 and § 7).
+# Not produced by /triage: no idea file promotes it. It shares MIR-21's feature row, which stays
+# PLANNED until this ticket ships.
+# ticket.yaml is authoritative; backlog.md is a view (see .ai/01-operating-model.md).
+# state enum: TRIAGE BACKLOG PLAN READY IN_PROGRESS REVIEW REWORK ESCALATED DONE
+id: MIR-21-f
+title: "`member.team_id`, `member_team_id()` and the mirror's insert branch are dropped"
+feature_ids: [MIR-21]   # split of MIR-21 (operating model § ID scheme: splits get -a, -b)
+group: MIR
+state: BACKLOG
+owner: ""
+branch: ""
+size_estimate: ""     # S|M - set by tech-lead-design at PLAN; gates DoR
+size: ""              # S|M|L|XL - set by tech-lead-design at PLAN; decides splitting. Predicted at /plan MIR-21-c: about 9 paths, M (ADR-079 decision 4)
+depends_on: [MIR-01, MIR-02, MIR-03, MIR-04, MIR-05, MIR-06, MIR-07, MIR-08, MIR-09, MIR-10, MIR-12, MIR-13, MIR-13-b, MIR-21, MIR-21-b, MIR-21-c, MIR-21-d, MIR-21-e]   # "Blocked by" — MIR-21-e leaves no fixture naming the column (ADR-079 decision 4)
+invariants_touched: []
+allowed_paths: []
+glossary_owed: []
+schema_delta: "TODO(plan): set at PLAN — drops member.team_id, member_team_id_idx, the column's update grant, public.member_team_id(uuid), the mirror's INSERT branch, the column clause of member_enforce_role_and_removal, stamp_org_id's team lookup and the member_decide_admin policy (ADR-079 decision 4)"
+requires_adr: true    # ADR-079 decision 4 names the work; the contract is this ticket's PLAN
+rework_count: 0
+chat_budget:
+  developer->tech-lead-design: { used: 0, max: 6 }
+tracker: { provider: "", external_id: "", sync_enabled: false }
+gates:
+  plan:   { passed: false, at: null }
+  review: { passed: false, at: null }
+
+# --- MIR extra fields ---------------------------------------------------------------------------
+mir_phase: 3
+mir_plan_item: "P3-3, last step"             # .ai/board/plans/calechip-multi-tenancy-plan.md:187, the drop
+verification_required: true
+expected_impact: []   # [predicted] none: after MIR-21-e nothing reads or writes the column
+mir_detail: |
+  Slice 4 of 4 of the drop (ADR-079). After MIR-21-e no reader, writer or fixture names
+  `member.team_id`, except the catalogue and self-lock tests below.
+
+  In scope, from ADR-079 decision 4 (as read on 2026-11-06):
+  - drops: column member.team_id, member_team_id_idx, the `update (status, team_id)` grant's column,
+    public.member_team_id(uuid), the mirror's INSERT branch, the `team_id` clause of
+    member_enforce_role_and_removal, stamp_org_id's `member` team lookup, the member_decide_admin
+    policy (inert since ADR-064 decision 1)
+  - kept verbatim: the removal branch of member_sync_membership, which closes a removed member's
+    rows at greatest(removed_at, joined_at) (ADR-078 decision 6)
+  - tests naming the column or the function: supabase/tests/010, 040, 100, 110, 160 (AC-1)
+  - .ai/standards/data-model.md and .ai/standards/rbac-and-security.md, where they document the
+    column or member_decide_admin
+  - its own migration and pgTAP test
+
+  Predicted about nine paths at /plan MIR-21-c.
