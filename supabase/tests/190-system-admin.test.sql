@@ -100,8 +100,8 @@ select ok(not has_function_privilege('anon', 'public.is_system_admin()', 'EXECUT
 -- AC-4. A system admin cannot hold a member row.
 -- ---------------------------------------------------------------------------------------------
 select throws_ok(
-  format($$insert into public.member (id, team_id, display_name, avatar, role, email)
-           values (%L::uuid, null, 'sys_a', '1.png', 'member', 'sys_a@mir18.test')$$,
+  format($$insert into public.member (id, display_name, avatar, role, email)
+           values (%L::uuid, 'sys_a', '1.png', 'member', 'sys_a@mir18.test')$$,
          tests.sys('sys_a')),
   '42501', null,
   'AC-4: a member row for sys_a is refused with 42501');

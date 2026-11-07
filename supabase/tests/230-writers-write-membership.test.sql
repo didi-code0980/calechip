@@ -2,9 +2,9 @@
 -- on a change of team or rank (ADR-078).
 --
 -- O1 holds T1, T2 and T4; O2 holds T3. A is admin on T1; M, R, W and V are members on T1; K is admin
--- on T3. They are inserted with a team, so the mirror's INSERT branch (kept) writes their primary
--- row. V also holds an active non-primary row on T2, inserted directly. P1, P2 and P3 are pending in
--- O1 with no team and no `membership` row; P3 exists only for AC-12's grant (01-plan.md § 2).
+-- on T3. The fixture writes their primary row itself (MIR-21-e). V also holds an active non-primary
+-- row on T2, inserted directly. P1, P2 and P3 are pending in O1 with no team and no `membership`
+-- row; P3 exists only for AC-12's grant (01-plan.md § 2).
 --
 -- Steps run in the order that keeps each AC's "Given" true: AC-12's first half and AC-7's refusals
 -- before AC-1, AC-7's W refusal after AC-8, AC-11 and AC-12's grant last. AC-9 runs after each step.
@@ -73,15 +73,25 @@ insert into public.team (id, name, org_id) values
 insert into auth.users (id, email)
 select tests.m21b(l), l || '@mir21b-230.test'
   from unnest(array['a', 'm', 'r', 'w', 'v', 'p1', 'p2', 'p3', 'k']) l;
-insert into public.member (id, team_id, org_id, display_name, avatar, role, status, email) values
-  (tests.m21b('a'), tests.m21b('t1'), tests.m21b('o1'), 'A', '1.png', 'admin', 'approved', 'a@mir21b-230.test'),
-  (tests.m21b('k'), tests.m21b('t3'), tests.m21b('o2'), 'K', '1.png', 'admin', 'approved', 'k@mir21b-230.test');
-insert into public.member (id, team_id, org_id, display_name, avatar, role, status, email)
-select tests.m21b(l), tests.m21b('t1'), tests.m21b('o1'), upper(l), '1.png', 'member', 'approved', l || '@mir21b-230.test'
+insert into public.member (id, org_id, display_name, avatar, role, status, email) values
+  (tests.m21b('a'), tests.m21b('o1'), 'A', '1.png', 'admin', 'approved', 'a@mir21b-230.test'),
+  (tests.m21b('k'), tests.m21b('o2'), 'K', '1.png', 'admin', 'approved', 'k@mir21b-230.test');
+insert into public.member (id, org_id, display_name, avatar, role, status, email)
+select tests.m21b(l), tests.m21b('o1'), upper(l), '1.png', 'member', 'approved', l || '@mir21b-230.test'
   from unnest(array['m', 'r', 'w', 'v']) l;
-insert into public.member (id, team_id, org_id, display_name, avatar, role, status, email)
-select tests.m21b(l), null, tests.m21b('o1'), upper(l), '1.png', 'member', 'pending', l || '@mir21b-230.test'
+insert into public.member (id, org_id, display_name, avatar, role, status, email)
+select tests.m21b(l), tests.m21b('o1'), upper(l), '1.png', 'member', 'pending', l || '@mir21b-230.test'
   from unnest(array['p1', 'p2', 'p3']) l;
+
+-- MIR-21-e (ADR-080 decision 3): the mirror's INSERT branch no longer runs, because the member
+-- inserts above do not name team_id. Write each one's primary membership row directly.
+select tests.put_on_team(tests.m21b('a'), tests.m21b('t1'));
+select tests.put_on_team(tests.m21b('k'), tests.m21b('t3'));
+select tests.put_on_team(tests.m21b('m'), tests.m21b('t1'));
+select tests.put_on_team(tests.m21b('r'), tests.m21b('t1'));
+select tests.put_on_team(tests.m21b('w'), tests.m21b('t1'));
+select tests.put_on_team(tests.m21b('v'), tests.m21b('t1'));
+
 insert into public.membership (org_id, team_id, member_id, team_role, is_primary) values
   (tests.m21b('o1'), tests.m21b('t2'), tests.m21b('v'), 'member', false);
 

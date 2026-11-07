@@ -198,10 +198,9 @@ begin
   -- was dropped by `20260910100000_solo_member_approval.sql` and this sentence is kept past-tense —
   -- admin zero was never allow-listed, and while the table existed inventing a consumed row for them
   -- would have been a false provenance record in the one table whose purpose was provenance.
-  insert into public.member (id, team_id, org_id, display_name, avatar, role)
+  insert into public.member (id, org_id, display_name, avatar, role)
   values (
     v_uid,
-    v_team_id,                                    -- INV-07: the team comes from here and nowhere else
     v_org_id,                                     -- MIR-12: the team's org, never a second source
     coalesce(nullif(btrim(v_meta ->> 'display_name'), ''),
              split_part(v_email, '@', 1)),        -- copied from ...tea01_membership.sql:113-117
@@ -210,10 +209,10 @@ begin
                                                   -- by the trigger, and the reason this file exists
   );
 
-  -- MIR-13. No `membership` insert here. The `member_sync_membership` trigger
-  -- (20261103120000_mir13_write_path_org_bound.sql § 2) writes admin zero's one active primary row
-  -- from the member insert above, with `team_role = 'member'` because `admin` is not a team role.
-  -- MIR-12 inserted that row explicitly; with the trigger in place, a second insert would be refused
-  -- by membership_active_team_member_idx and the whole bootstrap would roll back (ADR-071 decision 2).
+  -- MIR-21-e (ADR-080 decision 3). Admin zero's one active primary row, written here rather than by
+  -- the mirror's INSERT branch, which the member insert above no longer reaches. `member` is the team
+  -- role: `admin` is not one.
+  insert into public.membership (org_id, team_id, member_id, team_role, is_primary, joined_at)
+  values (v_org_id, v_team_id, v_uid, 'member'::public.team_role, true, now());
 end
 $$;

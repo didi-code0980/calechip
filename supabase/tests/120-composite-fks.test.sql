@@ -261,10 +261,15 @@ insert into auth.users (id, email) values
   ('a0000000-0000-4000-8000-000000000003', 'cy@mir11.test')
 on conflict (id) do nothing;
 
-insert into public.member (id, team_id, display_name, avatar, role, status, email, org_id) values
-  ('a0000000-0000-4000-8000-000000000001', '10000000-0000-4000-8000-000000000001', 'Ada', '1.png', 'admin', 'approved', 'ada@mir11.test', 'd0000000-0000-4000-8000-000000000a01'),
-  ('a0000000-0000-4000-8000-000000000003', '10000000-0000-4000-8000-000000000002', 'Cy',  '1.png', 'admin', 'approved', 'cy@mir11.test',  'd0000000-0000-4000-8000-000000000b01')
-on conflict (id) do update set team_id = excluded.team_id, org_id = excluded.org_id;
+insert into public.member (id, display_name, avatar, role, status, email, org_id) values
+  ('a0000000-0000-4000-8000-000000000001', 'Ada', '1.png', 'admin', 'approved', 'ada@mir11.test', 'd0000000-0000-4000-8000-000000000a01'),
+  ('a0000000-0000-4000-8000-000000000003', 'Cy',  '1.png', 'admin', 'approved', 'cy@mir11.test',  'd0000000-0000-4000-8000-000000000b01')
+on conflict (id) do update set org_id = excluded.org_id;
+
+-- MIR-21-e (ADR-080 decision 3): the mirror's INSERT branch no longer runs, because the member
+-- insert above does not name team_id. Write Ada's and Cy's membership rows itself.
+select tests.put_on_team('a0000000-0000-4000-8000-000000000001', '10000000-0000-4000-8000-000000000001');
+select tests.put_on_team('a0000000-0000-4000-8000-000000000003', '10000000-0000-4000-8000-000000000002');
 
 -- Open Event A (Org A, creator Ada -> team Engineering via event_stamp) and Event B (Org B, creator Cy -> team Design)
 insert into public.event (id, creator_id, org_id, name, start_date, end_date, scope) values

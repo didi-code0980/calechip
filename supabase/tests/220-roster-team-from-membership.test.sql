@@ -1,15 +1,15 @@
 -- MIR-21 AC-1 to AC-8 and AC-10: every reader of `member.team_id` reads the roster team from
 -- `membership`, and every answer is the one the column gave (ADR-077).
 --
--- O1 holds T1 and T2; O2 holds T3. A is admin on T1, K is admin on T3; both are inserted the way the
--- seed inserts a member. M, R, V, P and J sign up pending in O1, and A then decides them through
--- today's writers: admit_member, move_member, reject_member, and the removal update the seam sends.
--- The mirror therefore writes every `membership` row these assertions read (01-plan.md § 2).
+-- O1 holds T1 and T2; O2 holds T3. A is admin on T1, K is admin on T3; the fixture writes their
+-- membership rows directly (MIR-21-e). M, R, V, P and J sign up pending in O1, and A then decides
+-- them through today's writers: admit_member, move_member, reject_member, and the removal update the
+-- seam sends (01-plan.md § 2).
 \set ON_ERROR_STOP 1
 begin;
 \ir _isolation.psql
 set local search_path = extensions, public;
-select plan(27);
+select plan(25);
 select tests.seed();
 
 create function tests.m21(p_label text) returns uuid
@@ -31,11 +31,13 @@ insert into public.team (id, name, org_id) values
   (tests.m21('t3'), 'Team T3', tests.m21('o2'));
 insert into auth.users (id, email)
 select tests.m21(l), l || '@mir21-220.test' from unnest(array['a', 'm', 'r', 'p', 'j', 'v', 'k']) l;
-insert into public.member (id, team_id, org_id, display_name, avatar, role, status, email) values
-  (tests.m21('a'), tests.m21('t1'), tests.m21('o1'), 'A', '1.png', 'admin', 'approved', 'a@mir21-220.test'),
-  (tests.m21('k'), tests.m21('t3'), tests.m21('o2'), 'K', '1.png', 'admin', 'approved', 'k@mir21-220.test');
-insert into public.member (id, team_id, org_id, display_name, avatar, role, status, email)
-select tests.m21(l), null, tests.m21('o1'), upper(l), '1.png', 'member', 'pending', l || '@mir21-220.test'
+insert into public.member (id, org_id, display_name, avatar, role, status, email) values
+  (tests.m21('a'), tests.m21('o1'), 'A', '1.png', 'admin', 'approved', 'a@mir21-220.test'),
+  (tests.m21('k'), tests.m21('o2'), 'K', '1.png', 'admin', 'approved', 'k@mir21-220.test');
+select tests.put_on_team(tests.m21('a'), tests.m21('t1'));
+select tests.put_on_team(tests.m21('k'), tests.m21('t3'));
+insert into public.member (id, org_id, display_name, avatar, role, status, email)
+select tests.m21(l), tests.m21('o1'), upper(l), '1.png', 'member', 'pending', l || '@mir21-220.test'
   from unnest(array['m', 'r', 'p', 'j', 'v']) l;
 
 select tests.authenticate_as(tests.m21('a'));
@@ -59,27 +61,12 @@ select is(tests.rows_affected(format('update public.member set removed_at = now(
 select tests.clear_authentication();
 
 -- ---------------------------------------------------------------------------------------------
--- AC-1. The roster team equals the column for every member, the seed's included.
+-- AC-1. The roster team of each decided member.
 -- ---------------------------------------------------------------------------------------------
-select is(
-  (select count(*)::int from public.member m
-    where public.member_roster_team_id(m.id) is distinct from m.team_id),
-  0,
-  'AC-1: member_roster_team_id(id) is not distinct from team_id on every row of public.member'
-);
 select is(public.member_roster_team_id(tests.m21('r')), tests.m21('t1'), 'AC-1: R''s roster team is T1');
 select is(public.member_roster_team_id(tests.m21('v')), tests.m21('t2'), 'AC-1: V''s roster team is T2');
 select is(public.member_roster_team_id(tests.m21('p')), null::uuid, 'AC-1: P''s roster team is null');
 select is(public.member_roster_team_id(tests.m21('j')), null::uuid, 'AC-1: J''s roster team is null');
-
--- ---------------------------------------------------------------------------------------------
--- AC-2. The computed field gives the same answer, as the table owner.
--- ---------------------------------------------------------------------------------------------
-select is(
-  (select count(*)::int from public.member m where m.team_id is distinct from public.roster_team_id(m)),
-  0,
-  'AC-2: roster_team_id(m) is not distinct from m.team_id on every row'
-);
 
 -- ---------------------------------------------------------------------------------------------
 -- AC-3. The roster read is unchanged.

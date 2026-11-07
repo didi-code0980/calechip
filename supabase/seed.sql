@@ -88,10 +88,9 @@ values (
 )
 on conflict (id) do nothing;
 
-insert into public.member (id, team_id, display_name, avatar, role, status, removed_at, created_at)
+insert into public.member (id, display_name, avatar, role, status, removed_at, created_at)
 values (
   '22222222-2222-4222-8222-222222222222',
-  '11111111-1111-4111-8111-111111111111',
   'Quản trị',
   '1.png',
   'admin',
@@ -148,10 +147,9 @@ values (
 )
 on conflict (id) do nothing;
 
-insert into public.member (id, team_id, display_name, avatar, role, status, removed_at, created_at)
+insert into public.member (id, display_name, avatar, role, status, removed_at, created_at)
 values (
   '33333333-3333-4333-8333-333333333333',
-  '11111111-1111-4111-8111-111111111111',
   'Admin',
   '1.png',
   'admin',
@@ -215,10 +213,9 @@ values (
 )
 on conflict (id) do nothing;
 
-insert into public.member (id, team_id, display_name, avatar, role, status, removed_at, created_at)
+insert into public.member (id, display_name, avatar, role, status, removed_at, created_at)
 values (
   '66666666-6666-4666-8666-666666666666',
-  '44444444-4444-4444-8444-444444444444',
   'Người nhóm khác',
   '1.png',
   'member',
@@ -253,10 +250,9 @@ values (
 )
 on conflict (id) do nothing;
 
-insert into public.member (id, team_id, display_name, avatar, role, status, removed_at, created_at)
+insert into public.member (id, display_name, avatar, role, status, removed_at, created_at)
 values (
   '77777777-7777-4777-8777-777777777777',
-  '11111111-1111-4111-8111-111111111111',
   'Đã rời nhóm',
   '1.png',
   'member',
@@ -306,10 +302,9 @@ values (
 )
 on conflict (id) do nothing;
 
-insert into public.member (id, team_id, display_name, avatar, role, status, removed_at, created_at)
+insert into public.member (id, display_name, avatar, role, status, removed_at, created_at)
 values (
   '88888888-8888-4888-8888-888888888888',
-  '11111111-1111-4111-8111-111111111111',
   'Quản trị hai',
   '1.png',
   'admin',
@@ -373,10 +368,9 @@ values (
 )
 on conflict (id) do nothing;
 
-insert into public.member (id, team_id, display_name, avatar, role, status, removed_at, created_at)
+insert into public.member (id, display_name, avatar, role, status, removed_at, created_at)
 values (
   '55555555-5555-4555-8555-555555555555',
-  '11111111-1111-4111-8111-111111111111',
   'Thành viên',
   '1.png',
   'member',
@@ -475,10 +469,9 @@ values (
 )
 on conflict (id) do nothing;
 
-insert into public.member (id, team_id, display_name, avatar, role, status, removed_at, created_at)
+insert into public.member (id, display_name, avatar, role, status, removed_at, created_at)
 values (
   'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb',
-  '11111111-1111-4111-8111-111111111111',
   'Đã duyệt',
   '1.png',
   'member',
@@ -487,6 +480,27 @@ values (
   '2026-08-31T00:00:00+00:00'
 )
 on conflict (id) do nothing;
+
+-- MIR-21-e (ADR-080 decision 3). The rows the mirror's INSERT branch wrote while the member inserts
+-- above named their team, with the same values (20261105210000_mir21b_writers_write_membership.sql
+-- :348-362). Before the entries below: their stamp reads the author's primary team from here.
+insert into public.membership (org_id, team_id, member_id, team_role, is_primary, joined_at, left_at)
+select m.org_id, v.team_id, m.id,
+       case when m.role = 'manager'::public.member_role
+            then 'manager'::public.team_role else 'member'::public.team_role end,
+       m.removed_at is null,
+       m.created_at,
+       case when m.removed_at is null then null else greatest(m.removed_at, m.created_at) end
+  from (values
+    ('22222222-2222-4222-8222-222222222222'::uuid, '11111111-1111-4111-8111-111111111111'::uuid),
+    ('33333333-3333-4333-8333-333333333333'::uuid, '11111111-1111-4111-8111-111111111111'::uuid),
+    ('66666666-6666-4666-8666-666666666666'::uuid, '44444444-4444-4444-8444-444444444444'::uuid),
+    ('77777777-7777-4777-8777-777777777777'::uuid, '11111111-1111-4111-8111-111111111111'::uuid),
+    ('88888888-8888-4888-8888-888888888888'::uuid, '11111111-1111-4111-8111-111111111111'::uuid),
+    ('55555555-5555-4555-8555-555555555555'::uuid, '11111111-1111-4111-8111-111111111111'::uuid),
+    ('bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb'::uuid, '11111111-1111-4111-8111-111111111111'::uuid)
+  ) as v(member_id, team_id)
+  join public.member m on m.id = v.member_id;
 
 -- The approved entry itself. `approved_by` and `approved_at` are BOTH set: INV-02's subject is a
 -- decision that must not survive a substantive edit, and an entry seeded `approved` with no approver
