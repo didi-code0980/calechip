@@ -147,12 +147,9 @@ begin
 
     select t.id into v_team from public.team t;
 
-    -- The same two columns `decideMember` writes, and nothing else. `role` stays `member`: making
-    -- somebody an admin is a separate decision and there is no argument here for it.
-    update public.member
-      set team_id = v_team,
-          status  = 'approved'::public.member_status
-      where id = v_id;
+    -- The one column `decideMember`'s RPC still writes. `role` stays `member`: making somebody an
+    -- admin is a separate decision and there is no argument here for it.
+    update public.member set status = 'approved'::public.member_status where id = v_id;
 
     -- ADR-078: the mirror no longer writes `membership` on a team change, so the primary row is
     -- written here, by the same owner-only helper `admit_member` calls.

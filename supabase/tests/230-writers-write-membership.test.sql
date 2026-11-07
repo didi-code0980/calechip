@@ -1,5 +1,5 @@
--- MIR-21-b AC-1 to AC-14: every writer writes `membership` itself, the column stays equal to the
--- roster team, and the mirror no longer writes on a change of team or rank (ADR-078).
+-- MIR-21-b AC-1 to AC-14: every writer writes `membership` itself, and the mirror no longer writes
+-- on a change of team or rank (ADR-078).
 --
 -- O1 holds T1, T2 and T4; O2 holds T3. A is admin on T1; M, R, W and V are members on T1; K is admin
 -- on T3. They are inserted with a team, so the mirror's INSERT branch (kept) writes their primary
@@ -35,16 +35,15 @@ create function tests.m21b_ms(p_member uuid default null) returns text
    where p_member is null or ms.member_id = p_member;
 $$;
 
--- AC-9 over every row of public.member: the column differs from the roster team, or the mirror
--- invariant fails (at most one active primary row; exactly one when on a team and not removed).
+-- AC-9 over every row of public.member: the mirror invariant fails (at most one active primary
+-- row; exactly one when on a roster team and not removed).
 create function tests.m21b_drift() returns bigint
   language sql stable security invoker set search_path = '' as $$
   select count(*) from public.member m
     cross join lateral (select count(*) as n from public.membership ms
                          where ms.member_id = m.id and ms.left_at is null and ms.is_primary) p
-   where public.member_roster_team_id(m.id) is distinct from m.team_id
-      or p.n > 1
-      or (m.team_id is not null and m.removed_at is null and p.n <> 1);
+   where p.n > 1
+      or (public.member_roster_team_id(m.id) is not null and m.removed_at is null and p.n <> 1);
 $$;
 
 -- AC-7: one refused call, as p_caller. Two assertions: it raises 42501 (with p_message when given),
@@ -166,7 +165,7 @@ select is(tests.m21b_drift(), 0::bigint, 'AC-9: no drift and no mirror violation
 -- ---------------------------------------------------------------------------------------------
 select tests.m21b_ms(tests.m21b('m')) as m_before \gset
 select tests.authenticate_as(tests.m21b('a'));
-select is(s.team_id, tests.m21b('t1'), 'AC-12: set_member_team(M, T1) returns M on T1')
+select is(public.roster_team_id(s), tests.m21b('t1'), 'AC-12: set_member_team(M, T1) returns M on T1')
   from public.set_member_team(tests.m21b('m'), tests.m21b('t1')) s;
 select throws_ok(
   format('select public.set_member_team(%L::uuid, %L::uuid)', tests.m21b('m'), tests.m21b('t2')),
@@ -227,7 +226,7 @@ select lives_ok(
   'AC-1: A admit_member(P1, T1) succeeds');
 select tests.clear_authentication();
 select results_eq(
-  $$select status::text, team_id from public.member where id = tests.m21b('p1')$$,
+  $$select status::text, public.member_roster_team_id(id) from public.member where id = tests.m21b('p1')$$,
   $$values ('approved', tests.m21b('t1'))$$,
   'AC-1: P1 is approved, on T1');
 select results_eq(
@@ -246,8 +245,7 @@ select lives_ok(
   format('select public.move_member(%L::uuid, %L::uuid)', tests.m21b('m'), tests.m21b('t2')),
   'AC-2: A move_member(M, T2) succeeds');
 select tests.clear_authentication();
-select is((select team_id from public.member where id = tests.m21b('m')), tests.m21b('t2'),
-  'AC-2: M''s team_id is T2');
+select is(public.member_roster_team_id(tests.m21b('m')), tests.m21b('t2'), 'AC-2: M''s roster team is T2');
 select results_eq(
   $$select left_at is not null, is_primary from public.membership
      where member_id = tests.m21b('m') and team_id = tests.m21b('t1')$$,
@@ -328,7 +326,7 @@ select lives_ok(format('select public.reject_member(%L::uuid)', tests.m21b('p2')
   'AC-6: A reject_member(P2) succeeds');
 select tests.clear_authentication();
 select results_eq(
-  $$select status::text, team_id from public.member where id = tests.m21b('p2')$$,
+  $$select status::text, public.member_roster_team_id(id) from public.member where id = tests.m21b('p2')$$,
   $$values ('rejected', null::uuid)$$,
   'AC-6: P2 is rejected, with no team');
 select is((select count(*)::int from public.membership where member_id = tests.m21b('p2')), 0,

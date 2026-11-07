@@ -8,7 +8,7 @@ id: MIR-21-d
 title: "Writers stop writing `member.team_id`, and no test reads it"
 feature_ids: [MIR-21]   # split of MIR-21 (operating model § ID scheme: splits get -a, -b)
 group: MIR
-state: READY
+state: REVIEW
 owner: ""
 branch: ""
 size_estimate: "M"   # S|M - set by tech-lead-design at PLAN; gates DoR

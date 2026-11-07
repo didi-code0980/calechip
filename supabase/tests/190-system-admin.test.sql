@@ -126,7 +126,7 @@ select throws_ok(format('select public.grant_system_admin(%L::uuid)', tests.id('
   'AC-5: grant_system_admin(member_t) is refused with 42501');
 select is((select count(*)::int from public.member m
             where m.id = tests.id('member_t') and m.status = 'approved'
-              and m.team_id = tests.id('team_t') and m.removed_at is null), 1,
+              and public.member_roster_team_id(m.id) = tests.id('team_t') and m.removed_at is null), 1,
   'AC-5: member_t''s member row is unchanged');
 select is((select count(*)::int from public.system_admin s where s.id = tests.id('member_t')), 0,
   'AC-5: member_t has no system_admin row');

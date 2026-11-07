@@ -1,6 +1,6 @@
--- MIR-13 AC-1, AC-2, AC-5 to AC-9: the constraints, the database stamping `org_id`, and
--- `membership` mirroring `member.team_id` (ADR-071 decisions 1 and 2). AC-3 and AC-4 need rows that
--- exist before the migration runs, and AC-10 needs `supabase/bootstrap.sql`, which is outside the
+-- MIR-13 AC-1, AC-2, AC-5 to AC-9: the constraints and the database stamping `org_id` (ADR-071
+-- decision 1). AC-3 and AC-4 need rows that exist before the migration runs, and AC-10 needs
+-- `supabase/bootstrap.sql`, which is outside the
 -- directory `supabase test db` mounts; all three are verified by the psql procedure in
 -- .ai/board/tickets/MIR-13/03-impl-log.md.
 --
@@ -10,7 +10,7 @@
 begin;
 \ir _isolation.psql
 set local search_path = extensions, public;
-select plan(42);
+select plan(36);
 
 create function tests.m13(p_label text) returns uuid
   language sql immutable security invoker set search_path = '' as $$
@@ -26,16 +26,6 @@ $$;
 create function tests.org_a() returns uuid
   language sql stable security definer set search_path = '' as $$
   select o.id from public.org o where o.is_shared_tenant;
-$$;
-
--- AC-9's invariant, for every member: at most one active primary row, and exactly one when the
--- member has a team and is not removed.
-create function tests.mirror_violations() returns bigint
-  language sql stable security invoker set search_path = '' as $$
-  select count(*) from public.member m
-   where (select count(*) from public.membership ms
-           where ms.member_id = m.id and ms.left_at is null and ms.is_primary)
-         <> case when m.team_id is not null and m.removed_at is null then 1 else 0 end;
 $$;
 
 select tests.seed();
@@ -175,7 +165,7 @@ select is((select org_id from public.holiday where date = '2099-03-03'), tests.m
 insert into auth.users (id, email, email_confirmed_at)
 values (tests.m13('signup'), 'signup@mir13.test', now());
 select results_eq(
-  $$select status::text, team_id, org_id from public.member where id = tests.m13('signup')$$,
+  $$select status::text, public.member_roster_team_id(id), org_id from public.member where id = tests.m13('signup')$$,
   $$values ('pending'::text, null::uuid, tests.org_a())$$,
   'AC-6: the admission trigger writes a pending member with no team in the shared tenant'
 );
@@ -222,8 +212,6 @@ select tests.clear_authentication();
 insert into public.membership (org_id, team_id, member_id, team_role, is_primary)
 values (tests.org_a(), tests.id('team_u'), tests.id('admin_t'), 'member', false);
 
-select is(tests.mirror_violations(), 0::bigint, 'AC-9: the invariant holds for every member before any step');
-
 select tests.authenticate_as(tests.id('admin_t'));
 select public.admit_member(tests.id('pending_p'), tests.id('team_t'));
 select tests.clear_authentication();
@@ -233,7 +221,6 @@ select results_eq(
   $$values (tests.id('team_t'), true, null::timestamptz)$$,
   'AC-9: after admit_member(P, T1), P has exactly one active row: T1, primary'
 );
-select is(tests.mirror_violations(), 0::bigint, 'AC-9: the invariant holds after admit');
 
 select tests.authenticate_as(tests.id('admin_t'));
 select public.move_member(tests.id('pending_p'), tests.id('team_u'));
@@ -250,7 +237,6 @@ select results_eq(
   $$values (tests.id('team_u'))$$,
   'AC-9: and one active primary row exists on T3'
 );
-select is(tests.mirror_violations(), 0::bigint, 'AC-9: the invariant holds after move');
 
 select tests.authenticate_as(tests.id('admin_t'));
 select public.set_member_role(tests.id('pending_p'), 'manager');
@@ -261,7 +247,6 @@ select is(
   'manager',
   'AC-9: after set_member_role(P, manager), the active primary row has team_role = manager'
 );
-select is(tests.mirror_violations(), 0::bigint, 'AC-9: the invariant holds after the rank change');
 
 -- The removal is made by admin_u, whose primary team is T3. Admin A shares T3 too, but
 -- `member_select_team` still reads `member_team_id` until MIR-13-b, so P on T3 is not a row Admin A
@@ -282,7 +267,6 @@ select ok(
   (select bool_and(left_at >= joined_at) from public.membership where member_id = tests.id('pending_p')),
   'AC-9: every closed row of P has left_at >= joined_at'
 );
-select is(tests.mirror_violations(), 0::bigint, 'AC-9: the invariant holds after removal');
 
 -- A removal recorded on insert: the row MIR-12's backfill would have written, closed and not primary.
 select results_eq(
@@ -304,7 +288,6 @@ select results_eq(
   $$values (tests.id('team_u'), true)$$,
   'AC-9: moving onto a team already held promotes that row rather than inserting a second'
 );
-select is(tests.mirror_violations(), 0::bigint, 'AC-9: the invariant holds after the promoting move');
 
 select * from finish();
 rollback;

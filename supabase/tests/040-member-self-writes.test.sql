@@ -40,12 +40,12 @@ select * from tests.self_writes('admin_t');
 
 -- Re-read as the table owner, without RLS.
 select results_eq(
-  $$select id, role::text, status::text, team_id from public.member
+  $$select id, role::text, status::text, public.member_roster_team_id(id) from public.member
      where id in (tests.id('member_t'), tests.id('manager_t'), tests.id('admin_t')) order by id$$,
   $$values (tests.id('admin_t'),   'admin',   'approved', tests.id('team_t')),
            (tests.id('manager_t'), 'manager', 'approved', tests.id('team_t')),
            (tests.id('member_t'),  'member',  'approved', tests.id('team_t'))$$,
-  'AC-4: role, status and team_id of the three callers are unchanged'
+  'AC-4: role, status and roster team of the three callers are unchanged'
 );
 
 -- AC-13 controls: the caller's own row is reachable, and the RPCs work for an entitled caller on
@@ -77,7 +77,7 @@ select lives_ok(
 select tests.clear_authentication();
 
 select results_eq(
-  $$select role::text, team_id from public.member where id = tests.id('member_t2')$$,
+  $$select role::text, public.member_roster_team_id(id) from public.member where id = tests.id('member_t2')$$,
   $$values ('admin', tests.id('team_u'))$$,
   'AC-13 control: the controls wrote member_t2'
 );
