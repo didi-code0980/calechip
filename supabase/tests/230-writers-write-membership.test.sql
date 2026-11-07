@@ -74,8 +74,8 @@ insert into auth.users (id, email)
 select tests.m21b(l), l || '@mir21b-230.test'
   from unnest(array['a', 'm', 'r', 'w', 'v', 'p1', 'p2', 'p3', 'k']) l;
 insert into public.member (id, org_id, display_name, avatar, role, status, email) values
-  (tests.m21b('a'), tests.m21b('o1'), 'A', '1.png', 'admin', 'approved', 'a@mir21b-230.test'),
-  (tests.m21b('k'), tests.m21b('o2'), 'K', '1.png', 'admin', 'approved', 'k@mir21b-230.test');
+  (tests.m21b('a'), tests.m21b('o1'), 'A', '1.png', tests.member_role('admin'), 'approved', 'a@mir21b-230.test'),
+  (tests.m21b('k'), tests.m21b('o2'), 'K', '1.png', tests.member_role('admin'), 'approved', 'k@mir21b-230.test');
 insert into public.member (id, org_id, display_name, avatar, role, status, email)
 select tests.m21b(l), tests.m21b('o1'), upper(l), '1.png', 'member', 'approved', l || '@mir21b-230.test'
   from unnest(array['m', 'r', 'w', 'v']) l;
@@ -319,7 +319,7 @@ select is(
     where member_id = tests.m21b('r') and left_at is null and is_primary),
   'manager', 'AC-5: R''s active primary row has team_role manager');
 select tests.authenticate_as(tests.m21b('a'));
-select is(s.role::text, 'admin', 'AC-5: promote_member_to_admin(R) returns R as admin')
+select is(s.role, tests.member_role('admin'), 'AC-5: promote_member_to_admin(R) returns R as admin')
   from public.promote_member_to_admin(tests.m21b('r')) s;
 select tests.clear_authentication();
 select is(

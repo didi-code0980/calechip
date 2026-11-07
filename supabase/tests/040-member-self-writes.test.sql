@@ -40,7 +40,7 @@ select * from tests.self_writes('admin_t');
 select results_eq(
   $$select id, role::text, status::text, public.member_roster_team_id(id) from public.member
      where id in (tests.id('member_t'), tests.id('manager_t'), tests.id('admin_t')) order by id$$,
-  $$values (tests.id('admin_t'),   'admin',   'approved', tests.id('team_t')),
+  $$values (tests.id('admin_t'),   tests.member_role('admin')::text,   'approved', tests.id('team_t')),
            (tests.id('manager_t'), 'manager', 'approved', tests.id('team_t')),
            (tests.id('member_t'),  'member',  'approved', tests.id('team_t'))$$,
   'AC-4: role, status and roster team of the three callers are unchanged'
@@ -76,7 +76,7 @@ select tests.clear_authentication();
 
 select results_eq(
   $$select role::text, public.member_roster_team_id(id) from public.member where id = tests.id('member_t2')$$,
-  $$values ('admin', tests.id('team_u'))$$,
+  $$values (tests.member_role('admin')::text, tests.id('team_u'))$$,
   'AC-13 control: the controls wrote member_t2'
 );
 
