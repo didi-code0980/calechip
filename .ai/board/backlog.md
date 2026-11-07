@@ -22,6 +22,9 @@ planned, sized, and safe to build** — the next stage for a row here is IN_PROG
 
 | # | Ticket | Title | Size | Depends on |
 |---|--------|-------|------|------------|
+| 1 | MIR-16-b | `is_org_admin(uid, org_id)` replaces `is_admin(uid)` at every call site | M | MIR-01…MIR-04, MIR-10…MIR-15, MIR-18, MIR-21…MIR-21-f, MIR-16 (all DONE) |
+
+**`MIR-16-b` moved here at /advance on 2026-11-07**, from `01-plan.md` gate PASS (`produced_at: 2026-11-07T09:06:54Z`) with all six Definition of Ready items passing; `schema_delta` cites [ADR-083](../registry/decisions/ADR-083-is-org-admin-replaces-is-admin-before-the-admin-value-is-renamed.md) (`ACCEPTED by tech-lead-design under the operator's delegation (ADR-067)`), which narrows ADR-082. MIR-16-b had no row in `## BACKLOG`, so no row left that table. PLAN split the `admin` → `org_admin` rename to a new slice `MIR-16-d` (BACKLOG).
 
 **Empty again — `MIR-16` left this section for `## ARCHIVE` at its own ship on 2026-11-07.** Its slices `MIR-16-b` and `MIR-16-c` stay at `BACKLOG` (ADR-082); the shared `MIR-16` row in `features.md` stays `PLANNED` until the last of them ships.
 
