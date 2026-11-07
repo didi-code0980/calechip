@@ -32,10 +32,10 @@ next_state: REVIEW
 
 | file | created/modified | why | contract item it satisfies |
 |------|------------------|-----|----------------------------|
-| `supabase/migrations/20261106120000_mir21c_membership_self_lock.sql` | created | The self lock on `membership`, and the sign-up trigger without the team column | § 4.1 |
+| `supabase/migrations/20261106130000_mir21c_membership_self_lock.sql` | created | The self lock on `membership`, and the sign-up trigger without the team column | § 4.1 |
 | `src/lib/data/supabase.ts` | modified | Three RPC calls read `team_id` through `roster_team_id`, so the column can go stale in MIR-21-d | § 4.2 |
 | `tests/member-rpc-roster-team.test.ts` | created | Source-text test pinning the three calls and `MEMBER_COLUMNS` (AC-7) | § 4.3 |
-| `supabase/tests/240-membership-self-lock.test.sql` | created | pgTAP for AC-1 to AC-6 and AC-8, 38 assertions | § 4.4 |
+| `supabase/tests/250-membership-self-lock.test.sql` | created | pgTAP for AC-1 to AC-6 and AC-8, 38 assertions | § 4.4 |
 | `.ai/board/tickets/MIR-21-c/03-impl-log.md` | created | This log | gate |
 | `.ai/board/tickets/MIR-21-c/ticket.yaml` | modified | `state: REVIEW` | gate |
 
@@ -46,20 +46,20 @@ The eight board and registry paths in `allowed_paths` were written at PLAN and a
 
 | § 4 item | Implemented at | Notes |
 |----------|----------------|-------|
-| 4.1 lock function | `supabase/migrations/20261106120000_mir21c_membership_self_lock.sql:33` | Body as § 4.1, character for character; revoke from `public, anon, authenticated` |
+| 4.1 lock function | `supabase/migrations/20261106130000_mir21c_membership_self_lock.sql:33` | Body as § 4.1, character for character; revoke from `public, anon, authenticated` |
 | 4.1 trigger | `…_mir21c_membership_self_lock.sql:61-64` | `drop trigger if exists` then `before insert or update or delete … for each row` |
-| 4.1 sign-up trigger | `…_mir21c_membership_self_lock.sql:74-107` | Copied from `20260913090000_solo_avatar_images.sql:46-81`; insert names `(id, display_name, avatar, role)` at :91, the `null` value is gone, the comment line reworded to cite ADR-079 so no `team_id` token is left in `prosrc` (AC-8) |
-| 4.2 `setRankThroughRpc` | `src/lib/data/supabase.ts:1218-1221` | `.rpc(…).select(MEMBER_COLUMNS).single<MemberRow>()`, ADR-079 comment above |
+| 4.1 sign-up trigger | `…_mir21c_membership_self_lock.sql:74-107` | Copied from `20260913090000_solo_avatar_images.sql:46-81`; insert names `(id, display_name, avatar, role)` at :91, the `null` value is gone, the comment line reworded to cite ADR-080 so no `team_id` token is left in `prosrc` (AC-8) |
+| 4.2 `setRankThroughRpc` | `src/lib/data/supabase.ts:1218-1221` | `.rpc(…).select(MEMBER_COLUMNS).single<MemberRow>()`, ADR-080 comment above |
 | 4.2 `setMemberTeam` | `src/lib/data/supabase.ts:1846-1849` | Same |
 | 4.2 `promoteMember` | `src/lib/data/supabase.ts:1864-1867` | Same |
 | 4.3 unit test | `tests/member-rpc-roster-team.test.ts` | One `it` per RPC name, one for `MEMBER_COLUMNS` |
-| 4.4 pgTAP | `supabase/tests/240-membership-self-lock.test.sql` | AC-1 :57, AC-2 :87, AC-3 :120, AC-4 :167, AC-5 :185, AC-6 :213, AC-8 :232 |
+| 4.4 pgTAP | `supabase/tests/250-membership-self-lock.test.sql` | AC-1 :57, AC-2 :87, AC-3 :120, AC-4 :167, AC-5 :185, AC-6 :213, AC-8 :232 |
 
 **§ 4.2 TODO(verify), resolved as far as the repository allows.** The installed
 `@supabase/postgrest-js` is 2.112.4. `select(columns)` (dist/index.mjs:676) and `single()` (:1161,
 sets `Accept: application/vnd.pgrst.object+json`) are on the transform builder that `rpc()` returns,
 and `tsc --noEmit` accepts the chain. The computed field over a non-`setof` function's result is
-proven in SQL by `240` AC-6 (`select public.roster_team_id(r) from public.set_member_role(…) r`
+proven in SQL by `250` AC-6 (`select public.roster_team_id(r) from public.set_member_role(…) r`
 returns T1 for a row with no column value). It was not exercised over PostgREST HTTP: that needs a
 signed-in JWT against the local API, which no test in this repository drives.
 
@@ -92,9 +92,9 @@ none
 | `pnpm exec vitest run` | 0 | 51 files, 1017 tests |
 | `node scripts/check-allowed-paths.mjs` | 0 | PASS |
 | `node scripts/check-carry.mjs MIR-21-c` | 0 | PASS, nothing stray |
-| `pnpm db:test`, first run | 1 | `240` #26 failed on my own event-order assumption (see delegated decisions); `170` #42 |
-| `pnpm db:test`, after the AC-5 fix | 1 | 25 files, 1109 tests. `240` 38/38. The only failure is `170` #42 (`AC-20: admin_u does not select E`), the baseline recorded in `MIR-21-b/03-impl-log.md:108` and `MIR-21/03-impl-log.md:111` — excepted by AC-9 |
-| `grep -nE "member\.team_id\|insert into public\.member \([^)]*team_id" supabase/tests/240-membership-self-lock.test.sql` | 1 | No match: no line names `member.team_id`, no member insert names `team_id` (§ 4.4) |
+| `pnpm db:test`, first run | 1 | `250` #26 failed on my own event-order assumption (see delegated decisions); `170` #42 |
+| `pnpm db:test`, after the AC-5 fix | 1 | 25 files, 1109 tests. `250` 38/38. The only failure is `170` #42 (`AC-20: admin_u does not select E`), the baseline recorded in `MIR-21-b/03-impl-log.md:108` and `MIR-21/03-impl-log.md:111` — excepted by AC-9 |
+| `grep -nE "member\.team_id\|insert into public\.member \([^)]*team_id" supabase/tests/250-membership-self-lock.test.sql` | 1 | No match: no line names `member.team_id`, no member insert names `team_id` (§ 4.4) |
 | `git diff --name-only` subset of `allowed_paths` | yes | plus this ticket's own folder |
 
 AC-9: no existing test was edited; `220` AC-1 and `230` AC-7 pass.

@@ -12,11 +12,11 @@ state: DONE          # `orchestrator` at /ship, 2026-11-06
 owner: ""
 branch: ""
 size_estimate: S      # set by tech-lead-design at /plan MIR-21-c, 2026-11-06 (01-plan.md § 1)
-size: M               # twelve allowed_paths, eight of them the split's board overhead (01-plan.md § 7). Predicted L at /plan MIR-21-b; split by ADR-079
+size: M               # twelve allowed_paths, eight of them the split's board overhead (01-plan.md § 7). Predicted L at /plan MIR-21-b; split by ADR-080
 depends_on: [MIR-01, MIR-02, MIR-03, MIR-04, MIR-05, MIR-06, MIR-07, MIR-08, MIR-09, MIR-10, MIR-12, MIR-13, MIR-13-b, MIR-21, MIR-21-b]   # "Blocked by" — MIR-21-b moves every writer onto membership first (ADR-078 decision 1)
 invariants_touched: [INV-04, INV-07]   # 01-plan.md § 2
 allowed_paths:
-  - ".ai/registry/decisions/ADR-079-the-team-lock-moves-to-membership-first-and-the-drop-splits-into-four-slices.md"
+  - ".ai/registry/decisions/ADR-080-the-team-lock-moves-to-membership-first-and-the-drop-splits-into-four-slices.md"
   - ".ai/board/tickets/MIR-21-d/ticket.yaml"
   - ".ai/board/tickets/MIR-21-e/ticket.yaml"
   - ".ai/board/tickets/MIR-21-f/ticket.yaml"
@@ -24,13 +24,13 @@ allowed_paths:
   - ".ai/board/tickets/MIR-17/ticket.yaml"
   - ".ai/board/tickets/MIR-19/ticket.yaml"
   - ".ai/board/tickets/MIR-20/ticket.yaml"
-  - "supabase/migrations/20261106120000_mir21c_membership_self_lock.sql"
-  - "supabase/tests/240-membership-self-lock.test.sql"
+  - "supabase/migrations/20261106130000_mir21c_membership_self_lock.sql"
+  - "supabase/tests/250-membership-self-lock.test.sql"
   - "src/lib/data/supabase.ts"   # the three RPC calls of 01-plan.md § 4.2 only
   - "tests/member-rpc-roster-team.test.ts"
 glossary_owed: []
-schema_delta: "ADR-079 decision 1: adds the security-invoker trigger function public.membership_refuse_own_rows() and a before insert or update or delete row trigger on public.membership that refuses a write to the caller's own rows (ADR-064 decision 3, ADR-078 decision 6); re-creates admit_allow_listed_member() without team_id in its column list. No table, column, constraint or policy changes (01-plan.md § 6)"
-requires_adr: true    # ADR-079, written at this PLAN under ADR-067
+schema_delta: "ADR-080 decision 1: adds the security-invoker trigger function public.membership_refuse_own_rows() and a before insert or update or delete row trigger on public.membership that refuses a write to the caller's own rows (ADR-064 decision 3, ADR-078 decision 6); re-creates admit_allow_listed_member() without team_id in its column list. No table, column, constraint or policy changes (01-plan.md § 6)"
+requires_adr: true    # ADR-080, written at this PLAN under ADR-067
 rework_count: 0
 chat_budget:
   developer->tech-lead-design: { used: 0, max: 6 }
@@ -69,6 +69,6 @@ mir_detail: |
 
   Predicted L at /plan MIR-21-b: its PLAN splits it again.
 
-  **Split at /plan MIR-21-c on 2026-11-06 (ADR-079).** This ticket now carries decision 1 only: the
+  **Split at /plan MIR-21-c on 2026-11-06 (ADR-080).** This ticket now carries decision 1 only: the
   team lock on `membership`, the seam's three RPC reads and `admit_allow_listed_member`'s column list.
   The list above is distributed over MIR-21-d, MIR-21-e and MIR-21-f (01-plan.md § 1).

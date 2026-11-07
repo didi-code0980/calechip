@@ -4,7 +4,7 @@ last_updated: 2026-11-06
 governed_by: [RULE-01, RULE-02, RULE-04, RULE-09]
 ---
 
-# ADR-079 — The team lock moves to `membership` first, and the drop of `member.team_id` splits into four slices
+# ADR-080 — The team lock moves to `membership` first, and the drop of `member.team_id` splits into four slices
 
 ## Status
 

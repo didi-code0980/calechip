@@ -1,4 +1,4 @@
-// MIR-21-c, ADR-079 decision 1 — the three seam methods that return a `public.member` row from an
+// MIR-21-c, ADR-080 decision 1 — the three seam methods that return a `public.member` row from an
 // RPC read the roster team, not the column.
 //
 // `set_member_role`, `set_member_team` and `promote_member_to_admin` return a whole `public.member`
@@ -7,7 +7,7 @@
 // `team_id` is the computed field `roster_team_id` (ADR-077 decision 2).
 //
 // The real seam cannot run without a provisioned project, so this pins its source text, the shape
-// tests/roster-excludes-signups.test.ts uses. The database half is supabase/tests/240 AC-6.
+// tests/roster-excludes-signups.test.ts uses. The database half is supabase/tests/250 AC-6.
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";

@@ -29,7 +29,7 @@ planned, sized, and safe to build** — the next stage for a row here is IN_PROG
 
 **`MIR-21-c` was at `REVIEW` in `ticket.yaml`, `gates.review` not yet passed** — recorded at /advance on 2026-11-06 from `03-impl-log.md` gate PASS (`produced_at: 2026-11-06T10:21:35+07:00`); `/implement` had already set `state: REVIEW`. The row stays here until `/ship` moves it to `## ARCHIVE`.
 
-**`MIR-21-c` moved here at /advance on 2026-11-06**, from `01-plan.md` gate PASS (`produced_at: 2026-11-06T02:37:30Z`) with all six Definition of Ready items passing; `schema_delta` cites [ADR-079](../registry/decisions/ADR-079-the-team-lock-moves-to-membership-first-and-the-drop-splits-into-four-slices.md) (`ACCEPTED by tech-lead-design under the operator's delegation (ADR-067)`). PLAN split the drop into `MIR-21-d`, `MIR-21-e` and `MIR-21-f` (BACKLOG). MIR-21-c had no row in `## BACKLOG`, so no row left that table.
+**`MIR-21-c` moved here at /advance on 2026-11-06**, from `01-plan.md` gate PASS (`produced_at: 2026-11-06T02:37:30Z`) with all six Definition of Ready items passing; `schema_delta` cites [ADR-080](../registry/decisions/ADR-080-the-team-lock-moves-to-membership-first-and-the-drop-splits-into-four-slices.md) (`ACCEPTED by tech-lead-design under the operator's delegation (ADR-067)`). PLAN split the drop into `MIR-21-d`, `MIR-21-e` and `MIR-21-f` (BACKLOG). MIR-21-c had no row in `## BACKLOG`, so no row left that table.
 
 **Empty again — `MIR-21-b` left this section for `## ARCHIVE` at its own ship on 2026-11-05.** Its drop slice `MIR-21-c` stays at `BACKLOG`; the shared `MIR-21` row in `features.md` stays `PLANNED` until MIR-21-c ships.
 
@@ -1668,7 +1668,7 @@ các tính năng mới và đưa vào backlog"*. The four solo rows registered e
 | 17 | MIR-15 | In Org public, the directory, public events and event notifications stay within the team, only system_admin sets its holidays, and a team can be moved to another org — first slice (ADR-076) | 2026-11-05 | PENDING_PR |
 | 18 | MIR-21 | `member.team_id` is dropped once every reader has moved to `membership` — read slice (ADR-077, roster team) | 2026-11-05 | PENDING_PR |
 | 19 | MIR-21-b | Every writer writes `membership` directly, and the mirror trigger, `member_team_id()` and `member.team_id` are dropped — writer slice (ADR-078; the drop moved to MIR-21-c) | 2026-11-05 | PENDING_PR |
-| 20 | MIR-21-c | The team lock moves to `membership`: a trigger refuses a write to the caller's own rows — team-lock slice (ADR-079; the drop is MIR-21-f) | 2026-11-06 | PENDING_PR |
+| 20 | MIR-21-c | The team lock moves to `membership`: a trigger refuses a write to the caller's own rows — team-lock slice (ADR-080; the drop is MIR-21-f) | 2026-11-06 | PENDING_PR |
 
 **The window displaced `MIR-03` at MIR-21-c's ship** — *MIR-03, Role changes are bounded to members the admin administers, promotion to admin is a separately gated action, and every role change records its actor, shipped 2026-10-20,* [#166](https://github.com/didi-code0980/calechip/pull/166)
 

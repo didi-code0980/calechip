@@ -1,11 +1,11 @@
 -- MIR-21-c AC-1 to AC-8: ADR-064 decision 3's self lock is a row trigger on `membership`, the three
 -- row-returning member RPCs carry the roster team when read the seam's way, and the sign-up trigger
--- no longer names the team column (ADR-079 decision 1).
+-- no longer names the team column (ADR-080 decision 1).
 --
 -- T1 and T2 are inserted with no org, so `stamp_org_id` puts them in the shared tenant O. A (admin),
 -- M, R, W and X (members) are inserted with no team and no org, so they land in O too, and each gets
 -- an active primary `membership` row on T1, inserted directly. No fixture names the member table's
--- team column (ADR-079 decision 5).
+-- team column (ADR-080 decision 5).
 --
 -- "Claims name P" sets `request.jwt.claims` while the session role is still the table owner: the
 -- state a `security definer` function runs in when P calls it (01-plan.md § 2).
@@ -39,15 +39,15 @@ create function tests.m21c_claims(p_id uuid) returns void
 $$;
 
 insert into public.team (id, name) values
-  (tests.m21c('t1'), 'Team T1 mir21c-240'),
-  (tests.m21c('t2'), 'Team T2 mir21c-240');
+  (tests.m21c('t1'), 'Team T1 mir21c-250'),
+  (tests.m21c('t2'), 'Team T2 mir21c-250');
 insert into auth.users (id, email)
-select tests.m21c(l), l || '@mir21c-240.test'
+select tests.m21c(l), l || '@mir21c-250.test'
   from unnest(array['a', 'm', 'r', 'w', 'x']) l;
 insert into public.member (id, display_name, avatar, role, status, email) values
-  (tests.m21c('a'), 'A', '1.png', 'admin', 'approved', 'a@mir21c-240.test');
+  (tests.m21c('a'), 'A', '1.png', 'admin', 'approved', 'a@mir21c-250.test');
 insert into public.member (id, display_name, avatar, role, status, email)
-select tests.m21c(l), upper(l), '1.png', 'member', 'approved', l || '@mir21c-240.test'
+select tests.m21c(l), upper(l), '1.png', 'member', 'approved', l || '@mir21c-250.test'
   from unnest(array['m', 'r', 'w', 'x']) l;
 insert into public.membership (org_id, team_id, member_id, team_role, is_primary)
 select tests.m21c_org(), tests.m21c('t1'), tests.m21c(l), 'member', true
@@ -232,7 +232,7 @@ select tests.clear_authentication();
 -- AC-8. A confirmed sign-up is admitted as before, and the trigger no longer names the column.
 -- ---------------------------------------------------------------------------------------------
 insert into auth.users (id, email, email_confirmed_at)
-values (tests.m21c('s'), 's@mir21c-240.test', now());
+values (tests.m21c('s'), 's@mir21c-250.test', now());
 
 select ok(exists (select 1 from public.member where id = tests.m21c('s')),
   'AC-8: the confirmed sign-up S has a member row');

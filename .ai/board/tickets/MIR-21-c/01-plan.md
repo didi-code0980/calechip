@@ -43,9 +43,9 @@ next_state: READY
 Plan item P3-3, last step (`.ai/board/plans/calechip-multi-tenancy-plan.md:187`).
 
 **This ticket is the third slice of that feature, and the first of four that carry the drop
-(ADR-079).** MIR-21 moved the readers and MIR-21-b moved the writers. Done whole, the drop is about
+(ADR-080).** MIR-21 moved the readers and MIR-21-b moved the writers. Done whole, the drop is about
 24 paths, which is `L`. Most of those paths are fixtures that break all at once when the column goes.
-ADR-079 orders the work so that each slice stays green:
+ADR-080 orders the work so that each slice stays green:
 
 | Slice | What it does |
 |---|---|
@@ -91,7 +91,7 @@ things that tie the next slice to the column.
 
   All of it goes to MIR-21-f.
 - **The removal close.** The removal branch of `member_sync_membership` does not name the column.
-  It stays exactly as it is, in this slice and through MIR-21-f (ADR-079 decision 4).
+  It stays exactly as it is, in this slice and through MIR-21-f (ADR-080 decision 4).
 - **The column clause of `member_enforce_role_and_removal`.** It is not removed here. During this
   slice both locks fire on a self-move, and they raise the same message.
 - **The mock** (`src/lib/data/mock.ts`). It has no column, and it already returns the team it holds.
@@ -99,7 +99,7 @@ things that tie the next slice to the column.
 ## 2. Acceptance criteria
 
 **Fixtures.** Insert these as the table owner, before any authenticate. No fixture names
-`member.team_id` (ADR-079 decision 5).
+`member.team_id` (ADR-080 decision 5).
 
 - Teams T1 and T2 are inserted with no `org_id`, so `stamp_org_id` puts them in the shared tenant
   O. Each member is inserted with no `team_id` and no `org_id`, so it lands in O too. Each member's
@@ -203,7 +203,7 @@ R's row was inserted with no `team_id`, so a T1 here cannot have come from the c
 
 **Open questions.** None. The lock's message and errcode are ADR-064's
 (`20261020120000_mir02_member_self_writes.sql:61-67`). The seam's field is ADR-077's
-`MEMBER_COLUMNS` (`supabase.ts:983-984`). The split is ADR-079.
+`MEMBER_COLUMNS` (`supabase.ts:983-984`). The split is ADR-080.
 
 ### 2b. Visual reference
 
@@ -235,16 +235,16 @@ removes the assignment, the same call meets this trigger, with the same message.
 
 ## 4. Contract
 
-### 4.1 Migration — `supabase/migrations/20261106120000_mir21c_membership_self_lock.sql`
+### 4.1 Migration — `supabase/migrations/20261106130000_mir21c_membership_self_lock.sql`
 
 - It is **idempotent** (ADR-024): `create or replace` for each function, and
   `drop trigger if exists` before the trigger, inside `begin; … commit;`.
 - Applying it to a hosted database is human (RULE-09).
 
-**The lock** (ADR-079 decision 1; ADR-078 decision 6):
+**The lock** (ADR-080 decision 1; ADR-078 decision 6):
 
 ```sql
--- ADR-064 decision 3, on `membership` (ADR-079 decision 1). Nobody holding a user token writes their
+-- ADR-064 decision 3, on `membership` (ADR-080 decision 1). Nobody holding a user token writes their
 -- own membership rows, by any path. `security invoker`: `auth.uid()` reads the request's claims, so
 -- inside a definer function it is still the caller. A null uid is the owner, a migration or a script.
 create or replace function public.membership_refuse_own_rows() returns trigger
@@ -288,7 +288,7 @@ It is `security invoker`, so it stays outside `010-catalogue.test.sql`'s definer
 `20260913090000_solo_avatar_images.sql:46-81`. Keep it character for character, with one change:
 the insert names `(id, display_name, avatar, role)` and drops the `null` value. The column takes
 its default, which is null, so the row it inserts is the same row as today. Reword the comment line
-that says `` `team_id` is left NULL `` to say the team is never written here, citing ADR-079. Keep
+that says `` `team_id` is left NULL `` to say the team is never written here, citing ADR-080. Keep
 its `security definer set search_path = extensions` and its exception handler as they are. The
 trigger that points at the function is not touched.
 
@@ -304,7 +304,7 @@ Make three calls, each chained with `.select(MEMBER_COLUMNS)`, then `.single<Mem
 
 Nothing else in the three bodies changes. The `error` mapping, the `isMemberRow` guard, the
 refusal sentences and `toMember` all stay as they are. Add a comment beside each call that cites
-ADR-079 decision 1: the column is about to go stale, so `team_id` is the roster team.
+ADR-080 decision 1: the column is about to go stale, so `team_id` is the roster team.
 
 **Why the roster team is right here.** PostgREST evaluates the computed field over the returned row.
 None of these three functions changes a team: `set_member_team` accepts only the current roster team
@@ -327,7 +327,7 @@ This is a source-text test, the shape `tests/roster-excludes-signups.test.ts:54`
 
 Use one `it` per name. Each `it` name says which AC it covers.
 
-### 4.4 pgTAP — `supabase/tests/240-membership-self-lock.test.sql`
+### 4.4 pgTAP — `supabase/tests/250-membership-self-lock.test.sql`
 
 This is a new file, using the fixtures of § 2.
 
@@ -339,7 +339,7 @@ This is a new file, using the fixtures of § 2.
 - Write one assertion block per AC, from AC-1 to AC-8.
 - AC-1 and AC-4 compare `membership` rows before and after with `results_eq` over every column.
 - **No line in this file names `member.team_id`, and no `insert into public.member` names
-  `team_id`** (ADR-079 decision 5). Record a `grep` of the file in `03-impl-log.md`.
+  `team_id`** (ADR-080 decision 5). Record a `grep` of the file in `03-impl-log.md`.
 
 AC-9 is the suite run. Record it in `03-impl-log.md`.
 
@@ -366,14 +366,14 @@ That value equals the column today (`220` AC-1).
 It changes no table, column, constraint, policy or grant on a table. Under ADR-014 a trigger is a
 schema delta.
 
-Covered by [ADR-079](../../../registry/decisions/ADR-079-the-team-lock-moves-to-membership-first-and-the-drop-splits-into-four-slices.md)
+Covered by [ADR-080](../../../registry/decisions/ADR-080-the-team-lock-moves-to-membership-first-and-the-drop-splits-into-four-slices.md)
 decision 1, within ADR-078 decision 6 and ADR-064 decision 3. `requires_adr: true`.
 
 ## 7. allowed_paths
 
 ```yaml
 allowed_paths:
-  - ".ai/registry/decisions/ADR-079-the-team-lock-moves-to-membership-first-and-the-drop-splits-into-four-slices.md"
+  - ".ai/registry/decisions/ADR-080-the-team-lock-moves-to-membership-first-and-the-drop-splits-into-four-slices.md"
   - ".ai/board/tickets/MIR-21-d/ticket.yaml"
   - ".ai/board/tickets/MIR-21-e/ticket.yaml"
   - ".ai/board/tickets/MIR-21-f/ticket.yaml"
@@ -381,8 +381,8 @@ allowed_paths:
   - ".ai/board/tickets/MIR-17/ticket.yaml"
   - ".ai/board/tickets/MIR-19/ticket.yaml"
   - ".ai/board/tickets/MIR-20/ticket.yaml"
-  - "supabase/migrations/20261106120000_mir21c_membership_self_lock.sql"
-  - "supabase/tests/240-membership-self-lock.test.sql"
+  - "supabase/migrations/20261106130000_mir21c_membership_self_lock.sql"
+  - "supabase/tests/250-membership-self-lock.test.sql"
   - "src/lib/data/supabase.ts"
   - "tests/member-rpc-roster-team.test.ts"
 ```
@@ -390,9 +390,9 @@ allowed_paths:
 Twelve paths, so `size: M`.
 
 - **The board paths are written at this PLAN.**
-  - ADR-079 is new.
-  - `MIR-21-d`, `-e` and `-f` are created at `BACKLOG`, and each carries its scope from ADR-079.
-  - The four dependants gain `MIR-21-d`, `MIR-21-e` and `MIR-21-f` in `depends_on` (ADR-079
+  - ADR-080 is new.
+  - `MIR-21-d`, `-e` and `-f` are created at `BACKLOG`, and each carries its scope from ADR-080.
+  - The four dependants gain `MIR-21-d`, `MIR-21-e` and `MIR-21-f` in `depends_on` (ADR-080
     decision 6).
 
   Nothing further is owed on any of them at IN_PROGRESS.
@@ -400,14 +400,14 @@ Twelve paths, so `size: M`.
 - `glossary_owed` is `[]`. No glossary row is owed.
 - **`size_estimate` (S) and `size` (M) disagree.** The work is four paths. The other eight are the
   board overhead of the split. The verdict, `M`, stands (ADR-012).
-- Numbers checked against all 169 remote branches on 2026-11-06: ADR-079, `240-*`, migration
-  `20261106120000` and tickets `MIR-21-d` to `-f` are unused.
+- Numbers checked against all 169 remote branches on 2026-11-06: ADR-080, `250-*`, migration
+  `20261106130000` and tickets `MIR-21-d` to `-f` are unused.
 
 ## 8. Rejected alternatives
 
 - **Writers stop assigning the column in this slice too.** Rejected. It adds `create-account.sql`
   and five tests that read the column after a writer. With the board overhead that is about fifteen
-  paths, which is `L` (ADR-079 *Options*).
+  paths, which is `L` (ADR-080 *Options*).
 - **Put the lock inside `membership_make_primary` instead of a trigger.** It is smaller: one helper,
   no new trigger. Rejected, because it covers one path, and ADR-064 decision 3 says "by any path".
   `set_member_role` and `promote_member_to_admin` update `team_role` directly
@@ -426,7 +426,7 @@ Twelve paths, so `size: M`.
 
 ## Delegated decisions
 
-- **ADR-079** splits the drop of `member.team_id` into four slices, MIR-21-c to MIR-21-f, and adds
+- **ADR-080** splits the drop of `member.team_id` into four slices, MIR-21-c to MIR-21-f, and adds
   MIR-21-d to -f to the four dependants' `depends_on`. It supersedes nothing. It was written under
   ADR-067 because it re-allocates ADR-078 decision 5 and extends decision 7.
 
@@ -437,7 +437,7 @@ Twelve paths, so `size: M`.
     for MIR-21-b. ADR-078's own count (about 20 paths) did not include `230`, which MIR-21-b added,
     or `rbac-and-security.md`. The count turned on which tests read the column, which insert it, and
     which do both.
-  - **Departures from `mir_detail`.** `mir_detail` listed the whole drop. ADR-079 gives most of it to
+  - **Departures from `mir_detail`.** `mir_detail` listed the whole drop. ADR-080 gives most of it to
     MIR-21-d to -f. `member_decide_admin`, `stamp_org_id`'s team lookup and the column's
     `update` grant all go to MIR-21-f. `admit_allow_listed_member`'s column list stays here, because
     it costs no path.
