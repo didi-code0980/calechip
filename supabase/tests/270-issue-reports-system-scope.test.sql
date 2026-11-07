@@ -13,6 +13,12 @@
 --   * R-P, by Thanh (older), and R-D, by Dan (newer, with one image path and a matching
 --     `storage.objects` row in the `issue-report` bucket) — so "newest first" has something to prove.
 --
+-- `tests.seed()` ALSO WRITES A THIRD REPORT, by member_t (`_isolation.psql:158-159`), with
+-- `created_at` defaulting to `now()` — later than both R-P and R-D, so AC-4's ordering assertion is
+-- restricted to R-P and R-D's ids (01-plan.md § 4.2, re-plan of 2026-11-07, review finding 2,
+-- `04-review.md`). AC-1 to AC-3 and AC-6 are unaffected: they assert over every row or none, and the
+-- seed's own report is refused the same way R-P and R-D are.
+--
 -- "At aal2" is claims `{"sub", "role": "authenticated", "aal": "aal2"}`; `tests.authenticate_at` is
 -- copied from 200-org-management.test.sql:33-40, as `_isolation.psql` is not edited.
 \set ON_ERROR_STOP 1
@@ -126,8 +132,15 @@ select tests.clear_authentication();
 -- AC-4. A system admin at aal2 lists every org's reports, newest first, with every field.
 -- ---------------------------------------------------------------------------------------------
 select tests.authenticate_at(tests.m16('sam'), 'aal2');
+-- `tests.seed()` writes a third report, by member_t, whose created_at defaults to now()
+-- (_isolation.psql:158-159; 20260926100000_solo_issue_report.sql:56) — later than R-P and R-D, so it
+-- is the newest row list_issue_reports() returns. Restricted to R-P and R-D (01-plan.md § 4.2, added
+-- at the re-plan of 2026-11-07), the ordering still proves newest-first across both orgs.
 select results_eq(
-  $$select id from public.list_issue_reports()$$,
+  format(
+    $$select id from public.list_issue_reports() where id in (%L::uuid, %L::uuid)$$,
+    tests.m16('report_d'), tests.m16('report_p')
+  ),
   format($$values (%L::uuid), (%L::uuid)$$, tests.m16('report_d'), tests.m16('report_p')),
   'AC-4: Sam at aal2 lists R-D then R-P, newest first'
 );

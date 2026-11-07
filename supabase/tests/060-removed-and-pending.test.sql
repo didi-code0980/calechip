@@ -3,7 +3,7 @@
 -- and is not asserted (01-plan.md § 2, assumption 1). With AC-13 controls. 01-plan.md § 4.4.
 begin;
 \ir _isolation.psql
-select plan(87);
+select plan(86);
 select tests.seed();
 
 create function tests.reads_nothing(p_label text) returns setof text
@@ -69,9 +69,13 @@ begin
 end;
 $$;
 
+-- `issue_report` came out of this control at MIR-16 (ADR-082): an org admin now reads none, even on
+-- their own fixture. The control that a report is readable by somebody entitled is now
+-- 270-issue-reports-system-scope.test.sql's AC-4. Re-plan of 2026-11-07, review finding 1
+-- (04-review.md).
 select * from tests.reads_something('admin_t',
   array['entry', 'team', 'busy_day', 'event', 'event_attendance', 'event_invitee', 'event_guest',
-        'event_guest_link', 'event_email_invitation', 'issue_report']);
+        'event_guest_link', 'event_email_invitation']);
 select * from tests.reads_something('member_t', array['notification', 'task']);
 
 select tests.authenticate_as(tests.id('admin_t'));
