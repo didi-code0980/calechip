@@ -101,8 +101,8 @@ insert into public.membership (org_id, team_id, member_id, team_role, is_primary
 select matches(
   (select pg_catalog.pg_get_triggerdef(t.oid) from pg_catalog.pg_trigger t
     where t.tgrelid = 'public.member'::regclass and t.tgname = 'member_sync_membership'),
-  'AFTER INSERT OR UPDATE OF removed_at ON public\.member ',
-  'AC-10: member_sync_membership fires AFTER INSERT OR UPDATE OF removed_at');
+  'AFTER UPDATE OF removed_at ON public\.member ',
+  'AC-10: member_sync_membership fires AFTER UPDATE OF removed_at (MIR-21-f dropped the INSERT event)');
 select doesnt_match(
   (select pg_catalog.pg_get_triggerdef(t.oid) from pg_catalog.pg_trigger t
     where t.tgrelid = 'public.member'::regclass and t.tgname = 'member_sync_membership'),

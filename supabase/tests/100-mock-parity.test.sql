@@ -6,7 +6,7 @@
 -- side that moves without the other fails its own suite (01-plan.md § 2, assumption 3).
 --
 -- Every expected value is written by hand from the SQL definitions — `public.is_admin`,
--- `public.member_team_id` (`20260910100000_solo_member_approval.sql:57-77`), `public.may_decide`
+-- `public.member_primary_team_id` (`20261103120000_mir13_write_path_org_bound.sql:54-64`), `public.may_decide`
 -- (`20260912100000_solo_manager_role.sql:55-64`), and for the own-row writes the grant, the revoke
 -- and the trigger of `20261020120000_mir02_member_self_writes.sql` with `member_update_own`
 -- (`20260910093000_solo_profile_self_update.sql:66-69`). Never computed, in either test.
@@ -117,13 +117,17 @@ create function tests.parity_subject(p_case_id text, p_role text, p_status text,
 begin
   insert into auth.users (id, email)
   values (tests.parity_id(p_case_id), lower(p_case_id) || '@mir07.test');
-  insert into public.member (id, team_id, display_name, avatar, role, status, removed_at, email)
+  insert into public.member (id, display_name, avatar, role, status, removed_at, email)
   values (tests.parity_id(p_case_id),
-          case when p_on_team then tests.id('team_t') end,
           p_case_id, '1.png',
           p_role::public.member_role, p_status::public.member_status,
           case when p_removed then now() end,
           lower(p_case_id) || '@mir07.test');
+  -- MIR-21-f: a member has no team column; the team is the membership row. The seed's teams and
+  -- these members are both in the shared tenant, so no org_id is named.
+  if p_on_team then
+    perform tests.put_on_team(tests.parity_id(p_case_id), tests.id('team_t'));
+  end if;
 end;
 $$;
 
@@ -171,7 +175,9 @@ begin
       execute format('update public.member set %I = %L where id = %L', v_column, v_value, v_id);
     end if;
     get diagnostics v_n = row_count;
-  exception when insufficient_privilege then
+  -- MIR-21-f: the six team_id cases are still the attack, a PATCH naming the column, and it is
+  -- still refused: now because the column does not exist (42703), and the row check below holds.
+  exception when insufficient_privilege or undefined_column then
     v_n := 0;
   end;
   perform tests.clear_authentication();
@@ -197,8 +203,8 @@ grant execute on all functions in schema tests to anon, authenticated;
 select is(public.is_admin(tests.parity_id(c->>'id')), (c->>'is_admin')::boolean,
           format('AC-5 %s: is_admin', c->>'id'))
   from parity, jsonb_array_elements(doc->'predicates') c;
-select is(public.member_team_id(tests.parity_id(c->>'id')) is not null, (c->>'has_team')::boolean,
-          format('AC-5 %s: member_team_id is not null', c->>'id'))
+select is(public.member_primary_team_id(tests.parity_id(c->>'id')) is not null, (c->>'has_team')::boolean,
+          format('AC-5 %s: member_primary_team_id is not null', c->>'id'))
   from parity, jsonb_array_elements(doc->'predicates') c;
 select is(public.may_decide(tests.parity_id(c->>'id')), (c->>'may_decide')::boolean,
           format('AC-5 %s: may_decide', c->>'id'))
