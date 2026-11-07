@@ -32,12 +32,33 @@ import { expect, test, type Page } from "@playwright/test";
 // Fixtures (src/lib/fixtures.ts, mirrored in supabase/seed.sql):
 // - Admin:  quan@example.com   (FIXTURE_ADMIN)
 // - Member: thanh@example.com  (FIXTURE_MEMBER)
+//
+// **MIR-15-e, ADR-079 decision 5.** Since MIR-15-b an admin of Org public is refused all three
+// writes (`holiday_insert_admin`, `holiday_update_admin`, `holiday_delete_admin` each gained
+// `and not public.org_is_shared(org_id)`), so every test ABOVE this paragraph that exercises a
+// successful write now runs as Quan-D — the same account, placed in the mock's dedicated org by
+// `page.addInitScript`, writing `DEDICATED_ORG_STORAGE_KEY` (`src/lib/data/mock.ts`) before the
+// app's first load, the way TEA-05 AC-7 already pins `SESSION_STORAGE_KEY` the same way. There is
+// no fixture account in a dedicated org (01-plan.md § 1 *Out of scope*): this is the test switch
+// that reaches that path without one. The `MIR-15-e` describe block at the bottom is Quan
+// (Org public's own admin) and Quan-D side by side, where the criterion is about the difference.
 
 const PASSWORD = "password123";
 const ADMIN_EMAIL = "quan@example.com";
 const MEMBER_EMAIL = "thanh@example.com";
+/** FIXTURE_ADMIN.id (src/lib/fixtures.ts). Transcribed rather than imported: the acceptance suite
+ *  addresses the application through the browser and does not import from `src/`. */
+const ADMIN_ID = "22222222-2222-4222-8222-222222222222";
 
 const SIGNIN = "/signin";
+
+/** MIR-15-e. Places Quan in the mock's dedicated org before the app's first load — Quan-D,
+ *  01-plan.md § 4.3. Must be called before the first `page.goto`. */
+async function placeAdminInDedicatedOrg(page: Page): Promise<void> {
+  await page.addInitScript((adminId: string) => {
+    localStorage.setItem("calechip.mock.dedicatedOrgMembers", JSON.stringify([adminId]));
+  }, ADMIN_ID);
+}
 
 /** An empty year, so an add lands in a list holding only what the test put there. */
 const EMPTY_YEAR = "2028";
@@ -84,6 +105,9 @@ const drawnDates = (page: Page): Promise<string[]> =>
 
 test.describe("ADM-03 add, edit or delete a holiday or swap day", () => {
   test.beforeEach(async ({ page }) => {
+    // MIR-15-e. Every test below is Quan-D's — see the paragraph above the fixtures list.
+    await placeAdminInDedicatedOrg(page);
+
     await page.goto(SIGNIN);
     const loading = page.getByTestId("app-session-loading");
     if (await loading.isVisible()) await expect(loading).toBeHidden();
@@ -405,6 +429,132 @@ test.describe("ADM-03 add, edit or delete a holiday or swap day", () => {
     // half changed nothing about who reads what or in what order.
     await expect(page.getByTestId("holiday-add-form")).toBeVisible();
     expect(await drawnDates(page)).toEqual(asMember);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// MIR-15-e, ADR-079 decision 5. 01-plan.md §§ 2, 4.6. Quan (Org public's own admin) and Quan-D side
+// by side — the two halves of the permission table (01-plan.md § 3) the describe block above cannot
+// show, because every test there is Quan-D's.
+//
+// NO SHARED `beforeEach` NAVIGATES HERE, AND THAT IS DELIBERATE. `DEDICATED_ORG_STORAGE_KEY` is read
+// once at module load (`src/lib/data/mock.ts`), so `placeAdminInDedicatedOrg` must run BEFORE the
+// app's first `page.goto` — a shared `beforeEach` that navigated first, the way the describe block
+// above does, would make AC-3 and AC-6's own call to it arrive one document load too late and leave
+// Quan reading Org public throughout. `startSignedOut` below is the two lines that beforeEach used
+// to own, called by every test here in whichever order its own criterion needs.
+// ---------------------------------------------------------------------------
+
+/** The two lines `test.beforeEach` owns in the describe block above, extracted so a test that needs
+ *  `placeAdminInDedicatedOrg` first can call it first. */
+async function startSignedOut(page: Page): Promise<void> {
+  await page.goto(SIGNIN);
+  const loading = page.getByTestId("app-session-loading");
+  if (await loading.isVisible()) await expect(loading).toBeHidden();
+}
+
+test.describe("MIR-15-e — Org public's holidays are the system admin's, through the interface", () => {
+  test("MIR-15-e AC-1: an admin of Org public is offered no holiday write", async ({ page }) => {
+    await startSignedOut(page);
+    await openCalendar(page, ADMIN_EMAIL, "2026");
+
+    await expect(page.getByTestId("holidays-row")).toHaveCount(4);
+    await expect(page.getByTestId("holiday-add-form")).toHaveCount(0);
+    await expect(page.getByTestId("holidays-row-edit")).toHaveCount(0);
+    await expect(page.getByTestId("holidays-row-delete")).toHaveCount(0);
+  });
+
+  test("MIR-15-e AC-2: and is told who sets the calendar", async ({ page }) => {
+    await startSignedOut(page);
+    await openCalendar(page, ADMIN_EMAIL, "2026");
+
+    await expect(page.getByTestId("holidays-set-by-system")).toBeVisible();
+    await expect(page.getByTestId("holidays-set-by-system")).toContainText(
+      "set by a system admin",
+    );
+  });
+
+  test("MIR-15-e AC-3: a dedicated org's admin keeps all three controls", async ({ page }) => {
+    await placeAdminInDedicatedOrg(page);
+    await startSignedOut(page);
+
+    await openCalendar(page, ADMIN_EMAIL);
+    await expect(page.getByTestId("holidays-set-by-system")).toHaveCount(0);
+
+    await add(page, A_DATE, "Quan-D's own day", "non_working");
+    const row = rowFor(page, A_DATE);
+    await expect(row).toBeVisible();
+
+    await row.getByTestId("holidays-row-edit").click();
+    await page.getByTestId("holiday-edit-name").fill("Edited by Quan-D");
+    await page.getByTestId("holiday-edit-submit").click();
+    await expect(row.getByTestId("holidays-row-name")).toHaveText("Edited by Quan-D");
+
+    await row.getByTestId("holidays-row-delete").click();
+    await page.getByTestId("holidays-row-delete-confirm-accept").click();
+    await expect(row).toHaveCount(0);
+  });
+
+  // BY ADDRESS, NOT THROUGH `openCalendar`/`reachHolidays`. BUG-003 (docs/ops/e2e-quarantine.md)
+  // has removed `home-holidays-link` from the sidebar for every role, which is what every OTHER
+  // member-role test reaching this screen through the link is quarantined over; the sidebar click
+  // hangs forever when there is no admin tab to fall back to either. This criterion is about the
+  // SCREEN a member reaches, not the link, and AC-4's own wording ("he opens /holidays/2026") is
+  // already an address — matching the route by address sidesteps BUG-003 rather than working
+  // around it.
+  test("MIR-15-e AC-4: a member is still offered nothing, and sees no system-admin line", async ({
+    page,
+  }) => {
+    await startSignedOut(page);
+    await signIn(page, MEMBER_EMAIL);
+    await expect(page.getByTestId("home-sign-out")).toBeVisible();
+
+    await page.goto("/holidays/2026");
+    await expect(page.getByTestId("holidays-year")).toHaveAttribute("data-year", "2026");
+
+    await expect(page.getByTestId("holidays-row")).toHaveCount(4);
+    await expect(page.getByTestId("holiday-add-form")).toHaveCount(0);
+    await expect(page.getByTestId("holidays-row-edit")).toHaveCount(0);
+    await expect(page.getByTestId("holidays-row-delete")).toHaveCount(0);
+    await expect(page.getByTestId("holidays-set-by-system")).toHaveCount(0);
+  });
+
+  // MIR-15-e AC-6. AS QUAN-D, DELIBERATELY — a dedicated org's admin is who the database would
+  // otherwise let write, so a failure here must still show no control for a REASON OTHER THAN "this
+  // is Org public's admin". The route-rewrite pattern of
+  // tests/e2e/mir-14-b-worklist-teams.spec.ts:71-90: the mock bundle's `async isOwnOrgShared(){` is
+  // prefixed with a throw, asserted to match exactly once, so a build that stops matching fails
+  // loudly here rather than letting AC-6 pass for the wrong reason.
+  test("MIR-15-e AC-6: when whether the org is shared cannot be read, no write control is shown", async ({
+    page,
+  }) => {
+    await placeAdminInDedicatedOrg(page);
+
+    await page.route(/\/assets\/.*\.js$/, async (route) => {
+      const response = await route.fetch();
+      const source = await response.text();
+      const pattern = /async isOwnOrgShared\(\)\{/g;
+      const matches = source.match(pattern) ?? [];
+      if (matches.length === 0) {
+        await route.fulfill({ response, body: source });
+        return;
+      }
+      expect(matches, "isOwnOrgShared appears once in the mock bundle").toHaveLength(1);
+      const body = source.replace(
+        pattern,
+        () => `async isOwnOrgShared(){throw Error("MIR-15-e AC-6 injected failure");`,
+      );
+      await route.fulfill({ response, body });
+    });
+
+    await startSignedOut(page);
+    await openCalendar(page, ADMIN_EMAIL, "2026");
+
+    await expect(page.getByTestId("holidays-row")).toHaveCount(4);
+    await expect(page.getByTestId("holiday-add-form")).toHaveCount(0);
+    await expect(page.getByTestId("holidays-row-edit")).toHaveCount(0);
+    await expect(page.getByTestId("holidays-row-delete")).toHaveCount(0);
+    await expect(page.getByTestId("holidays-set-by-system")).toHaveCount(0);
   });
 });
 

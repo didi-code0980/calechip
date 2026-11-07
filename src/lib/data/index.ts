@@ -1083,6 +1083,15 @@ export interface DataSeam {
    */
   deleteHoliday(holidayId: string): Promise<Result<void>>;
 
+  /**
+   * MIR-15-e. Whether the caller's org is Org public, the shared tenant: `public.member_org_id` for
+   * the signed-in user, then `public.org_is_shared` on it. `false` when there is no session, no
+   * member row, or the member is not approved or is removed — `member_org_id` is null for each and
+   * `org_is_shared(null)` is false. An affordance for `/holidays` only (ADR-079 decision 2); the
+   * write policies are the control. THROWS on any failure; the caller fails closed.
+   */
+  isOwnOrgShared(): Promise<boolean>;
+
   // -------------------------------------------------------------------------
   // ADM-04 — the worklist of entries awaiting a decision. 01-plan.md section 4.2.
   //

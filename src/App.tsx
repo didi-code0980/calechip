@@ -538,11 +538,14 @@ export default function App() {
                   this file holds no clock (AC-9).
 
                   GUARDED ON A SESSION AND NOT ON A ROLE, which is unlike every guard above it. Both
-                  signed-in states render: `holiday_select_all` is `using (true)` and a holiday belongs
-                  to no team, so a caller with no member row reads the calendar exactly as a member
-                  does (AC-7) — there is no "you are not on a team" to say about a national calendar,
-                  and no role to check either, because `Read the holiday calendar` is checked for both
-                  roles in .ai/standards/rbac-and-security.md (AC-1, AC-2).
+                  signed-in states render: a holiday belongs to no team, so there is no "you are not
+                  on a team" to say about a national calendar, and no role to check either, because
+                  `Read the holiday calendar` is checked for both roles in
+                  .ai/standards/rbac-and-security.md (AC-1, AC-2). MIR-15-e, ADR-079 decision 3 — a
+                  caller with no member row, pending, or removed no longer reads the calendar exactly
+                  as a member does: `holiday_select_all` was replaced by `holiday_select_own_org`, so
+                  that caller reads no row since there is no org for the read to scope to, and the
+                  screen says so (MIR-15-e AC-5) rather than rendering an empty year.
 
                   A SIGNED-OUT CALLER GOES TO `/`, which resolves by membership to the sign-in screen.
                   That guard exists for one specific reason rather than for symmetry: with no session
