@@ -200,7 +200,7 @@ $$;
 grant execute on all functions in schema tests to anon, authenticated;
 
 -- AC-5. The three shared predicates, one assertion each per row.
-select is(public.is_admin(tests.parity_id(c->>'id')), (c->>'is_admin')::boolean,
+select is(public.is_org_admin(tests.parity_id(c->>'id'), public.member_org_id(tests.parity_id(c->>'id'))), (c->>'is_admin')::boolean,
           format('AC-5 %s: is_admin', c->>'id'))
   from parity, jsonb_array_elements(doc->'predicates') c;
 select is(public.member_primary_team_id(tests.parity_id(c->>'id')) is not null, (c->>'has_team')::boolean,

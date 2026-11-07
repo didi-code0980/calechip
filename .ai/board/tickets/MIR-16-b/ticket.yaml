@@ -8,7 +8,7 @@ id: MIR-16-b
 title: "`is_org_admin(uid, org_id)` replaces `is_admin(uid)` at every call site"   # narrowed at /plan MIR-16-b, 2026-11-07 (ADR-083). Was: "`admin` becomes `org_admin`: the enum value, `is_org_admin(uid, org_id)`, and the demotion trigger"
 feature_ids: [MIR-16]   # split of MIR-16 (operating model § ID scheme: splits get -a, -b)
 group: MIR
-state: READY   # `orchestrator` at /advance, 2026-11-07, from 01-plan.md gate PASS
+state: REVIEW   # `orchestrator` at /advance, 2026-11-07, from 03-impl-log.md gate PASS
 owner: ""
 branch: ""
 size_estimate: "M"    # S|M - set by tech-lead-design at PLAN; gates DoR
