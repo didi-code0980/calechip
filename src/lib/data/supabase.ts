@@ -957,6 +957,14 @@ export function client(): SupabaseClient {
   return cached;
 }
 
+/** MIR-16-e, ADR-084 decision 2. The database's spelling of a member's role. The application keeps
+ *  `MemberRole` ("member" | "manager" | "admin") until MIR-17; these two functions are the only
+ *  place the two vocabularies meet. */
+type DbMemberRole = "member" | "manager" | "org_admin";
+
+const fromDbRole = (role: DbMemberRole): MemberRole => (role === "org_admin" ? "admin" : role);
+const toDbRole = (role: MemberRole): DbMemberRole => (role === "admin" ? "org_admin" : role);
+
 // The `member` row as PostgREST returns it: snake_case, straight off the column names in
 // supabase/migrations. This file is the only place the database casing and the domain casing meet
 // (.ai/standards/architecture.md, "Layers" — code above the seam never sees a column name).
@@ -965,7 +973,7 @@ interface MemberRow {
   team_id: string | null;
   display_name: string;
   avatar: string;
-  role: MemberRole;
+  role: DbMemberRole;
   status: MemberStatus;
   email: string | null;
   last_sign_in_at: string | null;
@@ -989,7 +997,7 @@ function toMember(row: MemberRow): Member {
     teamId: row.team_id,
     displayName: row.display_name,
     avatar: row.avatar,
-    role: row.role,
+    role: fromDbRole(row.role),
     status: row.status,
     email: row.email,
     lastSignInAt: row.last_sign_in_at,
@@ -1216,7 +1224,7 @@ async function setRankThroughRpc(
   // MIR-21-c, ADR-080 decision 1. The column is about to go stale, so `team_id` is the roster team:
   // `MEMBER_COLUMNS` reads it through the computed field over the returned row.
   const { data, error } = await client()
-    .rpc("set_member_role", { p_member_id: memberId, p_role: role })
+    .rpc("set_member_role", { p_member_id: memberId, p_role: toDbRole(role) })
     .select(MEMBER_COLUMNS)
     .single<MemberRow>();
 

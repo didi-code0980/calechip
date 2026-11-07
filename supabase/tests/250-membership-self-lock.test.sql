@@ -45,7 +45,7 @@ insert into auth.users (id, email)
 select tests.m21c(l), l || '@mir21c-250.test'
   from unnest(array['a', 'm', 'r', 'w', 'x']) l;
 insert into public.member (id, display_name, avatar, role, status, email) values
-  (tests.m21c('a'), 'A', '1.png', 'admin', 'approved', 'a@mir21c-250.test');
+  (tests.m21c('a'), 'A', '1.png', tests.member_role('admin'), 'approved', 'a@mir21c-250.test');
 insert into public.member (id, display_name, avatar, role, status, email)
 select tests.m21c(l), upper(l), '1.png', 'member', 'approved', l || '@mir21c-250.test'
   from unnest(array['m', 'r', 'w', 'x']) l;

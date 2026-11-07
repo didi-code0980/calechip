@@ -139,7 +139,7 @@ begin
   if found then
     -- AC-7. The only silent outcome, and it holds whether or not other active admins exist — it is
     -- evaluated before AC-9 for exactly that reason. Re-applying the file is a no-op, not a repair.
-    if v_role = 'admin'::public.member_role and v_removed_at is null then
+    if v_role = 'org_admin'::public.member_role and v_removed_at is null then
       raise notice
         'already bootstrapped: public.member already holds an active admin row for that auth user';
       return;
@@ -158,7 +158,7 @@ begin
   -- project that already has one.
   select count(*) into v_admin_count
     from public.member m
-   where m.role = 'admin'::public.member_role
+   where m.role = 'org_admin'::public.member_role
      and m.removed_at is null;
 
   if v_admin_count > 0 then
@@ -205,7 +205,7 @@ begin
     coalesce(nullif(btrim(v_meta ->> 'display_name'), ''),
              split_part(v_email, '@', 1)),        -- copied from ...tea01_membership.sql:113-117
     coalesce(nullif(btrim(v_meta ->> 'avatar'), ''), '1.png'),
-    'admin'::public.member_role                   -- the one row in this product that is not written
+    'org_admin'::public.member_role                -- the one row in this product that is not written
                                                   -- by the trigger, and the reason this file exists
   );
 
