@@ -239,17 +239,17 @@ select ok(exists (select 1 from public.member where status <> 'approved' and id 
   'AC-8: Admin A still reads Org A''s pending sign-up');
 select is_empty($$select id from public.issue_report where id = tests.m13b('report_2')$$,
   'AC-8: public.issue_report does not return R2');
-select ok(exists (select 1 from public.issue_report where id = tests.m13b('report_u')),
-  'AC-8: public.issue_report still returns a report from T3');
+select is_empty($$select id from public.issue_report where id = tests.m13b('report_u')$$,
+  'AC-8: public.issue_report returns nothing to an admin — MIR-16, ADR-082');
 select is_empty(
   $$select name from storage.objects
      where bucket_id = 'issue-report' and name like tests.m13b('m2')::text || '/%'$$,
   'AC-8: storage.objects in issue-report does not return M2''s image'
 );
-select ok(
-  exists (select 1 from storage.objects
-           where bucket_id = 'issue-report' and name = tests.id('member_u')::text || '/ru.png'),
-  'AC-8: storage.objects still returns the image of a reporter on T3, not Admin A''s primary team'
+select is_empty(
+  $$select name from storage.objects
+     where bucket_id = 'issue-report' and name = tests.id('member_u')::text || '/ru.png'$$,
+  'AC-8: storage.objects returns nothing to an admin, even for a reporter on T3 — MIR-16, ADR-082'
 );
 select ok(not exists (select 1 from public.list_member_directory() d where d.id = tests.m13b('m2')),
   'AC-8: list_member_directory() does not return M2');

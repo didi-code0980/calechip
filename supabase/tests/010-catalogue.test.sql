@@ -69,6 +69,9 @@ select set_eq(
     'public.add_national_holiday(date,text,public.holiday_kind)',
     'public.update_national_holiday(uuid,date,text,public.holiday_kind)',
     'public.delete_national_holiday(uuid)',
+    -- MIR-16 RPCs, 270-issue-reports-system-scope.test.sql
+    'public.list_issue_reports()',
+    'public.set_issue_report_status(uuid,public.issue_status)',
     -- guest functions, 080-guest-tokens.test.sql
     'public.get_guest_event(text)',
     'public.list_guest_event_attendees(text)',

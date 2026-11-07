@@ -12,9 +12,9 @@
 // THE DATABASE IS THE CONTROL. `gate()` reaching `signed-in` is an affordance; every system-scope
 // read is gated on `public.is_system_admin()`, which requires the row AND `aal2` (ADR-074 decision 4).
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
-import type { DateRange, Holiday, HolidayKind, Result } from "@/lib/domain/types";
-import { HOLIDAY_LIMIT } from "@/lib/domain/types";
-import { FIXTURE_HOLIDAYS } from "@/lib/fixtures";
+import type { DateRange, Holiday, HolidayKind, IssueKind, IssueStatus, Result } from "@/lib/domain/types";
+import { HOLIDAY_LIMIT, ISSUE_REPORT_LIMIT } from "@/lib/domain/types";
+import { FIXTURE_HOLIDAYS, FIXTURE_ISSUE_REPORT, FIXTURE_MEMBER } from "@/lib/fixtures";
 
 /** Where a panel visitor stands. Each state is one screen (01-plan.md § 2b). */
 export type SystemGate =
@@ -56,6 +56,13 @@ export interface SystemSeam {
   updateNationalHoliday(holidayId: string, input: NationalHolidayInput): Promise<HolidayResult<null>>;
   /** `rpc("delete_national_holiday", { p_id })`. Never throws. */
   deleteNationalHoliday(holidayId: string): Promise<HolidayResult<null>>;
+  /** `rpc("list_issue_reports")`, newest first. Never throws. MIR-16. */
+  listIssueReports(): Promise<IssueResult<SystemIssueReport[]>>;
+  /** `rpc("set_issue_report_status", { p_id, p_status })`. Never throws. */
+  setIssueReportStatus(reportId: string, status: IssueStatus): Promise<IssueResult<null>>;
+  /** `storage.from("issue-report").createSignedUrls(paths, 3600)`. Same order and length; `null`
+   *  where a URL was not minted. Never throws. */
+  issueImageUrls(paths: string[]): Promise<(string | null)[]>;
 }
 
 // =============================================================================================
@@ -150,6 +157,44 @@ export const ORG_FAILURE_MESSAGES: Record<OrgFailureCode, string> = {
 
 function orgRefusal(code: OrgFailureCode): { ok: false; error: { code: OrgFailureCode; message: string } } {
   return { ok: false, error: { code, message: ORG_FAILURE_MESSAGES[code] } };
+}
+
+// =============================================================================================
+// MIR-16 — issue reports move to the system panel. 01-plan.md § 4.4, ADR-082 decision 1.
+// =============================================================================================
+
+/** One row of `public.list_issue_reports()`. ADR-082. */
+export interface SystemIssueReport {
+  id: string;
+  orgId: string;
+  orgName: string;
+  memberId: string;
+  memberName: string | null; // null when the author's member row is gone
+  kind: IssueKind;
+  message: string;
+  page: string;
+  status: IssueStatus;
+  createdAt: string; // ISO 8601
+  images: string[]; // storage paths, in the order written
+}
+
+export type IssueFailureCode =
+  | "not_permitted" // 42501
+  | "issue_not_found" // P0002
+  | "network"; // anything else, a throw, or the list reaching ISSUE_REPORT_LIMIT
+
+export type IssueResult<T> =
+  | { ok: true; value: T }
+  | { ok: false; error: { code: IssueFailureCode; message: string } };
+
+export const ISSUE_FAILURE_MESSAGES: Record<IssueFailureCode, string> = {
+  not_permitted: "You do not have permission to do that.",
+  issue_not_found: "That report no longer exists. Reload to see the current list.",
+  network: "Could not reach the server. Try again.",
+};
+
+function issueRefusal(code: IssueFailureCode): { ok: false; error: { code: IssueFailureCode; message: string } } {
+  return { ok: false, error: { code, message: ISSUE_FAILURE_MESSAGES[code] } };
 }
 
 // The two refusals share `invalid_credentials`: both are a refused credential, and no other existing
@@ -359,6 +404,42 @@ const supabaseSystemSeam: SystemSeam = {
       return holidayRefusal("network");
     }
   },
+
+  async listIssueReports() {
+    try {
+      const { data, error } = await client().rpc("list_issue_reports");
+      if (error) return issueRefusal(issueFailureCode(error));
+      const rows = (data ?? []) as IssueReportRpcRow[];
+      // ISSUE_REPORT_LIMIT's truncation rule (src/lib/domain/types.ts): a list at the limit may be
+      // short, and a short list is a report silently not shown to the person it was written for.
+      if (rows.length >= ISSUE_REPORT_LIMIT) return issueRefusal("network");
+      return { ok: true, value: rows.map(toSystemIssueReport) };
+    } catch {
+      return issueRefusal("network");
+    }
+  },
+
+  async setIssueReportStatus(reportId, status) {
+    try {
+      const { error } = await client().rpc("set_issue_report_status", { p_id: reportId, p_status: status });
+      if (error) return issueRefusal(issueFailureCode(error));
+      return { ok: true, value: null };
+    } catch {
+      return issueRefusal("network");
+    }
+  },
+
+  async issueImageUrls(paths) {
+    if (paths.length === 0) return [];
+    try {
+      const { data, error } = await client().storage.from("issue-report").createSignedUrls(paths, 60 * 60);
+      if (error || !data) return paths.map(() => null);
+      // Same order and length as `paths`: createSignedUrls answers one result per input path, in order.
+      return data.map((entry) => (entry.error ? null : entry.signedUrl));
+    } catch {
+      return paths.map(() => null);
+    }
+  },
 };
 
 /** A row of `list_national_holidays()` as PostgREST returns it. */
@@ -384,6 +465,48 @@ function holidayFailureCode(error: { code?: string }): HolidayFailureCode {
       return "holiday_date_taken";
     case "22023":
       return "invalid_holiday";
+    default:
+      return "network";
+  }
+}
+
+/** A row of `list_issue_reports()` as PostgREST returns it. */
+interface IssueReportRpcRow {
+  id: string;
+  org_id: string;
+  org_name: string;
+  member_id: string;
+  member_name: string | null;
+  kind: IssueKind;
+  message: string;
+  page: string;
+  status: IssueStatus;
+  created_at: string;
+  images: string[];
+}
+
+function toSystemIssueReport(row: IssueReportRpcRow): SystemIssueReport {
+  return {
+    id: row.id,
+    orgId: row.org_id,
+    orgName: row.org_name,
+    memberId: row.member_id,
+    memberName: row.member_name,
+    kind: row.kind,
+    message: row.message,
+    page: row.page,
+    status: row.status,
+    createdAt: row.created_at,
+    images: row.images,
+  };
+}
+
+function issueFailureCode(error: { code?: string }): IssueFailureCode {
+  switch (error.code) {
+    case "42501":
+      return "not_permitted";
+    case "P0002":
+      return "issue_not_found";
     default:
       return "network";
   }
@@ -574,6 +697,34 @@ function mockHolidayRefusal(input: NationalHolidayInput, exceptId: string | null
   return null;
 }
 
+// MIR-16. Seeded with one copy of the member app's own fixture report, so the panel and the member
+// mock start from the same row. `orgName` and `memberName` are filled in directly: the database's
+// `list_issue_reports()` resolves them with a join the mock has no table behind, so they are written
+// out here instead (ADR-082).
+const mockIssueReports: SystemIssueReport[] = [
+  {
+    id: FIXTURE_ISSUE_REPORT.id,
+    orgId: mockOrgs.find((org) => org.isSharedTenant)!.id,
+    orgName: "Org public",
+    memberId: FIXTURE_ISSUE_REPORT.memberId,
+    memberName: FIXTURE_MEMBER.displayName,
+    kind: FIXTURE_ISSUE_REPORT.kind,
+    message: FIXTURE_ISSUE_REPORT.message,
+    page: FIXTURE_ISSUE_REPORT.page,
+    status: FIXTURE_ISSUE_REPORT.status,
+    createdAt: FIXTURE_ISSUE_REPORT.createdAt,
+    images: [...FIXTURE_ISSUE_REPORT.images],
+  },
+];
+
+/** Test-only. Replaces the mock's whole issue-report store, so AC-8 (no reports) and AC-10 (a report
+ *  carrying images) can be driven from the e2e suite, which cannot import this module. Exported
+ *  beside `systemSeam` and read by nothing in `src/` outside this file. */
+export function __setMockIssueReports(rows: SystemIssueReport[]): void {
+  mockIssueReports.length = 0;
+  mockIssueReports.push(...rows.map((row) => ({ ...row, images: [...row.images] })));
+}
+
 function mockGate(): SystemGate {
   if (!mockSession) return { state: "signed-out" };
   const { email, aal2 } = mockSession;
@@ -718,6 +869,27 @@ const mockSystemSeam: SystemSeam = {
     if (index < 0) return holidayRefusal("holiday_not_found");
     mockNationalHolidays.splice(index, 1);
     return { ok: true, value: null };
+  },
+
+  async listIssueReports() {
+    if (!mockMaySeeOrgs()) return issueRefusal("not_permitted");
+    // Newest first, as `list_issue_reports()` orders. Copies, not the store.
+    const rows = [...mockIssueReports]
+      .sort((a, b) => (a.createdAt < b.createdAt ? 1 : a.createdAt > b.createdAt ? -1 : 0))
+      .map((row) => ({ ...row, images: [...row.images] }));
+    return { ok: true, value: rows };
+  },
+
+  async setIssueReportStatus(reportId, status) {
+    if (!mockMaySeeOrgs()) return issueRefusal("not_permitted");
+    const report = mockIssueReports.find((candidate) => candidate.id === reportId);
+    if (!report) return issueRefusal("issue_not_found");
+    report.status = status;
+    return { ok: true, value: null };
+  },
+
+  async issueImageUrls(paths) {
+    return paths.map(() => null);
   },
 };
 

@@ -7,17 +7,30 @@
 // The layout is the Tech Lead's own (§ 2b, "Visual reference: none").
 import { StrictMode, useEffect, useRef, useState, type FormEvent, type JSX } from "react";
 import { createRoot } from "react-dom/client";
+import { format, parseISO } from "date-fns";
 import {
   HOLIDAY_FAILURE_MESSAGES,
   ORG_FAILURE_MESSAGES,
   systemSeam,
   systemSeamName,
+  __setMockIssueReports,
   type OrgSummary,
   type SystemGate,
+  type SystemIssueReport,
   type TotpEnrolment,
 } from "@/lib/data/system";
-import type { Holiday, HolidayKind } from "@/lib/domain/types";
+import type { Holiday, HolidayKind, IssueKind, IssueStatus } from "@/lib/domain/types";
 import "../index.css";
+
+// MIR-16. The mock-only seeding hook, exposed the way `src/main.tsx` exposes the member app's whole
+// seam: a page init script that cannot import this module reaches it through `window` instead. A
+// real build drops this block, `VITE_DATA_SEAM` being replaced at build time.
+declare global {
+  interface Window {
+    __setMockIssueReports?: (rows: SystemIssueReport[]) => void;
+  }
+}
+if (systemSeamName === "mock") window.__setMockIssueReports = __setMockIssueReports;
 
 const START_ENROLMENT_FAILED = "Could not start set-up. Reload to try again.";
 
@@ -616,6 +629,200 @@ function HolidayRow({
   );
 }
 
+// MIR-16 — issue reports move to the system panel (01-plan.md §§ 2b, 4.5; ADR-082).
+const KIND_LABELS: Record<IssueKind, string> = { bug: "Bug", idea: "Idea", other: "Other" };
+const STATUS_LABELS: Record<IssueStatus, string> = { open: "Open", done: "Done" };
+
+function IssueReportRow({
+  report,
+  images,
+  error,
+  onToggle,
+}: {
+  report: SystemIssueReport;
+  /** `null` until this report's URLs have been minted; a slot's own entry is `null` when minting it
+   *  failed. Both render the same "Image unavailable" placeholder (§ 4.5). */
+  images: (string | null)[] | null;
+  error: string | null;
+  onToggle: () => void;
+}): JSX.Element {
+  return (
+    <div
+      data-testid="system-issue-row"
+      data-id={report.id}
+      data-status={report.status}
+      className="flex flex-col gap-2 border-b border-line py-3 last:border-b-0"
+    >
+      <div className="flex flex-wrap items-center gap-3 text-sm">
+        <span data-testid="system-issue-row-date" className="tabular-nums text-ink-3">
+          {format(parseISO(report.createdAt), "yyyy-MM-dd HH:mm")}
+        </span>
+        <span data-testid="system-issue-row-org" className="text-ink-2">
+          {report.orgName}
+        </span>
+        <span data-testid="system-issue-row-author" className="text-ink-2">
+          {report.memberName ?? "Removed member"}
+        </span>
+        <span
+          data-testid="system-issue-row-kind"
+          className="rounded-pill bg-field px-2 py-0.5 text-xs font-semibold text-ink-2"
+        >
+          {KIND_LABELS[report.kind]}
+        </span>
+        <span data-testid="system-issue-row-page" className="font-mono text-xs text-ink-3">
+          {report.page}
+        </span>
+        <span data-testid="system-issue-row-status" className="text-ink-2">
+          {STATUS_LABELS[report.status]}
+        </span>
+        <button
+          data-testid="system-issue-row-toggle"
+          type="button"
+          className={`${textButtonClass} ml-auto`}
+          onClick={onToggle}
+        >
+          {report.status === "open" ? "Mark done" : "Reopen"}
+        </button>
+      </div>
+      <p data-testid="system-issue-row-message" className="text-sm whitespace-pre-wrap text-ink">
+        {report.message}
+      </p>
+      {report.images.length > 0 ? (
+        <div className="flex flex-wrap gap-2">
+          {report.images.map((path, index) => {
+            const url = images ? images[index] : null;
+            return url ? (
+              <a key={path} href={url} target="_blank" rel="noreferrer">
+                <img
+                  data-testid="system-issue-row-image"
+                  src={url}
+                  alt=""
+                  width={64}
+                  height={64}
+                  className="h-16 w-16 rounded-xl object-cover"
+                />
+              </a>
+            ) : (
+              <span
+                key={path}
+                data-testid="system-issue-row-image"
+                className="flex h-16 w-16 items-center justify-center rounded-xl bg-field p-1 text-center text-xs text-ink-3"
+              >
+                Image unavailable
+              </span>
+            );
+          })}
+        </div>
+      ) : null}
+      <OrgError testId="system-issue-row-error" error={error} />
+    </div>
+  );
+}
+
+function IssueReports(): JSX.Element {
+  const [reports, setReports] = useState<SystemIssueReport[] | null>(null);
+  const [listError, setListError] = useState<string | null>(null);
+  const [imageUrls, setImageUrls] = useState<Map<string, (string | null)[]>>(new Map());
+  const [rowErrors, setRowErrors] = useState<Map<string, string>>(new Map());
+  // Only the latest read may land: a retry racing an earlier one must not show the stale answer.
+  const readCounter = useRef(0);
+
+  const load = async () => {
+    readCounter.current += 1;
+    const read = readCounter.current;
+    setListError(null);
+    const result = await systemSeam.listIssueReports();
+    if (read !== readCounter.current) return;
+    if (!result.ok) {
+      setListError(result.error.message);
+      return;
+    }
+    setReports(result.value);
+    setImageUrls(new Map());
+    // One mint per report that carries images, for every load (§ 4.5).
+    for (const report of result.value) {
+      if (report.images.length === 0) continue;
+      void systemSeam.issueImageUrls(report.images).then((urls) => {
+        if (read !== readCounter.current) return;
+        setImageUrls((prev) => new Map(prev).set(report.id, urls));
+      });
+    }
+  };
+
+  useEffect(() => {
+    void load();
+  }, []); // Read once, on arriving at `signed-in`.
+
+  const toggle = async (report: SystemIssueReport) => {
+    setRowErrors((prev) => {
+      const next = new Map(prev);
+      next.delete(report.id);
+      return next;
+    });
+    const nextStatus: IssueStatus = report.status === "open" ? "done" : "open";
+    const result = await systemSeam.setIssueReportStatus(report.id, nextStatus);
+    if (!result.ok) {
+      setRowErrors((prev) => new Map(prev).set(report.id, result.error.message));
+      return;
+    }
+    void load();
+  };
+
+  const openCount = reports?.filter((report) => report.status === "open").length ?? 0;
+
+  let body: JSX.Element;
+  if (listError) {
+    body = (
+      <div className="flex flex-col items-start gap-2">
+        <p data-testid="system-issues-error" role="alert" className="text-sm text-danger">
+          {listError}
+        </p>
+        <button data-testid="system-issues-retry" type="button" className={textButtonClass} onClick={() => void load()}>
+          Try again
+        </button>
+      </div>
+    );
+  } else if (reports === null) {
+    body = (
+      <p data-testid="system-issues-loading" role="status" className="text-ink-3">
+        Loading issue reports…
+      </p>
+    );
+  } else if (reports.length === 0) {
+    body = (
+      <p data-testid="system-issues-empty" className="text-ink-3">
+        No issue reports.
+      </p>
+    );
+  } else {
+    body = (
+      <div className="flex flex-col">
+        {reports.map((report) => (
+          <IssueReportRow
+            key={report.id}
+            report={report}
+            images={imageUrls.get(report.id) ?? null}
+            error={rowErrors.get(report.id) ?? null}
+            onToggle={() => void toggle(report)}
+          />
+        ))}
+      </div>
+    );
+  }
+
+  return (
+    <section data-testid="system-issues" className="flex flex-col gap-4">
+      <div className="flex items-center justify-between gap-3">
+        <h2 className="text-lg font-bold text-ink">Issue reports</h2>
+        <span data-testid="system-issues-open-count" data-count={openCount} className="text-sm font-normal text-ink-3">
+          {openCount} open
+        </span>
+      </div>
+      {body}
+    </section>
+  );
+}
+
 type OpenForm = { kind: "create" } | { kind: "edit"; org: OrgSummary } | null;
 
 function OrgManagement({ email, onSignOut }: { email: string; onSignOut: () => void }): JSX.Element {
@@ -765,6 +972,8 @@ function OrgManagement({ email, onSignOut }: { email: string; onSignOut: () => v
       </section>
 
       <NationalHolidays />
+
+      <IssueReports />
     </div>
   );
 }
