@@ -2,7 +2,7 @@
 ticket: MIR-16
 stage: PLAN
 agent: tech-lead-design
-produced_at: 2026-11-07T08:17:01Z
+produced_at: 2026-11-07T08:41:16Z   # re-plan after REVIEW FAIL R5; first written 2026-11-07T08:17:01Z
 inputs_read:
   - .ai/board/tickets/MIR-16/ticket.yaml
   - .ai/board/plans/calechip-multi-tenancy-plan.md
@@ -24,6 +24,8 @@ inputs_read:
   - supabase/migrations/20261104150000_mir18_system_admin.sql
   - supabase/tests/150-write-path-org-bound.test.sql
   - supabase/tests/160-read-path-org-bound.test.sql
+  - supabase/tests/060-removed-and-pending.test.sql
+  - .ai/board/tickets/MIR-16/04-review.md
   - src/lib/data/supabase.ts
   - src/lib/data/system.ts
   - src/lib/domain/types.ts
@@ -247,6 +249,13 @@ Thanh). On top of the seed, as `postgres`, it creates:
 - R-P by Thanh and R-D by Dan, with `images = '{<dan uid>/d1.png}'`, and a `storage.objects` row for
   that path in bucket `issue-report`.
 
+**`tests.seed()` already holds a third report**, written by `member_t` with `created_at` defaulting
+to `now()` (`_isolation.psql:158-159`). It is therefore the newest row `list_issue_reports()`
+returns. AC-4's ordering assertion either restricts to R-P and R-D (`where id in (…)`, still
+`created_at desc`) or expects all three rows with the seed row first. Either way it must prove
+newest-first ordering and the presence of both orgs. *Added at the re-plan of 2026-11-07. Review
+finding 2, `04-review.md`.*
+
 `tests.authenticate_at` is used as `200-org-management.test.sql` defines it. The file makes one
 assertion or more per AC-1 to AC-6. AC-6 gets one per caller and function, plus a
 `has_function_privilege('anon', …)` check per signature. It also asserts that
@@ -260,6 +269,11 @@ exist and that `issue_image_select_system` does.
   ADR-082')`.
 - **`160-read-path-org-bound.test.sql:249-253`.** The `storage.objects` *"still returns the image"*
   case becomes the matching `not exists`. `plan(n)` is unchanged.
+- **`060-removed-and-pending.test.sql:72-74`.** `'issue_report'` comes out of `admin_t`'s AC-13
+  control array, because an org admin now reads none, and `plan(87)` becomes `plan(86)`. The
+  *reads nothing* half (`:17`) stays as written: removed and pending callers still read no report.
+  The control that a report is readable by somebody entitled is now 270's AC-4. *Added at the
+  re-plan of 2026-11-07. Review finding 1, `04-review.md`.*
 - **`150-write-path-org-bound.test.sql:153`, `:186`.** These still hold, since zero rows were
   affected and the report is still `open`, so the file is unchanged and stays out of
   `allowed_paths`.
@@ -380,17 +394,20 @@ allowed_paths:
   - ".ai/board/tickets/MIR-16-b/ticket.yaml"
   - ".ai/board/tickets/MIR-16-c/ticket.yaml"
   - ".ai/board/tickets/MIR-17/ticket.yaml"
-  - ".ai/board/tickets/MIR-20/ticket.yaml"
   - "supabase/migrations/20261107210000_mir16_issue_reports_system_scope.sql"
   - "supabase/tests/270-issue-reports-system-scope.test.sql"
   - "supabase/tests/010-catalogue.test.sql"
   - "supabase/tests/160-read-path-org-bound.test.sql"
+  - "supabase/tests/060-removed-and-pending.test.sql"
   - "src/lib/data/system.ts"
   - "src/system/main.tsx"
   - "tests/e2e/mir-16-issue-reports.spec.ts"
 ```
 
-`size: M` — 12 paths, and `size_estimate` agrees. Whole, P4-1 would touch more than 12 files. The
+`size: M`, from 12 paths, and `size_estimate` agrees. At the re-plan of 2026-11-07, `060` came in and
+`.ai/board/tickets/MIR-20/ticket.yaml` went out. MIR-20's edit was reverted on the branch, so it no
+longer differs from `origin/main`, because MIR-20 is already blocked through MIR-17 (ADR-082
+decision 5, amended). The count stays 12. Without the swap it would have been 13, which is `L`. Whole, P4-1 would touch more than 12 files. The
 enum rename alone re-creates every function body that spells `'admin'`, and it reaches the seam, the
 bootstrap, the seed and the pgTAP fixtures. So it split here (ADR-082). `glossary_owed` is `[]`. The
 term *system admin* already has a row, so no row is written.
@@ -418,10 +435,18 @@ term *system admin* already has a row, so no row is written.
   enum rename re-creates every body spelling `'admin'`. That moved the split from "by role" to "issue
   reports first" (ADR-082), and it added AC-3 for the storage policy that a table-only change would
   have missed. Amended by `tech-lead-design`.
+- `2026-11-07T08:41:16Z` — re-plan after REVIEW FAIL on R5 (`04-review.md`), raised by `tech-lead-review` and
+  amended by `tech-lead-design`. **§ 4.3** gains `060-removed-and-pending.test.sql:72-74` (finding 1):
+  dropping `issue_report_select_admin` breaks its `admin_t` control. That was a gap in this plan, not
+  a Developer defect. **§ 4.2** now states that `tests.seed()` holds a third, newest report (finding
+  2), so the Developer's AC-4 fix has a contract to meet. **§ 7** adds 060 and drops
+  `.ai/board/tickets/MIR-20/ticket.yaml`, whose edit is reverted (ADR-082 decision 5 amended). No AC
+  changes.
 
 ## Delegated decisions
 
 - **ADR-082** — MIR-16 splits into MIR-16 (issue reports to the system panel), MIR-16-b (`org_admin`)
   and MIR-16-c (per-team `manager`). The sign-up queue and the event override stay org powers. In
   Org public, today's admins become its `org_admin`s. This narrows ADR-074 *Consequences*' four
-  system-scope groups to one, and supersedes ADM-07's *every admin reads every report*.
+  system-scope groups to one, and supersedes ADM-07's *every admin reads every report*. Decision 5 was
+  amended at the re-plan: MIR-20 is blocked through MIR-17, so its own `depends_on` is not edited.

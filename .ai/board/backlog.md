@@ -23,6 +23,8 @@ planned, sized, and safe to build** — the next stage for a row here is IN_PROG
 | # | Ticket | Title | Size | Depends on |
 |---|--------|-------|------|------------|
 
+**`MIR-16` was at `REWORK` (routed to `tech-lead-design`), moved back to `READY`** — recorded at /advance on 2026-11-07 from the re-planned `01-plan.md` (`produced_at: 2026-11-07T08:42:01Z`, first written `2026-11-07T08:17:01Z`): `gate: PASS`, all six Definition of Ready items re-evaluated and passing. `060-removed-and-pending.test.sql` is now in `allowed_paths` (fixing R5 finding 1); `MIR-20`'s `ticket.yaml` left it. `rework_count` stays `0`, unchanged from the REVIEW routing. There is no row for it in this table (see below); nothing to move.
+
 **`MIR-16` was at `REVIEW` in `ticket.yaml`, routed to `REWORK`** — recorded at /advance on 2026-11-07 from `04-review.md` (`produced_at: 2026-11-07T08:38:00Z`): `gate: FAIL`, `verdict: FAIL`, `failed_checks: [R5]`, `invariant_violation: false`, `route_to: tech-lead-design`, `increments_rework: false`. **R5 finding 1 is impossible as specified** — dropping `issue_report_select_admin` breaks `supabase/tests/060-removed-and-pending.test.sql:72-74`, and `01-plan.md` § 7 keeps `060` out of `allowed_paths`, so the Developer could not have fixed it (RULE-03). Per RULE-08 this is an upstream (PLAN) defect: `rework_count` stays `0`. Finding 2 (a developer-caused ordering bug in `270`'s fixture) rides along to the re-plan. There is no row for it in this table (see below); nothing to move.
 
 **`MIR-16` was at `READY` in `ticket.yaml`, moved to `REVIEW`** — recorded at /advance on 2026-11-07 from `03-impl-log.md` gate PASS (`produced_at: 2026-11-07T08:34:50Z`). There is no row for it in this table (see below); nothing to move.

@@ -68,7 +68,11 @@ other decision.
    refuses every member, and the member mock stays looser than SQL on this one table. MIR-17
    replaces the screen's admin guard (P4-2, *IssueReports*) and brings the mock in line. This is the
    price ADR-076 decision 6 and ADR-079 decision 5 already paid once each.
-5. **MIR-17 and MIR-20 are blocked by MIR-16-b and MIR-16-c as well.**
+5. **MIR-17 is blocked by MIR-16, MIR-16-b and MIR-16-c as well.** MIR-20 already depends on
+   MIR-17, so it is blocked by both slices through MIR-17 and its `depends_on` is not edited.
+   *Until the re-plan of 2026-11-07 this read "MIR-17 and MIR-20 are blocked by MIR-16-b and
+   MIR-16-c as well", and MIR-20's `ticket.yaml` carried both IDs. The edit was redundant, and it
+   was removed to keep MIR-16 at 12 paths when `060-removed-and-pending.test.sql` joined it.*
 
 ## Options considered
 
