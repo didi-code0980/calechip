@@ -148,7 +148,7 @@ select tests.clear_authentication();
 
 select results_eq(
   format('select role::text, status::text from public.member where id = %L', tests.id('admin_t')),
-  $$values ('admin'::text, 'approved'::text)$$,
+  $$values (tests.member_role('admin')::text, 'approved'::text)$$,
   'AC-7: A''s role and status are unchanged');
 select is(tests.m21f_ms(), :'ac7_ms_before', 'AC-7: every membership row is unchanged');
 

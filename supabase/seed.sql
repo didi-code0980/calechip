@@ -93,7 +93,7 @@ values (
   '22222222-2222-4222-8222-222222222222',
   'Quản trị',
   '1.png',
-  'admin',
+  'org_admin',
   'approved',
   null,
   '2026-08-31T00:00:00+00:00'
@@ -114,7 +114,7 @@ on conflict (id) do nothing;
 -- Operator's own admin account, added 2026-09-01 on direct instruction.
 --
 -- Same shape as the seeded admin above: an auth.users row whose password is
--- hashed with bcrypt, then a member row carrying role 'admin'. The trigger
+-- hashed with bcrypt, then a member row carrying role 'org_admin'. The trigger
 -- `admit_allow_listed_member` only ever admits a MEMBER, so the first admin of a
 -- team cannot come through sign-up and has to be seeded — which is why this
 -- block exists rather than an allow_email entry.
@@ -152,7 +152,7 @@ values (
   '33333333-3333-4333-8333-333333333333',
   'Admin',
   '1.png',
-  'admin',
+  'org_admin',
   'approved',
   null,
   '2026-09-01T00:00:00+00:00'
@@ -307,7 +307,7 @@ values (
   '88888888-8888-4888-8888-888888888888',
   'Quản trị hai',
   '1.png',
-  'admin',
+  'org_admin',
   'approved',
   null,
   '2026-08-31T00:00:00+00:00'
