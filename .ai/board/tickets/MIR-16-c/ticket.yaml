@@ -13,7 +13,7 @@ owner: ""
 branch: ""
 size_estimate: ""     # S|M - set by tech-lead-design at PLAN; gates DoR
 size: ""              # S|M|L|XL - set by tech-lead-design at PLAN; decides splitting. Not counted at /plan MIR-16
-depends_on: [MIR-01, MIR-02, MIR-03, MIR-04, MIR-10, MIR-11, MIR-12, MIR-13, MIR-14, MIR-15, MIR-18, MIR-21, MIR-21-b, MIR-21-c, MIR-21-d, MIR-21-e, MIR-21-f, MIR-16, MIR-16-b]
+depends_on: [MIR-01, MIR-02, MIR-03, MIR-04, MIR-10, MIR-11, MIR-12, MIR-13, MIR-14, MIR-15, MIR-18, MIR-21, MIR-21-b, MIR-21-c, MIR-21-d, MIR-21-e, MIR-21-f, MIR-16, MIR-16-b, MIR-16-d]   # MIR-16-d added 2026-11-07 at /plan MIR-16-b (ADR-083 decision 4)
 invariants_touched: []
 allowed_paths: []
 glossary_owed: []
