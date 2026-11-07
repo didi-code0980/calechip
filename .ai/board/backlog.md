@@ -24,6 +24,8 @@ planned, sized, and safe to build** — the next stage for a row here is IN_PROG
 |---|--------|-------|------|------------|
 | 1 | MIR-16-b | `is_org_admin(uid, org_id)` replaces `is_admin(uid)` at every call site | M | MIR-01…MIR-04, MIR-10…MIR-15, MIR-18, MIR-21…MIR-21-f, MIR-16 (all DONE) |
 
+**`MIR-16-b` is at `REVIEW` in `ticket.yaml`, `gates.review` passed** — recorded at /advance on 2026-11-07 from `04-review.md` (`produced_at: 2026-11-07T19:28:09+07:00`): `gate: PASS`, `verdict: PASS`, `invariant_violation: false`, `route_to: none`. Transcribed as written; the artifact is 19 lines with no R1–R8 table or citations, on a ticket that touches INV-02 and INV-03. `state` stays `REVIEW`; `/ship` sets `DONE` and moves the row to `## ARCHIVE`.
+
 **`MIR-16-b` is at `REVIEW` in `ticket.yaml`, `gates.review` not yet passed** — recorded at /advance on 2026-11-07 from `03-impl-log.md` gate PASS (`produced_at: 2026-11-07T12:03:07Z`). The row stays here until `/ship` moves it to `## ARCHIVE`.
 
 **`MIR-16-b` moved here at /advance on 2026-11-07**, from `01-plan.md` gate PASS (`produced_at: 2026-11-07T09:06:54Z`) with all six Definition of Ready items passing; `schema_delta` cites [ADR-083](../registry/decisions/ADR-083-is-org-admin-replaces-is-admin-before-the-admin-value-is-renamed.md) (`ACCEPTED by tech-lead-design under the operator's delegation (ADR-067)`), which narrows ADR-082. MIR-16-b had no row in `## BACKLOG`, so no row left that table. PLAN split the `admin` → `org_admin` rename to a new slice `MIR-16-d` (BACKLOG).
