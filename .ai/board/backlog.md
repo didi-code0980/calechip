@@ -23,6 +23,8 @@ planned, sized, and safe to build** — the next stage for a row here is IN_PROG
 | # | Ticket | Title | Size | Depends on |
 |---|--------|-------|------|------------|
 
+**`MIR-16` was at `REVIEW` in `ticket.yaml`, `gates.review` passed** — recorded at /advance on 2026-11-07 from `04-review.md` second pass (`produced_at: 2026-11-07T08:48:00Z`): `gate: PASS`, `verdict: PASS`, `invariant_violation: false`, `route_to: none`. Both first-pass R5 findings are closed. `state` stays `REVIEW`; `/ship` sets `DONE`. There is no row for it in this table (see below).
+
 **`MIR-16` was at `READY` in `ticket.yaml`, moved to `REVIEW`** — recorded at /advance on 2026-11-07 from `03-impl-log.md` gate PASS (`produced_at: 2026-11-07T08:46:00Z`, a rework pass: fixed the `270` fixture-ordering bug and read `04-review.md`'s re-planned § 4.2/§ 4.3). There is no row for it in this table (see below); nothing to move.
 
 **`MIR-16` was at `REWORK` (routed to `tech-lead-design`), moved back to `READY`** — recorded at /advance on 2026-11-07 from the re-planned `01-plan.md` (`produced_at: 2026-11-07T08:42:01Z`, first written `2026-11-07T08:17:01Z`): `gate: PASS`, all six Definition of Ready items re-evaluated and passing. `060-removed-and-pending.test.sql` is now in `allowed_paths` (fixing R5 finding 1); `MIR-20`'s `ticket.yaml` left it. `rework_count` stays `0`, unchanged from the REVIEW routing. There is no row for it in this table (see below); nothing to move.
