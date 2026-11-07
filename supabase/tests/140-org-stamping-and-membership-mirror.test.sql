@@ -10,7 +10,7 @@
 begin;
 \ir _isolation.psql
 set local search_path = extensions, public;
-select plan(36);
+select plan(35);
 
 create function tests.m13(p_label text) returns uuid
   language sql immutable security invoker set search_path = '' as $$
@@ -30,18 +30,21 @@ $$;
 
 select tests.seed();
 
--- Org B, as the owner. M2 and Admin B carry no org_id: the stamping trigger takes T2's (AC-5).
+-- Org B, as the owner. M2 and Admin B name org_id themselves (MIR-21-e, ADR-080 decision 3); the
+-- fixture writes their membership row with put_on_team instead of relying on the mirror.
 insert into public.org (id, org_code, name) values (tests.m13('org_b'), 'org-b-mir13', 'Org B');
 insert into public.team (id, name, org_id) values (tests.m13('team_2'), 'Team 2', tests.m13('org_b'));
 insert into auth.users (id, email) values
   (tests.m13('m2'), 'm2@mir13.test'),
   (tests.m13('admin_b'), 'admin_b@mir13.test'),
   (tests.m13('p2'), 'p2@mir13.test');
-insert into public.member (id, team_id, display_name, avatar, role, status, email) values
-  (tests.m13('m2'),      tests.m13('team_2'), 'M2',      '1.png', 'member', 'approved', 'm2@mir13.test'),
-  (tests.m13('admin_b'), tests.m13('team_2'), 'Admin B', '1.png', 'admin',  'approved', 'admin_b@mir13.test');
-insert into public.member (id, team_id, org_id, display_name, avatar, role, status, email) values
-  (tests.m13('p2'), null, tests.m13('org_b'), 'P2', '1.png', 'member', 'pending', 'p2@mir13.test');
+insert into public.member (id, org_id, display_name, avatar, role, status, email) values
+  (tests.m13('m2'),      tests.m13('org_b'), 'M2',      '1.png', 'member', 'approved', 'm2@mir13.test'),
+  (tests.m13('admin_b'), tests.m13('org_b'), 'Admin B', '1.png', 'admin',  'approved', 'admin_b@mir13.test');
+select tests.put_on_team(tests.m13('m2'), tests.m13('team_2'));
+select tests.put_on_team(tests.m13('admin_b'), tests.m13('team_2'));
+insert into public.member (id, org_id, display_name, avatar, role, status, email) values
+  (tests.m13('p2'), tests.m13('org_b'), 'P2', '1.png', 'member', 'pending', 'p2@mir13.test');
 
 -- ---------------------------------------------------------------------------------------------
 -- AC-1, AC-2. The constraints.
@@ -88,13 +91,10 @@ select is((select org_id from public.team where id = tests.m13('team_x')), tests
   'AC-5: team with no caller -> the shared tenant');
 
 insert into auth.users (id, email) values (tests.m13('member_x'), 'x@mir13.test');
-insert into public.member (id, team_id, display_name, avatar, role, status, email)
-values (tests.m13('member_x'), null, 'X', '1.png', 'member', 'pending', 'x@mir13.test');
+insert into public.member (id, display_name, avatar, role, status, email)
+values (tests.m13('member_x'), 'X', '1.png', 'member', 'pending', 'x@mir13.test');
 select is((select org_id from public.member where id = tests.m13('member_x')), tests.org_a(),
   'AC-5: member with no team -> the shared tenant');
-select is((select org_id from public.member where id = tests.m13('m2')), tests.m13('org_b'),
-  'AC-5: member on T2 -> T2''s org');
-
 insert into public.holiday (date, name) values ('2099-03-02', 'no caller');
 select is((select org_id from public.holiday where date = '2099-03-02'), tests.org_a(),
   'AC-5: holiday with no caller -> the shared tenant');

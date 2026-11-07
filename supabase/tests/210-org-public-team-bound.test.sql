@@ -48,14 +48,23 @@ insert into auth.users (id, email) values
   (tests.m15('alice'), 'alice@mir15-210.test'),
   (tests.m15('bob'),   'bob@mir15-210.test'),
   (tests.m15('carol'), 'carol@mir15-210.test');
-insert into public.member (id, team_id, display_name, avatar, role, status, email) values
-  (tests.m15('dan'),   tests.m15('team_d1'), 'Dan',   '1.png', 'member', 'approved', 'dan@mir15-210.test'),
-  (tests.m15('dee'),   tests.m15('team_d2'), 'Dee',   '1.png', 'member', 'approved', 'dee@mir15-210.test'),
-  (tests.m15('alice'), tests.id('team_t'),   'Alice', '1.png', 'member', 'approved', 'alice@mir15-210.test'),
-  (tests.m15('bob'),   tests.id('team_u'),   'Bob',   '1.png', 'member', 'approved', 'bob@mir15-210.test'),
-  (tests.m15('carol'), tests.id('team_t'),   'Carol', '1.png', 'member', 'approved', 'carol@mir15-210.test');
+insert into public.member (id, org_id, display_name, avatar, role, status, email) values
+  (tests.m15('dan'), tests.m15('org_d'), 'Dan', '1.png', 'member', 'approved', 'dan@mir15-210.test'),
+  (tests.m15('dee'), tests.m15('org_d'), 'Dee', '1.png', 'member', 'approved', 'dee@mir15-210.test');
+insert into public.member (id, display_name, avatar, role, status, email) values
+  (tests.m15('alice'), 'Alice', '1.png', 'member', 'approved', 'alice@mir15-210.test'),
+  (tests.m15('bob'),   'Bob',   '1.png', 'member', 'approved', 'bob@mir15-210.test'),
+  (tests.m15('carol'), 'Carol', '1.png', 'member', 'approved', 'carol@mir15-210.test');
 
--- Carol: primary Team A (the mirror), plus an active non-primary membership on Team B.
+-- MIR-21-e (ADR-080 decision 3): the mirror's INSERT branch no longer runs, because the member
+-- inserts above do not name team_id. Write each one's membership row directly.
+select tests.put_on_team(tests.m15('dan'),   tests.m15('team_d1'));
+select tests.put_on_team(tests.m15('dee'),   tests.m15('team_d2'));
+select tests.put_on_team(tests.m15('alice'), tests.id('team_t'));
+select tests.put_on_team(tests.m15('bob'),   tests.id('team_u'));
+select tests.put_on_team(tests.m15('carol'), tests.id('team_t'));
+
+-- Carol: primary Team A (put_on_team above), plus an active non-primary membership on Team B.
 insert into public.membership (org_id, team_id, member_id, team_role, is_primary)
 values (tests.m15_org_public(), tests.id('team_u'), tests.m15('carol'), 'member', false);
 

@@ -34,10 +34,11 @@ insert into public.team (id, name, org_id) values (tests.m13('team_2'), 'Team 2'
 insert into auth.users (id, email) values
   (tests.m13('m2'), 'm2@mir13-150.test'),
   (tests.m13('p2'), 'p2@mir13-150.test');
-insert into public.member (id, team_id, display_name, avatar, role, status, email) values
-  (tests.m13('m2'), tests.m13('team_2'), 'M2', '1.png', 'member', 'approved', 'm2@mir13-150.test');
-insert into public.member (id, team_id, org_id, display_name, avatar, role, status, email) values
-  (tests.m13('p2'), null, tests.m13('org_b'), 'P2', '1.png', 'member', 'pending', 'p2@mir13-150.test');
+insert into public.member (id, org_id, display_name, avatar, role, status, email) values
+  (tests.m13('m2'), tests.m13('org_b'), 'M2', '1.png', 'member', 'approved', 'm2@mir13-150.test');
+select tests.put_on_team(tests.m13('m2'), tests.m13('team_2'));
+insert into public.member (id, org_id, display_name, avatar, role, status, email) values
+  (tests.m13('p2'), tests.m13('org_b'), 'P2', '1.png', 'member', 'pending', 'p2@mir13-150.test');
 insert into public.entry (id, member_id, type, portion, start_date, end_date) values
   (tests.m13('entry_2'), tests.m13('m2'), 'pto', 'full', '2099-07-01', '2099-07-01');
 insert into public.holiday (id, date, name, org_id) values

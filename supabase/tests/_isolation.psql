@@ -69,6 +69,24 @@ begin
 end;
 $$;
 
+-- MIR-21-e (ADR-080 decision 3). Writes the one `membership` row the mirror's INSERT branch wrote for
+-- a member inserted with a team (20261105210000_mir21b_writers_write_membership.sql:348-362), so a
+-- fixture that no longer names `member.team_id` gets the same row. Owner only; call it after the
+-- member insert and before any entry, event or busy_day of that member (their stamps read the
+-- primary team from `membership`).
+create function tests.put_on_team(p_member_id uuid, p_team_id uuid) returns void
+  language sql security invoker set search_path = '' as $$
+  insert into public.membership (org_id, team_id, member_id, team_role, is_primary, joined_at, left_at)
+  select m.org_id, p_team_id, m.id,
+         case when m.role = 'manager'::public.member_role
+              then 'manager'::public.team_role else 'member'::public.team_role end,
+         m.removed_at is null,
+         m.created_at,
+         case when m.removed_at is null then null else greatest(m.removed_at, m.created_at) end
+    from public.member m
+   where m.id = p_member_id;
+$$;
+
 -- The fixture of 01-plan.md § 4.3, inserted as the session user before any authenticate. Every row
 -- goes in with auth.uid() null, so the notify* and email_* triggers do nothing.
 create function tests.seed() returns void
@@ -99,13 +117,16 @@ begin
     -- email_confirmed_at stays null, so admit_allow_listed_member admits nobody.
     insert into auth.users (id, email)
     values (tests.id(v_person.label), v_person.label || '@mir06.test');
-    insert into public.member (id, team_id, display_name, avatar, role, status, removed_at, email)
+    insert into public.member (id, display_name, avatar, role, status, removed_at, email)
     values (tests.id(v_person.label),
-            case when v_person.team is null then null else tests.id(v_person.team) end,
             v_person.label, '1.png',
             v_person.role::public.member_role, v_person.status::public.member_status,
             case when v_person.removed then now() end,
             v_person.label || '@mir06.test');
+
+    if v_person.team is not null then
+      perform tests.put_on_team(tests.id(v_person.label), tests.id(v_person.team));
+    end if;
   end loop;
 
   insert into public.entry (id, member_id, type, portion, start_date, end_date) values
