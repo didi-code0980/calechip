@@ -23,6 +23,8 @@ planned, sized, and safe to build** — the next stage for a row here is IN_PROG
 | # | Ticket | Title | Size | Depends on |
 |---|--------|-------|------|------------|
 
+**`MIR-16-e` was at `REVIEW` in `ticket.yaml`, `gates.review` passed** — recorded at /advance on 2026-11-07 from `04-review.md` (`produced_at: 2026-11-07T13:49:07Z`): `gate: PASS`, `verdict: PASS`, `invariant_violation: false`, `route_to: none`. `state` stays `REVIEW`; `/ship` sets `DONE`. There is no row for it in this table (see below).
+
 **`MIR-16-e` was at `READY` in `ticket.yaml`, moved to `REVIEW`** — recorded at /advance on 2026-11-07 from `03-impl-log.md` gate PASS (`produced_at: 2026-11-07T13:41:32Z`). There is no row for it in this table (see below); nothing to move.
 
 **`MIR-16-e` moved here at /advance on 2026-11-07**, from `01-plan.md` gate PASS (`produced_at: 2026-11-07T13:32:50Z`) with all six Definition of Ready items passing; `schema_delta` cites [ADR-084](../registry/decisions/ADR-084-the-fixtures-name-the-admin-role-through-one-helper-before-the-value-is-renamed-in-place.md) (`ACCEPTED by tech-lead-design under the operator's delegation (ADR-067)`), decision 2 — the in-place rename of `'admin'` to `'org_admin'`. `MIR-16-e` had no row in `## BACKLOG`, so no row left that table.
