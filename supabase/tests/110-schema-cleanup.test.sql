@@ -4,9 +4,8 @@ begin;
 select plan(13);
 select tests.seed();
 
--- AC-1: the index exists, on exactly the column `team_id`.
-select has_index('public', 'member', 'member_team_id_idx', array['team_id'],
-  'AC-1: public.member has member_team_id_idx on (team_id)');
+-- AC-1: MIR-09 created the index; MIR-21-f dropped it with the column it indexed (ADR-080).
+select hasnt_index('public', 'member', 'member_team_id_idx', 'AC-1: member_team_id_idx is dropped with member.team_id (MIR-21-f)');
 
 -- AC-2, AC-3. As an approved admin of team T.
 select tests.authenticate_as(tests.id('admin_t'));

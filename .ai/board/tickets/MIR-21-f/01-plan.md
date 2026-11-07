@@ -33,7 +33,8 @@ inputs_read:
   - supabase/tests/240-org-public-holidays.test.sql
   - tests/mock-sql-parity.test.ts
   - src/lib/data/supabase.ts
-consulted: []
+consulted:
+  - developer — 99-questions.md, 2026-11-07T07:42:15Z (070 names member.team_id; § 4.12 added)
 chat_before_verdict: none
 gate: PASS
 blocking_reason: ""
@@ -85,6 +86,9 @@ instead of a live one and a stale one. That is what MIR-16, MIR-17, MIR-19 and M
   `team_id:roster_team_id` (MIR-21-c).
 - **`supabase/tests/150`, `120`, `140`, `190`, `210`, `220`, `250`, `260`.** They no longer name the
   column in a write or a read (MIR-21-d, MIR-21-e). Their prose comments that mention it are history.
+  *`070` is not on this list: its line 118 reads `team_id` off `list_members_for_team`'s
+  `setof public.member` rows, which the sweep missed. It is in scope (§ 4.12, Changelog
+  2026-11-07T07:42:15Z).*
 - **MIR-16, MIR-17, MIR-19, MIR-20.** Unblocked by this ticket, not started by it.
 
 ## 2. Acceptance criteria
@@ -157,7 +161,7 @@ are observed as the caller.
 - Then it raises `42703` (undefined column), and M's row and `membership` rows are unchanged
 
 **AC-11 — the existing suite passes against the dropped schema**
-- Given `supabase/tests/` as changed by this ticket (§ 4.3 to § 4.9)
+- Given `supabase/tests/` as changed by this ticket (§ 4.3 to § 4.9, and § 4.12)
 - When the whole pgTAP suite and the vitest suite run
 - Then every test passes, and `100-mock-parity.test.sql`'s case table is byte-identical to its
   pre-ticket content, so `tests/mock-sql-parity.test.ts` passes unchanged
@@ -392,6 +396,27 @@ Additive, in the file's own style: the old sentence is kept in italics with its 
   with *"Until 2026-11-07 this named `public.member_team_id`."*
 - The A2 and A6 rows of the audit table are history and are not edited.
 
+### 4.12 `supabase/tests/070-definer-callers.test.sql`
+
+`public.list_members_for_team(uuid)` returns `setof public.member`
+(`20261105150000_mir21_reads_off_member_team_id.sql:102`), so after the drop its rows carry no
+`team_id`. Line 117 changes from
+
+```sql
+  $$select 1 from public.list_members_for_team(tests.id('team_t')) where team_id = tests.id('team_u')$$,
+```
+
+to
+
+```sql
+  $$select 1 from public.list_members_for_team(tests.id('team_t')) where public.member_roster_team_id(id) = tests.id('team_u')$$,
+```
+
+Nothing else in the file changes: the label on line 118, every other assertion and `plan(73)` stay as
+they are. The assertion is the same (no member of U in T's roster), now read from `membership`.
+`member_roster_team_id(uuid)` is executable by `authenticated` (`20261105150000_mir21_reads_off_member_team_id.sql:49`),
+and the statement runs as `admin_t`.
+
 ## 5. Seam impact
 
 None. No `DataSeam` or `SystemSeam` function changes. `set_member_role`, `set_member_team` and
@@ -428,13 +453,15 @@ allowed_paths:
   - "supabase/tests/160-read-path-org-bound.test.sql"
   - "supabase/tests/230-writers-write-membership.test.sql"
   - "supabase/tests/240-org-public-holidays.test.sql"
+  - "supabase/tests/070-definer-callers.test.sql"
   - ".ai/standards/data-model.md"
   - ".ai/standards/rbac-and-security.md"
 ```
 
-`size: M`, from 11 paths. `size_estimate` and `size` agree. ADR-081 predicted about ten; the eleventh
+`size: M`, from 12 paths. `size_estimate` and `size` agree. ADR-081 predicted about ten; the eleventh
 is `230`, whose AC-10 asserts the trigger's `INSERT` event, which the drop of the insert branch
-removes. `glossary_owed` is `[]`, so no glossary row is written. No new definer function is added, so
+removes. The twelfth is `070` (§ 4.12), added at /implement on the developer's measurement. 12 is the
+split threshold, not past it, so the ticket does not split. `glossary_owed` is `[]`, so no glossary row is written. No new definer function is added, so
 `010`'s only change is the removed census line.
 
 ## 8. Rejected alternatives
@@ -471,3 +498,10 @@ None. No ADR was written at this stage.
   the trigger runs, so the probe would have passed even if the clause were gone. The probe now sets
   A's JWT claims under the owner's role, which is the position a definer writer is in. Raised by
   `tech-lead-design`. Amended by `tech-lead-design`.
+- `2026-11-07T07:42:15Z`: § 4.12 added, `070-definer-callers.test.sql` added to § 7 (12 paths), § 1
+  and AC-11 updated to cite it. The sweep missed one reader: `070`'s AC-9 admin row filters
+  `list_members_for_team`'s `setof public.member` rows on `team_id`, so the drop aborts the file
+  (`column "team_id" does not exist`, 67 of 73 run), measured with `pnpm db:test`. The filter now reads
+  `public.member_roster_team_id(id)`; assertion, label and `plan(73)` unchanged. Without it AC-11
+  could not be met. No AC narrowed. Raised by `developer` (99-questions.md). Amended by
+  `tech-lead-design`.

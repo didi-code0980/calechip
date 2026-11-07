@@ -8,11 +8,11 @@ id: MIR-21-f
 title: "`member.team_id`, `member_team_id()` and the mirror's insert branch are dropped"
 feature_ids: [MIR-21]   # split of MIR-21 (operating model § ID scheme: splits get -a, -b)
 group: MIR
-state: READY   # `orchestrator` at /advance, 2026-11-07, from 01-plan.md gate PASS
+state: REVIEW   # `developer` at /implement, 2026-11-07, from 03-impl-log.md gate PASS
 owner: ""
 branch: ""
 size_estimate: "M"   # S|M - set by tech-lead-design at PLAN; gates DoR
-size: "M"            # S|M|L|XL - set by tech-lead-design at PLAN; decides splitting. 11 paths (01-plan.md § 7); predicted at /plan MIR-21-e: about 10 (ADR-081 decision 2)
+size: "M"            # S|M|L|XL - set by tech-lead-design at PLAN; decides splitting. 12 paths (01-plan.md § 7; 070 added at /implement 2026-11-07, 99-questions.md); predicted at /plan MIR-21-e: about 10 (ADR-081 decision 2)
 depends_on: [MIR-01, MIR-02, MIR-03, MIR-04, MIR-05, MIR-06, MIR-07, MIR-08, MIR-09, MIR-10, MIR-12, MIR-13, MIR-13-b, MIR-21, MIR-21-b, MIR-21-c, MIR-21-d, MIR-21-e]   # "Blocked by" — MIR-21-e leaves no fixture naming the column (ADR-080 decision 4)
 invariants_touched: [INV-04, INV-07]   # 01-plan.md § 2
 allowed_paths:
@@ -25,6 +25,7 @@ allowed_paths:
   - "supabase/tests/160-read-path-org-bound.test.sql"
   - "supabase/tests/230-writers-write-membership.test.sql"
   - "supabase/tests/240-org-public-holidays.test.sql"
+  - "supabase/tests/070-definer-callers.test.sql"   # added 2026-11-07T07:42:15Z by tech-lead-design, 01-plan.md § 4.12
   - ".ai/standards/data-model.md"
   - ".ai/standards/rbac-and-security.md"
 glossary_owed: []

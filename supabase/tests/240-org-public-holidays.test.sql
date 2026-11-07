@@ -5,7 +5,7 @@
 -- Fixture, added here on top of `tests.seed()` as `postgres` (01-plan.md § 2). The seed's org is
 -- Org public; `admin_t` is Ada, `member_t` is Alice, `pending_p` is Pat.
 --   * Org D (`org_d`, `org_code = 'mir15b-d'`) with team D1, Dora (`admin`) and Dan (`member`), both
---     approved; the membership mirror gives each a membership on D1.
+--     approved; the fixture writes each a membership on D1 with `tests.put_on_team` (MIR-21-f).
 --   * Sam — an `auth.users` row made a system admin with `grant_system_admin`, as in
 --     `200-org-management.test.sql`. No member row.
 --   * H-P — Org public, 2031-01-01, `Tet Duong lich`, `non_working`.
@@ -77,9 +77,11 @@ insert into auth.users (id, email) values
   (tests.m15b('dora'), 'dora@mir15b.test'),
   (tests.m15b('dan'), 'dan@mir15b.test'),
   (tests.m15b('sam'), 'sam@mir15b.test');
-insert into public.member (id, team_id, display_name, avatar, role, status, email) values
-  (tests.m15b('dora'), tests.m15b('team_d1'), 'Dora', '1.png', 'admin', 'approved', 'dora@mir15b.test'),
-  (tests.m15b('dan'), tests.m15b('team_d1'), 'Dan', '1.png', 'member', 'approved', 'dan@mir15b.test');
+insert into public.member (id, org_id, display_name, avatar, role, status, email) values
+  (tests.m15b('dora'), tests.m15b('org_d'), 'Dora', '1.png', 'admin', 'approved', 'dora@mir15b.test'),
+  (tests.m15b('dan'), tests.m15b('org_d'), 'Dan', '1.png', 'member', 'approved', 'dan@mir15b.test');
+select tests.put_on_team(tests.m15b('dora'), tests.m15b('team_d1'));
+select tests.put_on_team(tests.m15b('dan'), tests.m15b('team_d1'));
 select public.grant_system_admin(tests.m15b('sam'));
 
 insert into public.holiday (id, org_id, date, name, kind) values

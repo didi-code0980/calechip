@@ -42,10 +42,12 @@ insert into public.team (id, name, org_id) values (tests.m13b('team_2'), 'Team 2
 insert into auth.users (id, email) values
   (tests.m13b('m2'), 'm2@mir13b-160.test'),
   (tests.m13b('p2'), 'p2@mir13b-160.test');
-insert into public.member (id, team_id, display_name, avatar, role, status, email) values
-  (tests.m13b('m2'), tests.m13b('team_2'), 'M2', '1.png', 'member', 'approved', 'm2@mir13b-160.test');
-insert into public.member (id, team_id, org_id, display_name, avatar, role, status, email) values
-  (tests.m13b('p2'), null, tests.m13b('org_b'), 'P2', '1.png', 'member', 'pending', 'p2@mir13b-160.test');
+insert into public.member (id, org_id, display_name, avatar, role, status, email) values
+  (tests.m13b('m2'), tests.m13b('org_b'), 'M2', '1.png', 'member', 'approved', 'm2@mir13b-160.test');
+-- MIR-21-f: no team column; M2's team is its membership row, which the entry's stamp reads.
+select tests.put_on_team(tests.m13b('m2'), tests.m13b('team_2'));
+insert into public.member (id, org_id, display_name, avatar, role, status, email) values
+  (tests.m13b('p2'), tests.m13b('org_b'), 'P2', '1.png', 'member', 'pending', 'p2@mir13b-160.test');
 insert into public.entry (id, member_id, type, portion, start_date, end_date) values
   (tests.m13b('entry_2'), tests.m13b('m2'), 'pto', 'full', '2099-07-01', '2099-07-01');
 insert into public.busy_day (member_id, date) values (tests.m13b('m2'), '2099-07-01');
@@ -65,7 +67,7 @@ insert into public.membership (org_id, team_id, member_id, team_role, is_primary
 values (tests.org_a(), tests.id('team_u'), tests.id('member_t'), 'member', false);
 
 -- ---------------------------------------------------------------------------------------------
--- AC-1. No policy and no function reads the single-valued helper; the helper itself remains.
+-- AC-1. No policy and no function reads the single-valued helper; MIR-21-f dropped the helper.
 -- ---------------------------------------------------------------------------------------------
 select is(
   (select count(*)::int from pg_catalog.pg_policies
@@ -79,7 +81,7 @@ select is(
   0,
   'AC-1: no function in public reads member_team_id()'
 );
-select has_function('public', 'member_team_id', array['uuid'], 'AC-1: public.member_team_id(uuid) still exists');
+select hasnt_function('public', 'member_team_id', array['uuid'], 'AC-1: public.member_team_id(uuid) is dropped (MIR-21-f)');
 
 -- ---------------------------------------------------------------------------------------------
 -- AC-2. The four count-feeding reads return K's primary team only.
@@ -263,12 +265,12 @@ insert into public.notification (recipient_id, kind, event_id, event_name, actor
   (tests.id('pending_p'), 'event_created', tests.id('event_t_public'), 'Event T public', tests.id('admin_t'));
 -- `event_attendance_guard` refuses a person on no team, so pending_p is on T1 for the one insert and
 -- back to a pending sign-up before anything is read.
-update public.member set status = 'approved', team_id = tests.id('team_t') where id = tests.id('pending_p');
+update public.member set status = 'approved' where id = tests.id('pending_p');
 -- ADR-078: the mirror no longer writes on a team change, so the fixture writes the row the writers write.
 select public.membership_make_primary(tests.id('pending_p'), tests.id('team_t'));
 insert into public.event_attendance (event_id, member_id, status) values
   (tests.id('event_t_public'), tests.id('pending_p'), 'attending');
-update public.member set status = 'pending', team_id = null where id = tests.id('pending_p');
+update public.member set status = 'pending' where id = tests.id('pending_p');
 -- ADR-078: and closes it again, as the mirror's team-change branch did on the way back.
 update public.membership set left_at = now(), is_primary = false, updated_at = now()
  where member_id = tests.id('pending_p') and left_at is null;

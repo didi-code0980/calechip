@@ -39,7 +39,6 @@ select set_eq(
     'public.guest_link_event_id(text)',
     -- predicates, covered by the anon check below
     'public.is_admin(uuid)',
-    'public.member_team_id(uuid)',
     'public.may_decide(uuid)',
     'public.is_event_invitee(uuid,uuid)',
     'public.may_manage_event(uuid,uuid)',

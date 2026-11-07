@@ -114,7 +114,7 @@ select * from tests.refused(array['member_t', 'removed_t', 'pending_p'],
 select tests.authenticate_as(tests.id('admin_t'));
 select isnt_empty('select 1 from public.list_teams()', 'AC-13 control: admin_t list_teams() returns rows');
 select is_empty(
-  $$select 1 from public.list_members_for_team(tests.id('team_t')) where team_id = tests.id('team_u')$$,
+  $$select 1 from public.list_members_for_team(tests.id('team_t')) where public.member_roster_team_id(id) = tests.id('team_u')$$,
   'AC-9 admin_t: list_members_for_team(T) holds no member of U (cross-team-reads.test.ts:52)');
 select is_empty(
   $$select 1 from public.list_members_for_team('00000000-0000-4000-8000-0000000000ff')$$,

@@ -160,7 +160,9 @@ them. The power is the same one — an admin decides who is on the team — and 
 from before the person arrives to after. **The fourth row is new and is a denial by default, not a
 decision:** the `member_decide_admin` policy admits only rows with no team and `status = 'pending'`,
 so an approval cannot be taken back through this surface, and nothing has been decided about whether
-it should be.
+it should be. *Since 2026-11-07 (MIR-21-f) the policy is dropped. It had been inert since MIR-02
+revoked the column grants; a decision is made only through `admit_member` and `reject_member`, which
+admit only a pending row with no roster team.*
 
 **Two changes to this table on 2026-08-31, after [ADR-009](../registry/decisions/ADR-009-how-a-person-becomes-a-member.md), kept because they are the record of how the rows above came to exist:**
 
@@ -183,9 +185,9 @@ it should be.
 **Signing up is how somebody joins, and an admin decides afterwards**
 ([ADR-033](../registry/decisions/ADR-033-a-person-joins-by-signing-up-and-an-admin-decides-afterwards.md)).
 Sign-up itself needs no permission: the trigger creates a `member` row for anybody who confirms an
-address, with no team and `status = 'pending'`. **That row grants nothing.** `public.member_team_id`
-returns a team only for an `approved` member, every row-level policy in the product resolves through
-that function, and `public.is_admin` carries the same clause — so an undecided person is refused by
+address, with no team and `status = 'pending'`. **That row grants nothing.** `public.member_team_ids`
+and `public.member_primary_team_id` return a team only for an `approved` member, every team-scoped
+policy resolves through one of them (*until 2026-11-07 this named `public.member_team_id`*), and `public.is_admin` carries the same clause — so an undecided person is refused by
 all of them at once, and an admin who is later rejected stops being an admin rather than keeping
 admin powers over no team.
 

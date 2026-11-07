@@ -2,10 +2,10 @@
 -- RPC — member, manager or admin. 01-plan.md § 4.4.
 begin;
 \ir _isolation.psql
-select plan(29);
+select plan(26);
 select tests.seed();
 
--- The seven refusals, as each of member_t, manager_t and admin_t on their own row.
+-- The six refusals, as each of member_t, manager_t and admin_t on their own row.
 create function tests.self_writes(p_label text) returns setof text
   language plpgsql security invoker set search_path = extensions, pg_catalog as $$
 declare
@@ -16,8 +16,6 @@ begin
     '42501', null, format('AC-4 %s: update own role raises 42501', p_label));
   return next throws_ok(format('update public.member set status = %L where id = %s', 'rejected', v_id),
     '42501', null, format('AC-4 %s: update own status raises 42501', p_label));
-  return next throws_ok(format('update public.member set team_id = %L where id = %s', tests.id('team_u'), v_id),
-    '42501', null, format('AC-4 %s: update own team_id raises 42501', p_label));
   return next throws_ok(format('select public.move_member(%s, %L)', v_id, tests.id('team_u')),
     '42501', null, format('AC-4 %s: move_member(self, U) raises 42501', p_label));
   return next throws_ok(format('select public.set_member_team(%s, %L)', v_id, tests.id('team_u')),
