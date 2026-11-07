@@ -40,7 +40,7 @@ insert into auth.users (id, email) values
   (tests.m13('p2'), 'p2@mir13.test');
 insert into public.member (id, org_id, display_name, avatar, role, status, email) values
   (tests.m13('m2'),      tests.m13('org_b'), 'M2',      '1.png', 'member', 'approved', 'm2@mir13.test'),
-  (tests.m13('admin_b'), tests.m13('org_b'), 'Admin B', '1.png', 'admin',  'approved', 'admin_b@mir13.test');
+  (tests.m13('admin_b'), tests.m13('org_b'), 'Admin B', '1.png', tests.member_role('admin'),  'approved', 'admin_b@mir13.test');
 select tests.put_on_team(tests.m13('m2'), tests.m13('team_2'));
 select tests.put_on_team(tests.m13('admin_b'), tests.m13('team_2'));
 insert into public.member (id, org_id, display_name, avatar, role, status, email) values

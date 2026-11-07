@@ -120,7 +120,7 @@ begin
   insert into public.member (id, display_name, avatar, role, status, removed_at, email)
   values (tests.parity_id(p_case_id),
           p_case_id, '1.png',
-          p_role::public.member_role, p_status::public.member_status,
+          tests.member_role(p_role), p_status::public.member_status,
           case when p_removed then now() end,
           lower(p_case_id) || '@mir07.test');
   -- MIR-21-f: a member has no team column; the team is the membership row. The seed's teams and
@@ -157,8 +157,9 @@ create function tests.parity_own_update(p_case jsonb) returns text
 declare
   v_id     uuid := tests.parity_id(p_case->>'id');
   v_column text := p_case->>'column';
-  v_value  text := case p_case->>'value'
-                     when 'U' then tests.id('team_u')::text
+  v_value  text := case
+                     when p_case->>'value' = 'U' then tests.id('team_u')::text
+                     when p_case->>'column' = 'role' then tests.member_role(p_case->>'value')::text
                      else p_case->>'value'
                    end;
   v_before jsonb;

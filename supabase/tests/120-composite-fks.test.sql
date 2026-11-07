@@ -262,8 +262,8 @@ insert into auth.users (id, email) values
 on conflict (id) do nothing;
 
 insert into public.member (id, display_name, avatar, role, status, email, org_id) values
-  ('a0000000-0000-4000-8000-000000000001', 'Ada', '1.png', 'admin', 'approved', 'ada@mir11.test', 'd0000000-0000-4000-8000-000000000a01'),
-  ('a0000000-0000-4000-8000-000000000003', 'Cy',  '1.png', 'admin', 'approved', 'cy@mir11.test',  'd0000000-0000-4000-8000-000000000b01')
+  ('a0000000-0000-4000-8000-000000000001', 'Ada', '1.png', tests.member_role('admin'), 'approved', 'ada@mir11.test', 'd0000000-0000-4000-8000-000000000a01'),
+  ('a0000000-0000-4000-8000-000000000003', 'Cy',  '1.png', tests.member_role('admin'), 'approved', 'cy@mir11.test',  'd0000000-0000-4000-8000-000000000b01')
 on conflict (id) do update set org_id = excluded.org_id;
 
 -- MIR-21-e (ADR-080 decision 3): the mirror's INSERT branch no longer runs, because the member

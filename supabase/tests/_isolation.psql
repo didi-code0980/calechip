@@ -87,6 +87,18 @@ create function tests.put_on_team(p_member_id uuid, p_team_id uuid) returns void
    where m.id = p_member_id;
 $$;
 
+-- MIR-16-d, ADR-084 decision 1. **THE ONE PLACE A TEST SPELLS THE DATABASE VALUE OF THE ADMIN
+-- ROLE.** A test names a role in the application's words ('member', 'manager', 'admin') and this
+-- returns the public.member_role value that means it. MIR-16-e renames 'admin' to 'org_admin' and
+-- changes the first branch, and no test that calls this changes with it.
+create function tests.member_role(p_role text) returns public.member_role
+  language sql stable set search_path = '' as $$
+  select case p_role
+           when 'admin' then 'admin'::public.member_role
+           else p_role::public.member_role
+         end;
+$$;
+
 -- The fixture of 01-plan.md § 4.3, inserted as the session user before any authenticate. Every row
 -- goes in with auth.uid() null, so the notify* and email_* triggers do nothing.
 create function tests.seed() returns void
@@ -120,7 +132,7 @@ begin
     insert into public.member (id, display_name, avatar, role, status, removed_at, email)
     values (tests.id(v_person.label),
             v_person.label, '1.png',
-            v_person.role::public.member_role, v_person.status::public.member_status,
+            tests.member_role(v_person.role), v_person.status::public.member_status,
             case when v_person.removed then now() end,
             v_person.label || '@mir06.test');
 

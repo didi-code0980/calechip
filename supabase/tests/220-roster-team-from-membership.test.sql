@@ -32,8 +32,8 @@ insert into public.team (id, name, org_id) values
 insert into auth.users (id, email)
 select tests.m21(l), l || '@mir21-220.test' from unnest(array['a', 'm', 'r', 'p', 'j', 'v', 'k']) l;
 insert into public.member (id, org_id, display_name, avatar, role, status, email) values
-  (tests.m21('a'), tests.m21('o1'), 'A', '1.png', 'admin', 'approved', 'a@mir21-220.test'),
-  (tests.m21('k'), tests.m21('o2'), 'K', '1.png', 'admin', 'approved', 'k@mir21-220.test');
+  (tests.m21('a'), tests.m21('o1'), 'A', '1.png', tests.member_role('admin'), 'approved', 'a@mir21-220.test'),
+  (tests.m21('k'), tests.m21('o2'), 'K', '1.png', tests.member_role('admin'), 'approved', 'k@mir21-220.test');
 select tests.put_on_team(tests.m21('a'), tests.m21('t1'));
 select tests.put_on_team(tests.m21('k'), tests.m21('t3'));
 insert into public.member (id, org_id, display_name, avatar, role, status, email)
