@@ -23,6 +23,8 @@ planned, sized, and safe to build** — the next stage for a row here is IN_PROG
 | # | Ticket | Title | Size | Depends on |
 |---|--------|-------|------|------------|
 
+**`MIR-16` moved here at /advance on 2026-11-07**, from `01-plan.md` gate PASS (`produced_at: 2026-11-07T08:17:01Z`) with all six Definition of Ready items passing; `schema_delta` cites [ADR-082](../registry/decisions/ADR-082-the-role-split-goes-in-three-slices-and-issue-reports-go-to-the-system-panel-first.md) (`ACCEPTED by tech-lead-design under the operator's delegation (ADR-067)`), the first of three slices of the role split. PLAN split the remainder into `MIR-16-b` and `MIR-16-c` (both `BACKLOG`) and updated `MIR-17`'s and `MIR-20`'s `depends_on`; all four paths are in `MIR-16`'s own `allowed_paths`. `MIR-16` had no row in `## BACKLOG`, so no row left that table.
+
 **Empty again — `MIR-21-f` left this section for `## ARCHIVE` at its own ship on 2026-11-07.** With it, all six slices of feature `MIR-21` (MIR-21, -b, -c, -d, -e, -f) have shipped, and its `features.md` row is set to `DONE`. `MIR-16`, `MIR-17` and `MIR-19` are unblocked once this merges.
 
 **`MIR-21-f` was at `REVIEW` in `ticket.yaml`, `gates.review` passed** — recorded at /advance on 2026-11-07 from `04-review.md` (`produced_at: 2026-11-07T15:05:00+07:00`, as written — later than the time it was first seen): `gate: PASS`, `verdict: PASS`, `invariant_violation: false`, `route_to: none`. Transcribed as written; the artifact has no R1–R8 table or citations, flagged to the operator, who chose to advance. `state` stays `REVIEW`; `/ship` sets `DONE` and moves the row to `## ARCHIVE`.
