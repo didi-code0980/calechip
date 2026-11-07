@@ -23,13 +23,21 @@
 // by `FIXTURE_HOLIDAYS`. That is not fastidiousness: the mock offers no reseed and `restore` below
 // can only remove what a test added, so a test that deleted a fixture row would silently change what
 // every test after it asserts against. The seeded rows are read — never written.
+//
+// MIR-15-e, ADR-079. `FIXTURE_ADMIN` (Quan) is placed in the DEDICATED org for every test in this
+// file (`__setDedicatedOrgMembersForTest([FIXTURE_ADMIN.id])`, file-level `beforeEach`), because
+// since MIR-15-b an admin of Org public is refused all three writes (AC-7 below) and every ADM-03
+// test above that line was written when Quan's org did not matter. Quan-D is the same account,
+// through the same test switch, 01-plan.md § 4.3. The MIR-15-e describe block at the bottom moves a
+// test OUT of the dedicated org where the criterion needs Quan to be Org public's admin instead.
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { seam as mock, __setCurrentMember } from "@/lib/data/mock";
+import { seam as mock, __setCurrentMember, __setDedicatedOrgMembersForTest } from "@/lib/data/mock";
 import type { Holiday } from "@/lib/domain/types";
 import {
   FIXTURE_ADMIN,
   FIXTURE_HOLIDAYS,
   FIXTURE_MEMBER,
+  FIXTURE_PENDING_SIGNUP,
   FIXTURE_REMOVED_MEMBER,
   FIXTURE_SECOND_ADMIN,
 } from "@/lib/fixtures";
@@ -40,8 +48,18 @@ import {
 const EVERYTHING = { start: "2000-01-01", end: "2099-12-31" };
 
 /** The whole table, read back THROUGH the seam rather than out of the mock's internals — so an
- *  assertion about "unchanged" is an assertion about what a reader sees. */
-const stored = () => mock.listHolidays(EVERYTHING);
+ *  assertion about "unchanged" is an assertion about what a reader sees.
+ *
+ *  MIR-15-e. PINNED TO `FIXTURE_ADMIN` AS THE READER, and that pin is load-bearing now that a read
+ *  is scoped to the caller's org: every test in this file (bar the MIR-15-e block's own AC-7, which
+ *  overrides the switch for its own duration) leaves Quan mapped to the dedicated org, so this is
+ *  "the dedicated org's table" consistently, whatever member a test switched to in between for a
+ *  write attempt. Forcing the reader here is what keeps a `before`/`after` comparison meaningful
+ *  across a test that calls `__setCurrentMember` on a non-admin partway through. */
+const stored = async (): Promise<Holiday[]> => {
+  __setCurrentMember(FIXTURE_ADMIN.id);
+  return mock.listHolidays(EVERYTHING);
+};
 
 /** Dates in 2028, which the fixtures leave completely empty — so an add that should succeed is never
  *  refused by a constraint the test did not mean to meet. */
@@ -49,8 +67,11 @@ const FREE_DATE = "2028-04-30";
 const OTHER_FREE_DATE = "2028-09-02";
 const THIRD_FREE_DATE = "2028-12-25";
 
-/** The four seeded ids, so `restore` can tell a fixture row from one a test made. */
-const seededIds = new Set(FIXTURE_HOLIDAYS.map((h) => h.id));
+/** The four seeded DATES, not ids. MIR-15-e seeds a COPY of each `FIXTURE_HOLIDAYS` row into the
+ *  dedicated org under a fresh id from `newHolidayId()` (01-plan.md § 4.3), so the dedicated org's
+ *  seeded rows never match `FIXTURE_HOLIDAYS`' own ids — but they always carry the same four dates,
+ *  which is what `restore` below needs to tell a fixture row from one a test made. */
+const seededDates = new Set(FIXTURE_HOLIDAYS.map((h) => h.date));
 
 /** Adds a row as the admin and returns it, failing the test loudly rather than returning something
  *  unusable — a setup step that failed silently would make the assertion after it meaningless. */
@@ -63,19 +84,30 @@ async function given(date: string, name: string, kind: Holiday["kind"]): Promise
 }
 
 /** The mock's `holiday` table is module state and these tests write it, so every one of them starts
- *  and ends at the four seeded rows. */
+ *  and ends at the four seeded rows — in the dedicated org, which is the one `stored()` now reads. */
 async function restore(): Promise<void> {
   __setCurrentMember(FIXTURE_ADMIN.id);
   for (const row of await stored()) {
-    if (!seededIds.has(row.id)) await mock.deleteHoliday(row.id);
+    if (!seededDates.has(row.date)) await mock.deleteHoliday(row.id);
   }
   __setCurrentMember(null);
 }
 
-describe("ADM-03 the holiday writes", () => {
-  beforeEach(restore);
-  afterEach(restore);
+// MIR-15-e, ADR-079 decision 5, 01-plan.md § 4.6. FILE-LEVEL, so they also wrap the `MIR-15-e`
+// describe block below: Quan-D for every test in this file by default. `restore` runs WHILE Quan is
+// still mapped to the dedicated org in both hooks, so the cleanup it does lands on the same org the
+// test's own writes did — ending the switch first in `afterEach` would leave the dedicated org's
+// table dirty for the next test's own `restore`.
+beforeEach(async () => {
+  __setDedicatedOrgMembersForTest([FIXTURE_ADMIN.id]);
+  await restore();
+});
+afterEach(async () => {
+  await restore();
+  __setDedicatedOrgMembersForTest([]);
+});
 
+describe("ADM-03 the holiday writes", () => {
   // -------------------------------------------------------------------------
   // Adding, editing and deleting as the person the policies admit.
   // -------------------------------------------------------------------------
@@ -330,12 +362,13 @@ describe("ADM-03 the holiday writes", () => {
     expect(readBack?.name).toBe("A day");
   });
 
-  // LAST IN THE FILE, DELIBERATELY, and the ordering is load-bearing — the shape
+  // LAST IN THIS DESCRIBE BLOCK, DELIBERATELY, and the ordering is load-bearing — the shape
   // tests/threshold.test.ts records for the same criterion. `removeMember` is the only way to reach
   // a caller whose row is removed AND whose role is `admin`: no such fixture exists,
   // src/lib/fixtures.ts is not in this ticket's `allowed_paths`, and the mock offers no way to undo
-  // a removal, so this test leaves FIXTURE_SECOND_ADMIN removed for whatever runs after it. Nothing
-  // does, in this file, and the mock's module state is per test file.
+  // a removal, so this test leaves FIXTURE_SECOND_ADMIN removed for whatever runs after it. NOTHING
+  // IN THIS FILE DEPENDS ON FIXTURE_SECOND_ADMIN'S ROLE OR REMOVAL STATE — the MIR-15-e describe
+  // block below this one runs after it in file order but never names this fixture.
   //
   // It is the criterion `is_admin` answers rather than the three policies: the function filters
   // `removed_at is null` in its own body, so a caller whose `role` column still says `admin` is
@@ -366,5 +399,167 @@ describe("ADM-03 the holiday writes", () => {
     ).toBe(false);
     expect((await mock.deleteHoliday(row.id)).ok).toBe(false);
     expect(await stored()).toEqual(before);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// MIR-15-e, ADR-079 decision 5. 01-plan.md §§ 2, 4.3. One `it` per AC-7 to AC-12 — the mock-level
+// criteria; the numbers coincide with some of ADM-03's own above by accident of two tickets each
+// starting their own count, and the two namespaces are never mixed in one assertion.
+//
+// THE FILE-LEVEL `beforeEach`/`afterEach` ABOVE STILL APPLY: Quan-D by default, and `restore()`
+// between every test. AC-7 below overrides the org switch for its own duration, back to the
+// default by `afterEach` regardless of how the test ends.
+// ---------------------------------------------------------------------------
+
+describe("MIR-15-e — the member seam follows Org public's holiday policies", () => {
+  it("AC-7: the mock refuses an Org public admin all three writes, and Org public's rows are unchanged", async () => {
+    __setDedicatedOrgMembersForTest([]); // Quan, Org public's admin, for this test only
+    const before = await stored(); // Org public's own four rows, through the pinned reader
+
+    const seeded = FIXTURE_HOLIDAYS[0];
+    if (!seeded) throw new Error("the fixture module carries no holiday rows");
+
+    __setCurrentMember(FIXTURE_ADMIN.id);
+    const added = await mock.addHoliday({
+      date: FREE_DATE,
+      name: "Not Quan's to add",
+      kind: "non_working",
+    });
+    const edited = await mock.updateHoliday(seeded.id, {
+      date: seeded.date,
+      name: "Not Quan's to edit",
+      kind: seeded.kind,
+    });
+    const deleted = await mock.deleteHoliday(seeded.id);
+
+    for (const result of [added, edited, deleted]) {
+      expect(result.ok).toBe(false);
+      if (result.ok) continue;
+      expect(result.error.code).toBe("not_permitted");
+      expect(result.error.message).not.toBe("");
+    }
+    expect(await stored()).toEqual(before);
+  });
+
+  it("AC-8: the mock lets a dedicated org's admin write that org's rows, and only them", async () => {
+    __setCurrentMember(FIXTURE_MEMBER.id); // Thanh, Org public — reads "before" Quan-D writes anything
+    const orgPublicBefore = await mock.listHolidays(EVERYTHING);
+
+    __setCurrentMember(FIXTURE_ADMIN.id); // Quan-D, the file-level default
+    const added = await mock.addHoliday({
+      date: FREE_DATE,
+      name: "The dedicated org's own day",
+      kind: "non_working",
+    });
+    expect(added.ok).toBe(true);
+    if (!added.ok) return;
+
+    const edited = await mock.updateHoliday(added.value.id, {
+      date: OTHER_FREE_DATE,
+      name: "Edited",
+      kind: "working",
+    });
+    expect(edited.ok).toBe(true);
+    if (!edited.ok) return;
+
+    const deleted = await mock.deleteHoliday(edited.value.id);
+    expect(deleted.ok).toBe(true);
+
+    __setCurrentMember(FIXTURE_MEMBER.id);
+    expect(await mock.listHolidays(EVERYTHING)).toEqual(orgPublicBefore);
+
+    // The other half of AC-8: naming an Org public row's id from the dedicated org gets the same
+    // refusal a missing row would, rather than a lookup that finds it.
+    const orgPublicRow = FIXTURE_HOLIDAYS[0];
+    if (!orgPublicRow) throw new Error("the fixture module carries no holiday rows");
+
+    __setCurrentMember(FIXTURE_ADMIN.id);
+    const crossUpdate = await mock.updateHoliday(orgPublicRow.id, {
+      date: orgPublicRow.date,
+      name: "Reached from the wrong org",
+      kind: orgPublicRow.kind,
+    });
+    expect(crossUpdate.ok).toBe(false);
+    if (!crossUpdate.ok) expect(crossUpdate.error.code).toBe("not_permitted");
+
+    const crossDelete = await mock.deleteHoliday(orgPublicRow.id);
+    expect(crossDelete.ok).toBe(false);
+    if (!crossDelete.ok) expect(crossDelete.error.code).toBe("not_permitted");
+
+    __setCurrentMember(FIXTURE_MEMBER.id);
+    expect(await mock.listHolidays(EVERYTHING)).toEqual(orgPublicBefore);
+  });
+
+  it("AC-9: the mock's date uniqueness is per org", async () => {
+    const seeded = FIXTURE_HOLIDAYS[0];
+    if (!seeded) throw new Error("the fixture module carries no holiday rows");
+
+    // Org public has `seeded`, and the dedicated org holds its own copy of the same date (01-plan.md
+    // § 4.3) — a second row on it for Quan-D collides with THAT copy, not with Org public's.
+    __setCurrentMember(FIXTURE_ADMIN.id); // Quan-D, the file-level default
+    const collision = await mock.addHoliday({
+      date: seeded.date,
+      name: "A second row on the dedicated org's own copy of that date",
+      kind: seeded.kind,
+    });
+    expect(collision.ok).toBe(false);
+    if (!collision.ok) expect(collision.error.code).toBe("holiday_date_taken");
+
+    // A date NEITHER org holds succeeds, and Org public still has none on it.
+    const added = await mock.addHoliday({
+      date: FREE_DATE,
+      name: "A date neither org holds",
+      kind: "non_working",
+    });
+    expect(added.ok).toBe(true);
+
+    __setCurrentMember(FIXTURE_MEMBER.id); // Thanh, Org public
+    const orgPublicRows = await mock.listHolidays(EVERYTHING);
+    expect(orgPublicRows.map((h) => h.date)).not.toContain(FREE_DATE);
+  });
+
+  it("AC-10: the mock reads each caller only their own org's rows", async () => {
+    __setCurrentMember(FIXTURE_ADMIN.id); // Quan-D, the file-level default
+    const added = await mock.addHoliday({
+      date: FREE_DATE,
+      name: "The dedicated org's own day",
+      kind: "non_working",
+    });
+    expect(added.ok).toBe(true);
+
+    const year2028 = { start: "2028-01-01", end: "2028-12-31" };
+
+    const quanDs = await mock.listHolidays(year2028);
+    expect(quanDs.map((h) => h.date)).toContain(FREE_DATE);
+
+    __setCurrentMember(FIXTURE_MEMBER.id); // Thanh, Org public
+    const thanhs = await mock.listHolidays(year2028);
+    expect(thanhs.map((h) => h.date)).not.toContain(FREE_DATE);
+  });
+
+  it("AC-11: the mock reads a caller with no org nothing", async () => {
+    const year2026 = { start: "2026-01-01", end: "2026-12-31" };
+
+    __setCurrentMember(null);
+    expect(await mock.listHolidays(year2026)).toEqual([]);
+
+    __setCurrentMember(FIXTURE_PENDING_SIGNUP.id);
+    expect(await mock.listHolidays(year2026)).toEqual([]);
+
+    __setCurrentMember(FIXTURE_REMOVED_MEMBER.id);
+    expect(await mock.listHolidays(year2026)).toEqual([]);
+  });
+
+  it("AC-12: the seam answers whether the caller's org is shared", async () => {
+    __setDedicatedOrgMembersForTest([]); // Quan, Org public's admin
+    __setCurrentMember(FIXTURE_ADMIN.id);
+    expect(await mock.isOwnOrgShared()).toBe(true);
+
+    __setDedicatedOrgMembersForTest([FIXTURE_ADMIN.id]); // Quan-D
+    expect(await mock.isOwnOrgShared()).toBe(false);
+
+    __setCurrentMember(null);
+    expect(await mock.isOwnOrgShared()).toBe(false);
   });
 });

@@ -166,13 +166,14 @@ select throws_ok(
   '42501', null,
   'AC-13: inserting a holiday with org_id = Org B is refused with 42501'
 );
-select lives_ok(
+select throws_ok(
   $$insert into public.holiday (date, name) values ('2099-07-04', 'no org')$$,
-  'AC-13: inserting a holiday with no org_id is accepted'
+  '42501', null,
+  'AC-13: inserting a holiday into Org A is refused — MIR-15-b, ADR-079 decision 2'
 );
 select tests.clear_authentication();
-select is((select org_id from public.holiday where date = '2099-07-04'), tests.org_a(),
-  'AC-13: and it lands in Org A');
+select is((select count(*)::int from public.holiday where date = '2099-07-04'), 0,
+  'AC-13: and no row lands on 2099-07-04 — MIR-15-b, ADR-079 decision 2');
 
 select results_eq(
   $$select note, (select count(*)::int from public.entry where id = tests.m13('entry_2'))

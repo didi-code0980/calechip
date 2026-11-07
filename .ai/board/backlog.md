@@ -23,13 +23,27 @@ planned, sized, and safe to build** — the next stage for a row here is IN_PROG
 | # | Ticket | Title | Size | Depends on |
 |---|--------|-------|------|------------|
 
+**`MIR-15-e` was at `REVIEW` in `ticket.yaml`, `gates.review` passed** — recorded at /advance on 2026-11-06 from `04-review.md` (`produced_at: 2026-11-06T09:39:00Z`): `gate: PASS`, `verdict: PASS`, `invariant_violation: false`, `route_to: none`. `state` stays `REVIEW`; `/ship` sets `DONE`. There is no row for it in this table (see below).
+
+**`MIR-15-e` was at `READY` in `ticket.yaml`, moved to `REVIEW`** — recorded at /advance on 2026-11-06 from `03-impl-log.md` gate PASS (`produced_at: 2026-11-06T16:36:32Z`). There is no row for it in this table (see below); nothing to move.
+
+**`MIR-15-e` moved here at /advance on 2026-11-06**, from `01-plan.md` gate PASS (`produced_at: 2026-11-06T09:08:21Z`) with all six Definition of Ready items passing; `schema_delta: none` (confirmed at PLAN, no migration). `MIR-15-e` had no row in `## BACKLOG`, so no row left that table.
+
+**Empty again — `MIR-15-b` left this section for `## ARCHIVE` at its own ship on 2026-11-06.** Its sibling slices `MIR-15-c` and `MIR-15-d` stay at `BACKLOG`; `MIR-15-e` moved to `READY` the same day; the shared `MIR-15` row in `features.md` stays `PLANNED` until the last of them ships.
+
+**`MIR-15-b` was at `REVIEW` in `ticket.yaml`, `gates.review` passed** — recorded at /advance on 2026-11-06 from `04-review.md` (`produced_at: 2026-11-06T08:32:49Z`): `gate: PASS`, `verdict: PASS`, `invariant_violation: false`, `route_to: none`. `state` stays `REVIEW`; `/ship` sets `DONE` and moves the row to `## ARCHIVE`.
+
+**`MIR-15-b` was at `REVIEW` in `ticket.yaml`, `gates.review` not yet passed** — recorded at /advance on 2026-11-06 from `03-impl-log.md` gate PASS (`produced_at: 2026-11-06T08:17:06Z`). The row stays here until `/ship` moves it to `## ARCHIVE`.
+
+**`MIR-15-b` moved here at /advance on 2026-11-06**, from `01-plan.md` gate PASS (`produced_at: 2026-11-06T04:36:00Z`) with all six Definition of Ready items passing; `schema_delta` cites [ADR-079](../registry/decisions/ADR-079-org-public-holidays-are-written-through-four-system-admin-rpcs-and-each-org-reads-only-its-own.md) (`ACCEPTED by tech-lead-design under the operator's delegation (ADR-067)`). MIR-15-b had no row in `## BACKLOG`, so no row left that table. PLAN split the member-app half to a new slice `MIR-15-e` (BACKLOG). **Number collision, unresolved.** Open PR #194 (MIR-21-c) also carries an `ADR-079`, the migration version `20261106120000` and a `supabase/tests/240-*` file; whichever merges second must renumber. **Resolved 2026-11-07:** #195 merged first, so PR #194 renumbered MIR-21-c to ADR-080, migration `20261106130000` and test `250-membership-self-lock`.
+
 **Empty again — `MIR-21-c` left this section for `## ARCHIVE` at its own ship on 2026-11-06.** Its slices `MIR-21-d`, `MIR-21-e` and `MIR-21-f` stay at `BACKLOG`; the shared `MIR-21` row in `features.md` stays `PLANNED` until MIR-21-f ships.
 
 **`MIR-21-c` was at `REVIEW` in `ticket.yaml`, `gates.review` passed** — recorded at /advance on 2026-11-06 from `04-review.md` (`produced_at: 2026-11-06T11:17:12+07:00`): `gate: PASS`, `verdict: PASS`, `invariant_violation: false`, `route_to: none`. `state` stays `REVIEW`; `/ship` sets `DONE` and moves the row to `## ARCHIVE`.
 
 **`MIR-21-c` was at `REVIEW` in `ticket.yaml`, `gates.review` not yet passed** — recorded at /advance on 2026-11-06 from `03-impl-log.md` gate PASS (`produced_at: 2026-11-06T10:21:35+07:00`); `/implement` had already set `state: REVIEW`. The row stays here until `/ship` moves it to `## ARCHIVE`.
 
-**`MIR-21-c` moved here at /advance on 2026-11-06**, from `01-plan.md` gate PASS (`produced_at: 2026-11-06T02:37:30Z`) with all six Definition of Ready items passing; `schema_delta` cites [ADR-080](../registry/decisions/ADR-080-the-team-lock-moves-to-membership-first-and-the-drop-splits-into-four-slices.md) (`ACCEPTED by tech-lead-design under the operator's delegation (ADR-067)`). PLAN split the drop into `MIR-21-d`, `MIR-21-e` and `MIR-21-f` (BACKLOG). MIR-21-c had no row in `## BACKLOG`, so no row left that table.
+**`MIR-21-c` moved here at /advance on 2026-11-06**, from `01-plan.md` gate PASS (`produced_at: 2026-11-06T02:37:30Z`) with all six Definition of Ready items passing; `schema_delta` cites [ADR-080](../registry/decisions/ADR-080-the-team-lock-moves-to-membership-first-and-the-drop-splits-into-four-slices.md) (`ACCEPTED by tech-lead-design under the operator's delegation (ADR-067)`). PLAN split the drop into `MIR-21-d`, `MIR-21-e` and `MIR-21-f` (BACKLOG). MIR-21-c had no row in `## BACKLOG`, so no row left that table. **Resolved 2026-11-07:** #195 merged first, so PR #194 renumbered MIR-21-c to ADR-080, migration `20261106130000` and test `250-membership-self-lock`.
 
 **Empty again — `MIR-21-b` left this section for `## ARCHIVE` at its own ship on 2026-11-05.** Its drop slice `MIR-21-c` stays at `BACKLOG`; the shared `MIR-21` row in `features.md` stays `PLANNED` until MIR-21-c ships.
 
@@ -1649,28 +1663,32 @@ các tính năng mới và đưa vào backlog"*. The four solo rows registered e
 
 | # | Ticket | Title | Shipped | PR |
 |---|--------|-------|---------|-----|
-| 1 | MIR-04 | The member directory returns only members of the caller's own teams, and the event-invitee check is audited | 2026-10-21 | [#167](https://github.com/didi-code0980/calechip/pull/167) |
-| 2 | MIR-01 | The service role key and the anon key are rotated, and the rotation is recorded | 2026-10-21 | [#168](https://github.com/didi-code0980/calechip/pull/168) |
-| 3 | MIR-05 | pgTAP runs locally and in CI against a real Postgres with every migration applied | 2026-10-21 | [#170](https://github.com/didi-code0980/calechip/pull/170) |
-| 4 | MIR-06 | An SQL isolation suite proves each boundary as a real authenticated role against real policies | 2026-10-23 | [#171](https://github.com/didi-code0980/calechip/pull/171) |
-| 5 | MIR-07 | The mock is no looser than SQL on any permission decision, and a parity test enforces it | 2026-10-23 | PENDING_PR |
-| 6 | MIR-08 | `supabase/db.sql` is regenerated from the applied migrations or retired, and CI fails on drift | 2026-10-23 | PENDING_PR |
-| 7 | MIR-09 | Known schema inconsistencies are cleaned up: transaction wrapping, allow-list references, an index on `member.team_id`, a check on the overload threshold | 2026-10-27 | PENDING_PR |
-| 8 | MIR-10 | The org and multi-team membership schema is designed and approved before any migration | 2026-10-27 | PENDING_PR |
-| 9 | MIR-11 | Composite foreign keys make a cross-org insert impossible at the database | 2026-10-27 | PENDING_PR |
-| 10 | MIR-12 | `org_id` is added and backfilled into Org public, `membership` is backfilled from `member.team_id`, and `member.team_id` is dropped last | 2026-11-01 | PENDING_PR |
-| 11 | MIR-13 | The policy layer is rewritten against `membership` and `org_id`, and no definer function trusts a client-supplied team id alone — write slice (ADR-071) | 2026-11-03 | [#185](https://github.com/didi-code0980/calechip/pull/185) |
-| 12 | MIR-13-b | Every read policy and read definer function resolves teams through `member_team_ids` and is bounded by `org_id`, and `getTeam()` and the overload warning survive a member on several teams | 2026-11-03 | [#186](https://github.com/didi-code0980/calechip/pull/186) |
-| 13 | MIR-14 | A multi-team member's entry needs approval if any of their teams requires it, the first decision wins, any rejection rejects, and both approver and rejecter are recorded | 2026-11-03 | [#187](https://github.com/didi-code0980/calechip/pull/187) |
-| 14 | MIR-14-b | Each relevant manager's worklist shows a multi-team member's pending entry with the owner's name and the teams it affects, and the decision records are shown | 2026-11-04 | [#188](https://github.com/didi-code0980/calechip/pull/188) |
-| 15 | MIR-18 | A separate system admin panel, unindexed, with its own account store, 2FA and org management — first slice (ADR-074) | 2026-11-05 | [#189](https://github.com/didi-code0980/calechip/pull/189) |
-| 16 | MIR-18-b | A system admin lists, creates and edits orgs — caps and licence state — from the panel, which is served unindexed at an unguessable path with rate limiting and failed-login logging | 2026-11-05 | [#190](https://github.com/didi-code0980/calechip/pull/190) |
-| 17 | MIR-15 | In Org public, the directory, public events and event notifications stay within the team, only system_admin sets its holidays, and a team can be moved to another org — first slice (ADR-076) | 2026-11-05 | PENDING_PR |
-| 18 | MIR-21 | `member.team_id` is dropped once every reader has moved to `membership` — read slice (ADR-077, roster team) | 2026-11-05 | PENDING_PR |
-| 19 | MIR-21-b | Every writer writes `membership` directly, and the mirror trigger, `member_team_id()` and `member.team_id` are dropped — writer slice (ADR-078; the drop moved to MIR-21-c) | 2026-11-05 | PENDING_PR |
-| 20 | MIR-21-c | The team lock moves to `membership`: a trigger refuses a write to the caller's own rows — team-lock slice (ADR-080; the drop is MIR-21-f) | 2026-11-06 | PENDING_PR |
+| 1 | MIR-05 | pgTAP runs locally and in CI against a real Postgres with every migration applied | 2026-10-21 | [#170](https://github.com/didi-code0980/calechip/pull/170) |
+| 2 | MIR-06 | An SQL isolation suite proves each boundary as a real authenticated role against real policies | 2026-10-23 | [#171](https://github.com/didi-code0980/calechip/pull/171) |
+| 3 | MIR-07 | The mock is no looser than SQL on any permission decision, and a parity test enforces it | 2026-10-23 | PENDING_PR |
+| 4 | MIR-08 | `supabase/db.sql` is regenerated from the applied migrations or retired, and CI fails on drift | 2026-10-23 | PENDING_PR |
+| 5 | MIR-09 | Known schema inconsistencies are cleaned up: transaction wrapping, allow-list references, an index on `member.team_id`, a check on the overload threshold | 2026-10-27 | PENDING_PR |
+| 6 | MIR-10 | The org and multi-team membership schema is designed and approved before any migration | 2026-10-27 | PENDING_PR |
+| 7 | MIR-11 | Composite foreign keys make a cross-org insert impossible at the database | 2026-10-27 | PENDING_PR |
+| 8 | MIR-12 | `org_id` is added and backfilled into Org public, `membership` is backfilled from `member.team_id`, and `member.team_id` is dropped last | 2026-11-01 | PENDING_PR |
+| 9 | MIR-13 | The policy layer is rewritten against `membership` and `org_id`, and no definer function trusts a client-supplied team id alone — write slice (ADR-071) | 2026-11-03 | [#185](https://github.com/didi-code0980/calechip/pull/185) |
+| 10 | MIR-13-b | Every read policy and read definer function resolves teams through `member_team_ids` and is bounded by `org_id`, and `getTeam()` and the overload warning survive a member on several teams | 2026-11-03 | [#186](https://github.com/didi-code0980/calechip/pull/186) |
+| 11 | MIR-14 | A multi-team member's entry needs approval if any of their teams requires it, the first decision wins, any rejection rejects, and both approver and rejecter are recorded | 2026-11-03 | [#187](https://github.com/didi-code0980/calechip/pull/187) |
+| 12 | MIR-14-b | Each relevant manager's worklist shows a multi-team member's pending entry with the owner's name and the teams it affects, and the decision records are shown | 2026-11-04 | [#188](https://github.com/didi-code0980/calechip/pull/188) |
+| 13 | MIR-18 | A separate system admin panel, unindexed, with its own account store, 2FA and org management — first slice (ADR-074) | 2026-11-05 | [#189](https://github.com/didi-code0980/calechip/pull/189) |
+| 14 | MIR-18-b | A system admin lists, creates and edits orgs — caps and licence state — from the panel, which is served unindexed at an unguessable path with rate limiting and failed-login logging | 2026-11-05 | [#190](https://github.com/didi-code0980/calechip/pull/190) |
+| 15 | MIR-15 | In Org public, the directory, public events and event notifications stay within the team, only system_admin sets its holidays, and a team can be moved to another org — first slice (ADR-076) | 2026-11-05 | PENDING_PR |
+| 16 | MIR-21 | `member.team_id` is dropped once every reader has moved to `membership` — read slice (ADR-077, roster team) | 2026-11-05 | PENDING_PR |
+| 17 | MIR-21-b | Every writer writes `membership` directly, and the mirror trigger, `member_team_id()` and `member.team_id` are dropped — writer slice (ADR-078; the drop moved to MIR-21-c) | 2026-11-05 | PENDING_PR |
+| 18 | MIR-21-c | The team lock moves to `membership`: a trigger refuses a write to the caller's own rows — team-lock slice (ADR-080; the drop is MIR-21-f) | 2026-11-06 | PENDING_PR |
+| 19 | MIR-15-b | Only a system admin sets Org public's holidays, from the system panel, and each org reads only its own holiday calendar — holiday slice (ADR-079; the member app moved to MIR-15-e) | 2026-11-06 | PENDING_PR |
+| 20 | MIR-15-e | The member app stops offering holiday edits in Org public, and the mock seam reproduces Org public's holiday policies — member slice (ADR-079 decision 5) | 2026-11-06 | PENDING_PR |
 
-**The window displaced `MIR-03` at MIR-21-c's ship** — *MIR-03, Role changes are bounded to members the admin administers, promotion to admin is a separately gated action, and every role change records its actor, shipped 2026-10-20,* [#166](https://github.com/didi-code0980/calechip/pull/166)
+**The window displaced `MIR-01` when PR #194 (MIR-21-c) was merged with main after #195 and #196** — *MIR-01, The service role key and the anon key are rotated, and the rotation is recorded, shipped 2026-10-21,* [#168](https://github.com/didi-code0980/calechip/pull/168). MIR-21-c shipped first (2026-11-06T04:19Z), so its row sits above MIR-15-b's; on its own branch it had displaced `MIR-03`, which MIR-15-b's ship had already recorded.
+
+**The window displaced `MIR-04` at MIR-15-e's ship** — *MIR-04, The member directory returns only members of the caller's own teams, and the event-invitee check is audited, shipped 2026-10-21,* [#167](https://github.com/didi-code0980/calechip/pull/167).
+
+**The window displaced `MIR-03` at MIR-15-b's ship** — *MIR-03, Role changes are bounded to members the admin administers, promotion to admin is a separately gated action, and every role change records its actor, shipped 2026-10-20,* [#166](https://github.com/didi-code0980/calechip/pull/166).
 
 **The window displaced `MIR-02` at MIR-21-b's ship** — *MIR-02, A member's own role, status and team can be changed only through bounded, definer-checked paths, shipped 2026-10-20,* [#165](https://github.com/didi-code0980/calechip/pull/165)
 

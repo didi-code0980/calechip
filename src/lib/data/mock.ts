@@ -536,33 +536,90 @@ const newBusyDayId = (): string =>
 // ADM-02. 01-plan.md sections 4.3 and 4.5.
 // ---------------------------------------------------------------------------
 
-// The mock's `holiday` table, seeded from the shared fixture module — the same four rows
-// supabase/seed.sql inserts, with the same literals.
+// MIR-15-e, ADR-079. The two orgs the mock's holiday table knows. Internal; not exported — a test
+// reaches the dedicated org through `__setDedicatedOrgMembersForTest`, never through this type.
+type MockOrg = "org_public" | "dedicated";
+
+// MIR-15-e. localStorage key: a JSON array of member ids placed in the dedicated org. Read once at
+// module load, the way SESSION_STORAGE_KEY is above, so an e2e spec sets it with
+// `page.addInitScript` before the application's first load.
+const DEDICATED_ORG_STORAGE_KEY = "calechip.mock.dedicatedOrgMembers";
+
+function readDedicatedOrgMemberIds(): Set<string> {
+  const store = sessionStore();
+  if (!store) return new Set();
+
+  try {
+    const raw = store.getItem(DEDICATED_ORG_STORAGE_KEY);
+    if (!raw) return new Set();
+    const parsed: unknown = JSON.parse(raw);
+    if (!Array.isArray(parsed)) return new Set();
+    return new Set(parsed.filter((id): id is string => typeof id === "string"));
+  } catch {
+    return new Set();
+  }
+}
+
+// Member ids in the dedicated org. Every other member is in Org public (MIR-12's backfill puts
+// every real member there, and no fixture places one in a dedicated org — 01-plan.md § 1 *Out of
+// scope*). Module state, like `members` and `holidays`: it resets on a document load.
+let dedicatedOrgMemberIds: Set<string> = readDedicatedOrgMemberIds();
+
+/** Test-only, MIR-15-e. Replaces the dedicated org's member set; `[]` restores the default (every
+ *  member in Org public). A named export beside `seam`, so seam parity — which compares the keys of
+ *  `seam` — is untouched. */
+export function __setDedicatedOrgMembersForTest(memberIds: string[]): void {
+  dedicatedOrgMemberIds = new Set(memberIds);
+}
+
+// MIR-15-e. `public.member_org_id` reproduced: null unless the member exists, is `approved` and not
+// removed — the same three conjuncts `adminOf` already checks for `is_admin`, minus the role test.
+// `null` stands for "no row in `member_org_id`'s own view", and `org_is_shared(null)` is false, so a
+// pending, removed or member-less caller is never in either org here.
+const mockOrgOf = (memberId: string | null): MockOrg | null => {
+  const m = members.find((x) => x.id === memberId) ?? null;
+  if (!m || m.status !== "approved" || m.removedAt !== null) return null;
+  return dedicatedOrgMemberIds.has(m.id) ? "dedicated" : "org_public";
+};
+
+// The mock's `holiday` table, one row per (org, date) — ADR-079 decision 3's `holiday_org_id_date_key`
+// reproduced. Seeded with FIXTURE_HOLIDAYS for Org public, under their own fixture ids, and a COPY of
+// each for the dedicated org, under a fresh id from `newHolidayId()` — the same thing
+// `public.create_org` does in SQL (MIR-18-b decision 3) when a new org is made.
 //
 // COPIED, never referenced, for the reason `members` and `teams` above record: the fixtures are
-// shared module-level objects that every test imports. Nothing writes this table on this branch and
-// nothing can — the write policies are ADM-03's (AC-13) — so the copy is a precaution against the
-// ticket that adds them rather than against anything here.
+// shared module-level objects that every test imports.
 //
-// ONE TABLE AND NO TEAM COLUMN, which is the whole of AC-14 reproduced: there is no `team_id` to
-// scope by, so unlike every other read in this file `listHolidays` below applies no team filter.
-// A mock that scoped it would pass no test and hide nothing — it would simply be a second story
-// about a table `holiday_select_all` admits to everybody.
-const holidays: Holiday[] = FIXTURE_HOLIDAYS.map((h) => ({ ...h }));
-
-// ADM-03. The id a row added through the product gets, in the shape `newEntryId` and `newUserId`
-// already use — a `cc` prefix, matching the four fixture rows above so a reader can tell at a glance
-// which table an id belongs to.
+// NO TEAM COLUMN ON A ROW, which is still AC-14's point reproduced: a holiday carries no team. What
+// changed at MIR-15-e is which ORG a caller's read is scoped to — `listHolidays` below filters by
+// `mockOrgOf(currentMemberId)` rather than returning every row, because `holiday_select_own_org`
+// replaced `holiday_select_all` (ADR-079 decision 3) and a mock still returning every row would be
+// looser than SQL rather than a reproduction of it.
 let nextHolidayId = 0;
 const newHolidayId = (): string =>
   `cc000000-0000-4000-8000-${String(++nextHolidayId + 900).padStart(12, "0")}`;
 
-// ADM-03. The four sentences, repeated from src/lib/data/supabase.ts so the two implementations of
-// the seam carry the same words — the rule CAL-01's three refusal constants already state, and the
-// reason src/lib/fixtures.ts and supabase/seed.sql repeat their literals too.
-const HOLIDAY_ADD_REFUSED = "Only an admin can add to the holiday calendar.";
-const HOLIDAY_UPDATE_REFUSED = "Only an admin can change the holiday calendar.";
-const HOLIDAY_DELETE_REFUSED = "Only an admin can remove a day from the holiday calendar.";
+const holidays: { org: MockOrg; row: Holiday }[] = [
+  ...FIXTURE_HOLIDAYS.map((h) => ({ org: "org_public" as MockOrg, row: { ...h } })),
+  ...FIXTURE_HOLIDAYS.map((h) => ({
+    org: "dedicated" as MockOrg,
+    row: { ...h, id: newHolidayId() },
+  })),
+];
+
+// ADM-03, MIR-15-e. The four sentences, repeated from src/lib/data/supabase.ts so the two
+// implementations of the seam carry the same words — the rule CAL-01's three refusal constants
+// already state, and the reason src/lib/fixtures.ts and supabase/seed.sql repeat their literals too.
+//
+// MIR-15-e, ADR-079 decision 5. Each now also names Org public's exception, matching
+// supabase.ts: since MIR-15-b an admin of Org public is refused too (AC-7), and "Only an admin
+// can …" alone would then be false for the person reading it.
+const HOLIDAY_ADD_REFUSED =
+  "Only an admin can add to the holiday calendar, and in Org public only a system admin can.";
+const HOLIDAY_UPDATE_REFUSED =
+  "Only an admin can change the holiday calendar, and in Org public only a system admin can.";
+const HOLIDAY_DELETE_REFUSED =
+  "Only an admin can remove a day from the holiday calendar, and in Org public only a system admin can.";
 const HOLIDAY_DATE_TAKEN = "The calendar already has a row for that date. Edit that row instead.";
 
 // SOLO, 2026-09-11. Repeated verbatim in src/lib/data/supabase.ts so the two implementations carry
@@ -2878,12 +2935,13 @@ export const seam: DataSeam = {
 
   // ADM-02 AC-1, AC-2, AC-4, AC-7, AC-12, AC-14.
   //
-  // NO CALLER CHECK AND NO TEAM FILTER, and both absences are the POLICY reproduced rather than a
-  // shortcut. `holiday_select_all` is `for select to authenticated using (true)`: it has no team
-  // predicate and no role predicate, so a member, an admin and a signed-in caller with no member row
-  // all read exactly the same rows (AC-2, AC-7, AC-14). Every other read in this file narrows by
-  // `memberTeamId`; this one must not, and a reviewer should read that against the migration's own
-  // comment.
+  // MIR-15-e, ADR-079 decision 3. NO CALLER-ROLE CHECK, and that absence is still the policy
+  // reproduced: `holiday_select_own_org` has no role predicate, so a member and an admin of the same
+  // org read exactly the same rows. What changed from ADM-02 is the SCOPE — this used to read every
+  // row for any caller (`holiday_select_all`, `using (true)`); now it reads only `mockOrgOf`'s org,
+  // and a caller `mockOrgOf` cannot place in either org (no member row, pending, removed) reads none
+  // — `[]`, not a throw, the same normal-answer shape `getTeam()` and `listMembers()` already use for
+  // "no row to read from".
   //
   // WHAT IS NOT REPRODUCED: the grant is `to authenticated`, so `anon` reads nothing (AC-6). The
   // mock has no anon role to be, and the application never reaches this screen without a session —
@@ -2899,8 +2957,12 @@ export const seam: DataSeam = {
   // tests/seam-parity.test.ts compares names and arity and not row order, so an unsorted mock is a
   // divergence it cannot see — which is why FIXTURE_HOLIDAYS is deliberately not in date order.
   async listHolidays(range: DateRange): Promise<Holiday[]> {
+    const org = mockOrgOf(currentMemberId);
+    if (org === null) return [];
+
     const rows = holidays
-      .filter((h) => h.date >= range.start && h.date <= range.end)
+      .filter((h) => h.org === org && h.row.date >= range.start && h.row.date <= range.end)
+      .map((h) => h.row)
       .slice()
       .sort((a, b) => a.date.localeCompare(b.date))
       .slice(0, HOLIDAY_LIMIT);
@@ -2926,24 +2988,29 @@ export const seam: DataSeam = {
   // tests/e2e/seam.setup.ts), so a mock that let a member through would make AC-14, AC-15 and AC-16
   // pass against nothing at all.
   //
-  // `currentAdmin()` IS ALL THREE POLICIES' WHOLE PREDICATE. It already filters `removedAt === null`
-  // and `role === "admin"`, which is `public.is_admin` reproduced — AC-16 is inherited here exactly
-  // as it is inherited in SQL from that function's own body, written once rather than three times.
+  // `currentAdmin()` IS ALL THREE POLICIES' is_admin PREDICATE. It already filters
+  // `removedAt === null` and `role === "admin"`, which is `public.is_admin` reproduced — AC-16 is
+  // inherited here exactly as it is inherited in SQL from that function's own body, written once
+  // rather than three times.
   //
-  // AND THERE IS NO TEAM CHECK, unlike every other write in this file. That absence is the policies
-  // reproduced rather than a shortcut: `holiday` has no `team_id` and none of the three carries a
-  // team conjunct (ADR-015 section 1, and the migration's own comment). A mock that scoped by team
-  // would refuse `FIXTURE_OTHER_TEAM`'s admin where the datastore admits them, which would be a
-  // second story about a national calendar rather than a stricter one.
+  // MIR-15-e, ADR-079 decision 2 adds the org conjunct EACH POLICY NOW CARRIES:
+  // `and not public.org_is_shared(org_id)`. So `currentAdmin()` alone is no longer enough — an admin
+  // of Org public passes it and must still be refused (AC-7). `mockOrgOf(me.id) === "dedicated"` is
+  // that conjunct reproduced, and it is checked beside `currentAdmin()` on every one of the three
+  // writes below rather than folded into a second helper, so a reviewer can read each refusal against
+  // its policy's two conjuncts directly.
   //
-  // ALL THREE CHECK `unique (date)` BEFORE WRITING. That is the constraint ADM-02's migration
-  // carries, reproduced here for the same reason INV-01's overlap check is reproduced above: it is a
-  // second implementation of a datastore mechanism, acceptable only because the mock is not a
-  // datastore anybody's data lives in, and it exists so AC-6 and AC-7 are observable end-to-end
-  // without a provisioned project.
+  // THERE IS STILL NO TEAM CHECK — `holiday` has no `team_id` (ADR-015 section 1) and none of the
+  // three policies carries a team conjunct. The scope that changed at MIR-15-e is the ORG, not the
+  // team.
+  //
+  // ALL THREE CHECK `unique (org_id, date)` BEFORE WRITING, WITHIN THE CALLER'S OWN ORG ONLY
+  // (AC-9) — `holiday_org_id_date_key` reproduced. That is a widening from ADM-02's single-org
+  // `unique (date)`: a dedicated org's row on a date Org public also holds is not a collision,
+  // because the two orgs' calendars are now separate tables in one array.
   // -------------------------------------------------------------------------
 
-  // ADM-03 AC-1, AC-2, AC-4, AC-6, AC-15, AC-16.
+  // ADM-03 AC-1, AC-2, AC-4, AC-6, AC-15, AC-16. MIR-15-e AC-7, AC-8, AC-9.
   //
   // NO YEAR FILTER OF ANY KIND. A row may be added in any year, including one the screen is not
   // showing — the calendar is one table and `listHolidays` is what narrows a READ to a year. AC-4 is
@@ -2953,12 +3020,14 @@ export const seam: DataSeam = {
   // value it was handed — the shape every read here already uses.
   async addHoliday(input: AddHolidayInput): Promise<Result<Holiday>> {
     const me = currentAdmin();
-    if (!me) return refused("not_permitted", HOLIDAY_ADD_REFUSED);
+    const org = me ? mockOrgOf(me.id) : null;
+    if (!me || org !== "dedicated") return refused("not_permitted", HOLIDAY_ADD_REFUSED);
 
-    // AC-6. `unique (date)` met by a person: the refusal names the date rather than reporting a
-    // constraint, and it is checked against the WHOLE table and not the displayed year — which is
-    // the reason 01-plan.md section 8 rejected doing this in the form.
-    if (holidays.some((h) => h.date === input.date)) {
+    // AC-6, widened to AC-9: `unique (org_id, date)` met by a person, within the caller's own org
+    // only. The refusal names the date rather than reporting a constraint, and it is checked against
+    // the WHOLE table for that org and not the displayed year — which is the reason 01-plan.md
+    // section 8 rejected doing this in the form.
+    if (holidays.some((h) => h.org === org && h.row.date === input.date)) {
       return refused("holiday_date_taken", HOLIDAY_DATE_TAKEN);
     }
 
@@ -2969,54 +3038,69 @@ export const seam: DataSeam = {
       kind: input.kind,
       createdAt: new Date().toISOString(),
     };
-    holidays.push(row);
+    holidays.push({ org, row });
     return { ok: true, value: { ...row } };
   },
 
-  // ADM-03 AC-7, AC-8, AC-10, AC-15, AC-16.
+  // ADM-03 AC-7, AC-8, AC-10, AC-15, AC-16. MIR-15-e AC-7, AC-8, AC-9.
   //
   // A MISSING ROW IS `not_permitted` AND NOT A DISTINCT ANSWER, which is the filtered UPDATE
   // reproduced: in the datastore a row the policy refuses and a row that does not exist are the same
   // empty body, and a mock that told them apart would be reporting something the real seam cannot
-  // know.
+  // know. MIR-15-e widens the search for that row to the caller's OWN ORG ONLY, so an admin of a
+  // dedicated org naming an Org public row's id gets this same `not_permitted` rather than a lookup
+  // that finds it (AC-8).
   //
   // ONE ROW IS ASSIGNED, field by field (AC-10). There is no path here that touches another row, and
   // `id` and `createdAt` are untouched — the three writable columns and no more.
   async updateHoliday(holidayId: string, input: UpdateHolidayInput): Promise<Result<Holiday>> {
     const me = currentAdmin();
-    if (!me) return refused("not_permitted", HOLIDAY_UPDATE_REFUSED);
+    const org = me ? mockOrgOf(me.id) : null;
+    if (!me || org !== "dedicated") return refused("not_permitted", HOLIDAY_UPDATE_REFUSED);
 
-    const row = holidays.find((h) => h.id === holidayId);
-    if (!row) return refused("not_permitted", HOLIDAY_UPDATE_REFUSED);
+    const entry = holidays.find((h) => h.org === org && h.row.id === holidayId);
+    if (!entry) return refused("not_permitted", HOLIDAY_UPDATE_REFUSED);
 
-    // AC-7. The same constraint and the same sentence as the add, and `h.id !== holidayId` is what
-    // makes saving a row onto its OWN date an ordinary edit rather than a duplicate — the behaviour
-    // `unique (date)` has in the datastore, where a row does not collide with itself.
-    if (holidays.some((h) => h.id !== holidayId && h.date === input.date)) {
+    // AC-7, widened to AC-9: the same constraint and the same sentence as the add, checked within
+    // the caller's own org only, and `h.row.id !== holidayId` is what makes saving a row onto its OWN
+    // date an ordinary edit rather than a duplicate — the behaviour `unique (org_id, date)` has in
+    // the datastore, where a row does not collide with itself.
+    if (holidays.some((h) => h.org === org && h.row.id !== holidayId && h.row.date === input.date)) {
       return refused("holiday_date_taken", HOLIDAY_DATE_TAKEN);
     }
 
-    row.date = input.date;
-    row.name = input.name;
-    row.kind = input.kind;
-    return { ok: true, value: { ...row } };
+    entry.row.date = input.date;
+    entry.row.name = input.name;
+    entry.row.kind = input.kind;
+    return { ok: true, value: { ...entry.row } };
   },
 
-  // ADM-03 AC-11, AC-13, AC-15, AC-16. A HARD delete, matching supabase.ts: the row leaves the array
-  // and there is no trash to restore it from (01-plan.md section 8).
+  // ADM-03 AC-11, AC-13, AC-15, AC-16. MIR-15-e AC-7, AC-8. A HARD delete, matching supabase.ts: the
+  // row leaves the array and there is no trash to restore it from (01-plan.md section 8).
   //
-  // EXACTLY ONE ROW LEAVES (AC-13). `splice` at the found index and nothing else, so a delete cannot
-  // reach a neighbour — the failure a filter-and-reassign would make possible if the predicate were
-  // ever widened.
+  // EXACTLY ONE ROW LEAVES (AC-13), AND ONLY WHEN IT IS IN THE CALLER'S OWN ORG (AC-8) — the same
+  // widened lookup `updateHoliday` above uses. `splice` at the found index and nothing else, so a
+  // delete cannot reach a neighbour — the failure a filter-and-reassign would make possible if the
+  // predicate were ever widened.
   async deleteHoliday(holidayId: string): Promise<Result<void>> {
     const me = currentAdmin();
-    if (!me) return refused("not_permitted", HOLIDAY_DELETE_REFUSED);
+    const org = me ? mockOrgOf(me.id) : null;
+    if (!me || org !== "dedicated") return refused("not_permitted", HOLIDAY_DELETE_REFUSED);
 
-    const at = holidays.findIndex((h) => h.id === holidayId);
+    const at = holidays.findIndex((h) => h.org === org && h.row.id === holidayId);
     if (at < 0) return refused("not_permitted", HOLIDAY_DELETE_REFUSED);
 
     holidays.splice(at, 1);
     return { ok: true, value: undefined };
+  },
+
+  // MIR-15-e, ADR-079 decision 5. `mockOrgOf(currentMemberId) === "org_public"` is the whole of it:
+  // `mockOrgOf` already answers null for no session, no member row, pending or removed (the same
+  // cases `public.member_org_id` answers null for), and `org_is_shared(null)` is false in SQL, so the
+  // mock folds that into one comparison rather than two. An affordance for `/holidays` only; the
+  // write checks above are the control.
+  async isOwnOrgShared(): Promise<boolean> {
+    return mockOrgOf(currentMemberId) === "org_public";
   },
 
   // -------------------------------------------------------------------------

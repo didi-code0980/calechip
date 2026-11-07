@@ -5,9 +5,10 @@
 // a function of `SystemGate` plus the enrolment value held here.
 //
 // The layout is the Tech Lead's own (§ 2b, "Visual reference: none").
-import { StrictMode, useEffect, useState, type FormEvent, type JSX } from "react";
+import { StrictMode, useEffect, useRef, useState, type FormEvent, type JSX } from "react";
 import { createRoot } from "react-dom/client";
 import {
+  HOLIDAY_FAILURE_MESSAGES,
   ORG_FAILURE_MESSAGES,
   systemSeam,
   systemSeamName,
@@ -15,6 +16,7 @@ import {
   type SystemGate,
   type TotpEnrolment,
 } from "@/lib/data/system";
+import type { Holiday, HolidayKind } from "@/lib/domain/types";
 import "../index.css";
 
 const START_ENROLMENT_FAILED = "Could not start set-up. Reload to try again.";
@@ -255,6 +257,365 @@ function EditOrgForm({
   );
 }
 
+// MIR-15-b — Org public's holidays (01-plan.md §§ 2b, 4.6; ADR-079). The two effect labels are the
+// member app's, written out here: the panel imports nothing from `HolidayForm`.
+const EFFECT_LABELS: Record<HolidayKind, string> = {
+  non_working: "Not a working day",
+  working: "A working day",
+};
+
+function NationalHolidayForm({
+  holiday,
+  onDone,
+  onCancel,
+}: {
+  holiday: Holiday | null; // null: add
+  onDone: (date: string) => void;
+  onCancel: () => void;
+}): JSX.Element {
+  const [date, setDate] = useState(holiday?.date ?? "");
+  const [name, setName] = useState(holiday?.name ?? "");
+  const [kind, setKind] = useState<HolidayKind>(holiday?.kind ?? "non_working");
+  const [error, setError] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+
+  const submit = async (event: FormEvent) => {
+    event.preventDefault();
+    setError(null);
+    // An empty date cannot be sent as a `date`; the name is sent as given and the RPC refuses blank.
+    if (date === "") {
+      setError(HOLIDAY_FAILURE_MESSAGES.invalid_holiday);
+      return;
+    }
+    setBusy(true);
+    const input = { date, name, kind };
+    const result = holiday
+      ? await systemSeam.updateNationalHoliday(holiday.id, input)
+      : await systemSeam.addNationalHoliday(input);
+    setBusy(false);
+    if (!result.ok) {
+      setError(result.error.message);
+      return;
+    }
+    onDone(date);
+  };
+
+  return (
+    <form
+      data-testid="system-holiday-form"
+      className="flex flex-col gap-3 rounded-xl bg-field/50 p-4"
+      onSubmit={(event) => void submit(event)}
+      noValidate
+    >
+      <h3 className="text-sm font-bold text-ink">{holiday ? "Edit day" : "Add a day"}</h3>
+      <div className="flex flex-wrap gap-3">
+        <label className={`${labelClass} w-44`}>
+          Date
+          <input
+            data-testid="system-holiday-form-date"
+            type="date"
+            className={`${formFieldClass} tabular-nums`}
+            value={date}
+            onChange={(event) => setDate(event.target.value)}
+          />
+        </label>
+        <label className={`${labelClass} min-w-48 flex-1`}>
+          Name
+          <input
+            data-testid="system-holiday-form-name"
+            className={formFieldClass}
+            value={name}
+            onChange={(event) => setName(event.target.value)}
+          />
+        </label>
+        <label className={`${labelClass} w-48`}>
+          Effect
+          <select
+            data-testid="system-holiday-form-kind"
+            className={formFieldClass}
+            value={kind}
+            onChange={(event) => setKind(event.target.value as HolidayKind)}
+          >
+            <option value="non_working">{EFFECT_LABELS.non_working}</option>
+            <option value="working">{EFFECT_LABELS.working}</option>
+          </select>
+        </label>
+      </div>
+      <div className="flex items-center gap-4">
+        <button data-testid="system-holiday-form-submit" type="submit" className={smallPrimaryButtonClass} disabled={busy}>
+          Save
+        </button>
+        <button data-testid="system-holiday-form-cancel" type="button" className={textButtonClass} onClick={onCancel}>
+          Cancel
+        </button>
+      </div>
+      <OrgError testId="system-holiday-form-error" error={error} />
+    </form>
+  );
+}
+
+type HolidayFormState = { kind: "add" } | { kind: "edit"; holiday: Holiday } | null;
+
+function NationalHolidays(): JSX.Element {
+  const [year, setYear] = useState(() => new Date().getFullYear());
+  const [holidays, setHolidays] = useState<Holiday[] | null>(null);
+  const [listError, setListError] = useState<string | null>(null);
+  const [form, setForm] = useState<HolidayFormState>(null);
+  const [confirming, setConfirming] = useState<Holiday | null>(null);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
+  const [deleting, setDeleting] = useState(false);
+  // Only the latest read may land: moving through years quickly must not show an older year's rows.
+  const readCounter = useRef(0);
+
+  const load = async (forYear: number) => {
+    readCounter.current += 1;
+    const read = readCounter.current;
+    setListError(null);
+    const result = await systemSeam.listNationalHolidays({ start: `${forYear}-01-01`, end: `${forYear}-12-31` });
+    if (read !== readCounter.current) return;
+    if (!result.ok) {
+      setListError(result.error.message);
+      return;
+    }
+    setHolidays(result.value);
+  };
+
+  useEffect(() => {
+    setHolidays(null);
+    void load(year);
+  }, [year]); // Read on arrival and on each year change; writes re-read through `load` directly.
+
+  const moveYear = (delta: number) => {
+    setForm(null);
+    setConfirming(null);
+    setYear((current) => current + delta);
+  };
+
+  // Read again after every successful write rather than patching local state. After an add, the
+  // year follows the added date.
+  const saved = (date: string) => {
+    const savedYear = Number(date.slice(0, 4));
+    const added = form?.kind === "add";
+    setForm(null);
+    if (added && savedYear !== year) {
+      setYear(savedYear);
+      return;
+    }
+    void load(year);
+  };
+
+  const remove = async (holiday: Holiday) => {
+    setDeleting(true);
+    setDeleteError(null);
+    const result = await systemSeam.deleteNationalHoliday(holiday.id);
+    setDeleting(false);
+    if (!result.ok) {
+      setDeleteError(result.error.message);
+      return;
+    }
+    setConfirming(null);
+    void load(year);
+  };
+
+  const askToRemove = (holiday: Holiday) => {
+    setDeleteError(null);
+    setConfirming(holiday);
+  };
+
+  let list: JSX.Element;
+  if (listError) {
+    list = (
+      <div className="flex flex-col items-start gap-2">
+        <p data-testid="system-holidays-error" role="alert" className="text-sm text-danger">
+          {listError}
+        </p>
+        <button data-testid="system-holidays-retry" type="button" className={textButtonClass} onClick={() => void load(year)}>
+          Try again
+        </button>
+      </div>
+    );
+  } else if (holidays === null) {
+    list = (
+      <p data-testid="system-holidays-loading" role="status" className="text-ink-3">
+        Loading holidays…
+      </p>
+    );
+  } else if (holidays.length === 0) {
+    list = (
+      <p data-testid="system-holidays-empty" className="text-ink-3">
+        No holidays in {year}.
+      </p>
+    );
+  } else {
+    list = (
+      <div className="overflow-x-auto">
+        <table className="w-full text-left text-sm whitespace-nowrap text-ink">
+          <thead>
+            <tr className="border-b border-line">
+              <th className={headerCellClass}>Date</th>
+              <th className={headerCellClass}>Name</th>
+              <th className={headerCellClass}>Effect</th>
+              <th className={headerCellClass}>
+                <span className="sr-only">Actions</span>
+              </th>
+            </tr>
+          </thead>
+          <tbody>
+            {holidays.map((holiday) => (
+              <HolidayRow
+                key={holiday.id}
+                holiday={holiday}
+                confirming={confirming?.id === holiday.id}
+                deleting={deleting}
+                deleteError={confirming?.id === holiday.id ? deleteError : null}
+                onEdit={() => {
+                  setConfirming(null);
+                  setForm({ kind: "edit", holiday });
+                }}
+                onDelete={() => askToRemove(holiday)}
+                onAccept={() => void remove(holiday)}
+                onKeep={() => setConfirming(null)}
+              />
+            ))}
+          </tbody>
+        </table>
+      </div>
+    );
+  }
+
+  return (
+    <section data-testid="system-holidays" className="flex flex-col gap-4">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <h2 className="text-lg font-bold text-ink">
+          National holidays <span className="text-sm font-normal text-ink-3">Org public</span>
+        </h2>
+        <div className="flex items-center gap-3">
+          <div className="flex items-center gap-1">
+            <button
+              data-testid="system-holidays-prev"
+              type="button"
+              aria-label="Previous year"
+              className="rounded-pill px-2 py-1 text-ink-2 hover:bg-field"
+              onClick={() => moveYear(-1)}
+            >
+              ‹
+            </button>
+            <span data-testid="system-holidays-year" data-year={year} className="text-sm font-semibold tabular-nums text-ink">
+              {year}
+            </span>
+            <button
+              data-testid="system-holidays-next"
+              type="button"
+              aria-label="Next year"
+              className="rounded-pill px-2 py-1 text-ink-2 hover:bg-field"
+              onClick={() => moveYear(1)}
+            >
+              ›
+            </button>
+          </div>
+          <button
+            data-testid="system-holiday-new"
+            type="button"
+            className={smallPrimaryButtonClass}
+            onClick={() => {
+              setConfirming(null);
+              setForm({ kind: "add" });
+            }}
+          >
+            Add a day
+          </button>
+        </div>
+      </div>
+      {/* One form at a time; the key remounts the form when another row's Edit is pressed. */}
+      {form ? (
+        <NationalHolidayForm
+          key={form.kind === "edit" ? form.holiday.id : "add"}
+          holiday={form.kind === "edit" ? form.holiday : null}
+          onDone={saved}
+          onCancel={() => setForm(null)}
+        />
+      ) : null}
+      {list}
+    </section>
+  );
+}
+
+function HolidayRow({
+  holiday,
+  confirming,
+  deleting,
+  deleteError,
+  onEdit,
+  onDelete,
+  onAccept,
+  onKeep,
+}: {
+  holiday: Holiday;
+  confirming: boolean;
+  deleting: boolean;
+  deleteError: string | null;
+  onEdit: () => void;
+  onDelete: () => void;
+  onAccept: () => void;
+  onKeep: () => void;
+}): JSX.Element {
+  const question = `Remove ${holiday.date} — ${holiday.name} from the national calendar?`;
+  return (
+    <>
+      <tr data-testid="system-holiday-row" data-date={holiday.date} className="border-b border-line last:border-b-0">
+        <td data-testid="system-holiday-row-date" className="px-3 py-2 tabular-nums">
+          {holiday.date}
+        </td>
+        <td data-testid="system-holiday-row-name" className="px-3 py-2">
+          {holiday.name}
+        </td>
+        <td data-testid="system-holiday-row-effect" className="px-3 py-2">
+          {EFFECT_LABELS[holiday.kind]}
+        </td>
+        <td className="px-3 py-2 text-right">
+          <div className="flex justify-end gap-4">
+            <button data-testid="system-holiday-row-edit" type="button" className={textButtonClass} onClick={onEdit}>
+              Edit
+            </button>
+            <button data-testid="system-holiday-row-delete" type="button" className={textButtonClass} onClick={onDelete}>
+              Delete
+            </button>
+          </div>
+        </td>
+      </tr>
+      {confirming ? (
+        <tr className="border-b border-line">
+          <td colSpan={4} className="px-3 py-2">
+            <div
+              data-testid="system-holiday-delete-confirm"
+              role="alertdialog"
+              aria-label={question}
+              className="flex flex-col gap-2 rounded-xl bg-field/50 p-3 whitespace-normal"
+            >
+              <p className="text-sm text-ink">{question}</p>
+              <div className="flex items-center gap-4">
+                <button
+                  data-testid="system-holiday-delete-accept"
+                  type="button"
+                  className={smallPrimaryButtonClass}
+                  disabled={deleting}
+                  onClick={onAccept}
+                >
+                  Remove
+                </button>
+                <button data-testid="system-holiday-delete-cancel" type="button" className={textButtonClass} onClick={onKeep}>
+                  Keep
+                </button>
+              </div>
+              <OrgError testId="system-holiday-delete-error" error={deleteError} />
+            </div>
+          </td>
+        </tr>
+      ) : null}
+    </>
+  );
+}
+
 type OpenForm = { kind: "create" } | { kind: "edit"; org: OrgSummary } | null;
 
 function OrgManagement({ email, onSignOut }: { email: string; onSignOut: () => void }): JSX.Element {
@@ -402,6 +763,8 @@ function OrgManagement({ email, onSignOut }: { email: string; onSignOut: () => v
         ) : null}
         {list}
       </section>
+
+      <NationalHolidays />
     </div>
   );
 }
