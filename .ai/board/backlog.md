@@ -24,6 +24,8 @@ planned, sized, and safe to build** — the next stage for a row here is IN_PROG
 |---|--------|-------|------|------------|
 | 1 | MIR-16-d | The pgTAP fixtures name the admin role through one helper, `tests.member_role`: the harness and seven files | M | MIR-16, MIR-16-b and earlier MIR (all DONE) |
 
+**`MIR-16-d` is at `REVIEW` in `ticket.yaml`, `gates.review` passed** — recorded at /advance on 2026-11-07 from `04-review.md` (`produced_at: 2026-11-07T13:24:00Z`): `gate: PASS`, `verdict: PASS`, `invariant_violation: false`, `route_to: none`. `state` stays `REVIEW`; `/ship` sets `DONE` and moves the row to `## ARCHIVE`.
+
 **`MIR-16-d` is at `REVIEW` in `ticket.yaml`, `gates.review` not yet passed** — `03-impl-log.md` gate PASS (`produced_at: 2026-11-07T13:12:40Z`); `/implement` had already set `state: REVIEW`, so /advance on 2026-11-07 found it already recorded. The row stays here until `/ship` moves it to `## ARCHIVE`.
 
 **`MIR-16-d` moved here at /advance on 2026-11-07**, from `01-plan.md` gate PASS (`produced_at: 2026-11-07T12:41:59Z`) with all six Definition of Ready items passing; `schema_delta: none` (test code only), with [ADR-084](../registry/decisions/ADR-084-the-fixtures-name-the-admin-role-through-one-helper-before-the-value-is-renamed-in-place.md) (`ACCEPTED by tech-lead-design under the operator's delegation (ADR-067)`) recording the split. MIR-16-d had no row in `## BACKLOG`, so no row left that table. PLAN split the in-place rename to a new slice `MIR-16-e` (BACKLOG) — the third successive split of the role work (ADR-082, ADR-083, ADR-084).
