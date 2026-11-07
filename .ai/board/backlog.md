@@ -23,6 +23,8 @@ planned, sized, and safe to build** — the next stage for a row here is IN_PROG
 | # | Ticket | Title | Size | Depends on |
 |---|--------|-------|------|------------|
 
+**`MIR-21-e` moved here at /advance on 2026-11-07**, from `01-plan.md` gate PASS (`produced_at: 2026-11-07T05:10:56Z`) with all six Definition of Ready items passing; `schema_delta: none` (confirmed at PLAN, fixtures and seed scripts only). This PLAN wrote a new ADR, [ADR-081](../registry/decisions/ADR-081-the-fixtures-of-100-160-and-240-move-to-the-drop.md) (`ACCEPTED by tech-lead-design under the operator's delegation (ADR-067)`), re-allocating three fixture files of ADR-080 decision 3 to `MIR-21-f`; both the new ADR file and `MIR-21-f`'s `ticket.yaml` are in `MIR-21-e`'s own `allowed_paths`. `MIR-21-e` had no row in `## BACKLOG`, so no row left that table.
+
 **`MIR-21-d` shipped on 2026-11-07, `state: DONE`.** `features.md` row `MIR-21` left `PLANNED`: it shares the row with `MIR-21-e` and `MIR-21-f`, both still to come (ticket header comment). Moved to `## ARCHIVE`.
 
 **`MIR-21-d` was at `REVIEW` in `ticket.yaml`, `gates.review` passed** — recorded at /advance on 2026-11-07 from `04-review.md` (`produced_at: 2026-11-07T04:31:21Z`): `gate: PASS`, `verdict: PASS`, `invariant_violation: false`, `route_to: none`. `state` stays `REVIEW`; `/ship` sets `DONE`. There is no row for it in this table (see below).

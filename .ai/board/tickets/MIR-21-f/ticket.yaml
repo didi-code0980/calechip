@@ -44,6 +44,9 @@ mir_detail: |
   - kept verbatim: the removal branch of member_sync_membership, which closes a removed member's
     rows at greatest(removed_at, joined_at) (ADR-078 decision 6)
   - tests naming the column or the function: supabase/tests/010, 040, 100, 110, 160 (AC-1)
+  - added at /plan MIR-21-e by ADR-081: the fixture inserts of supabase/tests/100, 160 and 240 stop
+    naming `team_id` and write `membership` with `tests.put_on_team` (MIR-21-e/01-plan.md § 4.1);
+    predicted count rises to about ten paths
   - .ai/standards/data-model.md and .ai/standards/rbac-and-security.md, where they document the
     column or member_decide_admin
   - its own migration and pgTAP test
