@@ -59,7 +59,7 @@ select * from tests.refused(array['member_t', 'manager_t', 'removed_admin_t'],
 select * from tests.refused(array['member_t', 'manager_t', 'removed_admin_t'],
   $$select public.reject_member(tests.id('pending_p'))$$, 'raises', 'reject_member(pending_p)');
 select results_eq(
-  $$select status::text, team_id from public.member where id = tests.id('pending_p')$$,
+  $$select status::text, public.member_roster_team_id(id) from public.member where id = tests.id('pending_p')$$,
   $$values ('pending', null::uuid)$$,
   'AC-9: admit_member and reject_member left pending_p pending');
 
@@ -67,7 +67,7 @@ select * from tests.refused(array['member_t', 'manager_t', 'removed_admin_t'],
   $$select public.move_member(tests.id('member_u'), tests.id('team_t'))$$, 'raises', 'move_member(member_u, T)');
 select * from tests.refused(array['member_t', 'manager_t', 'removed_admin_t', 'admin_t'],
   $$select public.set_member_team(tests.id('member_u'), tests.id('team_u'))$$, 'raises', 'set_member_team(member_u, U)');
-select is((select team_id from public.member where id = tests.id('member_u')), tests.id('team_u'),
+select is((select public.member_roster_team_id(id) from public.member where id = tests.id('member_u')), tests.id('team_u'),
           'AC-9: move_member and set_member_team left member_u on U');
 
 select * from tests.refused(array['member_t', 'manager_t', 'removed_admin_t', 'admin_t'],

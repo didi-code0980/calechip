@@ -89,10 +89,11 @@ select results_eq($$select id from public.team$$, $$values (tests.id('team_t'))$
   'AC-2: K reads exactly one team row, T1');
 select is_empty(
   $$select id from public.member
-     where team_id is not null and team_id <> tests.id('team_t') and id <> tests.id('member_t')$$,
+     where public.member_roster_team_id(id) is not null and public.member_roster_team_id(id) <> tests.id('team_t')
+       and id <> tests.id('member_t')$$,
   'AC-2: every member row K reads is on T1 or is K''s own'
 );
-select ok((select count(*) from public.member where team_id = tests.id('team_t')) > 1,
+select ok((select count(*) from public.member where public.member_roster_team_id(id) = tests.id('team_t')) > 1,
   'AC-2: K still reads T1''s roster');
 select is_empty(
   $$select e.id from public.entry e
@@ -105,7 +106,7 @@ select ok(exists (select 1 from public.entry where id = tests.id('entry_t')),
   'AC-2: K still reads T1''s entries');
 select is_empty(
   $$select b.member_id from public.busy_day b
-     where b.member_id not in (select id from public.member where team_id = tests.id('team_t'))$$,
+     where b.member_id not in (select id from public.member where public.member_roster_team_id(id) = tests.id('team_t'))$$,
   'AC-2: every busy day K reads belongs to a member on T1'
 );
 select tests.clear_authentication();

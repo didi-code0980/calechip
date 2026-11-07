@@ -125,12 +125,12 @@ select is((select (public.create_team('New')).org_id), tests.org_a(),
 select tests.clear_authentication();
 
 select results_eq(
-  $$select status::text, team_id from public.member where id = tests.m13('p2')$$,
+  $$select status::text, public.member_roster_team_id(id) from public.member where id = tests.m13('p2')$$,
   $$values ('pending'::text, null::uuid)$$,
   'AC-12: P2 is unchanged'
 );
 select results_eq(
-  $$select team_id, role::text from public.member where id = tests.m13('m2')$$,
+  $$select public.member_roster_team_id(id), role::text from public.member where id = tests.m13('m2')$$,
   $$values (tests.m13('team_2'), 'member'::text)$$,
   'AC-12: M2 is unchanged'
 );

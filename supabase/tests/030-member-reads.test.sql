@@ -9,7 +9,8 @@ select tests.authenticate_as(tests.id('member_t'));
 select is(current_user::text, 'authenticated', 'runs as authenticated');
 
 select is_empty(
-  $$select id from public.member where team_id = tests.id('team_u') or team_id is null$$,
+  $$select id from public.member where public.member_roster_team_id(id) = tests.id('team_u')
+     or public.member_roster_team_id(id) is null$$,
   'AC-3 member_t: selects no member of U and no pending sign-up'
 );
 select is_empty(
@@ -30,7 +31,8 @@ select results_eq(
 
 select tests.authenticate_as(tests.id('manager_t'));
 select is_empty(
-  $$select id from public.member where team_id = tests.id('team_u') or team_id is null$$,
+  $$select id from public.member where public.member_roster_team_id(id) = tests.id('team_u')
+     or public.member_roster_team_id(id) is null$$,
   'AC-3 manager_t: selects no member of U and no pending sign-up'
 );
 select is_empty(
@@ -57,7 +59,7 @@ select results_eq(
   'AC-3 control: public.team returns U only to member_u (seam-parity.test.ts:84-92)'
 );
 select set_eq(
-  $$select id from public.member where team_id = tests.id('team_u')$$,
+  $$select id from public.member where public.member_roster_team_id(id) = tests.id('team_u')$$,
   $$values (tests.id('admin_u')), (tests.id('manager_u')), (tests.id('member_u')),
            (tests.id('member_u2')), (tests.id('removed_u'))$$,
   'AC-13 control: member_u reads U''s roster, the removed member included (ADR-018)'
@@ -73,7 +75,7 @@ select ok(
   'AC-13 control: an approved admin reads U through list_members_for_team (CAL-11)'
 );
 select results_eq(
-  $$select id from public.member where team_id is null$$,
+  $$select id from public.member where public.member_roster_team_id(id) is null$$,
   $$values (tests.id('pending_p'))$$,
   'AC-13 control: an approved admin reads the pending sign-up (member_select_pending_admin)'
 );
