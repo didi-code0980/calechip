@@ -156,14 +156,19 @@ select is(
 -- ---------------------------------------------------------------------------------------------
 -- AC-6. Nobody writes 'manager' to member.role any more.
 -- ---------------------------------------------------------------------------------------------
+-- Captures the token immediately after `set role =` — a quoted literal ('org_admin'::cast) or a
+-- bare identifier (p_role) alike — so an assignment from a PARAMETER, not just a literal naming
+-- some other role, is also counted. That is the shape AC-6 has to catch: the pre-ticket
+-- `set_member_role` wrote `set role = p_role` (20261107235000_mir16e_…sql:109), a non-literal
+-- assignment a literal-only check would miss.
 select is(
   (select count(*)::int from (
-     select (regexp_matches(p.prosrc, 'set\s+role\s*=\s*''([a-z_]+)''', 'gi'))[1] as assigned
+     select (regexp_matches(p.prosrc, 'set\s+role\s*=\s*(\S+)', 'gi'))[1] as assigned
        from pg_catalog.pg_proc p
        join pg_catalog.pg_namespace n on n.oid = p.pronamespace
       where n.nspname = 'public'
    ) s
-   where s.assigned <> 'org_admin'),
+   where s.assigned !~ '^''org_admin'''),
   0,
   'AC-6: every ''set role = ...'' assignment in a public function body is to org_admin'
 );
