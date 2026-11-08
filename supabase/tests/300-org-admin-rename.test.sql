@@ -18,8 +18,8 @@ select tests.seed();
 -- ---------------------------------------------------------------------------------------------
 -- AC-1. The type has `org_admin` and not `admin`.
 -- ---------------------------------------------------------------------------------------------
-select enum_has_labels('public', 'member_role'::name, array['member', 'manager', 'org_admin'],
-  'AC-1: public.member_role has labels (member, manager, org_admin), in that order');
+select enum_has_labels('public', 'member_role'::name, array['member', 'org_admin'],
+  'AC-1: public.member_role has labels (member, org_admin), in that order');
 
 -- ---------------------------------------------------------------------------------------------
 -- AC-2. Every existing admin row is now `org_admin`, and nothing else moved.
@@ -34,7 +34,7 @@ select is((select role::text from public.member where id = tests.id('member_t'))
   'AC-2: Thanh''s role is unchanged (member)');
 select is((select role::text from public.member where id = tests.id('manager_t')),
   tests.member_role('manager')::text,
-  'AC-2: Mona''s role is unchanged (manager)');
+  'AC-2: Mona''s role is unchanged');
 select is(
   (select count(*)::int from public.member_role_change
     where member_id in (
@@ -79,7 +79,7 @@ select ok(public.is_org_admin(tests.id('member_t2'), public.member_org_id(tests.
 -- ---------------------------------------------------------------------------------------------
 select tests.authenticate_as(tests.id('admin_t'));
 select throws_ok(
-  format($$select public.set_member_role(%L::uuid, 'org_admin'::public.member_role)$$, tests.id('member_t')),
+  format($$select public.set_member_role(%L::uuid, 'org_admin')$$, tests.id('member_t')),
   '42501', null, 'AC-6: set_member_role(Thanh, org_admin) raises 42501');
 select tests.clear_authentication();
 select is((select role::text from public.member where id = tests.id('member_t')), 'member',

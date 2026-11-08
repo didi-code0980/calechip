@@ -27,7 +27,7 @@ select set_eq(
     'public.reject_member(uuid)',
     'public.move_member(uuid,uuid)',
     'public.set_member_team(uuid,uuid)',
-    'public.set_member_role(uuid,public.member_role)',
+    'public.set_member_role(uuid,text)',
     'public.promote_member_to_admin(uuid)',
     'public.list_members_for_team(uuid)',
     'public.list_team_entries_for_team(uuid)',
