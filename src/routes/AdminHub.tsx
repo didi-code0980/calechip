@@ -34,6 +34,7 @@ import { useCallback, useEffect, useState } from "react";
 // never import `@/lib/data/supabase` or `@/lib/data/mock` (RULE-02).
 import { seam } from "@/lib/data";
 import type { Member } from "@/lib/domain/types";
+import { mayAdminister } from "@/lib/roles";
 // SOLO, 2026-09-11 — the loading mark that replaced this screen's sentence. The sentence itself is
 // still announced: `Loader.tsx` keeps it as `sr-only` text, because the element below carries
 // `role="status"` and an emptied one announces nothing.
@@ -69,7 +70,7 @@ export default function AdminHub() {
       // sends the second one to `/` before this component exists (AC-7); this is the belt to that
       // brace, and folding the two together tells somebody outside the team nothing they could not
       // already infer from the sign-up screen.
-      if (!me || me.role !== "admin") {
+      if (!me || !mayAdminister(me.role)) {
         setView({ phase: "refused" });
         return;
       }

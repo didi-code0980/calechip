@@ -34,6 +34,7 @@ import { seam } from "@/lib/data";
 import { useShellContext } from "@/components/AppShell";
 import type { Entry, Failure, Member } from "@/lib/domain/types";
 import { PORTION_LABELS, STATUS_LABELS, TYPE_LABELS } from "@/lib/labels";
+import { mayAdminister } from "@/lib/roles";
 // SOLO, 2026-09-11 — the loading mark that replaced this screen's "Loading…" sentence. The
 // sentence itself is still announced: `Loader.tsx` keeps it as `sr-only` text, because the element
 // below carries `role="status"` and an emptied one announces nothing.
@@ -79,7 +80,7 @@ export default function TeamEntries() {
     // AC-10. `refused` still fails CLOSED and is still an affordance: a member who types this
     // address reaches the component and is refused BY it, and every write they could issue is
     // refused by the datastore whatever this line says.
-    if (me.role !== "admin") {
+    if (!mayAdminister(me.role)) {
       setView({ phase: "refused" });
       return;
     }
