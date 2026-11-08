@@ -23,6 +23,8 @@ planned, sized, and safe to build** — the next stage for a row here is IN_PROG
 | # | Ticket | Title | Size | Depends on |
 |---|--------|-------|------|------------|
 
+**`MIR-16-f` moved here at /advance on 2026-11-08**, from `01-plan.md` gate PASS (`produced_at: 2026-11-08T01:15:47Z`) with all six Definition of Ready items passing; `schema_delta` cites [ADR-086](../registry/decisions/ADR-086-set-member-role-writes-the-team-role-and-the-manager-value-is-removed-by-a-column-retype.md) (`ACCEPTED by tech-lead-design under the operator's delegation (ADR-067)`), narrowing ADR-085 decision 2 — the removal of `'manager'` from `public.member_role` split to a new slice, `MIR-16-g` (BACKLOG). `MIR-16-f` had no row in `## BACKLOG`, so no row left that table.
+
 **`MIR-16-c` shipped on 2026-11-08, `state: DONE`.** `features.md` row `MIR-16` left `PLANNED`: its own PLAN split the write side and the enum removal to a new slice, `MIR-16-f` (still `BACKLOG`), which now owns the shared row's note. Moved to `## ARCHIVE`.
 
 **`MIR-16-c` was at `REVIEW` in `ticket.yaml`, `gates.review` passed** — recorded at /advance on 2026-11-08 from `04-review.md` (`produced_at: 2026-11-08T08:04:25+07:00`): `gate: PASS`, `verdict: PASS`, `invariant_violation: false`, `route_to: none`. `state` stays `REVIEW`; `/ship` sets `DONE`. There is no row for it in this table (see below).
