@@ -76,15 +76,13 @@ const DESTINATIONS: readonly {
     path: "/signups",
     landmarks: ["signups", "signups-empty"],
   },
-  // SOLO, 2026-09-26 — the eighth destination, on the operator's instruction. Directly after
-  // `New sign-ups`, which is § 2b's ordering rule applied: both are queues of what people sent.
-  // TWO LANDMARKS, for the reason the docblock above gives: whether the seed holds a report is that
-  // feature's business and not this ticket's, so either the list or its empty state satisfies AC-4.
-  {
-    testId: "admin-hub-reports-link",
-    path: "/reports",
-    landmarks: ["reports", "reports-empty"],
-  },
+  // SOLO, 2026-09-26 added an eighth destination here, Reports (`to: "/reports"`, landmarks
+  // `["reports", "reports-empty"]`). **MIR-17, ADR-088 REMOVES IT.** Since MIR-16 an org admin reads
+  // no report at all (ADR-082 decision 1), the hub's card for it is gone with the tab
+  // (`AdminTabs.tsx`) — `/reports` is still a real address, but it is no longer one the hub lists, so
+  // it has no `admin-hub-*-link` id and no place in this array. AC-3's title below returns to the
+  // sentence it carried before the eighth joined: back to seven, and `DESTINATIONS.length` says so
+  // without anybody having to notice and fix a literal.
   {
     testId: "admin-hub-threshold-link",
     path: "/setting", // SOLO, 2026-09-11 — re-addressed from `/threshold` by the operator

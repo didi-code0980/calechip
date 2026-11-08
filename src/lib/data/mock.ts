@@ -111,12 +111,7 @@ import { needsApproval } from "./approval";
 import { clashingDates, overlapMessage } from "./overlap";
 // SOLO, 2026-09-26 — report an issue. A ceiling, imported as a value at the call, exactly as the
 // four limits above it are.
-import {
-  ISSUE_IMAGE_MAX_BYTES,
-  ISSUE_IMAGE_MAX_COUNT,
-  ISSUE_IMAGE_TYPES,
-  ISSUE_REPORT_LIMIT,
-} from "../domain/types";
+import { ISSUE_IMAGE_MAX_BYTES, ISSUE_IMAGE_MAX_COUNT, ISSUE_IMAGE_TYPES } from "../domain/types";
 import {
   AVATAR_CHOICES,
   DEFAULT_AVATAR,
@@ -677,6 +672,25 @@ export function __resetIssueReports(): void {
   // map keyed by a path no row names any more — an orphan the real seam also has, reproduced here by
   // accident rather than on purpose, which is the kind of agreement nobody wants.
   issueObjects.clear();
+}
+
+/**
+ * MIR-17, ADR-088. The reports this table holds, as stored, newest first — for a test that needs to
+ * check a write landed now that no seam read answers any caller (`listIssueReports`,
+ * `countOpenIssueReports`, `issueImageUrls` and `setIssueReportStatus` all changed to the database's
+ * post-MIR-16 answer, ADR-082 decision 1).
+ *
+ * **A TEST-ONLY EXPORT BESIDE `seam`, EXACTLY AS `__sentEventEmails` IS**, so seam parity — which
+ * compares the keys of `seam` — does not see it. It is not a seam member: nothing under `src/` may
+ * call it, and nothing does.
+ */
+export function __storedIssueReports(): IssueReport[] {
+  return reports
+    .slice()
+    // The real seam's own order, reproduced — same as `listIssueReports` below, so a test reading
+    // this instead of that sees the same arrangement it would have.
+    .sort((a, b) => b.createdAt.localeCompare(a.createdAt) || b.id.localeCompare(a.id))
+    .map((r) => ({ ...r }));
 }
 
 // ---------------------------------------------------------------------------
@@ -3440,12 +3454,12 @@ export const seam: DataSeam = {
     return { ok: true, value: undefined };
   },
 
-  // `issue_report_select_admin` again, counted rather than listed. A non-admin is answered `0`
-  // because the policy filters, which is the same answer by the same route as the empty list above —
-  // not a branch this function makes about roles.
+  // MIR-17, ADR-088. `issue_report_select_admin` is gone — MIR-16
+  // (`20261107210000_mir16_issue_reports_system_scope.sql`) drops it, so only a system admin at
+  // `aal2` reads or triages a report now and no member-seam caller is answered anything else
+  // (ADR-082 decision 1). `0` for every caller, not a role branch any more.
   async countOpenIssueReports(): Promise<number> {
-    if (!currentAdmin()) return 0;
-    return reports.filter((r) => r.status === "open").length;
+    return 0;
   },
 
   // SOLO, 2026-09-26 (third run). `listPendingMembers` above, counted — the same two filters in the
@@ -3457,64 +3471,28 @@ export const seam: DataSeam = {
     return members.filter((m) => m.teamId === null && m.status === "pending").length;
   },
 
-  // The signing round trip, with the `Map` standing in for the bucket. SAME ORDER, SAME LENGTH, and
-  // a `null` in place for a path nothing was stored under — the real seam's contract, so a screen
-  // rendering a gallery behaves identically against either.
+  // MIR-17, ADR-088. `issue_image_select_admin` is gone with MIR-16
+  // (`20261107210000_mir16_issue_reports_system_scope.sql`): the storage read is a system admin's, not
+  // a member-seam caller's (ADR-082 decision 1). SAME ORDER, SAME LENGTH kept regardless, as the real
+  // seam's contract still promises it — only now every path signs to `null`, for every caller.
   async issueImageUrls(paths: string[]): Promise<(string | null)[]> {
-    // The policy behind the real one is `issue_image_select_admin`, so a non-admin is answered
-    // nothing loadable. Without this the mock would hand a member every screenshot in the product.
-    if (!currentAdmin()) return paths.map(() => null);
-    return paths.map((path) => issueObjects.get(path) ?? null);
+    return paths.map(() => null);
   },
 
-  // `issue_report_select_admin`: `is_admin` and NO team predicate, which is the operator's fourth
-  // decision. `currentAdmin()` is that helper's three conjuncts as this file already reproduces them
-  // everywhere else.
-  //
-  // AN EMPTY ARRAY AND NOT A REFUSAL for a non-admin, because a select policy FILTERS. The screen is
-  // what turns that into *this page is for admins*; a mock that threw here would make that fork
-  // untestable.
+  // MIR-17, ADR-088. `issue_report_select_admin` is gone with MIR-16 — only a system admin at `aal2`
+  // reads a report now (ADR-082 decision 1), so the member seam answers every caller, Quan included,
+  // the empty list a filtered SELECT used to give only a non-admin.
   async listIssueReports(): Promise<IssueReport[]> {
-    if (!currentAdmin()) return [];
-
-    const rows = reports
-      .slice()
-      // The real seam's `order`, reproduced: `created_at` descending, `id` descending as the
-      // tiebreaker. Newest first, so today's report is not buried under a year of history.
-      .sort((a, b) => b.createdAt.localeCompare(a.createdAt) || b.id.localeCompare(a.id))
-      .slice(0, ISSUE_REPORT_LIMIT);
-
-    // The same limit and the same raise as supabase.ts, for the reason every other bounded read here
-    // records: this array is bounded by the fixtures so it never fires, and it exists so the two
-    // implementations tell one story rather than because the mock can truncate.
-    if (rows.length >= ISSUE_REPORT_LIMIT) {
-      throw new Error(
-        `listIssueReports returned ${rows.length} rows at the ${ISSUE_REPORT_LIMIT} limit: the ` +
-          `list may be truncated and must not be shown as complete`,
-      );
-    }
-
-    return rows.map((r) => ({ ...r }));
+    return [];
   },
 
-  // `issue_report_update_admin` plus the `grant update (status)` column list, together.
-  //
-  // A MISSING ROW IS `not_permitted` AND NOT A DISTINCT ANSWER, which is the filtered UPDATE
-  // reproduced: in the datastore a row the policy refuses and a row that does not exist are the same
-  // empty body, and a mock that told them apart would be reporting something the real seam cannot
-  // know.
-  //
-  // **ONLY `status` MOVES**, and here that is the signature rather than a check: there is no
-  // parameter that could carry a message. In the datastore it is the column grant, which is a
-  // control; here it is an affordance, and the distinction is the whole of ADR-005.
-  async setIssueReportStatus(reportId: string, status: IssueStatus): Promise<Result<IssueReport>> {
-    if (!currentAdmin()) return refused("not_permitted", ISSUE_STATUS_REFUSED);
-
-    const row = reports.find((r) => r.id === reportId);
-    if (!row) return refused("not_permitted", ISSUE_STATUS_REFUSED);
-
-    row.status = status;
-    return { ok: true, value: { ...row } };
+  // MIR-17, ADR-088. `issue_report_update_admin` is gone with MIR-16 — only a system admin triages a
+  // report now (ADR-082 decision 1), so every member-seam caller is refused, uniformly, the way a
+  // missing row already was: one answer for "not yours to touch" and "does not exist" alike. Both
+  // parameters are kept, unused, so the signature matches `DataSeam` and seam parity sees no change.
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars -- kept for signature parity, see above
+  async setIssueReportStatus(_reportId: string, _status: IssueStatus): Promise<Result<IssueReport>> {
+    return refused("not_permitted", ISSUE_STATUS_REFUSED);
   },
 
   // -------------------------------------------------------------------------

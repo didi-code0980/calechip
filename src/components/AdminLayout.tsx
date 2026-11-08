@@ -47,6 +47,10 @@
 // number on the `New sign-ups` tab.** The argument above is unchanged by the second one and would be
 // unchanged by a third: the reads belong wherever the strip is, the strip is here, and each badge
 // fails on its own rather than as a pair.
+//
+// **MIR-17, ADR-088 — BACK TO ONE.** `countOpenIssueReports()` is gone with the *Reports* tab it
+// badged: since MIR-16 an org admin reads no report at all (ADR-082 decision 1), so there is nothing
+// left for that read to tell this layout. `refreshBadges` now reads `countPendingMembers()` only.
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Outlet, useOutletContext } from "react-router-dom";
 // The seam, through its one door. Nothing above the seam names an implementation, and this file must
@@ -117,38 +121,33 @@ export default function AdminLayout({ role }: AdminLayoutProps) {
   // SOLO, 2026-09-26 (second run). `null` until a read answers, and `null` again never — a failed
   // read simply leaves it here, which draws no badge. See the header for why `null` and `0` are
   // different answers and why neither is guessed.
+  //
+  // MIR-17, ADR-088 — `openReports` is gone from this record with the tab it badged.
   const [badges, setBadges] = useState<Record<AdminBadge, number | null>>({
-    openReports: null,
     openSignups: null,
   });
 
   /**
-   * Reads both counts, for an admin and nobody else.
+   * Reads the count, for an admin and nobody else.
    *
-   * **THE ROLE TEST IS AN AFFORDANCE AND NOT THE CONTROL.** `issue_report_select_admin` and
-   * `member_select_pending_admin` each answer a member `0` anyway, because a filtering select policy
-   * counts nothing for them. This just avoids two requests that are certain to say zero, on every
-   * admin-addressed screen a manager can reach.
+   * **THE ROLE TEST IS AN AFFORDANCE AND NOT THE CONTROL.** `member_select_pending_admin` answers a
+   * member `0` anyway, because a filtering select policy counts nothing for them. This just avoids a
+   * request that is certain to say zero, on every admin-addressed screen a manager can reach.
+   *
+   * MIR-17, ADR-088 — this read the reports count too, settled independently of the sign-ups one so
+   * that one failing read could not blank the other tab's badge. `countOpenIssueReports()` is gone
+   * with the *Reports* tab (MIR-16, ADR-082 decision 1), so there is now exactly one read and the
+   * independence argument no longer applies to anything.
    */
   const refreshBadges = useCallback((): void => {
     if (role !== "admin") {
-      setBadges({ openReports: null, openSignups: null });
+      setBadges({ openSignups: null });
       return;
     }
 
-    // **TWO READS, SETTLED INDEPENDENTLY AND NOT AS A PAIR.** `Promise.all` would let one failing
-    // read blank the other tab's badge, which is a worse answer than the one it replaced: the count
-    // that DID arrive is correct and there is no reason to throw it away. So each lands on its own
-    // and each fails on its own.
-    //
     // A THROW LEAVES ITS BADGE UNKNOWN RATHER THAN ZERO. A confident `0` on a read that failed is
     // the one wrong answer a badge can give — it says *nothing is waiting* about a thing nobody
     // asked.
-    void seam
-      .countOpenIssueReports()
-      .then((openReports) => setBadges((previous) => ({ ...previous, openReports })))
-      .catch(() => setBadges((previous) => ({ ...previous, openReports: null })));
-
     void seam
       .countPendingMembers()
       .then((openSignups) => setBadges((previous) => ({ ...previous, openSignups })))
@@ -156,8 +155,8 @@ export default function AdminLayout({ role }: AdminLayoutProps) {
   }, [role]);
 
   // Once when the admin area is entered, which is when this layout mounts. It does NOT re-read per
-  // tab: the layout stays mounted as an admin moves between the eight addresses, so a read per
-  // navigation would be seven requests for a number that cannot have changed in between.
+  // tab: the layout stays mounted as an admin moves between the admin addresses, so a read per
+  // navigation would be one request per tab for a number that cannot have changed in between.
   useEffect(() => refreshBadges(), [refreshBadges]);
 
   /**

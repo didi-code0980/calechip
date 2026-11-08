@@ -18,15 +18,21 @@
 // PATH.** The operator's third decision stopped at *mark done* — no delete policy, no grant, no seam
 // function — so a test that sends a report cannot undo it through the seam. `__resetIssueReports` is
 // a named export beside `seam`, like `__setCurrentMember`, and seam parity does not see either.
+//
+// **MIR-17, ADR-088 — `issue_report_select_admin`, `issue_report_update_admin` and
+// `issue_image_select_admin` are gone (`20261107210000_mir16_issue_reports_system_scope.sql`).** Only
+// a system admin at `aal2` reads or triages a report now (ADR-082 decision 1), so every read below
+// answers every member-seam caller the same emptiness — AC-6 of MIR-17 `01-plan.md`. `allReports()`
+// below reads `__storedIssueReports()` directly for exactly that reason: the seam itself no longer
+// gives any caller, Quan included, a way to read one back.
 import { afterEach, describe, expect, it } from "vitest";
-import { seam as mock, __setCurrentMember, __resetIssueReports } from "@/lib/data/mock";
+import { seam as mock, __setCurrentMember, __resetIssueReports, __storedIssueReports } from "@/lib/data/mock";
 import { seam as real } from "@/lib/data/supabase";
 import {
   FIXTURE_ADMIN,
   FIXTURE_ISSUE_REPORT,
   FIXTURE_MEMBER,
   FIXTURE_OTHER_TEAM_MEMBER,
-  FIXTURE_REMOVED_MEMBER,
 } from "@/lib/fixtures";
 
 const as = (memberId: string | null): void => __setCurrentMember(memberId);
@@ -36,20 +42,21 @@ afterEach(() => {
   __resetIssueReports();
 });
 
-/** Every report, read as the admin — which is the only caller who is answered any. */
+/** Every report, exactly as stored. **MIR-17** reads the table directly rather than through the
+ *  seam: since MIR-16 `listIssueReports` answers every caller, Quan included, with nothing (AC-6),
+ *  so a test that needs to see what a write did reads `__storedIssueReports()` instead. */
 async function allReports() {
-  as(FIXTURE_ADMIN.id);
-  return mock.listIssueReports();
+  return __storedIssueReports();
 }
 
-describe("the fixture the admin list is drawn from", () => {
-  it("is one open report, written by somebody who is not the admin reading it", async () => {
+describe("the fixture the table starts with", () => {
+  it("is one open report, written by somebody who is not Quan", async () => {
     const rows = await allReports();
 
     expect(rows).toHaveLength(1);
     expect(rows[0]).toEqual(FIXTURE_ISSUE_REPORT);
-    // The property that makes the list screen testable at all: a fixture written BY the admin would
-    // let a list that showed only the reader's own reports pass every test here.
+    // The property that made the list screen testable before MIR-16, and still worth pinning: the
+    // fixture was not written by the person these tests call "the admin".
     expect(FIXTURE_ISSUE_REPORT.memberId).not.toBe(FIXTURE_ADMIN.id);
   });
 });
@@ -121,87 +128,46 @@ describe("issue_report_insert_own — who may send one", () => {
   });
 });
 
-describe("issue_report_select_admin — who is answered", () => {
-  it("an ordinary member is answered an EMPTY LIST and not an error", async () => {
-    as(FIXTURE_MEMBER.id);
-    // A select policy FILTERS. The screen is what turns this into *this page is for admins*, and a
-    // seam that threw here would make that fork untestable.
+// MIR-17, ADR-088 — the three describes this used to be (`issue_report_select_admin`,
+// `issue_report_update_admin` and `issueImageUrls`, the last of which lived further down beside the
+// signed-URL suite) are one now, because MIR-16 left exactly one behaviour to assert across all four
+// functions and it no longer depends on which caller is asking.
+describe("MIR-17 AC-6 — the mock answers issue-report reads as the database does", () => {
+  /** The stored row's own status, read directly — the one honest way left to check a write did or
+   *  did not land, now that no read in this describe can see it either way. */
+  const storedStatus = () =>
+    __storedIssueReports().find((r) => r.id === FIXTURE_ISSUE_REPORT.id)?.status;
+
+  /** AC-6, for whichever caller `as()` was just set to: every read is empty, the write is refused,
+   *  and the row underneath is untouched by it. */
+  async function assertAC6(): Promise<void> {
+    const before = storedStatus();
+
     expect(await mock.listIssueReports()).toEqual([]);
-  });
+    expect(await mock.countOpenIssueReports()).toBe(0);
+    expect(await mock.issueImageUrls(["anybody/whatever.png"])).toEqual([null]);
 
-  it("a manager is answered nothing either — the rank adds one power and this is not it", async () => {
-    as(FIXTURE_ADMIN.id);
-    const promoted = await mock.setMemberRole(FIXTURE_MEMBER.id, "manager");
-    if (!promoted.ok) throw new Error(`could not make a manager: ${promoted.error.code}`);
-
-    // THE RANK IS RESTORED IN A `finally` THAT DOES NOT THROW, and the failure is raised after it.
-    // `no-unsafe-finally` is right to refuse a throw in there: it would replace whatever the body
-    // failed with, so the restore would hide the assertion that actually broke.
-    let restoreFailure: string | null = null;
-    try {
-      as(FIXTURE_MEMBER.id);
-      expect(await mock.listIssueReports()).toEqual([]);
-    } finally {
-      as(FIXTURE_ADMIN.id);
-      const back = await mock.setMemberRole(FIXTURE_MEMBER.id, "member");
-      if (!back.ok) restoreFailure = back.error.code;
-    }
-    if (restoreFailure) throw new Error(`could not restore the rank: ${restoreFailure}`);
-  });
-
-  it("a removed member is answered nothing — `is_admin` filters `removed_at is null`", async () => {
-    as(FIXTURE_REMOVED_MEMBER.id);
-    expect(await mock.listIssueReports()).toEqual([]);
-  });
-
-  it("nobody at all is answered nothing", async () => {
-    as(null);
-    expect(await mock.listIssueReports()).toEqual([]);
-  });
-});
-
-describe("issue_report_update_admin — marking one done", () => {
-  it("an admin marks a report done, and only `status` moves", async () => {
-    as(FIXTURE_ADMIN.id);
-    const done = await mock.setIssueReportStatus(FIXTURE_ISSUE_REPORT.id, "done");
-
-    expect(done.ok).toBe(true);
-    if (done.ok) {
-      expect(done.value.status).toBe("done");
-      // In the datastore the `grant update (status)` column list is what stops an admin rewriting
-      // what somebody wrote; here it is the signature, which is only an affordance. So the assertion
-      // is on the ROW rather than on the call — every other field came back untouched.
-      expect({ ...done.value, status: "open" }).toEqual(FIXTURE_ISSUE_REPORT);
-    }
-  });
-
-  it("and reopens it, which is the other direction of the same one column", async () => {
-    as(FIXTURE_ADMIN.id);
-    await mock.setIssueReportStatus(FIXTURE_ISSUE_REPORT.id, "done");
-    const back = await mock.setIssueReportStatus(FIXTURE_ISSUE_REPORT.id, "open");
-
-    expect(back.ok).toBe(true);
-    expect((await allReports())[0]?.status).toBe("open");
-  });
-
-  it("an ordinary member cannot", async () => {
-    as(FIXTURE_MEMBER.id);
     const result = await mock.setIssueReportStatus(FIXTURE_ISSUE_REPORT.id, "done");
-
     expect(result.ok).toBe(false);
     if (!result.ok) expect(result.error.code).toBe("not_permitted");
-    expect((await allReports())[0]?.status).toBe("open");
+
+    // Unchanged because the write above was REFUSED, not merely because nothing read it back.
+    expect(storedStatus()).toBe(before);
+  }
+
+  it("as Quan — an org admin, who read every report until MIR-16", async () => {
+    as(FIXTURE_ADMIN.id);
+    await assertAC6();
   });
 
-  it("an id that names nobody is refused, and is the SAME answer as a refusal", async () => {
-    as(FIXTURE_ADMIN.id);
-    const result = await mock.setIssueReportStatus("00000000-0000-4000-8000-000000000000", "done");
+  it("as Thanh — a member, who was always refused", async () => {
+    as(FIXTURE_MEMBER.id);
+    await assertAC6();
+  });
 
-    // ONE ANSWER ON PURPOSE. In the datastore a row the policy refuses and a row that does not exist
-    // are the same empty body, and a seam that told them apart would be reporting something the real
-    // one cannot know.
-    expect(result.ok).toBe(false);
-    if (!result.ok) expect(result.error.code).toBe("not_permitted");
+  it("with no session at all", async () => {
+    as(null);
+    await assertAC6();
   });
 });
 
@@ -369,61 +335,28 @@ describe("the image rules, asserted against BOTH implementations", () => {
   });
 });
 
-describe("issueImageUrls — the private bucket, exchanged for something loadable", () => {
-  const base = { kind: "bug" as const, message: "Here is a picture.", page: "/signed" };
-
-  it("an admin is answered one URL per path, in order", async () => {
-    as(FIXTURE_MEMBER.id);
-    const sent = await mock.createIssueReport({
-      ...base,
-      images: [fileOf("one.png", "image/png"), fileOf("two.png", "image/png")],
-    });
-    expect(sent.ok).toBe(true);
-
-    const row = (await allReports()).find((r) => r.page === "/signed");
-    const urls = await mock.issueImageUrls(row?.images ?? []);
-
-    expect(urls).toHaveLength(2);
-    expect(urls.every((u) => typeof u === "string")).toBe(true);
-  });
-
-  it("a member is answered nulls — `issue_image_select_admin` is admins only", async () => {
-    as(FIXTURE_MEMBER.id);
-    await mock.createIssueReport({ ...base, images: [fileOf("one.png", "image/png")] });
-    const row = (await allReports()).find((r) => r.page === "/signed");
-
-    as(FIXTURE_MEMBER.id);
-    expect(await mock.issueImageUrls(row?.images ?? [])).toEqual([null]);
-  });
-
-  it("a path nothing was stored under is `null` IN PLACE, not dropped", async () => {
-    as(FIXTURE_ADMIN.id);
-    const urls = await mock.issueImageUrls(["nobody/missing.png"]);
-
-    // Same length, same order. A caller rendering a gallery shows a broken slot rather than silently
-    // shifting every image after the failed one, which would caption the wrong picture.
-    expect(urls).toEqual([null]);
-  });
-
-  it("no paths is no request and an empty answer", async () => {
-    as(FIXTURE_ADMIN.id);
-    expect(await mock.issueImageUrls([])).toEqual([]);
-  });
-});
+// `issueImageUrls`'s own describe moved into "MIR-17 AC-6" above — ADR-088, the mock now answers
+// it the same unconditional `null` for every caller, so there was nothing role-specific left here to
+// keep separate.
 
 describe("countOpenIssueReports — the number behind the tab badge", () => {
-  it("counts the open ones for an admin, and does not count the done ones", async () => {
+  it("answers 0 for an admin too, and the row a refused write named is untouched", async () => {
     as(FIXTURE_ADMIN.id);
-    expect(await mock.countOpenIssueReports()).toBe(1);
+    expect(await mock.countOpenIssueReports()).toBe(0);
 
+    const before = (await allReports()).find((r) => r.id === FIXTURE_ISSUE_REPORT.id)?.status;
     await mock.setIssueReportStatus(FIXTURE_ISSUE_REPORT.id, "done");
+    const after = (await allReports()).find((r) => r.id === FIXTURE_ISSUE_REPORT.id)?.status;
+
+    // Unchanged because MIR-16 refuses the write, not merely because nothing shows it afterwards.
+    expect(after).toBe(before);
     expect(await mock.countOpenIssueReports()).toBe(0);
   });
 
   it("an ordinary member is answered 0 rather than refused", async () => {
     as(FIXTURE_MEMBER.id);
-    // `issue_report_select_admin` filters, so the count of what they may see is genuinely zero. The
-    // badge is absent for them by arithmetic rather than by a branch, and nothing leaks either way.
+    // Since MIR-16, `issue_report_select_admin` is gone and nobody reads a report at all — so the
+    // badge is absent by construction rather than by a branch, and nothing leaks either way.
     expect(await mock.countOpenIssueReports()).toBe(0);
   });
 
@@ -446,8 +379,8 @@ describe("countOpenIssueReports — the number behind the tab badge", () => {
 
   it("an ordinary member counts no sign-ups either", async () => {
     as(FIXTURE_MEMBER.id);
-    // `member_select_pending_admin` filters, exactly as `issue_report_select_admin` does. Both
-    // badges are absent for a non-admin by arithmetic rather than by a branch in the strip.
+    // `member_select_pending_admin` filters. Both badges are absent for a non-admin by arithmetic
+    // rather than by a branch in the strip — the issue-reports one is absent for everybody now (MIR-16).
     expect(await mock.countPendingMembers()).toBe(0);
   });
 

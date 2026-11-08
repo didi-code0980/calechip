@@ -44,10 +44,9 @@ const TABS = [
   { testId: "admin-hub-team-entries-link", path: "/entries/team" },
   { testId: "admin-hub-members-link", path: "/members" },
   { testId: "admin-hub-allow-list-link", path: "/signups" },
-  // SOLO, 2026-09-26 — Reports joined the strip on the operator's instruction, directly after
-  // `New sign-ups`: § 2b orders by how often an admin needs each, and the two are the same kind of
-  // thing — a queue of what people sent that somebody has to decide about.
-  { testId: "admin-hub-reports-link", path: "/reports" },
+  // SOLO, 2026-09-26 joined the strip with Reports here, directly after `New sign-ups`. **MIR-17,
+  // ADR-088 REMOVES IT.** Since MIR-16 an org admin reads no report at all (ADR-082 decision 1), so
+  // `admin-hub-reports-link` no longer renders and has no row in this list to keep.
   { testId: "admin-hub-threshold-link", path: "/setting" },
   // SOLO 2026-09-12 — Public holidays joined the strip on the operator's instruction. It is the one
   // destination whose screen is not admin-only: the route is guarded on a session, so a member who
@@ -216,21 +215,21 @@ test.describe("SOLO — the admin area is a tab strip", () => {
     // still makes no seam call, and the number arrives as a prop from `AdminLayout`, which owns the
     // read and its failure.
     //
-    // **EXACTLY TWO BADGES, ON EXACTLY THE TWO QUEUE TABS.** Asserted over the rendered strip rather
-    // than over `ADMIN_TABS`, so a badge added to a third tab fails here.
+    // **EXACTLY ONE BADGE, ON THE ONE QUEUE TAB LEFT.** Asserted over the rendered strip rather than
+    // over `ADMIN_TABS`, so a badge added to a second tab fails here.
     //
-    // SOLO, 2026-09-26 (third run): this read *exactly one, on Reports* for a few hours. The
-    // operator then asked for the same number on `New sign-ups`, so the assertion widens by one
-    // NAMED tab rather than becoming a count with no names — the point of this test is which tabs
-    // may carry one, and a bare `toHaveCount(2)` would pass if the two moved to the wrong pair.
+    // SOLO, 2026-09-26 (third run) widened this from one badge to two, on Reports and New sign-ups.
+    // **MIR-17, ADR-088 — BACK TO ONE.** Reports and the badge it carried are gone (ADR-082 decision
+    // 1, since MIR-16 an org admin reads no report at all), so the pair this test pinned is a pair no
+    // longer and the assertion narrows with it rather than keeping a count nothing explains.
     const badged = page.locator('[data-testid="admin-tabs"] [data-testid$="-badge"]');
-    await expect(badged).toHaveCount(2);
+    await expect(badged).toHaveCount(1);
     await expect(page.getByTestId("admin-hub-allow-list-link-badge")).toHaveCount(1);
-    await expect(page.getByTestId("admin-hub-reports-link-badge")).toHaveCount(1);
+    await expect(page.getByTestId("admin-hub-reports-link-badge")).toHaveCount(0);
 
     // Every OTHER tab is still free of digits. Read off each anchor rather than off the whole strip,
     // which is what lets the permitted counts be excluded by name.
-    const BADGED = ["admin-hub-reports-link", "admin-hub-allow-list-link"];
+    const BADGED = ["admin-hub-allow-list-link"];
     for (const tab of TABS.filter((t) => !BADGED.includes(t.testId))) {
       const label = (await page.getByTestId(tab.testId).textContent()) ?? "";
       expect(label.match(/\d/), `${tab.testId} grew a count`).toBeNull();

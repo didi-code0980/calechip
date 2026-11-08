@@ -23,6 +23,8 @@ planned, sized, and safe to build** — the next stage for a row here is IN_PROG
 | # | Ticket | Title | Size | Depends on |
 |---|--------|-------|------|------------|
 
+**`MIR-17` was at `READY` in `ticket.yaml`, moved to `REVIEW`** — recorded at /advance on 2026-11-08 from `03-impl-log.md` gate PASS (`produced_at: 2026-11-08T07:33:41Z`). There is no row for it in this table (see below); nothing to move.
+
 **`MIR-17` moved here at /advance on 2026-11-08**, from `01-plan.md` gate PASS (`produced_at: 2026-11-08T07:12:01Z`) with all six Definition of Ready items passing; `schema_delta: none` (confirmed at PLAN, client/mock/test only). PLAN wrote a new ADR, [ADR-088](../registry/decisions/ADR-088-issue-reports-leave-the-member-app-first-and-the-rest-of-p4-2-is-mir-17-b.md) (`ACCEPTED by tech-lead-design under the operator's delegation (ADR-067)`), splitting the remainder of plan item P4-2 to a new slice, `MIR-17-b` (BACKLOG); the full P4-2 touches ~26 `src` files (L). `MIR-17` had no row in `## BACKLOG`, so no row left that table.
 
 **`MIR-16-h` shipped on 2026-11-08, `state: DONE`.** This is the last of MIR-16's eight slices (MIR-16, -b, -c, -d, -e, -f, -g, -h); `features.md` row `MIR-16` is set to `DONE`, Invariants `INV-02, INV-03` (from MIR-16-b, the only slice of the chain with a non-empty `invariants_touched`). Moved to `## ARCHIVE`. **Reviewer-disclosed side effect, for a human:** the local dev Postgres now carries migration `20261108200000` applied outside `supabase_migrations.schema_migrations` (an autocommit probe during review); the file is idempotent, so `supabase migration up` or `supabase db reset` restores a clean, correct state. Nothing in the repository, registry or any hosted project was touched.
