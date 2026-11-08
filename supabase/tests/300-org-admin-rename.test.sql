@@ -32,7 +32,8 @@ select is((select role::text from public.member where id = tests.id('removed_adm
   'AC-2: removed_admin_t''s role is org_admin');
 select is((select role::text from public.member where id = tests.id('member_t')), 'member',
   'AC-2: Thanh''s role is unchanged (member)');
-select is((select role::text from public.member where id = tests.id('manager_t')), 'manager',
+select is((select role::text from public.member where id = tests.id('manager_t')),
+  tests.member_role('manager')::text,
   'AC-2: Mona''s role is unchanged (manager)');
 select is(
   (select count(*)::int from public.member_role_change

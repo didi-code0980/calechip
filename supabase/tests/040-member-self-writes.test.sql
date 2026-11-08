@@ -12,7 +12,8 @@ declare
   v_id text := quote_literal(tests.id(p_label));
 begin
   perform tests.authenticate_as(tests.id(p_label));
-  return next throws_ok(format('update public.member set role = %L where id = %s', 'manager', v_id),
+  return next throws_ok(format('update public.member set role = %L where id = %s',
+                               tests.member_role('member')::text, v_id),
     '42501', null, format('AC-4 %s: update own role raises 42501', p_label));
   return next throws_ok(format('update public.member set status = %L where id = %s', 'rejected', v_id),
     '42501', null, format('AC-4 %s: update own status raises 42501', p_label));
@@ -41,7 +42,7 @@ select results_eq(
   $$select id, role::text, status::text, public.member_roster_team_id(id) from public.member
      where id in (tests.id('member_t'), tests.id('manager_t'), tests.id('admin_t')) order by id$$,
   $$values (tests.id('admin_t'),   tests.member_role('admin')::text,   'approved', tests.id('team_t')),
-           (tests.id('manager_t'), 'manager', 'approved', tests.id('team_t')),
+           (tests.id('manager_t'), tests.member_role('manager')::text, 'approved', tests.id('team_t')),
            (tests.id('member_t'),  'member',  'approved', tests.id('team_t'))$$,
   'AC-4: role, status and roster team of the three callers are unchanged'
 );

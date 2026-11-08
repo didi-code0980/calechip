@@ -69,17 +69,28 @@ begin
 end;
 $$;
 
+-- MIR-16-g, ADR-087 decision 1. The application's role words to a team role, in one place.
+create function tests.team_role_for(p_role text) returns public.team_role
+  language sql immutable set search_path = '' as $$
+  select case p_role when 'manager' then 'manager'::public.team_role
+                     else 'member'::public.team_role end;
+$$;
+
 -- MIR-21-e (ADR-080 decision 3). Writes the one `membership` row the mirror's INSERT branch wrote for
 -- a member inserted with a team (20261105210000_mir21b_writers_write_membership.sql:348-362), so a
 -- fixture that no longer names `member.team_id` gets the same row. Owner only; call it after the
 -- member insert and before any entry, event or busy_day of that member (their stamps read the
 -- primary team from `membership`).
-create function tests.put_on_team(p_member_id uuid, p_team_id uuid) returns void
+--
+-- MIR-16-g, ADR-087 decision 1: the team role is the caller's own third argument, not a value
+-- derived from `member.role`.
+create function tests.put_on_team(p_member_id uuid, p_team_id uuid,
+                                  p_team_role public.team_role default 'member')
+  returns void
   language sql security invoker set search_path = '' as $$
   insert into public.membership (org_id, team_id, member_id, team_role, is_primary, joined_at, left_at)
   select m.org_id, p_team_id, m.id,
-         case when m.role = 'manager'::public.member_role
-              then 'manager'::public.team_role else 'member'::public.team_role end,
+         p_team_role,
          m.removed_at is null,
          m.created_at,
          case when m.removed_at is null then null else greatest(m.removed_at, m.created_at) end
@@ -137,7 +148,8 @@ begin
             v_person.label || '@mir06.test');
 
     if v_person.team is not null then
-      perform tests.put_on_team(tests.id(v_person.label), tests.id(v_person.team));
+      perform tests.put_on_team(tests.id(v_person.label), tests.id(v_person.team),
+                                tests.team_role_for(v_person.role));
     end if;
   end loop;
 

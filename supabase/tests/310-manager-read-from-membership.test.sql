@@ -26,7 +26,7 @@ insert into public.team (id, name) values (tests.m310('team_t2'), 'Team T2');
 insert into auth.users (id, email) values (tests.m310('rae'), 'rae@mir16c-310.test');
 insert into public.member (id, display_name, avatar, role, status, email) values
   (tests.m310('rae'), 'Rae', '1.png', tests.member_role('manager'), 'approved', 'rae@mir16c-310.test');
-select tests.put_on_team(tests.m310('rae'), tests.id('team_t'));
+select tests.put_on_team(tests.m310('rae'), tests.id('team_t'), 'manager');
 select is(
   tests.rows_affected(format('update public.member set removed_at = now() where id = %L', tests.m310('rae'))),
   1::bigint,

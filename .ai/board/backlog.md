@@ -23,6 +23,8 @@ planned, sized, and safe to build** — the next stage for a row here is IN_PROG
 | # | Ticket | Title | Size | Depends on |
 |---|--------|-------|------|------------|
 
+**`MIR-16-g` was at `READY` in `ticket.yaml`, moved to `REVIEW`** — recorded at /advance on 2026-11-08 from `03-impl-log.md` gate PASS (`produced_at: 2026-11-08T06:16:39Z`). There is no row for it in this table (see below); nothing to move.
+
 **`MIR-16-g` moved here at /advance on 2026-11-08**, from `01-plan.md` gate PASS (`produced_at: 2026-11-08T06:11:06Z`) with all six Definition of Ready items passing; `schema_delta: none` (confirmed at PLAN, pgTAP harness and fixtures only). `schema_delta` cites [ADR-087](../registry/decisions/ADR-087-the-fixtures-stop-deriving-a-team-role-from-member-role-before-manager-is-removed.md) (`ACCEPTED by tech-lead-design under the operator's delegation (ADR-067)`), narrowing ADR-086 decision 2 — the type change split to a new slice, `MIR-16-h` (BACKLOG). `MIR-16-g` had no row in `## BACKLOG`, so no row left that table.
 
 **`MIR-16-f` shipped on 2026-11-08, `state: DONE`.** `features.md` row `MIR-16` left `PLANNED`: its own PLAN split the removal of `'manager'` from the type to a new slice, `MIR-16-g` (still `BACKLOG`), which now owns the shared row's note. Moved to `## ARCHIVE`.

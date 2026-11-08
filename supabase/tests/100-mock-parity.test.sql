@@ -131,7 +131,8 @@ begin
   -- MIR-21-f: a member has no team column; the team is the membership row. The seed's teams and
   -- these members are both in the shared tenant, so no org_id is named.
   if p_on_team then
-    perform tests.put_on_team(tests.parity_id(p_case_id), tests.id('team_t'));
+    perform tests.put_on_team(tests.parity_id(p_case_id), tests.id('team_t'),
+                              tests.team_role_for(p_role));
   end if;
 end;
 $$;
