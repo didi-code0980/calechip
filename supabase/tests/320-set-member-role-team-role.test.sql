@@ -85,7 +85,8 @@ select results_eq(
             where member_id = %L$$, tests.id('manager_t')),
   format($$values ('manager', 'member', %L::uuid)$$, tests.id('admin_t')),
   'AC-3: the row is manager -> member by Ada');
-select is((select role::text from public.member where id = tests.id('manager_t')), 'manager',
+select is((select role::text from public.member where id = tests.id('manager_t')),
+  tests.member_role('manager')::text,
   'AC-3: Mona''s member.role is not changed by the call');
 
 -- ---------------------------------------------------------------------------------------------

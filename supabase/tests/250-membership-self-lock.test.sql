@@ -121,7 +121,7 @@ select lives_ok(
 -- ---------------------------------------------------------------------------------------------
 select tests.authenticate_as(tests.m21c('a'));
 select lives_ok(
-  format('select public.set_member_role(%L::uuid, ''manager''::public.member_role)', tests.m21c('m')),
+  format('select public.set_member_role(%L::uuid, ''manager'')', tests.m21c('m')),
   'AC-3: A set_member_role(M, manager) succeeds');
 select lives_ok(
   format('select public.move_member(%L::uuid, %L::uuid)', tests.m21c('m'), tests.m21c('t2')),
@@ -216,7 +216,7 @@ select ok(
 select tests.authenticate_as(tests.m21c('a'));
 select is(
   (select public.roster_team_id(r)
-     from public.set_member_role(tests.m21c('r'), 'manager'::public.member_role) r),
+     from public.set_member_role(tests.m21c('r'), 'manager') r),
   tests.m21c('t1'), 'AC-6: set_member_role(R, manager) read through roster_team_id is T1');
 select is(
   (select public.roster_team_id(r)

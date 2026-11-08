@@ -131,7 +131,8 @@ select tests.m21f_ms() as ac7_ms_before \gset
 select set_config('request.jwt.claims',
                   json_build_object('sub', tests.id('admin_t'), 'role', 'authenticated')::text, true);
 select throws_ok(
-  format('update public.member set role = %L where id = %L', 'manager', tests.id('admin_t')),
+  format('update public.member set role = %L where id = %L',
+         tests.member_role('member')::text, tests.id('admin_t')),
   '42501', 'a person may not change their own role, status or team',
   'AC-7: an owner-side update of A''s own role, under A''s claims, raises 42501');
 select throws_ok(
