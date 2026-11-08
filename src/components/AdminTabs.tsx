@@ -40,8 +40,12 @@ import { mayAdminister } from "@/lib/roles";
  * THIRD.** A badge says *there is something here for you*; a count of things that are merely TRUE —
  * how many members, how many teams, how many holidays — is a statistic, and a strip that carried
  * those would be the dashboard `AdminTabs` has said since UIE-09 that it is not.
+ *
+ * **MIR-17, ADR-088 — `"openReports"` IS GONE.** The *Reports* tab it badged went with it: since
+ * MIR-16 an org admin reads no report at all (ADR-082 decision 1), so there is nothing left in this
+ * union for a dropped tab to have declared.
  */
-export type AdminBadge = "openReports" | "openSignups";
+export type AdminBadge = "openSignups";
 
 /**
  * The five destinations, declared once as data so the strip and its order are one thing rather than
@@ -88,6 +92,10 @@ export const ADMIN_TABS: readonly {
    * same number* on the sign-ups tab. TWO TABS ANSWER SOMETHING NOW, which is what turned the prop
    * from one number into a record: a third badge is a value in this union and a key in that record,
    * and nothing else moves.
+   *
+   * **MIR-17, ADR-088 — BACK TO EXACTLY ONE**, with `openReports` and its tab gone (`AdminBadge`
+   * above). The record shape built for two is unchanged: a badge removed is a key removed, not a
+   * reason to go back to a bare `number | null` prop.
    */
   badge: AdminBadge | null;
 }[] = [
@@ -133,32 +141,16 @@ export const ADMIN_TABS: readonly {
     // should be able to read both the same way.
     badge: "openSignups",
   },
-  {
-    // SOLO, 2026-09-26 — **THE EIGHTH TAB**, on the operator's instruction *"thêm feature 1 nút
-    // report issue và trên admin có chỗ xem những report đó"*.
-    //
-    // **HERE AND NOT LAST, BECAUSE § 2b ORDERS BY HOW OFTEN AN ADMIN NEEDS EACH.** It sits directly
-    // after `New sign-ups` because the two are the same kind of thing — a queue of things people
-    // sent that an admin has to look at and decide about — and a reader scanning the strip should
-    // find them together. It is needed more often than the holiday calendar, which the government
-    // changes once a year, and far more often than creating a team.
-    //
-    // The cost is that `tests/e2e/solo-admin-tabs.spec.ts` and `tests/e2e/uie-09-admin-hub.spec.ts`
-    // each keep their own ordered copy of this list and both had to be amended. That is by design in
-    // those files: they pin the ORDER, so a list that imported this one would assert only that the
-    // component renders whatever it was given.
-    testId: "admin-hub-reports-link",
-    to: "/reports",
-    name: "Reports",
-    blurb: "Issues and ideas people have sent from the report button, and which are still open.",
-    // ADR-035: not a manager's. Reading everybody's reports is not deciding an entry, which is the
-    // one power that rank adds. Denied by the screen behind it as well as by its absence here.
-    forManager: false,
-    // SOLO, 2026-09-26 (second run) — the operator's fourth item: *"display the number of issue not
-    // done in the navigation tab"*. The first tab to carry one; `New sign-ups` joined it the same
-    // day, and the two are the product's only queues that wait on an admin.
-    badge: "openReports",
-  },
+  // SOLO, 2026-09-26 added an eighth tab here, "Reports" (`to: "/reports"`, `badge: "openReports"`).
+  // **MIR-17, ADR-088 REMOVES IT.** Since MIR-16 an org admin reads no report at all (ADR-082
+  // decision 1), so a tab that led to `/reports` was a promise the screen behind it could no longer
+  // keep — the hub's own rule, `AdminTabs.tsx:40-42` above, is that the strip carries destinations
+  // and not statements. `/reports` is still reachable (its route is unchanged) and still tells
+  // anybody who opens it where reports go now; it is simply no longer one of this strip's tabs.
+  //
+  // The cost, paid here as it was when the tab was added: `tests/e2e/solo-admin-tabs.spec.ts` and
+  // `tests/e2e/uie-09-admin-hub.spec.ts` each keep their own ordered copy of this list and both had
+  // to be amended again.
   {
     testId: "admin-hub-threshold-link",
     // SOLO, 2026-09-11, later the same day — `to` MOVED TO `/setting` AND `name` TO `Settings`, on the

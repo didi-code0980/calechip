@@ -187,8 +187,11 @@ export default function ReportIssueButton(): JSX.Element {
                   🌱
                 </p>
                 <h1 className="mt-2 text-lg font-semibold text-ink">Thank you — it is sent</h1>
+                {/* MIR-17, ADR-088. An org admin no longer reads this — only the CaleChip team does,
+                    through the system panel, since MIR-16. The sentence is updated so nobody is told
+                    their own admin will see something the database refuses them (ADR-082 decision 1). */}
                 <p className="mt-1 text-sm text-ink-2">
-                  An admin will see this on the reports page.
+                  Thanks — the CaleChip team will see this.
                 </p>
                 <button
                   data-testid="report-issue-done"

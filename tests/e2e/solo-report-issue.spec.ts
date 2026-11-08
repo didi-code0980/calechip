@@ -2,35 +2,30 @@ import { expect, test, type Page } from "@playwright/test";
 
 // SOLO, 2026-09-26 — a member reports an issue from the bubble; an admin reads the reports.
 //
-// **THIS WORK CARRIES NO TICKET AND NO ACCEPTANCE CRITERIA**, so the numbering below is local to
-// this file and is deliberately NOT `AC-n`. What authorises it is `.claude/agents/solo.md` and the
+// **THIS WORK CARRIED NO TICKET AND NO ACCEPTANCE CRITERIA**, so the numbering below is local to
+// this file and was deliberately NOT `AC-n`. What authorised it is `.claude/agents/solo.md` and the
 // operator's four answers of 2026-09-26, transcribed in
 // `supabase/migrations/20260926100000_solo_issue_report.sql`'s header.
 //
 // THE SUITE DRIVES THE MOCK SEAM (BUG-001 pins it, `tests/e2e/seam.setup.ts` refuses the run
-// otherwise), so the refusals below are the mock's reproduction of `issue_report_insert_own`,
-// `issue_report_select_admin` and `issue_report_update_admin` rather than a second story about them.
+// otherwise), so the refusals below are the mock's reproduction of `issue_report_insert_own` and,
+// historically, `issue_report_select_admin` and `issue_report_update_admin` rather than a second
+// story about them.
 //
-// **NO TEST HERE SENDS A REPORT AND THEN READS IT AS THE ADMIN, AND THAT IS ON PURPOSE.** `signIn`
-// begins with `page.goto("/")`, which reloads the document and resets the mock seam's module state —
-// the trap five shipped spec files already record. So the sending journey and the reading journey are
-// separate tests, and the reading one asserts against `FIXTURE_ISSUE_REPORT`, which is seeded.
-//
-// Fixtures (`src/lib/fixtures.ts`): `FIXTURE_ISSUE_REPORT` is one OPEN report written by
-// `FIXTURE_MEMBER` — somebody who is not the admin reading it, so a list that showed only the
-// reader's own reports would fail test 4 rather than pass it.
+// **MIR-17, ADR-088 — `issue_report_select_admin` AND `issue_report_update_admin` ARE GONE**
+// (`20261107210000_mir16_issue_reports_system_scope.sql`). Only a system admin at `aal2` reads or
+// triages a report now (ADR-082 decision 1), so the tests that used to read the admin's list and mark
+// a report done are gone with the screen they exercised. What is left of that reading journey is
+// numbered `MIR-17 AC-n`, because a plan document now states those criteria; the sending journey
+// below keeps its own local numbers, because nothing here changed what authorises it.
 
 const PASSWORD = "password123";
 const ADMIN_EMAIL = "quan@example.com";
 const MEMBER_EMAIL = "thanh@example.com";
 
-/** The seeded report, transcribed from `src/lib/fixtures.ts`. Change it there and change it here. */
-const REPORT = {
-  author: "Thành viên",
-  kind: "Broken",
-  page: "/week",
-  message: "Lịch tuần không hiển thị ngày nghỉ bù, chỉ thấy ô trắng.",
-};
+/** `src/routes/IssueReports.tsx`'s one sentence, letter for letter — AC-3 of `01-plan.md`. */
+const REPORTS_MOVED_NOTICE =
+  "Reports are read by the CaleChip team, not by your organisation’s admins.";
 
 async function signIn(page: Page, email: string): Promise<void> {
   await page.goto("/");
@@ -39,13 +34,6 @@ async function signIn(page: Page, email: string): Promise<void> {
   await page.getByTestId("sign-in-password").fill(PASSWORD);
   await page.getByTestId("sign-in-submit").click();
   await expect(page.getByTestId("home-sign-out")).toBeVisible();
-}
-
-/** Two clicks, the route UIE-09 and the tab strip established. */
-async function openReports(page: Page): Promise<void> {
-  await page.getByTestId("shell-admin-link").click();
-  await page.getByTestId("admin-hub-reports-link").click();
-  await expect(page.getByTestId("reports")).toBeVisible();
 }
 
 test.describe("SOLO — report an issue", () => {
@@ -115,55 +103,32 @@ test.describe("SOLO — report an issue", () => {
     await expect(error).toHaveCount(0);
 
     await page.getByTestId("report-issue-send").click();
-    await expect(page.getByTestId("report-issue-sent")).toBeVisible();
+    const sent = page.getByTestId("report-issue-sent");
+    await expect(sent).toBeVisible();
+    // AC-5. Nothing here still mentions an admin or the reports page — the sender is told who
+    // actually reads it instead.
+    await expect(sent).toContainText("Thanks — the CaleChip team will see this.");
   });
 
-  test("4: an admin reads the report, and the row names who, what kind and from where", async ({
-    page,
-  }) => {
+  test("MIR-17 AC-1 — Quan's strip has no Reports tab, and no reports badge", async ({ page }) => {
     await signIn(page, ADMIN_EMAIL);
-    await openReports(page);
+    await page.getByTestId("shell-admin-link").click();
 
-    const row = page.getByTestId("report-row").first();
-    await expect(row).toHaveAttribute("data-kind", "bug");
-    await expect(row).toHaveAttribute("data-status", "open");
-
-    // The author is a NAME and never a uuid — an admin reading a bug report needs to know whom to
-    // ask, and `IssueReports.tsx` resolves it through `listAllMembers()` rather than inventing one.
-    await expect(row.getByTestId("report-row-author")).toHaveText(REPORT.author);
-    await expect(row.getByTestId("report-row-kind")).toHaveText(REPORT.kind);
-    await expect(row.getByTestId("report-row-message")).toHaveText(REPORT.message);
-    await expect(row.getByTestId("report-row-page")).toHaveAttribute("data-page", REPORT.page);
-
-    // **EVERY ADMIN READS EVERY REPORT** — the operator's fourth decision. This row's author is on
-    // the admin's own team, so the assertion that carries the decision is the absence of any team
-    // control on this screen, plus `issue_report_select_admin` having no team predicate.
-    await expect(page.getByTestId("reports-count")).toHaveAttribute("data-open", "1");
+    await expect(page.getByTestId("admin-hub-reports-link")).toHaveCount(0);
+    await expect(page.getByTestId("admin-hub-reports-link-badge")).toHaveCount(0);
   });
 
-  test("5: marking one done takes it off the list, and it comes back when they ask", async ({
-    page,
-  }) => {
+  test("MIR-17 AC-3 — Quan opens `/reports` and is told where reports go now", async ({ page }) => {
     await signIn(page, ADMIN_EMAIL);
-    await openReports(page);
+    await page.goto("/reports");
 
-    await page.getByTestId("report-row-toggle").first().click();
-
-    // It leaves the list the screen opens on, which is the reason the status exists: a list that
-    // only ever grows stops being read.
-    await expect(page.getByTestId("reports-empty")).toBeVisible();
-    await expect(page.getByTestId("reports-count")).toHaveAttribute("data-open", "0");
-    // And the total is unchanged, because nothing was destroyed. There is no delete path in this
-    // feature and there is not meant to be one.
-    await expect(page.getByTestId("reports-count")).toHaveAttribute("data-total", "1");
-
-    await page.getByTestId("reports-show-done").click();
-    const row = page.getByTestId("report-row").first();
-    await expect(row).toHaveAttribute("data-status", "done");
-
-    // Reopening is the other direction of the same one column.
-    await row.getByTestId("report-row-toggle").click();
-    await expect(page.getByTestId("report-row").first()).toHaveAttribute("data-status", "open");
+    const notice = page.getByTestId("issue-reports-moved");
+    await expect(notice).toHaveText(REPORTS_MOVED_NOTICE);
+    // No list, no `Mark done` control and no image — AC-3's own words. Scoped to the notice itself
+    // and not the whole page, which also carries the shell's own avatar images.
+    await expect(page.getByTestId("reports")).toHaveCount(0);
+    await expect(page.getByTestId("report-row-toggle")).toHaveCount(0);
+    await expect(notice.locator("img")).toHaveCount(0);
   });
 
   // -------------------------------------------------------------------------
@@ -252,30 +217,8 @@ test.describe("SOLO — report an issue", () => {
     await expect(page.getByTestId("report-issue-message")).toHaveValue("Four pictures.");
   });
 
-  test("10: the Reports tab carries the number not yet done, and it goes when they are", async ({
-    page,
-  }) => {
-    await signIn(page, ADMIN_EMAIL);
-    await page.getByTestId("shell-admin-link").click();
-
-    // The seeded report is open, so the badge says one before the admin has opened the screen —
-    // which is the point of putting it on the tab rather than on the page.
-    const badge = page.getByTestId("admin-hub-reports-link-badge");
-    await expect(badge).toHaveAttribute("data-count", "1");
-
-    await page.getByTestId("admin-hub-reports-link").click();
-    await page.getByTestId("report-row-toggle").first().click();
-
-    // **THE BADGE UPDATES WITHOUT LEAVING THE SCREEN**, which is what `refreshBadges` on the admin
-    // context is for. Without it this number would stay at 1 until the admin left the admin area and
-    // came back, with the list beneath it already saying otherwise.
-    await expect(badge).toHaveCount(0);
-
-    // **AND THE OTHER BADGE IS UNTOUCHED.** `refreshBadges` re-reads both counts, so a careless
-    // implementation could blank the sign-up one on the way past — which is the failure this line
-    // exists for, not a restatement of the assertion above.
-    await expect(page.getByTestId("admin-hub-allow-list-link-badge")).toHaveCount(1);
-  });
+  // Test 10, "the Reports tab carries the number not yet done...", stood here. MIR-17, ADR-088 — it
+  // is replaced by "MIR-17 AC-1" above, since both the tab and its badge it exercised are gone.
 
   test("12: the New sign-ups tab carries its own queue's number, and loses it when the queue empties", async ({
     page,
@@ -296,8 +239,9 @@ test.describe("SOLO — report an issue", () => {
     await expect(page.getByTestId("signups-empty")).toBeVisible();
     await expect(badge).toHaveCount(0);
 
-    // The reports badge is untouched by a decision that has nothing to do with it.
-    await expect(page.getByTestId("admin-hub-reports-link-badge")).toHaveAttribute("data-count", "1");
+    // MIR-17, ADR-088 removed the reports badge this line used to check was untouched by a decision
+    // that had nothing to do with it — "MIR-17 AC-1" above is now the standing assertion that it is
+    // gone rather than merely unaffected.
   });
 
   test("11: an ordinary member is offered neither the tab nor its badge", async ({ page }) => {
@@ -316,16 +260,20 @@ test.describe("SOLO — report an issue", () => {
     await expect(page.getByTestId("admin-hub-reports-link-badge")).toHaveCount(0);
   });
 
-  test("6: a member who types the address is refused by the screen", async ({ page }) => {
+  // Test 6, "a member who types the address is refused by the screen", stood here: `/reports` used
+  // to draw a `reports-refused` card for a member. **MIR-17, ADR-088 — IT IS NO LONGER A REFUSAL.**
+  // The screen reads nothing and refuses nobody now, so Thanh is told the same sentence Quan is.
+  test("MIR-17 AC-3 — Thanh opens `/reports` and is told where reports go, not refused", async ({
+    page,
+  }) => {
     await signIn(page, MEMBER_EMAIL);
     await page.goto("/reports");
 
-    await expect(page.getByTestId("reports-refused")).toBeVisible();
+    await expect(page.getByTestId("issue-reports-moved")).toHaveText(REPORTS_MOVED_NOTICE);
+    await expect(page.getByTestId("reports-refused")).toHaveCount(0);
     await expect(page.getByTestId("reports")).toHaveCount(0);
 
-    // AND THE REFUSAL IS NOT WHAT PROTECTS ANYTHING (ADR-005). `issue_report_select_admin` answers a
-    // member an EMPTY LIST, so somebody who got past this screen would see nothing rather than
-    // somebody else's report. The tab is absent for them too.
+    // The tab is still absent for them too, as it always was.
     await expect(page.getByTestId("admin-hub-reports-link")).toHaveCount(0);
   });
 });
