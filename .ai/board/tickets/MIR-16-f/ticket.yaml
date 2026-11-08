@@ -9,24 +9,33 @@ id: MIR-16-f
 title: "`'manager'` leaves `public.member_role`: `set_member_role` writes `team_role` only, manager rows move to `member`, and the type is re-created"
 feature_ids: [MIR-16]   # split of MIR-16 (operating model § ID scheme: splits get -a, -b)
 group: MIR
-state: BACKLOG
+state: DONE
 owner: ""
 branch: ""
-size_estimate: ""     # S|M - set by tech-lead-design at PLAN; gates DoR
-size: ""              # S|M|L|XL - set by tech-lead-design at PLAN; decides splitting. Not counted at /plan MIR-16-c
+size_estimate: "M"   # S|M - set by tech-lead-design at PLAN; gates DoR
+size: "M"            # S|M|L|XL - 9 allowed_paths at /plan MIR-16-f; as ADR-085 described it, ~19 (L), so the removal split to MIR-16-g (ADR-086)
 depends_on: [MIR-01, MIR-02, MIR-03, MIR-04, MIR-10, MIR-11, MIR-12, MIR-13, MIR-14, MIR-15, MIR-18, MIR-21, MIR-21-b, MIR-21-c, MIR-21-d, MIR-21-e, MIR-21-f, MIR-16, MIR-16-b, MIR-16-d, MIR-16-e, MIR-16-c]
 invariants_touched: []
-allowed_paths: []
+allowed_paths:
+  - ".ai/registry/decisions/ADR-086-set-member-role-writes-the-team-role-and-the-manager-value-is-removed-by-a-column-retype.md"
+  - ".ai/board/tickets/MIR-16-g/ticket.yaml"
+  - ".ai/board/tickets/MIR-17/ticket.yaml"
+  - "supabase/migrations/20261108150000_mir16f_set_member_role_writes_team_role.sql"
+  - "supabase/tests/320-set-member-role-team-role.test.sql"
+  - "supabase/tests/070-definer-callers.test.sql"
+  - "supabase/tests/230-writers-write-membership.test.sql"
+  - "src/lib/data/supabase.ts"
+  - "tests/org-admin-role-mapping.test.ts"
 glossary_owed: []
-schema_delta: "TODO(plan): set at PLAN — set_member_role writes team_role only; member rows with role 'manager' move to 'member'; public.member_role re-created as ('member', 'org_admin'), with member_role_change history decided (ADR-085 decision 2)"
-requires_adr: true    # ADR-085 names the work; the contract is this ticket's PLAN
-rework_count: 0
+schema_delta: "20261108150000_mir16f_set_member_role_writes_team_role.sql — re-creates set_member_role(uuid, public.member_role) so it writes membership.team_role and a member_role_change row, and no longer writes member.role. Same signature; no table, column, enum, policy, trigger, constraint or row change (ADR-086; 01-plan.md § 6)"
+requires_adr: true    # ADR-085 names the work; ADR-086 (written at this PLAN) narrows it
+rework_count: 1
 chat_budget:
   developer->tech-lead-design: { used: 0, max: 6 }
 tracker: { provider: "", external_id: "", sync_enabled: false }
 gates:
-  plan:   { passed: false, at: null }
-  review: { passed: false, at: null }
+  plan:   { passed: true, at: "2026-11-08T01:17:31Z" }
+  review: { passed: true, at: "2026-11-08T01:41:49Z" }
 
 # --- MIR extra fields ---------------------------------------------------------------------------
 mir_phase: 4

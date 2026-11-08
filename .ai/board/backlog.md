@@ -23,6 +23,18 @@ planned, sized, and safe to build** — the next stage for a row here is IN_PROG
 | # | Ticket | Title | Size | Depends on |
 |---|--------|-------|------|------------|
 
+**`MIR-16-f` shipped on 2026-11-08, `state: DONE`.** `features.md` row `MIR-16` left `PLANNED`: its own PLAN split the removal of `'manager'` from the type to a new slice, `MIR-16-g` (still `BACKLOG`), which now owns the shared row's note. Moved to `## ARCHIVE`.
+
+**`MIR-16-f` was at `REVIEW` in `ticket.yaml`, `gates.review` passed** — recorded at /advance on 2026-11-08 from `04-review.md` second pass (`produced_at: 2026-11-08T01:41:03Z`): `gate: PASS`, `verdict: PASS`, `invariant_violation: false`, `route_to: none`. The rework-1 R5 finding is closed. `state` stays `REVIEW`; `/ship` sets `DONE`. There is no row for it in this table (see below).
+
+**`MIR-16-f` was at `REWORK` (routed to `developer`), moved back to `REVIEW`** — recorded at /advance on 2026-11-08 from `03-impl-log.md` rework pass gate PASS (`produced_at: 2026-11-08T08:40:00Z`, fixed the AC-6 regex in `320-set-member-role-team-role.test.sql`). `rework_count` stays `1`, unchanged from the REVIEW routing. There is no row for it in this table (see below); nothing to move.
+
+**`MIR-16-f` was at `REVIEW` in `ticket.yaml`, routed to `REWORK`** — recorded at /advance on 2026-11-08 from `04-review.md` (`produced_at: 2026-11-08T01:32:15Z`): `gate: FAIL`, `verdict: FAIL`, `failed_checks: [R5]`, `invariant_violation: false`, `route_to: developer`, `increments_rework: true`. **§ 4.2 AC-6's assertion doesn't see the pre-ticket body's exact shape** — `supabase/tests/320-set-member-role-team-role.test.sql:161` only matches a quoted literal after `set role =`, missing `set role = p_role`, so it would have passed against the function this ticket replaces. `rework_count` incremented to `1` (RULE-06: `1 < 2`, not escalated). There is no row for it in this table (see below); nothing to move.
+
+**`MIR-16-f` was at `READY` in `ticket.yaml`, moved to `REVIEW`** — recorded at /advance on 2026-11-08 from `03-impl-log.md` gate PASS (`produced_at: 2026-11-08T01:28:26Z`). There is no row for it in this table (see below); nothing to move.
+
+**`MIR-16-f` moved here at /advance on 2026-11-08**, from `01-plan.md` gate PASS (`produced_at: 2026-11-08T01:15:47Z`) with all six Definition of Ready items passing; `schema_delta` cites [ADR-086](../registry/decisions/ADR-086-set-member-role-writes-the-team-role-and-the-manager-value-is-removed-by-a-column-retype.md) (`ACCEPTED by tech-lead-design under the operator's delegation (ADR-067)`), narrowing ADR-085 decision 2 — the removal of `'manager'` from `public.member_role` split to a new slice, `MIR-16-g` (BACKLOG). `MIR-16-f` had no row in `## BACKLOG`, so no row left that table.
+
 **`MIR-16-c` shipped on 2026-11-08, `state: DONE`.** `features.md` row `MIR-16` left `PLANNED`: its own PLAN split the write side and the enum removal to a new slice, `MIR-16-f` (still `BACKLOG`), which now owns the shared row's note. Moved to `## ARCHIVE`.
 
 **`MIR-16-c` was at `REVIEW` in `ticket.yaml`, `gates.review` passed** — recorded at /advance on 2026-11-08 from `04-review.md` (`produced_at: 2026-11-08T08:04:25+07:00`): `gate: PASS`, `verdict: PASS`, `invariant_violation: false`, `route_to: none`. `state` stays `REVIEW`; `/ship` sets `DONE`. There is no row for it in this table (see below).
@@ -1733,26 +1745,28 @@ các tính năng mới và đưa vào backlog"*. The four solo rows registered e
 
 | # | Ticket | Title | Shipped | PR |
 |---|--------|-------|---------|-----|
-| 1 | MIR-13 | The policy layer is rewritten against `membership` and `org_id`, and no definer function trusts a client-supplied team id alone — write slice (ADR-071) | 2026-11-03 | [#185](https://github.com/didi-code0980/calechip/pull/185) |
-| 2 | MIR-13-b | Every read policy and read definer function resolves teams through `member_team_ids` and is bounded by `org_id`, and `getTeam()` and the overload warning survive a member on several teams | 2026-11-03 | [#186](https://github.com/didi-code0980/calechip/pull/186) |
-| 3 | MIR-14 | A multi-team member's entry needs approval if any of their teams requires it, the first decision wins, any rejection rejects, and both approver and rejecter are recorded | 2026-11-03 | [#187](https://github.com/didi-code0980/calechip/pull/187) |
-| 4 | MIR-14-b | Each relevant manager's worklist shows a multi-team member's pending entry with the owner's name and the teams it affects, and the decision records are shown | 2026-11-04 | [#188](https://github.com/didi-code0980/calechip/pull/188) |
-| 5 | MIR-18 | A separate system admin panel, unindexed, with its own account store, 2FA and org management — first slice (ADR-074) | 2026-11-05 | [#189](https://github.com/didi-code0980/calechip/pull/189) |
-| 6 | MIR-18-b | A system admin lists, creates and edits orgs — caps and licence state — from the panel, which is served unindexed at an unguessable path with rate limiting and failed-login logging | 2026-11-05 | [#190](https://github.com/didi-code0980/calechip/pull/190) |
-| 7 | MIR-15 | In Org public, the directory, public events and event notifications stay within the team, only system_admin sets its holidays, and a team can be moved to another org — first slice (ADR-076) | 2026-11-05 | PENDING_PR |
-| 8 | MIR-21 | `member.team_id` is dropped once every reader has moved to `membership` — read slice (ADR-077, roster team) | 2026-11-05 | PENDING_PR |
-| 9 | MIR-21-b | Every writer writes `membership` directly, and the mirror trigger, `member_team_id()` and `member.team_id` are dropped — writer slice (ADR-078; the drop moved to MIR-21-c) | 2026-11-05 | PENDING_PR |
-| 10 | MIR-21-c | The team lock moves to `membership`: a trigger refuses a write to the caller's own rows — team-lock slice (ADR-080; the drop is MIR-21-f) | 2026-11-06 | PENDING_PR |
-| 11 | MIR-15-b | Only a system admin sets Org public's holidays, from the system panel, and each org reads only its own holiday calendar — holiday slice (ADR-079; the member app moved to MIR-15-e) | 2026-11-06 | PENDING_PR |
-| 12 | MIR-15-e | The member app stops offering holiday edits in Org public, and the mock seam reproduces Org public's holiday policies — member slice (ADR-079 decision 5) | 2026-11-06 | PENDING_PR |
-| 13 | MIR-21-d | Writers stop writing `member.team_id`, and no test reads it — writer slice (ADR-080 decision 2; the drop is MIR-21-f) | 2026-11-07 | PENDING_PR |
-| 14 | MIR-21-e | No fixture names `member.team_id`: every fixture writes `membership` itself — fixture slice (ADR-081; the fixtures of 100, 160 and 240 move to MIR-21-f) | 2026-11-07 | PENDING_PR |
-| 15 | MIR-21-f | `member.team_id`, `member_team_id()` and the mirror's insert branch are dropped — drop slice (ADR-080 decision 4, ADR-081) | 2026-11-07 | PENDING_PR |
-| 16 | MIR-16 | The database splits admin into system_admin, org_admin and a per-team manager — first slice: issue reports go to the system panel (ADR-082; `org_admin` is MIR-16-b, `manager` is MIR-16-c) | 2026-11-07 | PENDING_PR |
-| 17 | MIR-16-b | `is_org_admin(uid, org_id)` replaces `is_admin(uid)` at every call site — second slice of the role split (ADR-083; the `org_admin` rename is MIR-16-d) | 2026-11-07 | PENDING_PR |
-| 18 | MIR-16-d | The pgTAP fixtures name the admin role through one helper, `tests.member_role`: the harness and seven files — fixture slice of the role split (ADR-084; the in-place rename is MIR-16-e) | 2026-11-07 | PENDING_PR |
-| 19 | MIR-16-e | The value `admin` is renamed `org_admin` in place: the type, the five bodies, bootstrap, seed, the seam's mapping, and the last five fixtures — rename slice (ADR-084 decision 2) | 2026-11-07 | PENDING_PR |
-| 20 | MIR-16-c | `manager` leaves `member.role`: every manager check reads `membership.team_role` — read slice of the manager rank (ADR-085; the write side and the enum removal move to MIR-16-f) | 2026-11-08 | PENDING_PR |
+| 1 | MIR-13-b | Every read policy and read definer function resolves teams through `member_team_ids` and is bounded by `org_id`, and `getTeam()` and the overload warning survive a member on several teams | 2026-11-03 | [#186](https://github.com/didi-code0980/calechip/pull/186) |
+| 2 | MIR-14 | A multi-team member's entry needs approval if any of their teams requires it, the first decision wins, any rejection rejects, and both approver and rejecter are recorded | 2026-11-03 | [#187](https://github.com/didi-code0980/calechip/pull/187) |
+| 3 | MIR-14-b | Each relevant manager's worklist shows a multi-team member's pending entry with the owner's name and the teams it affects, and the decision records are shown | 2026-11-04 | [#188](https://github.com/didi-code0980/calechip/pull/188) |
+| 4 | MIR-18 | A separate system admin panel, unindexed, with its own account store, 2FA and org management — first slice (ADR-074) | 2026-11-05 | [#189](https://github.com/didi-code0980/calechip/pull/189) |
+| 5 | MIR-18-b | A system admin lists, creates and edits orgs — caps and licence state — from the panel, which is served unindexed at an unguessable path with rate limiting and failed-login logging | 2026-11-05 | [#190](https://github.com/didi-code0980/calechip/pull/190) |
+| 6 | MIR-15 | In Org public, the directory, public events and event notifications stay within the team, only system_admin sets its holidays, and a team can be moved to another org — first slice (ADR-076) | 2026-11-05 | PENDING_PR |
+| 7 | MIR-21 | `member.team_id` is dropped once every reader has moved to `membership` — read slice (ADR-077, roster team) | 2026-11-05 | PENDING_PR |
+| 8 | MIR-21-b | Every writer writes `membership` directly, and the mirror trigger, `member_team_id()` and `member.team_id` are dropped — writer slice (ADR-078; the drop moved to MIR-21-c) | 2026-11-05 | PENDING_PR |
+| 9 | MIR-21-c | The team lock moves to `membership`: a trigger refuses a write to the caller's own rows — team-lock slice (ADR-080; the drop is MIR-21-f) | 2026-11-06 | PENDING_PR |
+| 10 | MIR-15-b | Only a system admin sets Org public's holidays, from the system panel, and each org reads only its own holiday calendar — holiday slice (ADR-079; the member app moved to MIR-15-e) | 2026-11-06 | PENDING_PR |
+| 11 | MIR-15-e | The member app stops offering holiday edits in Org public, and the mock seam reproduces Org public's holiday policies — member slice (ADR-079 decision 5) | 2026-11-06 | PENDING_PR |
+| 12 | MIR-21-d | Writers stop writing `member.team_id`, and no test reads it — writer slice (ADR-080 decision 2; the drop is MIR-21-f) | 2026-11-07 | PENDING_PR |
+| 13 | MIR-21-e | No fixture names `member.team_id`: every fixture writes `membership` itself — fixture slice (ADR-081; the fixtures of 100, 160 and 240 move to MIR-21-f) | 2026-11-07 | PENDING_PR |
+| 14 | MIR-21-f | `member.team_id`, `member_team_id()` and the mirror's insert branch are dropped — drop slice (ADR-080 decision 4, ADR-081) | 2026-11-07 | PENDING_PR |
+| 15 | MIR-16 | The database splits admin into system_admin, org_admin and a per-team manager — first slice: issue reports go to the system panel (ADR-082; `org_admin` is MIR-16-b, `manager` is MIR-16-c) | 2026-11-07 | PENDING_PR |
+| 16 | MIR-16-b | `is_org_admin(uid, org_id)` replaces `is_admin(uid)` at every call site — second slice of the role split (ADR-083; the `org_admin` rename is MIR-16-d) | 2026-11-07 | PENDING_PR |
+| 17 | MIR-16-d | The pgTAP fixtures name the admin role through one helper, `tests.member_role`: the harness and seven files — fixture slice of the role split (ADR-084; the in-place rename is MIR-16-e) | 2026-11-07 | PENDING_PR |
+| 18 | MIR-16-e | The value `admin` is renamed `org_admin` in place: the type, the five bodies, bootstrap, seed, the seam's mapping, and the last five fixtures — rename slice (ADR-084 decision 2) | 2026-11-07 | PENDING_PR |
+| 19 | MIR-16-c | `manager` leaves `member.role`: every manager check reads `membership.team_role` — read slice of the manager rank (ADR-085; the write side and the enum removal move to MIR-16-f) | 2026-11-08 | PENDING_PR |
+| 20 | MIR-16-f | `set_member_role` writes the team role, not `member.role` — write slice of the manager rank (ADR-086; the column retype and enum removal move to MIR-16-g) | 2026-11-08 | PENDING_PR |
+
+**The window displaced `MIR-13` at MIR-16-f's ship** — *MIR-13, The policy layer is rewritten against `membership` and `org_id`, and no definer function trusts a client-supplied team id alone — write slice (ADR-071), shipped 2026-11-03,* [#185](https://github.com/didi-code0980/calechip/pull/185).
 
 **The window displaced `MIR-12` at MIR-16-c's ship** — *MIR-12, `org_id` is added and backfilled into Org public, `membership` is backfilled from `member.team_id`, and `member.team_id` is dropped last, shipped 2026-11-01,* PENDING_PR.
 

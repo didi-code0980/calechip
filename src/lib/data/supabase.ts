@@ -1237,7 +1237,10 @@ async function setRankThroughRpc(
   if (error) return { ok: false, error: toRankFailure(error, refusal) };
   if (!isMemberRow(data)) return { ok: false, error: { code: "unknown", message: refusal } };
 
-  return { ok: true, value: toMember(data) };
+  // MIR-16-f, ADR-086 decision 3. The rank was written to `membership.team_role` by this call; the
+  // computed field read over the returned row may see the statement's starting snapshot, so the
+  // rank the call set is the answer.
+  return { ok: true, value: { ...toMember(data), role } };
 }
 
 /**

@@ -131,8 +131,8 @@ select is(public.guest_link_event_id(repeat('b', 64)), tests.id('event_u'),
           'AC-13 control: member_u guest_link_event_id(event_u''s token) is event_u');
 select tests.clear_authentication();
 
-select is((select role::text from public.member where id = tests.id('member_t')), 'manager',
-          'AC-13 control: the set_member_role control wrote member_t');
+select is(public.member_roster_team_role(tests.id('member_t')), 'manager'::public.team_role,
+          'AC-13 control: the set_member_role control wrote member_t''s team role — MIR-16-f');
 
 select * from finish();
 rollback;

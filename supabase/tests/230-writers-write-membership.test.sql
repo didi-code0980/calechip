@@ -311,7 +311,8 @@ select is(tests.m21b_drift(), 0::bigint, 'AC-9: no drift and no mirror violation
 -- AC-5. A rank change writes the primary row's team role.
 -- ---------------------------------------------------------------------------------------------
 select tests.authenticate_as(tests.m21b('a'));
-select is(s.role::text, 'manager', 'AC-5: set_member_role(R, manager) returns R as manager')
+select is(s.role::text, 'member',
+          'AC-5: set_member_role(R, manager) leaves R''s member.role at member — MIR-16-f')
   from public.set_member_role(tests.m21b('r'), 'manager') s;
 select tests.clear_authentication();
 select is(
