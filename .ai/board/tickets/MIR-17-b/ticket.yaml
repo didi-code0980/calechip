@@ -8,7 +8,7 @@ id: MIR-17-b
 title: "Client role checks take a team, the remaining admin-only guards are replaced, and the router gains role guards"
 feature_ids: [MIR-17]   # split of MIR-17 (operating model § ID scheme: splits get -a, -b)
 group: MIR
-state: REVIEW
+state: DONE
 owner: ""
 branch: ""
 size_estimate: "M"   # S|M - set by tech-lead-design at PLAN; gates DoR
