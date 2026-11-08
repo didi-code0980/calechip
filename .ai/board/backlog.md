@@ -23,6 +23,8 @@ planned, sized, and safe to build** — the next stage for a row here is IN_PROG
 | # | Ticket | Title | Size | Depends on |
 |---|--------|-------|------|------------|
 
+**`MIR-17-b` moved here at /advance on 2026-11-08**, from `01-plan.md` gate PASS (`produced_at: 2026-11-08T11:19:56Z`) with all six Definition of Ready items passing; `schema_delta: none` (confirmed at PLAN, client and one vitest). PLAN wrote a new ADR, [ADR-089](../registry/decisions/ADR-089-the-admin-screen-guards-go-through-the-role-helpers-first-and-the-rest-of-p4-2-is-mir-17-c.md) (`ACCEPTED by tech-lead-design under the operator's delegation (ADR-067)`), splitting the remainder of plan item P4-2 to a new slice, `MIR-17-c` (BACKLOG) — the second successive split (ADR-088, ADR-089). `MIR-17-b` had no row in `## BACKLOG`, so no row left that table.
+
 **`MIR-17` shipped on 2026-11-08, `state: DONE`.** `features.md` row `MIR-17` left `PLANNED`: its own PLAN split the rest of plan item P4-2 to a new slice, `MIR-17-b` (still `BACKLOG`), which now owns the shared row's note. Moved to `## ARCHIVE`.
 
 **`MIR-17` was at `REVIEW` in `ticket.yaml`, `gates.review` passed** — recorded at /advance on 2026-11-08 from `04-review.md` (`produced_at: 2026-11-08T07:36:34Z`): `gate: PASS`, `verdict: PASS`, `invariant_violation: false`, `route_to: none`. `state` stays `REVIEW`; `/ship` sets `DONE`. There is no row for it in this table (see below).
