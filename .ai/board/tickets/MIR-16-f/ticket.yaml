@@ -9,7 +9,7 @@ id: MIR-16-f
 title: "`'manager'` leaves `public.member_role`: `set_member_role` writes `team_role` only, manager rows move to `member`, and the type is re-created"
 feature_ids: [MIR-16]   # split of MIR-16 (operating model § ID scheme: splits get -a, -b)
 group: MIR
-state: READY
+state: REVIEW
 owner: ""
 branch: ""
 size_estimate: "M"   # S|M - set by tech-lead-design at PLAN; gates DoR

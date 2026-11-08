@@ -71,3 +71,13 @@ describe("MIR-16-c: appRole reads the manager rank from the roster team role", (
     expect(memberRow).toContain('team_role: "member" | "manager" | null;');
   });
 });
+
+describe("MIR-16-f: setRankThroughRpc returns the rank it set, not a possibly-stale read", () => {
+  it("AC-8: the success return overrides role with the requested rank", () => {
+    const start = source.indexOf("async function setRankThroughRpc");
+    expect(start).toBeGreaterThan(-1);
+    const end = source.indexOf("\n}", start);
+    const body = source.slice(start, end < 0 ? undefined : end);
+    expect(body).toContain("value: { ...toMember(data), role }");
+  });
+});
