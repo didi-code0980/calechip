@@ -51,7 +51,7 @@ insert into auth.users (id, email) values
   (tests.m16b('sam'), 'sam@mir16b-280.test');
 
 insert into public.member (id, org_id, display_name, avatar, role, status, email) values
-  (tests.m16b('dora'), tests.m16b('org_d'), 'Dora', '1.png', 'admin', 'approved', 'dora@mir16b-280.test'),
+  (tests.m16b('dora'), tests.m16b('org_d'), 'Dora', '1.png', tests.member_role('admin'), 'approved', 'dora@mir16b-280.test'),
   (tests.m16b('dan'), tests.m16b('org_d'), 'Dan', '1.png', 'member', 'approved', 'dan@mir16b-280.test'),
   (tests.m16b('pia'), tests.m16b('org_d'), 'Pia', '1.png', 'member', 'pending', 'pia@mir16b-280.test');
 select tests.put_on_team(tests.m16b('dora'), tests.m16b('team_d1'));
