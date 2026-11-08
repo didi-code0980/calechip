@@ -39,7 +39,6 @@ select set_eq(
     'public.guest_link_event_id(text)',
     -- predicates, covered by the anon check below
     'public.is_org_admin(uuid,uuid)',
-    'public.may_decide(uuid)',
     'public.is_event_invitee(uuid,uuid)',
     'public.may_manage_event(uuid,uuid)',
     'public.event_registration_open(uuid)',
@@ -54,6 +53,9 @@ select set_eq(
     'public.shares_active_team(uuid,uuid)',
     -- MIR-21 helper, 220-roster-team-from-membership.test.sql
     'public.member_roster_team_id(uuid)',
+    -- MIR-16-c helper, 310-manager-read-from-membership.test.sql. roster_team_role(public.member)
+    -- is invoker and is not a security definer, so it is not in this census.
+    'public.member_roster_team_role(uuid)',
     -- MIR-14 helper, 170-multi-team-decisions.test.sql
     'public.may_decide_entry(uuid,uuid)',
     -- MIR-14-b RPC, 180-entry-owners.test.sql

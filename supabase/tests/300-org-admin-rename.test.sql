@@ -2,13 +2,17 @@
 -- function bodies that spelled it (ADR-084 decision 2; 01-plan.md § 2, § 4.2). AC-9 and AC-10 are
 -- observed against the member seam's source and are not run here (01-plan.md § 2).
 --
+-- MIR-16-c retired `public.may_decide(uuid)` (ADR-085 decision 1). The AC-7 section this file once
+-- had, asserting `may_decide` admits an org admin and a manager, is gone with it; the per-team
+-- decider is asserted at 310-manager-read-from-membership.test.sql AC-7.
+--
 -- Fixture: `tests.seed()` only. Ada is `admin_t`, an approved admin of Org public on Team T; Mona is
 -- `manager_t`; Thanh is `member_t`, both on Team T; `member_t2` is a second member on Team T.
 \set ON_ERROR_STOP 1
 begin;
 \ir _isolation.psql
 set local search_path = extensions, public;
-select plan(20);
+select plan(17);
 select tests.seed();
 
 -- ---------------------------------------------------------------------------------------------
@@ -79,13 +83,6 @@ select throws_ok(
 select tests.clear_authentication();
 select is((select role::text from public.member where id = tests.id('member_t')), 'member',
   'AC-6: Thanh''s role is unchanged after the refusal');
-
--- ---------------------------------------------------------------------------------------------
--- AC-7. `may_decide` still admits an org admin and a manager.
--- ---------------------------------------------------------------------------------------------
-select is(public.may_decide(tests.id('admin_t')), true, 'AC-7: may_decide(Ada) is true');
-select is(public.may_decide(tests.id('manager_t')), true, 'AC-7: may_decide(Mona) is true');
-select is(public.may_decide(tests.id('member_t')), false, 'AC-7: may_decide(Thanh) is false');
 
 -- ---------------------------------------------------------------------------------------------
 -- AC-8. No public function body spells the old value.

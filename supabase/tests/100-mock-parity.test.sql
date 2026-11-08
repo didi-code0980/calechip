@@ -6,10 +6,14 @@
 -- side that moves without the other fails its own suite (01-plan.md § 2, assumption 3).
 --
 -- Every expected value is written by hand from the SQL definitions — `public.is_admin`,
--- `public.member_primary_team_id` (`20261103120000_mir13_write_path_org_bound.sql:54-64`), `public.may_decide`
--- (`20260912100000_solo_manager_role.sql:55-64`), and for the own-row writes the grant, the revoke
--- and the trigger of `20261020120000_mir02_member_self_writes.sql` with `member_update_own`
+-- `public.member_primary_team_id` (`20261103120000_mir13_write_path_org_bound.sql:54-64`), and for
+-- the own-row writes the grant, the revoke and the trigger of
+-- `20261020120000_mir02_member_self_writes.sql` with `member_update_own`
 -- (`20260910093000_solo_profile_self_update.sql:66-69`). Never computed, in either test.
+--
+-- MIR-16-c retired `public.may_decide(uuid)` (ADR-085 decision 1): the SQL-side assertion of the
+-- `may_decide` predicate is gone, but the JSON document below keeps the `may_decide` field — it is
+-- the mock's predicate, and the mock side is the document's other reader.
 --
 -- The marker appears exactly twice in this file — at the opening and the closing of the literal —
 -- and the vitest side asserts that; do not write it anywhere else, comments included.
@@ -97,7 +101,8 @@ create temp table parity as select $parity$
 }
 $parity$::jsonb as doc;
 
-select plan(144);   -- 36 predicate rows x 3, and 36 own-row writes
+select plan(108);   -- 36 predicate rows x 2, and 36 own-row writes. MIR-16-c dropped the
+                     -- may_decide assertion each predicate row carried (was x3, plan(144)).
 select tests.seed();   -- for team_t and team_u only
 
 -- A case id to its subject's id: P-NN is ...7000+NN, U-NN is ...7100+NN. Every case has a row of
@@ -206,9 +211,6 @@ select is(public.is_org_admin(tests.parity_id(c->>'id'), public.member_org_id(te
   from parity, jsonb_array_elements(doc->'predicates') c;
 select is(public.member_primary_team_id(tests.parity_id(c->>'id')) is not null, (c->>'has_team')::boolean,
           format('AC-5 %s: member_primary_team_id is not null', c->>'id'))
-  from parity, jsonb_array_elements(doc->'predicates') c;
-select is(public.may_decide(tests.parity_id(c->>'id')), (c->>'may_decide')::boolean,
-          format('AC-5 %s: may_decide', c->>'id'))
   from parity, jsonb_array_elements(doc->'predicates') c;
 
 -- AC-6. Each subject writes one column of their own row, as `authenticated`.

@@ -19,9 +19,9 @@ describe("MIR-16-e: the member seam maps org_admin to the application's admin, b
     expect(match).not.toBeNull();
   });
 
-  it("AC-9: toMember's role: uses fromDbRole(", () => {
+  it("AC-9: toMember's role: uses appRole(row)", () => {
     const toMember = source.slice(source.indexOf("function toMember"));
-    expect(toMember.slice(0, toMember.indexOf("}"))).toContain("role: fromDbRole(row.role)");
+    expect(toMember.slice(0, toMember.indexOf("}"))).toContain("role: appRole(row)");
   });
 
   it("AC-10: the set_member_role rpc statement passes p_role: toDbRole(", () => {
@@ -45,5 +45,29 @@ describe("MIR-16-e: the member seam maps org_admin to the application's admin, b
       source.indexOf("}", source.indexOf("interface MemberRow")),
     );
     expect(memberRow).toContain("role: DbMemberRole;");
+  });
+});
+
+describe("MIR-16-c: appRole reads the manager rank from the roster team role", () => {
+  it("AC-8: appRole is declared with fromDbRole(row.role) on the org_admin arm and " +
+    "row.team_role === \"manager\" otherwise", () => {
+    const match = source.match(
+      /const appRole = \(row: MemberRow\): MemberRole =>\s*\n\s*row\.role === "org_admin" \? fromDbRole\(row\.role\) : row\.team_role === "manager" \? "manager" : "member";/,
+    );
+    expect(match).not.toBeNull();
+  });
+
+  it("AC-8: MEMBER_COLUMNS contains team_role:roster_team_role", () => {
+    const columnsMatch = source.match(/const MEMBER_COLUMNS\s*=\s*"([^"]*)"/);
+    expect(columnsMatch).not.toBeNull();
+    expect(columnsMatch![1]).toContain("team_role:roster_team_role");
+  });
+
+  it("MemberRow declares team_role", () => {
+    const memberRow = source.slice(
+      source.indexOf("interface MemberRow"),
+      source.indexOf("}", source.indexOf("interface MemberRow")),
+    );
+    expect(memberRow).toContain('team_role: "member" | "manager" | null;');
   });
 });
