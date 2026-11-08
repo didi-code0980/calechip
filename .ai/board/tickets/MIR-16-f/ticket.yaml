@@ -9,7 +9,7 @@ id: MIR-16-f
 title: "`'manager'` leaves `public.member_role`: `set_member_role` writes `team_role` only, manager rows move to `member`, and the type is re-created"
 feature_ids: [MIR-16]   # split of MIR-16 (operating model § ID scheme: splits get -a, -b)
 group: MIR
-state: REVIEW
+state: REWORK
 owner: ""
 branch: ""
 size_estimate: "M"   # S|M - set by tech-lead-design at PLAN; gates DoR
@@ -29,7 +29,7 @@ allowed_paths:
 glossary_owed: []
 schema_delta: "20261108150000_mir16f_set_member_role_writes_team_role.sql — re-creates set_member_role(uuid, public.member_role) so it writes membership.team_role and a member_role_change row, and no longer writes member.role. Same signature; no table, column, enum, policy, trigger, constraint or row change (ADR-086; 01-plan.md § 6)"
 requires_adr: true    # ADR-085 names the work; ADR-086 (written at this PLAN) narrows it
-rework_count: 0
+rework_count: 1
 chat_budget:
   developer->tech-lead-design: { used: 0, max: 6 }
 tracker: { provider: "", external_id: "", sync_enabled: false }

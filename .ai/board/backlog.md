@@ -23,6 +23,8 @@ planned, sized, and safe to build** — the next stage for a row here is IN_PROG
 | # | Ticket | Title | Size | Depends on |
 |---|--------|-------|------|------------|
 
+**`MIR-16-f` was at `REVIEW` in `ticket.yaml`, routed to `REWORK`** — recorded at /advance on 2026-11-08 from `04-review.md` (`produced_at: 2026-11-08T01:32:15Z`): `gate: FAIL`, `verdict: FAIL`, `failed_checks: [R5]`, `invariant_violation: false`, `route_to: developer`, `increments_rework: true`. **§ 4.2 AC-6's assertion doesn't see the pre-ticket body's exact shape** — `supabase/tests/320-set-member-role-team-role.test.sql:161` only matches a quoted literal after `set role =`, missing `set role = p_role`, so it would have passed against the function this ticket replaces. `rework_count` incremented to `1` (RULE-06: `1 < 2`, not escalated). There is no row for it in this table (see below); nothing to move.
+
 **`MIR-16-f` was at `READY` in `ticket.yaml`, moved to `REVIEW`** — recorded at /advance on 2026-11-08 from `03-impl-log.md` gate PASS (`produced_at: 2026-11-08T01:28:26Z`). There is no row for it in this table (see below); nothing to move.
 
 **`MIR-16-f` moved here at /advance on 2026-11-08**, from `01-plan.md` gate PASS (`produced_at: 2026-11-08T01:15:47Z`) with all six Definition of Ready items passing; `schema_delta` cites [ADR-086](../registry/decisions/ADR-086-set-member-role-writes-the-team-role-and-the-manager-value-is-removed-by-a-column-retype.md) (`ACCEPTED by tech-lead-design under the operator's delegation (ADR-067)`), narrowing ADR-085 decision 2 — the removal of `'manager'` from `public.member_role` split to a new slice, `MIR-16-g` (BACKLOG). `MIR-16-f` had no row in `## BACKLOG`, so no row left that table.
