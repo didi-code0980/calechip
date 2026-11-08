@@ -23,6 +23,8 @@ planned, sized, and safe to build** — the next stage for a row here is IN_PROG
 | # | Ticket | Title | Size | Depends on |
 |---|--------|-------|------|------------|
 
+**`MIR-16-h` was at `READY` in `ticket.yaml`, moved to `REVIEW`** — recorded at /advance on 2026-11-08 from `03-impl-log.md` gate PASS (`produced_at: 2026-11-08T06:37:56Z`). There is no row for it in this table (see below); nothing to move.
+
 **`MIR-16-h` moved here at /advance on 2026-11-08**, from `01-plan.md` gate PASS (`produced_at: 2026-11-08T06:29:59Z`) with all six Definition of Ready items passing; `schema_delta` cites ADR-086 decision 2 and ADR-087 decision 2 (both already `ACCEPTED by tech-lead-design under the operator's delegation (ADR-067)`), and this PLAN wrote no further-splitting ADR. `MIR-16-h` had no row in `## BACKLOG`, so no row left that table.
 
 **`MIR-16-g` shipped on 2026-11-08, `state: DONE`.** `features.md` row `MIR-16` left `PLANNED`: its own PLAN split the type change to a new slice, `MIR-16-h` (still `BACKLOG`), which now owns the shared row's note. Moved to `## ARCHIVE`.

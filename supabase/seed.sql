@@ -484,10 +484,11 @@ on conflict (id) do nothing;
 -- MIR-21-e (ADR-080 decision 3). The rows the mirror's INSERT branch wrote while the member inserts
 -- above named their team, with the same values (20261105210000_mir21b_writers_write_membership.sql
 -- :348-362). Before the entries below: their stamp reads the author's primary team from here.
+-- MIR-16-h: `member.role` no longer carries `manager` for anybody, so this seed holds no manager —
+-- every seeded member here gets team_role 'member'.
 insert into public.membership (org_id, team_id, member_id, team_role, is_primary, joined_at, left_at)
 select m.org_id, v.team_id, m.id,
-       case when m.role = 'manager'::public.member_role
-            then 'manager'::public.team_role else 'member'::public.team_role end,
+       'member'::public.team_role,
        m.removed_at is null,
        m.created_at,
        case when m.removed_at is null then null else greatest(m.removed_at, m.created_at) end

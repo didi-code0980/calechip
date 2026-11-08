@@ -24,8 +24,8 @@ select ok(
 -- AC-2: the database value for each application role word.
 select is(tests.member_role('member'), 'member'::public.member_role,
   'AC-2: member maps to member');
-select is(tests.member_role('manager'), 'manager'::public.member_role,
-  'AC-2: manager maps to manager');
+select is(tests.member_role('manager'), 'member'::public.member_role,
+  'AC-2: manager maps to member — a team role since MIR-16-h');
 select ok(tests.member_role(null) is null,
   'AC-2: null maps to null');
 select throws_ok($$select tests.member_role('owner')$$, '22P02', null,

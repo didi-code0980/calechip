@@ -37,7 +37,7 @@ insert into public.entry (id, member_id, type, portion, start_date, end_date) va
 -- ---------------------------------------------------------------------------------------------
 select tests.authenticate_as(tests.id('admin_t'));
 select results_eq(
-  format('select id from public.set_member_role(%L::uuid, %L::public.member_role)',
+  format('select id from public.set_member_role(%L::uuid, %L)',
          tests.id('member_t'), 'manager'),
   format('values (%L::uuid)', tests.id('member_t')),
   'AC-1: Ada calling set_member_role(Thanh, manager) succeeds and returns Thanh''s row');
@@ -68,7 +68,7 @@ select results_eq(
 -- ---------------------------------------------------------------------------------------------
 select tests.authenticate_as(tests.id('admin_t'));
 select results_eq(
-  format('select id from public.set_member_role(%L::uuid, %L::public.member_role)',
+  format('select id from public.set_member_role(%L::uuid, %L)',
          tests.id('manager_t'), 'member'),
   format('values (%L::uuid)', tests.id('manager_t')),
   'AC-3: Ada calling set_member_role(Mona, member) succeeds and returns Mona''s row');
@@ -100,7 +100,7 @@ select (select count(*)::int from public.member_role_change where member_id = te
 
 select tests.authenticate_as(tests.id('admin_t'));
 select results_eq(
-  format('select id from public.set_member_role(%L::uuid, %L::public.member_role)',
+  format('select id from public.set_member_role(%L::uuid, %L)',
          tests.id('member_t'), 'manager'),
   format('values (%L::uuid)', tests.id('member_t')),
   'AC-4: Ada calling set_member_role(Thanh, manager) again succeeds and returns Thanh''s row');
@@ -123,26 +123,26 @@ select (select md5(ms::text) from public.membership ms
 
 select tests.authenticate_as(tests.id('admin_t'));
 select throws_ok(
-  format('select public.set_member_role(%L::uuid, %L::public.member_role)',
+  format('select public.set_member_role(%L::uuid, %L)',
          tests.id('member_t'), 'org_admin'),
   '42501', null, 'AC-5: Ada calling set_member_role(Thanh, org_admin) raises 42501');
 select tests.clear_authentication();
 
 select tests.authenticate_as(tests.id('member_t'));
 select throws_ok(
-  format('select public.set_member_role(%L::uuid, %L::public.member_role)',
+  format('select public.set_member_role(%L::uuid, %L)',
          tests.id('manager_t'), 'member'),
   '42501', null, 'AC-5: Thanh calling set_member_role(Mona, member) raises 42501');
 select tests.clear_authentication();
 
 select tests.authenticate_as(tests.id('admin_t'));
 select throws_ok(
-  format('select public.set_member_role(%L::uuid, %L::public.member_role)',
+  format('select public.set_member_role(%L::uuid, %L)',
          tests.m16f('una'), 'manager'),
   '42501', null,
   'AC-5: Ada calling set_member_role(Una, manager) raises 42501 (a team Ada does not share)');
 select throws_ok(
-  format('select public.set_member_role(%L::uuid, %L::public.member_role)',
+  format('select public.set_member_role(%L::uuid, %L)',
          tests.id('admin_t'), 'member'),
   '42501', null, 'AC-5: Ada calling set_member_role on herself raises 42501');
 select tests.clear_authentication();
