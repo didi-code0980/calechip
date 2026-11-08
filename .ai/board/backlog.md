@@ -23,6 +23,8 @@ planned, sized, and safe to build** — the next stage for a row here is IN_PROG
 | # | Ticket | Title | Size | Depends on |
 |---|--------|-------|------|------------|
 
+**`MIR-16-f` was at `REVIEW` in `ticket.yaml`, `gates.review` passed** — recorded at /advance on 2026-11-08 from `04-review.md` second pass (`produced_at: 2026-11-08T01:41:03Z`): `gate: PASS`, `verdict: PASS`, `invariant_violation: false`, `route_to: none`. The rework-1 R5 finding is closed. `state` stays `REVIEW`; `/ship` sets `DONE`. There is no row for it in this table (see below).
+
 **`MIR-16-f` was at `REWORK` (routed to `developer`), moved back to `REVIEW`** — recorded at /advance on 2026-11-08 from `03-impl-log.md` rework pass gate PASS (`produced_at: 2026-11-08T08:40:00Z`, fixed the AC-6 regex in `320-set-member-role-team-role.test.sql`). `rework_count` stays `1`, unchanged from the REVIEW routing. There is no row for it in this table (see below); nothing to move.
 
 **`MIR-16-f` was at `REVIEW` in `ticket.yaml`, routed to `REWORK`** — recorded at /advance on 2026-11-08 from `04-review.md` (`produced_at: 2026-11-08T01:32:15Z`): `gate: FAIL`, `verdict: FAIL`, `failed_checks: [R5]`, `invariant_violation: false`, `route_to: developer`, `increments_rework: true`. **§ 4.2 AC-6's assertion doesn't see the pre-ticket body's exact shape** — `supabase/tests/320-set-member-role-team-role.test.sql:161` only matches a quoted literal after `set role =`, missing `set role = p_role`, so it would have passed against the function this ticket replaces. `rework_count` incremented to `1` (RULE-06: `1 < 2`, not escalated). There is no row for it in this table (see below); nothing to move.
