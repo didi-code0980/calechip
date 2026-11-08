@@ -965,6 +965,11 @@ type DbMemberRole = "member" | "manager" | "org_admin";
 const fromDbRole = (role: DbMemberRole): MemberRole => (role === "org_admin" ? "admin" : role);
 const toDbRole = (role: MemberRole): DbMemberRole => (role === "admin" ? "org_admin" : role);
 
+/** MIR-16-c, ADR-085 decision 1. The application's one role per person: org_admin from
+ *  `member.role`, manager from the roster team's `team_role`, member otherwise. */
+const appRole = (row: MemberRow): MemberRole =>
+  row.role === "org_admin" ? fromDbRole(row.role) : row.team_role === "manager" ? "manager" : "member";
+
 // The `member` row as PostgREST returns it: snake_case, straight off the column names in
 // supabase/migrations. This file is the only place the database casing and the domain casing meet
 // (.ai/standards/architecture.md, "Layers" — code above the seam never sees a column name).
@@ -974,6 +979,7 @@ interface MemberRow {
   display_name: string;
   avatar: string;
   role: DbMemberRole;
+  team_role: "member" | "manager" | null;
   status: MemberStatus;
   email: string | null;
   last_sign_in_at: string | null;
@@ -989,7 +995,7 @@ interface MemberRow {
 // `MemberRow` and `toMember` are unchanged: the roster team read from `membership`, which equals the
 // column under ADR-071's mirror. The bare column is no longer read, so MIR-21-b can drop it.
 const MEMBER_COLUMNS =
-  "id, team_id:roster_team_id, display_name, avatar, role, status, email, last_sign_in_at, removed_at, created_at";
+  "id, team_id:roster_team_id, display_name, avatar, role, team_role:roster_team_role, status, email, last_sign_in_at, removed_at, created_at";
 
 function toMember(row: MemberRow): Member {
   return {
@@ -997,7 +1003,7 @@ function toMember(row: MemberRow): Member {
     teamId: row.team_id,
     displayName: row.display_name,
     avatar: row.avatar,
-    role: fromDbRole(row.role),
+    role: appRole(row),
     status: row.status,
     email: row.email,
     lastSignInAt: row.last_sign_in_at,
