@@ -29,6 +29,7 @@ import { seam } from "@/lib/data";
 // same number by construction rather than by agreement.
 import { currentMemberCount } from "@/lib/data/absence";
 import type { Failure, Member, Result, Team } from "@/lib/domain/types";
+import { mayAdminister, ROLE_LABELS } from "@/lib/roles";
 import Loader from "@/components/Loader";
 import Avatar from "@/components/Avatar";
 
@@ -78,7 +79,7 @@ export default function Teams() {
 
       // Fails CLOSED, as every admin screen here does. The functions would answer a member with two
       // empty sets anyway; refusing in place says why instead of drawing "0 teams".
-      if (!me || me.role !== "admin") {
+      if (!me || !mayAdminister(me.role)) {
         setView({ phase: "refused" });
         return;
       }
@@ -334,7 +335,7 @@ export default function Teams() {
                         {person.id === me.id ? " (you)" : ""}
                       </span>
                       <span className="text-xs text-ink-3">
-                        {person.role === "admin" ? "Admin" : "Member"}
+                        {ROLE_LABELS[person.role]}
                       </span>
 
                       {/* THE MOVE. A select whose value is the team the person is on; choosing another

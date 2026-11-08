@@ -29,6 +29,7 @@ import { useCallback, useEffect, useState } from "react";
 // never import `@/lib/data/supabase` or `@/lib/data/mock` (RULE-02).
 import { seam } from "@/lib/data";
 import type { Failure, Member, Team } from "@/lib/domain/types";
+import { mayAdminister } from "@/lib/roles";
 // SOLO, 2026-09-11 — the loading mark that replaced this screen's "Loading…" sentence. The
 // sentence itself is still announced: `Loader.tsx` keeps it as `sr-only` text, because the element
 // below carries `role="status"` and an emptied one announces nothing.
@@ -73,7 +74,7 @@ export default function NewSignups() {
       // The refusal fails CLOSED, which is what `AllowList.tsx` and `TeamEntries.tsx` both chose for
       // the same fork: the alternative is drawing a queue of strangers' names to somebody the seam
       // has told us nothing about.
-      if (!me || me.role !== "admin") {
+      if (!me || !mayAdminister(me.role)) {
         setView({ phase: "refused" });
         return;
       }

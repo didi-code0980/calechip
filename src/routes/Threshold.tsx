@@ -46,6 +46,7 @@ import { useCallback, useEffect, useState } from "react";
 // never import `@/lib/data/supabase` or `@/lib/data/mock`.
 import { seam } from "@/lib/data";
 import type { Failure, Member, Team } from "@/lib/domain/types";
+import { mayAdminister } from "@/lib/roles";
 // SOLO, 2026-09-11. INV-04's denominator, imported rather than counted here: the member count this
 // screen shows and the `N` in the week view's `0/4` must be the same number, and `absence.ts` is the
 // one place that decides what "currently a member" means (ADR-013's removed-member rule).
@@ -122,7 +123,7 @@ export default function Threshold() {
       // a caller with no session all land here and are told the same thing. Distinguishing them
       // would tell somebody outside the team that a team exists and has a threshold, which is the
       // half of AC-6 that is about disclosure rather than about display.
-      if (!me || me.role !== "admin") {
+      if (!me || !mayAdminister(me.role)) {
         setView({ phase: "refused" });
         return;
       }

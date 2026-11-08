@@ -57,7 +57,7 @@ import { Outlet, useOutletContext } from "react-router-dom";
 // never import `@/lib/data/supabase` or `@/lib/data/mock` (RULE-02).
 import { seam } from "@/lib/data";
 import type { MemberRole } from "@/lib/domain/types";
-import { mayDecide } from "@/lib/roles";
+import { mayAdminister, mayDecide } from "@/lib/roles";
 import AdminTabs, { type AdminBadge } from "./AdminTabs";
 import type { ShellContext } from "./AppShell";
 
@@ -140,7 +140,7 @@ export default function AdminLayout({ role }: AdminLayoutProps) {
    * independence argument no longer applies to anything.
    */
   const refreshBadges = useCallback((): void => {
-    if (role !== "admin") {
+    if (role === null || !mayAdminister(role)) {
       setBadges({ openSignups: null });
       return;
     }

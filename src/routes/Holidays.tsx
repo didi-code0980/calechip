@@ -45,6 +45,7 @@ import HolidayForm, { EFFECT_LABEL, type HolidayFormValues } from "@/components/
 // never import `./supabase` or `./mock` (RULE-02).
 import { seam } from "@/lib/data";
 import type { DateRange, Failure, Holiday, Member } from "@/lib/domain/types";
+import { mayAdminister } from "@/lib/roles";
 // SOLO, 2026-09-11 — the loading mark that replaced this screen's "Loading…" sentence. The
 // sentence itself is still announced: `Loader.tsx` keeps it as `sr-only` text, because the element
 // below carries `role="status"` and an emptied one announces nothing.
@@ -178,7 +179,7 @@ export default function Holidays() {
     // rather than a guess, so a failed read shows no control and no system-admin line, never three
     // controls the database would refuse.
     let orgShared: OrgShared;
-    if (me?.role === "admin") {
+    if (me !== null && mayAdminister(me.role)) {
       try {
         orgShared = (await seam.isOwnOrgShared()) ? "yes" : "no";
       } catch {
@@ -272,7 +273,7 @@ export default function Holidays() {
   // `holiday_insert_admin`'s, `holiday_update_admin`'s and `holiday_delete_admin`'s own
   // `and not public.org_is_shared(org_id)` conjunct.
   const mayWrite =
-    me !== null && me.removedAt === null && me.role === "admin" && orgShared === "no";
+    me !== null && me.removedAt === null && mayAdminister(me.role) && orgShared === "no";
 
   // AC-1, AC-2. The add form's own handler. The seam returns the stored row, so the year it landed
   // in is read back from the datastore rather than assumed to be the one on screen (AC-4).
@@ -352,7 +353,7 @@ export default function Holidays() {
 
       {/* MIR-15-e AC-2. Exactly where the Add form sits for a writing admin, so an Org public
           admin sees this line in the place they would look for the control they do not have. */}
-      {me?.role === "admin" && orgShared === "yes" ? (
+      {me !== null && mayAdminister(me.role) && orgShared === "yes" ? (
         <p data-testid="holidays-set-by-system" className="text-sm opacity-70">
           Org public&rsquo;s holiday calendar is set by a system admin.
         </p>
