@@ -48,27 +48,28 @@ describe("MIR-16-e: the member seam maps org_admin to the application's admin, b
   });
 });
 
-describe("MIR-16-c: appRole reads the manager rank from the roster team role", () => {
-  it("AC-8: appRole is declared with fromDbRole(row.role) on the org_admin arm and " +
-    "row.team_role === \"manager\" otherwise", () => {
+describe("MIR-17-d AC-6: appRole reads the manager rank from manages_a_team", () => {
+  it("AC-6: appRole is declared with fromDbRole(row.role) on the org_admin arm and " +
+    "row.manages_a_team ? \"manager\" : \"member\" otherwise", () => {
     const match = source.match(
-      /const appRole = \(row: MemberRow\): MemberRole =>\s*\n\s*row\.role === "org_admin" \? fromDbRole\(row\.role\) : row\.team_role === "manager" \? "manager" : "member";/,
+      /const appRole = \(row: MemberRow\): MemberRole =>\s*\n\s*row\.role === "org_admin" \? fromDbRole\(row\.role\) : row\.manages_a_team \? "manager" : "member";/,
     );
     expect(match).not.toBeNull();
   });
 
-  it("AC-8: MEMBER_COLUMNS contains team_role:roster_team_role", () => {
+  it("AC-6: MEMBER_COLUMNS contains manages_a_team and not roster_team_role", () => {
     const columnsMatch = source.match(/const MEMBER_COLUMNS\s*=\s*"([^"]*)"/);
     expect(columnsMatch).not.toBeNull();
-    expect(columnsMatch![1]).toContain("team_role:roster_team_role");
+    expect(columnsMatch![1]).toContain("manages_a_team");
+    expect(columnsMatch![1]).not.toContain("roster_team_role");
   });
 
-  it("MemberRow declares team_role", () => {
+  it("AC-6: MemberRow declares manages_a_team: boolean;", () => {
     const memberRow = source.slice(
       source.indexOf("interface MemberRow"),
       source.indexOf("}", source.indexOf("interface MemberRow")),
     );
-    expect(memberRow).toContain('team_role: "member" | "manager" | null;');
+    expect(memberRow).toContain("manages_a_team: boolean;");
   });
 });
 

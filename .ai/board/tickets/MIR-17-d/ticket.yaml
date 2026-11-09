@@ -9,7 +9,7 @@ id: MIR-17-d
 title: "The member, entry and event affordances are scoped, the entry points ask per team, and the router gains role guards"
 feature_ids: [MIR-17]   # split of MIR-17 (operating model § ID scheme: splits get -a, -b)
 group: MIR
-state: READY
+state: REVIEW
 owner: ""
 branch: ""
 size_estimate: "M"   # S|M - set by tech-lead-design at PLAN; gates DoR
