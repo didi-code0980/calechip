@@ -28,6 +28,7 @@
 import { useCallback, useEffect, useState, type JSX } from "react";
 import { format, parseISO } from "date-fns";
 import { seam } from "@/lib/data";
+import { mayAdminister } from "@/lib/roles";
 import type {
   CalEvent,
   DirectoryMember,
@@ -135,7 +136,7 @@ export function inAudience(event: CalEvent, me: Member | null, invitees: readonl
     case "team":
       return me.teamId === event.teamId;
     case "named":
-      return me.role === "admin" ? invitees.includes(me.id) : true;
+      return mayAdminister(me.role) ? invitees.includes(me.id) : true;
   }
 }
 

@@ -34,6 +34,7 @@ import { useCallback, useEffect, useMemo, useState, type FormEvent, type JSX } f
 import { Link, useLocation, useNavigate, useParams } from "react-router-dom";
 import { format } from "date-fns";
 import { seam, type DataSeam, type SaveEventInput } from "@/lib/data";
+import { mayAdminister } from "@/lib/roles";
 import type { DirectoryMember, EventScope, Failure, Member } from "@/lib/domain/types";
 import Avatar from "@/components/Avatar";
 import Loader from "@/components/Loader";
@@ -279,7 +280,7 @@ function EventForm({
     for (const person of directory) {
       if (me !== null && person.id === me.id) continue;
       if (
-        me?.role !== "admin" &&
+        !(me !== null && mayAdminister(me.role)) &&
         person.teamId !== me?.teamId &&
         !initial.inviteeIds.includes(person.id)
       )

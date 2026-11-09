@@ -25,12 +25,18 @@ const FILES = [
   "src/routes/TeamEntries.tsx",
   "src/routes/Holidays.tsx",
   "src/components/AdminLayout.tsx",
+  // MIR-17-e, AC-4: the entry, event and navigation affordances.
+  "src/routes/EditEntry.tsx",
+  "src/routes/EventEditor.tsx",
+  "src/routes/EventDetail.tsx",
+  "src/components/EventAttendancePanel.tsx",
+  "src/components/Sidebar.tsx",
 ] as const;
 
 // 01-plan.md § 4.1: no match for this, after comments are stripped.
 const LITERAL_ROLE_TEST = /\brole\s*(!==|===)\s*"(admin|manager)"/;
 
-describe("MIR-17-b AC-4: the seven admin files ask the role helpers", () => {
+describe("MIR-17-b AC-4, MIR-17-e AC-4: the twelve files ask the role helpers", () => {
   for (const file of FILES) {
     const source = readFileSync(repoRoot + file, "utf8");
     const code = stripComments(source);
@@ -50,5 +56,13 @@ describe("MIR-17-b AC-3: Teams labels each person by their role", () => {
 
   it("AC-3: Teams.tsx reads the row's label from ROLE_LABELS", () => {
     expect(source).toContain("ROLE_LABELS[person.role]");
+  });
+});
+
+describe("MIR-17-e: roles.ts no longer carries the MIR-17 placeholder reason", () => {
+  const source = readFileSync(repoRoot + "src/lib/roles.ts", "utf8");
+
+  it("roles.ts does not contain \"kept for MIR-17\"", () => {
+    expect(source).not.toContain("kept for MIR-17");
   });
 });

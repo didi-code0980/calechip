@@ -44,6 +44,7 @@ import EntryDecision from "@/components/EntryDecision";
 import EntryForm from "@/components/EntryForm";
 import type { EntryFormValues } from "@/components/EntryForm";
 import { seam } from "@/lib/data";
+import { mayAdminister } from "@/lib/roles";
 // SOLO, 2026-09-10. The picker holds days, the row holds a range: this expands one into the other on
 // the way in, and `dateRuns` folds it back on the way out.
 import { dateRuns, datesInRange } from "@/lib/date-selection";
@@ -85,7 +86,7 @@ export default function EditEntry() {
       // branch, which answers `[]`, which is the refusal below: a caller with no member row has
       // nothing to edit, and INV-07 is why.
       const me = await seam.getCurrentMember();
-      const isAdmin = me?.role === "admin";
+      const isAdmin = me !== null && mayAdminister(me.role);
       setAdmin(isAdmin);
 
       const reachable = isAdmin ? await seam.listTeamEntries() : await seam.listOwnEntries();
