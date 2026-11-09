@@ -56,6 +56,9 @@ select set_eq(
     -- MIR-16-c helper, 310-manager-read-from-membership.test.sql. roster_team_role(public.member)
     -- is invoker and is not a security definer, so it is not in this census.
     'public.member_roster_team_role(uuid)',
+    -- MIR-17-d helper, 340-manages-a-team.test.sql. manages_a_team(public.member) is invoker and
+    -- is not a security definer, so it is not in this census.
+    'public.member_manages_a_team(uuid)',
     -- MIR-14 helper, 170-multi-team-decisions.test.sql
     'public.may_decide_entry(uuid,uuid)',
     -- MIR-14-b RPC, 180-entry-owners.test.sql
