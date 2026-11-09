@@ -103,7 +103,7 @@ import { usePageOverload } from "@/hooks/usePageOverload";
 import { seam } from "@/lib/data";
 import type { Entry, EntryOwner, EntryType, Member } from "@/lib/domain/types";
 import { PORTION_LABELS, TYPE_LABELS } from "@/lib/labels";
-import { mayDecide, mayDecideEntriesOf } from "@/lib/roles";
+import { mayDecide } from "@/lib/roles";
 // SOLO, 2026-09-11 — the loading mark that replaced this screen's "Loading…" sentence. The
 // sentence itself is still announced: `Loader.tsx` keeps it as `sr-only` text, because the element
 // below carries `role="status"` and an emptied one announces nothing.
@@ -192,7 +192,10 @@ type View =
       /** SOLO 2026-09-13, ADR-035 § Decision item 3. The caller, so a manager's OWN row can say who decides it. */
       me: Member;
       /** MIR-14-b. The owners `listEntryOwners` named, keyed by member id: the name a second-team
-       *  decider's roster cannot supply (ADR-072 decision 1), and the teams each entry affects. */
+       *  decider's roster cannot supply (ADR-072 decision 1), and the teams each entry affects.
+       *  MIR-17-c, ADR-090 decision 1: this is ALSO the set of owners the caller may decide — every
+       *  key answered `may_decide_entry` true for this caller, because that is `list_entry_owners`'
+       *  only filter. A row's controls and the screen's own refusal both read it for that reason. */
       owners: Map<string, EntryOwner>;
     };
 
@@ -256,10 +259,7 @@ export default function PendingEntries() {
       // is what AllowList.tsx and TeamEntries.tsx both chose for the same fork: it is not a true
       // sentence about why, and the alternative is drawing a worklist to somebody the seam has told
       // us nothing about.
-      // SOLO 2026-09-12, ADR-035. `mayDecide` and not `role !== "admin"`: this screen is a
-      // manager's one admin address. A caller with no member row still lands on `refused`, which is
-      // what the `!me` half carries and which the datastore enforces either way.
-      if (!me || !mayDecide(me.role)) {
+      if (!me) {
         setView({ phase: "refused" });
         return;
       }
@@ -285,6 +285,15 @@ export default function PendingEntries() {
         new Map(),
         await seam.listEntryOwners(unresolvedOwners(pageResult.rows, new Map())),
       );
+
+      // AC-5, ADR-090 decision 1. The refusal moves here from before the reads: "nothing to decide"
+      // can only be known once `owners` is in hand. A deciding rank admits the screen outright;
+      // without one, the caller is admitted only when `owners` named at least one row they may
+      // decide — `owners` IS the decidable set (see the field's own comment above).
+      if (!mayDecide(me.role) && owners.size === 0) {
+        setView({ phase: "refused" });
+        return;
+      }
 
       setView({
         phase: "ready",
@@ -681,15 +690,16 @@ export default function PendingEntries() {
 
                     `reload` and not a splice: a decided entry leaves this view because the next read
                     does not return it, and the count above falls for the same reason. */}
-                {/* SOLO 2026-09-13, ADR-035 § Decision item 3. A manager may not decide their OWN entry,
-                    and the trigger refuses it — so the controls are not drawn on that row rather than
-                    drawn to fail. An affordance only; the refusal is still the datastore's. */}
+                {/* MIR-17-c, ADR-073 decision 3, ADR-090. The controls are drawn exactly when this
+                    row's owner is among the owners `listEntryOwners` named — the per-team decider
+                    the database enforces (`may_decide_entry`), never the caller's global rank alone.
+                    An affordance only; the refusal is still the datastore's. */}
                 <div className="ml-auto shrink-0">
-                  {mayDecideEntriesOf(view.me, entry.memberId) ? (
+                  {view.owners.has(entry.memberId) ? (
                     <EntryDecision entry={entry} onDecided={reload} />
                   ) : (
                     <p data-testid="pending-entries-own-entry" className="text-xs text-ink-3">
-                      Your own entry — an admin decides it.
+                      You cannot decide this entry.
                     </p>
                   )}
                 </div>
