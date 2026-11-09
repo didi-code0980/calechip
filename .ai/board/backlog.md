@@ -23,6 +23,8 @@ planned, sized, and safe to build** — the next stage for a row here is IN_PROG
 | # | Ticket | Title | Size | Depends on |
 |---|--------|-------|------|------------|
 
+**`MIR-17-c` was at `READY` in `ticket.yaml`, moved to `REVIEW`** — recorded at /advance on 2026-11-09 from `03-impl-log.md` gate PASS (`produced_at: 2026-11-09T13:41:00Z`). There is no row for it in this table (see below); nothing to move.
+
 **`MIR-17-c` moved here at /advance on 2026-11-09**, from `01-plan.md` gate PASS (`produced_at: 2026-11-09T13:34:27Z`) with all six Definition of Ready items passing; `schema_delta: none` (confirmed at PLAN — `list_entry_owners` already answers `may_decide_entry`, no new RPC needed). PLAN wrote a new ADR, [ADR-090](../registry/decisions/ADR-090-the-worklist-decides-per-row-from-list-entry-owners-and-the-rest-of-p4-2-is-mir-17-d.md) (`ACCEPTED by tech-lead-design under the operator's delegation (ADR-067)`), narrowing MIR-17-c to the approval worklist and splitting the rest of plan item P4-2 to a new slice, `MIR-17-d` (BACKLOG) — the third successive split (ADR-088, ADR-089, ADR-090). `MIR-17-c` had no row in `## BACKLOG`, so no row left that table.
 
 **`MIR-17-b` shipped on 2026-11-08, `state: DONE`.** `features.md` row `MIR-17` left `PLANNED`: its own PLAN split the rest of plan item P4-2 to a new slice, `MIR-17-c` (still `BACKLOG`), which now owns the shared row's note. Moved to `## ARCHIVE`.
