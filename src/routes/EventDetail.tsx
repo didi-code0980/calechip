@@ -37,6 +37,7 @@
 import { useCallback, useEffect, useState, type JSX } from "react";
 import { Link, useLocation, useNavigate, useParams } from "react-router-dom";
 import { seam } from "@/lib/data";
+import { mayAdminister } from "@/lib/roles";
 import { format, parseISO } from "date-fns";
 import type {
   CalEvent,
@@ -81,10 +82,11 @@ const ACTION_BUTTON =
   "rounded-pill border border-line px-3 py-1.5 text-xs font-semibold text-ink-2 transition-colors " +
   "hover:border-ink-3 hover:text-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink";
 
-/** The creator or an admin — the affordance over `event_update_manage` (AC-17). Admin is asked as
- *  `role === "admin"` and never through `mayDecide`: a manager gains nothing here (Q9, Q24). */
+/** The creator, or an admin (ADR-092 decision 2) — the affordance over `event_update_manage`
+ *  (AC-17). Admin is asked through `mayAdminister` and never through `mayDecide`: a manager gains
+ *  nothing here (Q9, Q24). The database compares no team, so this does not either. */
 export function mayEditEvent(event: CalEvent, me: Member | null): boolean {
-  return me !== null && (me.id === event.creatorId || me.role === "admin");
+  return me !== null && (me.id === event.creatorId || mayAdminister(me.role));
 }
 
 /** EVT-08 AC-1. Splits on commas, semicolons and whitespace; drops empties. Order kept. */

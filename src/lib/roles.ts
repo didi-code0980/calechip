@@ -51,8 +51,13 @@ export const mayDecide = (role: MemberRole): boolean =>
  * MIR-07, 2026-10-23: and `approved`, which is `public.may_decide`'s `status = 'approved'` clause
  * (`20260912100000_solo_manager_role.sql:55-64`). The mock hands this function full rows it holds,
  * not only the seam's answer for an approved caller, so the clause cannot be left to the caller.
+ *
+ * MIR-17, 2026-11-09: this is the mock's decider (`src/lib/data/mock.ts`) and nothing reads it
+ * above the seam — the worklist decides per owner through `listEntryOwners` (ADR-090), not through
+ * this function. `ownerId` stays unused for the reason given above, not because of anything MIR-17
+ * changes.
  */
-// eslint-disable-next-line @typescript-eslint/no-unused-vars -- kept for MIR-17, see above
+// eslint-disable-next-line @typescript-eslint/no-unused-vars -- `ownerId` is unused; see the comment above
 export const mayDecideEntriesOf = (me: Member, ownerId: string): boolean =>
   me.status === "approved" && me.removedAt === null && mayDecide(me.role);
 
