@@ -23,6 +23,8 @@ planned, sized, and safe to build** — the next stage for a row here is IN_PROG
 | # | Ticket | Title | Size | Depends on |
 |---|--------|-------|------|------------|
 
+**`MIR-17-d` was at `REVIEW` in `ticket.yaml`, `gates.review` passed** — recorded at /advance on 2026-11-09 from `04-review.md` (`produced_at: 2026-11-09T21:06:00+07:00`): `gate: PASS`, `verdict: PASS`, `invariant_violation: false`, `route_to: none`. `state` stays `REVIEW`; `/ship` sets `DONE`. There is no row for it in this table (see below).
+
 **`MIR-17-d` was at `READY` in `ticket.yaml`, moved to `REVIEW`** — recorded at /advance on 2026-11-09 from `03-impl-log.md` gate PASS (`produced_at: 2026-11-09T21:03:21+07:00`). There is no row for it in this table (see below); nothing to move.
 
 **`MIR-17-d` moved here at /advance on 2026-11-09**, from `01-plan.md` gate PASS (`produced_at: 2026-11-09T13:56:42Z`) with all six Definition of Ready items passing; `schema_delta` cites [ADR-091](../registry/decisions/ADR-091-the-applications-manager-is-whoever-manages-a-team-and-the-rest-of-p4-2-is-mir-17-e.md) (`ACCEPTED by tech-lead-design under the operator's delegation (ADR-067)`), narrowing ADR-090 decision 2 — the rest of plan item P4-2 split to a new slice, `MIR-17-e` (BACKLOG), the fourth successive split (ADR-088, ADR-089, ADR-090, ADR-091). `MIR-17-d` had no row in `## BACKLOG`, so no row left that table.
