@@ -19,8 +19,10 @@ accepted decision.
 
 Counted on 2026-11-09 at `origin/main` `f6ac9da` (MIR-17-d shipped).
 
-- **Five literal role tests remain in entry, event and navigation components**: `EditEntry.tsx:88`,
-  `EventEditor.tsx:282`, `EventDetail.tsx:87`, `EventAttendancePanel.tsx:138` and `Sidebar.tsx:540`.
+- **Four literal role tests remain in entry and event components**: `EditEntry.tsx:88`,
+  `EventEditor.tsx:282`, `EventDetail.tsx:87` and `EventAttendancePanel.tsx:138`. *Until the re-plan
+  of 2026-11-09 this listed a fifth, `Sidebar.tsx:540`. That line is inside a JSX comment that has
+  rendered nothing since UIE-10 (MIR-17-e `04-review.md`, finding 1).*
 - **P4-2 says *"`mayEditEvent` currently has no team comparison"*** (`plan:242`). Since MIR-13 and
   MIR-16-b, the database rule it mirrors is `may_manage_event`. That rule admits the creator who
   holds an active team, or an org admin of the event's org
@@ -37,7 +39,7 @@ Counted on 2026-11-09 at `origin/main` `f6ac9da` (MIR-17-d shipped).
 
 ## Decision
 
-1. **MIR-17-e moves the five components onto `mayAdminister`.** No behaviour changes.
+1. **MIR-17-e moves the four components onto `mayAdminister`.** No behaviour changes.
 2. **`mayEditEvent` keeps *creator, or admin*.** P4-2's team-comparison bullet is answered by
    `may_manage_event`, which is org-bounded and has no team clause. Adding one on the client would
    draw a narrower affordance than the database grants.

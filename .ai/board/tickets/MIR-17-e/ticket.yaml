@@ -9,11 +9,11 @@ id: MIR-17-e
 title: "The member, entry and event affordances are scoped, the team picker is re-keyed, and the router gains role guards"
 feature_ids: [MIR-17]   # split of MIR-17 (operating model § ID scheme: splits get -a, -b)
 group: MIR
-state: REVIEW
+state: READY
 owner: ""
 branch: ""
 size_estimate: "M"   # S|M - set by tech-lead-design at PLAN; gates DoR
-size: "M"            # S|M|L|XL - 10 allowed_paths at /plan MIR-17-e; as ADR-091 described it, ~15 with a migration (L), so MemberList, the picker and router guards split to MIR-17-f (ADR-092)
+size: "M"            # S|M|L|XL - 9 allowed_paths after the re-plan of 2026-11-09 (Sidebar.tsx out; was 10 at /plan MIR-17-e); as ADR-091 described it, ~15 with a migration (L), so MemberList, the picker and router guards split to MIR-17-f (ADR-092)
 depends_on: [MIR-01, MIR-02, MIR-03, MIR-04, MIR-10, MIR-11, MIR-12, MIR-13, MIR-14, MIR-15, MIR-18, MIR-21, MIR-21-b, MIR-21-c, MIR-21-d, MIR-21-e, MIR-21-f, MIR-16, MIR-16-b, MIR-16-c, MIR-16-d, MIR-16-e, MIR-16-f, MIR-16-g, MIR-16-h, MIR-17, MIR-17-b, MIR-17-c, MIR-17-d]
 invariants_touched: []
 allowed_paths:
@@ -24,7 +24,6 @@ allowed_paths:
   - "src/routes/EventEditor.tsx"
   - "src/routes/EventDetail.tsx"
   - "src/components/EventAttendancePanel.tsx"
-  - "src/components/Sidebar.tsx"
   - "src/lib/roles.ts"
   - "tests/role-guards.test.ts"
 glossary_owed: []
@@ -35,7 +34,7 @@ chat_budget:
   developer->tech-lead-design: { used: 0, max: 6 }
 tracker: { provider: "", external_id: "", sync_enabled: false }
 gates:
-  plan:   { passed: true, at: "2026-11-09T15:06:45Z" }
+  plan:   { passed: true, at: "2026-11-09T15:46:00Z" }
   review: { passed: false, at: null }
 
 # --- MIR extra fields ---------------------------------------------------------------------------

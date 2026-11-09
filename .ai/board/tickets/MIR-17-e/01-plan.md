@@ -2,7 +2,7 @@
 ticket: MIR-17-e
 stage: PLAN
 agent: tech-lead-design
-produced_at: 2026-11-09T15:04:44Z
+produced_at: 2026-11-09T15:44:48Z   # re-plan after REVIEW FAIL R5; first written 2026-11-09T15:04:44Z
 inputs_read:
   - .ai/board/tickets/MIR-17-e/ticket.yaml
   - .ai/registry/features.md
@@ -40,7 +40,8 @@ next_state: READY
 `me.role !== "admin"` guard"*, and that *"`mayEditEvent` currently has no team comparison"*.
 **ADR-092**, written at this PLAN, does three things:
 
-- **decision 1** narrows MIR-17-e to the five remaining entry, event and navigation components;
+- **decision 1** narrows MIR-17-e to the remaining entry and event components (four live sites; the
+  fifth it named, `Sidebar.tsx:540`, is inside a comment, as the re-plan of 2026-11-09 found);
 - **decision 2** answers the `mayEditEvent` bullet from the database rule;
 - **decision 4** moves `MemberList`, the picker and router guards to MIR-17-f.
 
@@ -79,11 +80,13 @@ observed in the member app against the mock build. AC-4 is observed against the 
 - When Quan, Mona and Thanh are each signed in
 - Then the sidebar shows each the same links as before this ticket
 
-**AC-4 — the five components ask the helper**
-- When `EditEntry.tsx`, `EventEditor.tsx`, `EventDetail.tsx`, `EventAttendancePanel.tsx` and
-  `Sidebar.tsx` are read
+**AC-4 — the four components ask the helper, and the sidebar has no live literal test**
+- When `EditEntry.tsx`, `EventEditor.tsx`, `EventDetail.tsx` and `EventAttendancePanel.tsx` are read
 - Then none compares `role` with the literal `"admin"` or `"manager"` outside comments, and each
   imports `mayAdminister` from `@/lib/roles`
+- And when `Sidebar.tsx` is read, it compares `role` with no such literal outside comments. It is not
+  edited: its only occurrence (`:540`) is inside a JSX comment that has rendered nothing since UIE-10
+  (*amended at the re-plan of 2026-11-09; review finding 1*)
 
 **Invariants touched.** `[]`. No data path changes.
 
@@ -116,7 +119,6 @@ Mechanical replacements. Nothing else in these files changes:
 | `src/routes/EventEditor.tsx` | `:282` | `me?.role !== "admin"` | `!(me !== null && mayAdminister(me.role))` |
 | `src/routes/EventDetail.tsx` | `:87` | `me.role === "admin"` | `mayAdminister(me.role)` |
 | `src/components/EventAttendancePanel.tsx` | `:138` | `me.role === "admin"` | `mayAdminister(me.role)` |
-| `src/components/Sidebar.tsx` | `:540` | `member.role === "admin"` | `mayAdminister(member.role)` |
 
 Each file gains `import { mayAdminister } from "@/lib/roles";` unless it already has it. A comment
 beside a replaced test that names the literal names the helper instead. `EventDetail.tsx:85`'s
@@ -126,8 +128,13 @@ comment cites ADR-092 decision 2 for *"creator, or admin"*.
 say that the function is the mock's decider (`src/lib/data/mock.ts`), that the worklist decides per
 owner through `listEntryOwners` (ADR-090), and that `ownerId` is unused. The code is unchanged.
 
-**`tests/role-guards.test.ts`.** `FILES` (`:20-28`) gains the five paths above, and the describe's
-title says *"the twelve files"*. A new `it` asserts that `roles.ts` no longer contains *"kept for
+**`src/components/Sidebar.tsx` is not edited.** It was listed here until the re-plan of 2026-11-09,
+but its `:540` is inside a JSX comment (`:533-545`). Replacing it would add an import nothing uses,
+which fails lint (review finding 1, `04-review.md`).
+
+**`tests/role-guards.test.ts`.** `FILES` (`:20-28`) gains the four paths above and `Sidebar.tsx`. For
+`Sidebar.tsx`, AC-4 requires only the no-literal-comparison case, which it already satisfies. The
+describe's title says *"the twelve files"*. A new `it` asserts that `roles.ts` no longer contains *"kept for
 MIR-17"*.
 
 ## 5. Seam impact
@@ -149,12 +156,12 @@ allowed_paths:
   - "src/routes/EventEditor.tsx"
   - "src/routes/EventDetail.tsx"
   - "src/components/EventAttendancePanel.tsx"
-  - "src/components/Sidebar.tsx"
   - "src/lib/roles.ts"
   - "tests/role-guards.test.ts"
 ```
 
-`size: M`, from 10 paths, and `size_estimate` agrees. As ADR-091 described it, MIR-17-e was about 15
+`size: M`, from 9 paths (10 until the re-plan of 2026-11-09 removed `Sidebar.tsx`), and
+`size_estimate` agrees. As ADR-091 described it, MIR-17-e was about 15
 files with a migration, which is `L`. `MemberList`, the picker and router guards are MIR-17-f
 (ADR-092). MIR-20 now also depends on MIR-17-f. `glossary_owed` is `[]`.
 
@@ -175,6 +182,14 @@ files with a migration, which is `L`. `MemberList`, the picker and router guards
   - `MemberList`'s toggle needs a read `Member` cannot give, which split it to MIR-17-f.
 
   Amended by `tech-lead-design`.
+
+- `2026-11-09T15:44:48Z` — re-plan after REVIEW FAIL on R5 (`04-review.md` finding 1), raised by
+  `tech-lead-review` and amended by `tech-lead-design`. `Sidebar.tsx:540`, which § 4 and AC-4 named
+  as a live site, is inside a JSX comment. Its § 4 row is dropped, and AC-4 now requires the helper
+  import of the four live files only. It asserts only that `Sidebar.tsx` has no literal comparison in
+  code, which holds unchanged. `Sidebar.tsx` leaves `allowed_paths`, because the branch does not
+  change it. ADR-092 *Context* is corrected to match. AC-1 to AC-3 are unchanged. That was a gap in
+  this plan, which read the line without its surrounding comment, not a Developer defect.
 
 ## Delegated decisions
 
