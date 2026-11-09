@@ -23,6 +23,8 @@ planned, sized, and safe to build** — the next stage for a row here is IN_PROG
 | # | Ticket | Title | Size | Depends on |
 |---|--------|-------|------|------------|
 
+**`MIR-17-e` was at `REVIEW` in `ticket.yaml`, `gates.review` passed** — recorded at /advance on 2026-11-09 from `04-review.md` second pass (`produced_at: 2026-11-09T22:50:54+07:00`): `gate: PASS`, `verdict: PASS`, `invariant_violation: false`, `route_to: none`. The rework R5 finding is closed. `state` stays `REVIEW`; `/ship` sets `DONE`. There is no row for it in this table (see below).
+
 **`MIR-17-e` was at `READY` in `ticket.yaml`, moved to `REVIEW`** — recorded at /advance on 2026-11-09 from `03-impl-log.md` rework pass gate PASS (`produced_at: 2026-11-09T15:48:10Z`, second `/implement` pass: the `Sidebar.tsx` row left `allowed_paths` by the re-plan, so nothing there needed a Developer edit). `rework_count` stays `0`, unchanged from the REVIEW routing. There is no row for it in this table (see below); nothing to move.
 
 **`MIR-17-e` was at `REWORK` (routed to `tech-lead-design`), moved back to `READY`** — recorded at /advance on 2026-11-09 from the re-planned `01-plan.md` (`produced_at: 2026-11-09T15:44:48Z`, first written `2026-11-09T15:04:44Z`): `gate: PASS`, all six Definition of Ready items re-evaluated and passing. `src/components/Sidebar.tsx` is dropped from `allowed_paths` — the review found its § 4 row and AC-4's clause targeted `Sidebar.tsx:540`, which sits inside a JSX comment; adding the import there would be an unused-import lint error (R3 vs R5 conflict). `rework_count` stays `0` (RULE-08, upstream PLAN defect). There is no row for it in this table (see below); nothing to move.
