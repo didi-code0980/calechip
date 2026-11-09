@@ -2,12 +2,14 @@
 ticket: MIR-17-e
 stage: IN_PROGRESS
 agent: developer
-produced_at: 2026-11-09T15:14:09Z
+produced_at: 2026-11-09T15:48:10Z
 inputs_read:
   - .ai/board/tickets/MIR-17-e/01-plan.md
   - .ai/board/tickets/MIR-17-e/ticket.yaml
+  - .ai/board/tickets/MIR-17-e/04-review.md
   - .ai/registry/decisions/ADR-090-the-worklist-decides-per-row-from-list-entry-owners-and-the-rest-of-p4-2-is-mir-17-d.md
   - .ai/registry/decisions/ADR-091-the-applications-manager-is-whoever-manages-a-team-and-the-rest-of-p4-2-is-mir-17-e.md
+  - .ai/registry/decisions/ADR-092-the-entry-and-event-affordances-ask-the-role-helpers-and-the-rest-of-p4-2-is-mir-17-f.md
   - .ai/standards/testing-standards.md
   - src/lib/roles.ts
   - src/routes/EditEntry.tsx
@@ -23,6 +25,18 @@ blocking_reason: ""
 next_state: REVIEW
 ---
 
+**Rework note.** This is the second `/implement` pass on this ticket. The first pass's code was
+reviewed and FAILed on R5 for a defect in `01-plan.md` itself (`04-review.md` finding 1):
+§4's `Sidebar.tsx` row and AC-4's import clause named `src/components/Sidebar.tsx:540`, a line
+inside a JSX comment that has rendered nothing since UIE-10 — satisfying the row would have added
+an unused import and failed lint (R3). The review routed that finding to `tech-lead-design`
+(`route_to: tech-lead-design`, `increments_rework: false`), which re-planned `01-plan.md`: the
+`Sidebar.tsx` row is dropped, AC-4 is reworded to require only the four live files' import and
+`Sidebar.tsx`'s absence of a live literal, and `Sidebar.tsx` left `allowed_paths`. The code from the
+first pass already matched this outcome — it never touched `Sidebar.tsx` — so no source file changes
+in this pass. This log is rewritten against the corrected plan so it no longer frames the
+`Sidebar.tsx` exclusion as a developer deviation; it is now what §4 specifies.
+
 ## Files touched
 
 | file | created/modified | why | contract item it satisfies |
@@ -32,10 +46,11 @@ next_state: REVIEW
 | `src/routes/EventDetail.tsx` | modified | import `mayAdminister`, replace the literal admin check inside `mayEditEvent` at the old `:87`, and reword the doc comment above it to name the helper and cite ADR-092 decision 2 (§4 row 3, §4 "comment beside a replaced test") | §4 row 3 |
 | `src/components/EventAttendancePanel.tsx` | modified | import `mayAdminister` and replace the literal admin check inside `inAudience`'s `named` branch at the old `:138` with it (§4 row 4) | §4 row 4 |
 | `src/lib/roles.ts` | modified | reworded the `mayDecideEntriesOf` doc comment and the `eslint-disable-next-line` reason to say it is the mock's decider, that the worklist decides per owner through `listEntryOwners` (ADR-090), and that `ownerId` is unused — code unchanged (§4 "src/lib/roles.ts:44-57") | §4 roles.ts item |
-| `tests/role-guards.test.ts` | modified | added the five MIR-17-e paths to `FILES`, retitled the describe to "the twelve files", and added an `it` asserting `roles.ts` no longer contains `"kept for MIR-17"` (§4 "tests/role-guards.test.ts") | §4 test item |
+| `tests/role-guards.test.ts` | modified | added the four live MIR-17-e paths plus `Sidebar.tsx` to `FILES`, retitled the describe to "the twelve files", and added an `it` asserting `roles.ts` no longer contains `"kept for MIR-17"` (§4 "tests/role-guards.test.ts") | §4 test item |
 
-**`src/components/Sidebar.tsx` was read, edited, and reverted — see Deviations below.** It appears in
-no row because the diff against `HEAD` is empty.
+`src/components/Sidebar.tsx` is read (it is in `inputs_read` and in the test's `FILES` array) but not
+written — §4 says explicitly *"`src/components/Sidebar.tsx` is not edited"*, and it is no longer in
+`allowed_paths`. It appears in no row of this table because its diff against `HEAD` is empty.
 
 ## Contract items
 
@@ -46,53 +61,19 @@ no row because the diff against `HEAD` is empty.
 | `EventDetail.tsx` row | `src/routes/EventDetail.tsx:86-89` (import at `:40`) | comment reworded per §4's instruction for `:85`'s comment, citing ADR-092 decision 2 |
 | `EventAttendancePanel.tsx` row | `src/components/EventAttendancePanel.tsx:138` (import at `:31`) | unchanged otherwise |
 | `src/lib/roles.ts:44-57` | `src/lib/roles.ts:51-58` | comment and eslint-disable reason reworded; `mayDecideEntriesOf`'s body is byte-identical to before |
-| `tests/role-guards.test.ts` | `tests/role-guards.test.ts:20-33`, `:57-63` | `FILES` gains the five paths, describe title says "the twelve files", new `it` block added |
-| `Sidebar.tsx` row | **not applied — see Deviations** | |
+| `tests/role-guards.test.ts` | `tests/role-guards.test.ts:20-33`, `:57-63` | `FILES` gains the four live paths and `Sidebar.tsx` (five total), describe title says "the twelve files", new `it` block added |
+| `src/components/Sidebar.tsx` is not edited | n/a | §4 states this explicitly; AC-4's `Sidebar.tsx` clause (no live literal outside comments) already held before this ticket and still holds — verified by `tests/role-guards.test.ts`'s `LITERAL_ROLE_TEST` check on the file, which passes |
 
 ## Deviations from the design
 
-**The `Sidebar.tsx` row of §4's contract table was not applied, and the file is unchanged from
-`HEAD`.** The only occurrence in the file of the literal the table names (`member.role === "admin"`,
-at the line the table cites, `:540`) sits inside a large JSX comment (`{/* <nav>...</nav> */}`
-spanning roughly lines 496–546) that has rendered nothing since UIE-10 — the comment immediately
-above it (`:315-319`) says so explicitly: *"`const isAdmin = member.role === "admin";` stood here
-until UIE-10 ... removing them leaves it unused."* Grepping the file for every `.role` read
-(`:237`, `:240`, `:436`, `:440`, `:443`, `:603`) confirms there is no live comparison anywhere else —
-`member.role` is read only to *display* a word or group a roster row, never to branch.
-
-I made the replacement and the accompanying `import { mayAdminister } from "@/lib/roles";` addition
-as the table specified, then ran lint: `'mayAdminister' is defined but never used
-@typescript-eslint/no-unused-vars`. A reference inside a JSX comment is not a real AST reference, so
-the import had no live use — the gate (lint exits 0) and the contract's literal instruction are in
-direct conflict on this one file, and there is no way to satisfy both by editing only inside the
-comment, since adding any real usage would be inventing behaviour the contract itself says not to
-("Nothing else in these files changes").
-
-**I resolved this myself rather than spending a chat on it**, because AC-4 itself already settles it:
-*"none compares `role` with the literal `"admin"` or `"manager"` **outside comments**"* — the
-Sidebar.tsx occurrence is inside a comment, so AC-4's own wording exempts it, and it was already true
-before this ticket touched the file. AC-4's second clause, *"each imports `mayAdminister` from
-`@/lib/roles`,"* is also satisfied without my edit: `tests/role-guards.test.ts`'s import assertion
-(`expect(source).toMatch(/from\s+"@\/lib\/roles"/)`) checks only that the file imports *something*
-from `@/lib/roles`, and `Sidebar.tsx` already does (`ROLE_LABELS`, unchanged). Both the acceptance
-criterion as written and the test that encodes it pass with `Sidebar.tsx` left exactly as it was.
-
-I therefore reverted both edits (the import and the dead-code line) rather than carry a lint failure
-or an inline disable, and left the file's diff empty. This is a **delegated decision**, not a design
-amendment — nothing about intended behaviour changed, and the five other files' replacements are
-unaffected. Flagging it here rather than widening a chat budget entry, per the instruction not to
-raise a question I can already recommend an answer to.
-
-## Delegated decisions
-
-- **`Sidebar.tsx`'s contract row targets dead code (a commented-out block since UIE-10) and cannot be
-  satisfied without breaking the lint gate.** Left the file unchanged; AC-4 and its encoding test
-  (`tests/role-guards.test.ts`) both already pass against the file as it stood before this ticket.
-  See *Deviations* above for the full reasoning.
+`none`. The first pass's exclusion of `Sidebar.tsx` was recorded as a delegated decision in the prior
+version of this log; the review (R5 FAIL, routed to `tech-lead-design`) and the subsequent re-plan
+confirmed that decision was correct and folded it into §2 AC-4 and §4 directly, so it is no longer a
+deviation — it is what the current plan specifies. No other change was made in this pass.
 
 ## Invariants
 
-`invariants_touched: []` (ticket.yaml). No data path changes — every edit replaces one client-side
+`invariants_touched: []` (`ticket.yaml`). No data path changes — every edit replaces one client-side
 boolean expression with an equivalent call to the same already-shipped helper (`mayAdminister`); no
 control, policy or trigger is touched.
 
@@ -100,13 +81,13 @@ control, policy or trigger is touched.
 
 | Command | Exit | Notes |
 |---------|------|-------|
-| `node scripts/check-allowed-paths.mjs` | 0 | 6 changed files, all within `allowed_paths` |
-| `node scripts/check-carry.mjs MIR-17-e` | 0 | 7 uncommitted paths, all carried from `allowed_paths` |
+| `node scripts/check-allowed-paths.mjs` | 0 | 14 changed files total across history; all within the current `allowed_paths` (9 entries, `Sidebar.tsx` absent) |
+| `node scripts/check-carry.mjs MIR-17-e` | 0 | 0 uncommitted paths — this pass's code was already committed at the prior `/advance`; nothing stray |
 | `pnpm exec tsc --noEmit` | 0 | |
-| `pnpm exec eslint .` | 0 | failed once mid-work on `Sidebar.tsx`'s now-reverted unused import; 0 after revert |
+| `pnpm exec eslint .` | 0 | |
 | `pnpm exec vitest run tests/role-guards.test.ts` | 0 | 26/26 passed, including the new `it` |
-| `pnpm exec vitest run` | non-zero, see note | every test that completed passed (974/974, then 915/928 on a second run); the non-zero exit both times came from vitest's fork pool crashing several worker processes with a Node OOM on this machine, not from a failing assertion — unrelated to this ticket's files, and not among this stage's gate commands (typecheck and lint only) |
-| `git diff --name-only` subset of `allowed_paths` | yes | `EventAttendancePanel.tsx`, `roles.ts`, `EditEntry.tsx`, `EventDetail.tsx`, `EventEditor.tsx`, `role-guards.test.ts` — `Sidebar.tsx` is not in the diff (reverted to `HEAD`) |
+| `git diff --name-only origin/main...HEAD -- src tests` | — | `EventAttendancePanel.tsx`, `roles.ts`, `EditEntry.tsx`, `EventDetail.tsx`, `EventEditor.tsx`, `role-guards.test.ts` — `Sidebar.tsx` is not among them |
+| `git diff --name-only` subset of `allowed_paths` | yes | working tree is clean (all committed); vacuously true, and the committed set above is a subset of `allowed_paths` |
 
 ## Testability contract
 
@@ -115,4 +96,4 @@ this ticket changes no screen).
 
 ## Open questions
 
-None that block. The `Sidebar.tsx` deviation is recorded above and resolved, not open.
+None that block.
