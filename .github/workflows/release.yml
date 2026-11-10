@@ -27,20 +27,32 @@ concurrency:
   group: release-${{ github.ref }}
   cancel-in-progress: false
 
+# STAGING (docs/ops/staging.md): a clone sets IMAGE_NAME, DEPLOY_FILE and DEPLOY_ENVIRONMENT as
+# Actions variables. Unset, each falls back to production, which is what this repository uses.
 env:
-  IMAGE: mingming21400/calechip
+  IMAGE: ${{ vars.IMAGE_NAME || 'mingming21400/calechip' }}
   # The one file the deployment pull request changes. CICD-05's compose reads CALECHIP_IMAGE from it.
-  DEPLOY_FILE: apps/calechip/release.env
+  DEPLOY_FILE: ${{ vars.DEPLOY_FILE || 'apps/calechip/release.env' }}
 
 jobs:
   release:
     runs-on: ubuntu-latest
-    environment: prod
+    environment: ${{ vars.DEPLOY_ENVIRONMENT || 'prod' }}
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@v7
         with:
           fetch-depth: 0
+
+      # Any repository other than the production one must name its own image and its own deployment
+      # file, so a staging release can never promote a production tag or open a production deploy.
+      - name: not production target
+        if: github.repository != 'didi-code0980/calechip'
+        run: |
+          if [ "$IMAGE" = "mingming21400/calechip" ] || [ "$DEPLOY_FILE" = "apps/calechip/release.env" ]; then
+            echo "::error::$GITHUB_REPOSITORY is not the production repository but targets production ($IMAGE, $DEPLOY_FILE). Set IMAGE_NAME and DEPLOY_FILE (docs/ops/staging.md). Nothing was promoted."
+            exit 1
+          fi
 
       - name: inputs present
         env:
@@ -147,8 +159,11 @@ jobs:
           TARGET: ${{ steps.version.outputs.target }}
           DIGEST: ${{ steps.source.outputs.digest }}
         run: |
-          branch="release/calechip-${TAG}"
           dir="$(dirname "$DEPLOY_FILE")"
+          # The app folder names the branch and the commit: calechip in production, calechip-staging
+          # in a staging clone, so the two never share a release branch in the deployment repository.
+          app="$(basename "$dir")"
+          branch="release/${app}-${TAG}"
           if [ ! -d "$dir" ]; then
             echo "::error::$DEPLOY_REPO has no $dir/ on main. Apply the CaleChip layout there first (CICD-05). Nothing was pushed."
             exit 1
@@ -177,10 +192,10 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add -- "$DEPLOY_FILE"
-          git commit -m "calechip ${TAG}"
+          git commit -m "${app} ${TAG}"
           git push origin "$branch"
           url="$(gh pr create --repo "$DEPLOY_REPO" --base main --head "$branch" \
-            --title "calechip ${TAG}" \
+            --title "${app} ${TAG}" \
             --body "Pins CaleChip to \`${TARGET}@${DIGEST}\`, built from ${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/commit/${COMMIT}. Opened by ${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}. Merging deploys it.")"
           echo "url=$url" >> "$GITHUB_OUTPUT"
 

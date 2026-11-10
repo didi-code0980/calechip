@@ -27,16 +27,28 @@ concurrency:
   group: build-image-${{ github.sha }}
   cancel-in-progress: false
 
+# STAGING (docs/ops/staging.md): a clone of this repository sets the Actions variables IMAGE_NAME
+# and DEPLOY_ENVIRONMENT. Unset, both fall back to production, which is what this repository uses.
 env:
-  IMAGE: mingming21400/calechip
+  IMAGE: ${{ vars.IMAGE_NAME || 'mingming21400/calechip' }}
 
 jobs:
   build-image:
     runs-on: ubuntu-latest
-    environment: prod
+    environment: ${{ vars.DEPLOY_ENVIRONMENT || 'prod' }}
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@v7
+
+      # Any repository other than the production one must name its own image, so a staging clone
+      # can never push over a production :sha-<7> tag.
+      - name: not production image
+        if: github.repository != 'didi-code0980/calechip'
+        run: |
+          if [ "$IMAGE" = "mingming21400/calechip" ]; then
+            echo "::error::$GITHUB_REPOSITORY is not the production repository but would push to the production image $IMAGE. Set the Actions variable IMAGE_NAME (docs/ops/staging.md). Nothing was built."
+            exit 1
+          fi
 
       - name: secrets present
         env:

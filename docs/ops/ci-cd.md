@@ -264,6 +264,7 @@ workflow is right.**
   restore mechanism, the runner and its label.
 - [deployment-repo/runner-setup.md](deployment-repo/runner-setup.md) — setting up the self-hosted
   runner `mmlabs-server`, and its three verifications.
+- [staging.md](staging.md) — a staging copy in `mmlabs-online`, and the variables that keep it off production.
 - [e2e-quarantine.md](e2e-quarantine.md) — quarantining a failing end-to-end test (ADR-060).
 - [.ai/standards/tech-stack.md § Build and deployment](../../.ai/standards/tech-stack.md#build-and-deployment)
   — the build and deployment facts every agent stage reads.
